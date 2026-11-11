@@ -4,6 +4,7 @@ import {
   IconChecks,
   IconDownload,
   IconFile,
+  IconPhoto,
   IconSelectAll,
 } from "@tabler/icons-react";
 import type { Message } from "../../types";
@@ -81,30 +82,12 @@ export function MessageBubble({
             ) : null}
             {media?.kind === "photo" ? (
               <div className="photo-card">
-                <svg
-                  className="photo-art"
-                  viewBox="0 0 320 190"
-                  preserveAspectRatio="xMidYMid slice"
-                  aria-hidden="true"
-                >
-                  <defs>
-                    <linearGradient id={`sky-${message.id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0" stopColor="#8eb9de" />
-                      <stop offset="1" stopColor="#e9f2f8" />
-                    </linearGradient>
-                  </defs>
-                  <rect width="320" height="190" fill={`url(#sky-${message.id})`} />
-                  <circle cx="248" cy="46" r="17" fill="#f7e1a8" />
-                  <path
-                    d="M0 150 L62 92 L108 126 L164 72 L224 132 L278 92 L320 128 L320 190 L0 190Z"
-                    fill="#6b8ba4"
-                  />
-                  <path
-                    d="M0 164 L72 120 L128 154 L196 108 L258 150 L320 118 L320 190 L0 190Z"
-                    fill="#36566d"
-                  />
-                </svg>
-                <span className="photo-caption">{media.name}</span>
+                <span className="photo-placeholder" aria-hidden="true">
+                  <IconPhoto size={26} stroke={1.6} />
+                </span>
+                <span className="photo-caption">
+                  {media.name || t("media.photo")}
+                </span>
               </div>
             ) : media ? (
               <div className="message-file">

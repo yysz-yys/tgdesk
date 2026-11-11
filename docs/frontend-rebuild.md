@@ -104,6 +104,18 @@ exposed by `Self.Restricted` in this Kernel version, so the sidebar warning
 renders only when that flag is present; the official banner remains unverified
 for this account.
 
+## Chat surface pass
+
+- Sidebar is 420px at the target viewport; chat header is 56px; composer measures
+  59px with the current padding.
+- The Telegram info panel is a real third column at desktop widths and only
+  becomes an overlay below 980px.
+- Message photos no longer draw a fabricated mountain illustration. The kernel
+  exposes media metadata but not thumbnails, so the bubble shows an explicit
+  photo placeholder with the file name; the info panel shows real media entries
+  from the loaded messages.
+- Loading/failed message states and the jump-to-latest control remain intact.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,
