@@ -95,6 +95,9 @@ export interface MessageDTO {
     "text"?: string;
     "date": number;
     "checks"?: string;
+    "forwarded"?: boolean;
+    "forwardedFrom"?: string;
+    "forwardedDate"?: number;
     "media"?: MessageMediaDTO | null;
 }
 
@@ -104,6 +107,11 @@ export interface MessageMediaDTO {
     "size"?: string;
     "ext"?: string;
     "color"?: string;
+    "sizeBytes"?: number;
+    "duration"?: number;
+    "width"?: number;
+    "height"?: number;
+    "mime"?: string;
 }
 
 /**

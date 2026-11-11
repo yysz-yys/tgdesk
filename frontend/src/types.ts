@@ -59,7 +59,11 @@ export interface MessageMedia {
   name: string;
   size?: string;
   ext?: string;
-  duration?: string;
+  duration?: number;
+  width?: number;
+  height?: number;
+  sizeBytes?: number;
+  mime?: string;
   color?: string;
 }
 
@@ -72,6 +76,9 @@ export interface Message {
   time: string;
   date: string;
   checks?: "sent" | "read";
+  forwarded?: boolean;
+  forwardedFrom?: string;
+  forwardedDate?: number;
   media?: MessageMedia;
   tail?: boolean;
 }

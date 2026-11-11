@@ -21,6 +21,11 @@ export interface KernelMessageMedia {
   size?: string;
   ext?: string;
   color?: string;
+  duration?: number;
+  width?: number;
+  height?: number;
+  sizeBytes?: number;
+  mime?: string;
 }
 
 export interface KernelMessage {
@@ -31,6 +36,9 @@ export interface KernelMessage {
   text?: string;
   date: number;
   checks?: string;
+  forwarded?: boolean;
+  forwardedFrom?: string;
+  forwardedDate?: number;
   media?: KernelMessageMedia | null;
 }
 
@@ -185,6 +193,11 @@ function mapMedia(
     name: localizedPreview(media.name || "File", t),
     size: media.size || undefined,
     ext: media.ext || undefined,
+    duration: media.duration || undefined,
+    width: media.width || undefined,
+    height: media.height || undefined,
+    sizeBytes: media.sizeBytes || undefined,
+    mime: media.mime || undefined,
     color: media.color || undefined,
   };
 }
@@ -206,6 +219,9 @@ export function mapMessage(
     date: formatMessageDate(date, language, t, now),
     checks:
       message.checks === "read" ? "read" : message.out ? "sent" : undefined,
+    forwarded: Boolean(message.forwarded),
+    forwardedFrom: message.forwardedFrom || undefined,
+    forwardedDate: message.forwardedDate || undefined,
     media: mapMedia(message.media, t),
     tail: true,
   };

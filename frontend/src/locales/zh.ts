@@ -81,6 +81,8 @@ export default {
     chatInfo: "聊天信息",
     chatMenu: "聊天菜单",
     call: "通话",
+    forwarded: "转发消息",
+    forwardedFromName: "转发自 {{name}}",
     messagePlaceholder: "输入消息…",
     send: "发送",
     attach: "添加附件",

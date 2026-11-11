@@ -1,9 +1,11 @@
 import { useTranslation } from "react-i18next";
 import {
+  IconArrowForwardUp,
   IconCheck,
   IconChecks,
   IconDownload,
   IconFile,
+  IconPlayerPlay,
   IconSelectAll,
 } from "@tabler/icons-react";
 import type { Message } from "../../types";
@@ -74,6 +76,14 @@ export function MessageBubble({
           </span>
 
           <div className="message-bubble" data-tail={message.tail}>
+            {message.forwarded ? (
+              <span className="message-forwarded">
+                <IconArrowForwardUp size={13} stroke={1.9} />
+                {message.forwardedFrom
+                  ? t("chat.forwardedFromName", { name: message.forwardedFrom })
+                  : t("chat.forwarded")}
+              </span>
+            ) : null}
             {showSender && !message.out && message.sender ? (
               <span
                 className="message-sender"
@@ -82,7 +92,22 @@ export function MessageBubble({
                 {message.sender}
               </span>
             ) : null}
-            {media?.kind === "photo" ? (
+            {media?.kind === "video" ? (
+              <div className="video-card">
+                <MediaThumb
+                  chatID={message.chatId}
+                  messageID={message.id}
+                  alt={media.name}
+                  onLoad={onLoadThumbnail}
+                />
+                <span className="video-play" aria-hidden="true">
+                  <IconPlayerPlay size={24} />
+                </span>
+                <span className="video-meta">
+                  {media.duration ? formatDuration(media.duration) : media.size}
+                </span>
+              </div>
+            ) : media?.kind === "photo" ? (
               <div className="photo-card">
                 <MediaThumb
                   chatID={message.chatId}
@@ -106,6 +131,10 @@ export function MessageBubble({
                   <span className="file-name">{media.name}</span>
                   <span className="file-size">
                     {media.size}
+                    {media.duration ? ` · ${formatDuration(media.duration)}` : ""}
+                    {media.width && media.height
+                      ? ` · ${media.width}×${media.height}`
+                      : ""}
                     {media.ext ? ` · ${media.ext}` : ""}
                   </span>
                 </span>
@@ -148,4 +177,10 @@ export function MessageBubble({
       </ContextMenuContent>
     </ContextMenu>
   );
+}
+
+function formatDuration(seconds: number): string {
+  const value = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(value / 60);
+  return `${minutes}:${String(value % 60).padStart(2, "0")}`;
 }

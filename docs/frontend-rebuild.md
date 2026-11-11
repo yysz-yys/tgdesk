@@ -179,6 +179,18 @@ Verified against a live photo message: the `img` arrived at 800×334 natural
 size and the cached thumbnail was 76 KB. No thumbnail or tdata file is tracked
 by git.
 
+## Forward and video metadata
+
+`MessageDTO` now carries the forward header (sender name / original date) and
+`MessageMediaDTO` carries raw bytes, MIME, duration, width and height. The chat
+renders Telegram-style video cards with a play badge and duration, and forwarded
+messages get an accent “Forwarded from …” line. File rows include duration and
+dimensions when Telegram supplies them.
+
+Verified in the live chat: two video cards rendered, with duration metadata
+(`0:02`) and file sizes. Forward headers are rendered when the loaded messages
+contain them.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

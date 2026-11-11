@@ -31,22 +31,30 @@ type ChatDTO struct {
 }
 
 type MessageMediaDTO struct {
-	Kind  string `json:"kind"`
-	Name  string `json:"name"`
-	Size  string `json:"size,omitempty"`
-	Ext   string `json:"ext,omitempty"`
-	Color string `json:"color,omitempty"`
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Size      string `json:"size,omitempty"`
+	Ext       string `json:"ext,omitempty"`
+	Color     string `json:"color,omitempty"`
+	SizeBytes int64  `json:"sizeBytes,omitempty"`
+	Duration  int    `json:"duration,omitempty"`
+	Width     int    `json:"width,omitempty"`
+	Height    int    `json:"height,omitempty"`
+	Mime      string `json:"mime,omitempty"`
 }
 
 type MessageDTO struct {
-	ID     int              `json:"id"`
-	ChatID string           `json:"chatId"`
-	Out    bool             `json:"out"`
-	Sender string           `json:"sender,omitempty"`
-	Text   string           `json:"text,omitempty"`
-	Date   int64            `json:"date"`
-	Checks string           `json:"checks,omitempty"`
-	Media  *MessageMediaDTO `json:"media,omitempty"`
+	ID            int              `json:"id"`
+	ChatID        string           `json:"chatId"`
+	Out           bool             `json:"out"`
+	Sender        string           `json:"sender,omitempty"`
+	Text          string           `json:"text,omitempty"`
+	Date          int64            `json:"date"`
+	Checks        string           `json:"checks,omitempty"`
+	Forwarded     bool             `json:"forwarded,omitempty"`
+	ForwardedFrom string           `json:"forwardedFrom,omitempty"`
+	ForwardedDate int64            `json:"forwardedDate,omitempty"`
+	Media         *MessageMediaDTO `json:"media,omitempty"`
 }
 
 // GetChats loads the first dialogs with a short-lived client. A one-shot client
@@ -315,6 +323,17 @@ func mapMessage(chatID string, msg *tg.Message, senders map[int64]string) Messag
 	if msg.Out {
 		item.Checks = "sent"
 	}
+	if fwd, ok := msg.GetFwdFrom(); ok {
+		item.Forwarded = true
+		item.ForwardedDate = int64(fwd.Date)
+		item.ForwardedFrom = fwd.FromName
+		if item.ForwardedFrom == "" {
+			item.ForwardedFrom = senderName(fwd.FromID, senders)
+		}
+		if item.ForwardedFrom == "" {
+			item.ForwardedFrom = fwd.PostAuthor
+		}
+	}
 	item.Media = mapMedia(msg.Media)
 	return item
 }
@@ -335,14 +354,20 @@ func senderName(from tg.PeerClass, senders map[int64]string) string {
 func mapMedia(media tg.MessageMediaClass) *MessageMediaDTO {
 	switch m := media.(type) {
 	case *tg.MessageMediaPhoto:
-		if _, ok := m.Photo.(*tg.Photo); !ok {
+		photo, ok := m.Photo.(*tg.Photo)
+		if !ok {
 			return nil
 		}
+		width, height := photoDimensions(photo)
 		return &MessageMediaDTO{
-			Kind:  "photo",
-			Name:  "Photo",
-			Ext:   "JPG",
-			Color: "#65aadd",
+			Kind:      "photo",
+			Name:      "Photo",
+			Ext:       "JPG",
+			Color:     "#65aadd",
+			SizeBytes: int64(photoSizeBytes(photo)),
+			Width:     width,
+			Height:    height,
+			Mime:      "image/jpeg",
 		}
 	case *tg.MessageMediaDocument:
 		doc, ok := m.Document.(*tg.Document)
@@ -357,13 +382,26 @@ func mapMedia(media tg.MessageMediaClass) *MessageMediaDTO {
 			}
 		}
 		kind, ext, color := classifyDocument(doc)
-		return &MessageMediaDTO{
-			Kind:  kind,
-			Name:  name,
-			Size:  humanSize(doc.Size),
-			Ext:   ext,
-			Color: color,
+		item := &MessageMediaDTO{
+			Kind:      kind,
+			Name:      name,
+			Size:      humanSize(doc.Size),
+			Ext:       ext,
+			Color:     color,
+			SizeBytes: doc.Size,
+			Mime:      doc.MimeType,
 		}
+		for _, attr := range doc.Attributes {
+			switch value := attr.(type) {
+			case *tg.DocumentAttributeVideo:
+				item.Duration = int(value.Duration)
+				item.Width = value.W
+				item.Height = value.H
+			case *tg.DocumentAttributeAudio:
+				item.Duration = value.Duration
+			}
+		}
+		return item
 	case *tg.MessageMediaGeo, *tg.MessageMediaGeoLive:
 		return &MessageMediaDTO{Kind: "file", Name: "Location", Color: "#5fb3a1"}
 	case *tg.MessageMediaContact:
@@ -373,6 +411,40 @@ func mapMedia(media tg.MessageMediaClass) *MessageMediaDTO {
 	default:
 		return nil
 	}
+}
+
+func photoDimensions(photo *tg.Photo) (int, int) {
+	width, height := 0, 0
+	for _, size := range photo.Sizes {
+		switch value := size.(type) {
+		case *tg.PhotoSize:
+			if value.W*value.H > width*height {
+				width, height = value.W, value.H
+			}
+		case *tg.PhotoSizeProgressive:
+			if value.W*value.H > width*height {
+				width, height = value.W, value.H
+			}
+		}
+	}
+	return width, height
+}
+
+func photoSizeBytes(photo *tg.Photo) int {
+	size := 0
+	for _, item := range photo.Sizes {
+		switch value := item.(type) {
+		case *tg.PhotoSize:
+			if value.Size > size {
+				size = value.Size
+			}
+		case *tg.PhotoSizeProgressive:
+			if len(value.Sizes) > 0 && value.Sizes[len(value.Sizes)-1] > size {
+				size = value.Sizes[len(value.Sizes)-1]
+			}
+		}
+	}
+	return size
 }
 
 func classifyDocument(doc *tg.Document) (kind, ext, color string) {

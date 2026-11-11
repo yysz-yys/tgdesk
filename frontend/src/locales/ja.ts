@@ -81,6 +81,8 @@ export default {
     chatInfo: "チャット情報",
     chatMenu: "チャットメニュー",
     call: "通話",
+    forwarded: "転送されたメッセージ",
+    forwardedFromName: "{{name}} からの転送",
     messagePlaceholder: "メッセージを入力…",
     send: "送信",
     attach: "ファイルを添付",

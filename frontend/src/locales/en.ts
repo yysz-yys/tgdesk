@@ -81,6 +81,8 @@ export default {
     chatInfo: "Chat info",
     chatMenu: "Chat menu",
     call: "Call",
+    forwarded: "Forwarded message",
+    forwardedFromName: "Forwarded from {{name}}",
     messagePlaceholder: "Write a message…",
     send: "Send",
     attach: "Attach file",
