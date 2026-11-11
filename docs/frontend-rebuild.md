@@ -263,6 +263,13 @@ Service actions now carry a structured kind/actor/value from the kernel and are
 formatted in the React language instead of being fixed English. Verified live:
 `ADKillerBot joined the group` renders as `ADKillerBot 加入了群组` in Chinese.
 
+## Settings links and shortcuts
+
+The Telegram FAQ and Telegram features rows now open real official URLs through
+the Wails browser opener, and Keyboard shortcuts is a real reference page. This
+replaces three more settings placeholders. Verified live: FAQ had 4 links and
+the shortcuts page had 6 rows.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

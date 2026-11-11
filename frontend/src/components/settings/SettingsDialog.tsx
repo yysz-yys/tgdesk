@@ -1,4 +1,5 @@
 import { useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { Browser } from "@wailsio/runtime";
 import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Select from "@radix-ui/react-select";
@@ -35,6 +36,9 @@ type Section =
   | "chat"
   | "folders"
   | "language"
+  | "faq"
+  | "shortcuts"
+  | "features"
   | "appearance"
   | "downloads"
   | "network"
@@ -62,9 +66,9 @@ const SETTINGS_ITEMS: SettingsItem[] = [
   { id: "stars", labelKey: "settings.list.stars" },
   { id: "business", labelKey: "settings.list.business" },
   { id: "gifts", labelKey: "settings.list.gifts" },
-  { id: "faq", labelKey: "settings.list.faq" },
-  { id: "shortcuts", labelKey: "settings.list.shortcuts" },
-  { id: "features", labelKey: "settings.list.features" },
+  { id: "faq", labelKey: "settings.list.faq", section: "faq" },
+  { id: "shortcuts", labelKey: "settings.list.shortcuts", section: "shortcuts" },
+  { id: "features", labelKey: "settings.list.features", section: "features" },
   { id: "ask", labelKey: "settings.list.ask" },
   { id: "downloads", labelKey: "settings.list.downloads", section: "downloads" },
   { id: "network", labelKey: "settings.list.network", section: "network" },
@@ -353,6 +357,68 @@ export function SettingsDialog({
         </SettingRow>
       </SettingsGroup>
     </>
+  );
+
+  const renderFaq = () => (
+    <SettingsGroup title={t("settings.faq.title")}>
+      <p className="settings-note">{t("settings.faq.note")}</p>
+      {[
+        ["faq", "https://telegram.org/faq"],
+        ["blog", "https://telegram.org/blog"],
+        ["support", "https://telegram.org/support"],
+        ["privacy", "https://telegram.org/privacy"],
+      ].map(([key, url]) => (
+        <button
+          key={key}
+          type="button"
+          className="settings-link-row"
+          onClick={() => void Browser.OpenURL(url)}
+        >
+          <span>{t(`settings.faq.${key}`)}</span>
+          <IconChevronRight size={17} />
+        </button>
+      ))}
+    </SettingsGroup>
+  );
+
+  const renderShortcuts = () => (
+    <SettingsGroup title={t("settings.shortcuts.title")}>
+      <p className="settings-note">{t("settings.shortcuts.note")}</p>
+      {[
+        ["search", "Ctrl + F"],
+        ["folders", "Ctrl + Shift + F"],
+        ["newMessage", "Ctrl + N"],
+        ["send", "Enter"],
+        ["newline", "Shift + Enter"],
+        ["close", "Esc"],
+      ].map(([key, value]) => (
+        <div className="settings-shortcut-row" key={key}>
+          <span>{t(`settings.shortcuts.${key}`)}</span>
+          <kbd>{value}</kbd>
+        </div>
+      ))}
+    </SettingsGroup>
+  );
+
+  const renderFeatures = () => (
+    <SettingsGroup title={t("settings.features.title")}>
+      <p className="settings-note">{t("settings.features.note")}</p>
+      {[
+        ["chats", "https://telegram.org/blog"],
+        ["media", "https://telegram.org/blog"],
+        ["security", "https://telegram.org/faq#security"],
+      ].map(([key, url]) => (
+        <button
+          key={key}
+          type="button"
+          className="settings-link-row"
+          onClick={() => void Browser.OpenURL(url)}
+        >
+          <span>{t(`settings.features.${key}`)}</span>
+          <IconChevronRight size={17} />
+        </button>
+      ))}
+    </SettingsGroup>
   );
 
   const renderPrivacy = () => (
@@ -943,6 +1009,12 @@ export function SettingsDialog({
         return renderFolders();
       case "language":
         return renderLanguage();
+      case "faq":
+        return renderFaq();
+      case "shortcuts":
+        return renderShortcuts();
+      case "features":
+        return renderFeatures();
       case "appearance":
         return renderAppearance();
       case "downloads":
