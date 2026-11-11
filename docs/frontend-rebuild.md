@@ -115,6 +115,10 @@ for this account.
   photo placeholder with the file name; the info panel shows real media entries
   from the loaded messages.
 - Loading/failed message states and the jump-to-latest control remain intact.
+- Chat search is now a real atomic bar under the chat header. It filters the
+  loaded messages by sender, text and media name, reports the result count and
+  shows an explicit empty state. The kernel has no server-side search endpoint;
+  the UI labels this as search over loaded messages.
 
 ## Next page-sized slices
 

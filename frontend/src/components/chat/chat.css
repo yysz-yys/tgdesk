@@ -40,6 +40,50 @@
   height: 38px;
 }
 
+.tg-chat-search {
+  display: flex;
+  height: 48px;
+  flex: 0 0 48px;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--tg-divider);
+  background: var(--tg-sidebar);
+  padding: 0 8px 0 14px;
+  color: var(--tg-secondary);
+}
+
+.tg-chat-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--tg-text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.tg-chat-search input::placeholder {
+  color: var(--tg-muted);
+}
+
+.tg-chat-search-count,
+.tg-chat-search-hint {
+  flex: 0 0 auto;
+  color: var(--tg-secondary);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.tg-chat-search-count {
+  color: var(--tg-accent);
+}
+
+.tg-chat-search .icon-button {
+  width: 32px;
+  height: 32px;
+}
+
 .tg-chat-message-area {
   display: flex;
   min-height: 0;

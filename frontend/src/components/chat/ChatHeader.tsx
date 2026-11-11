@@ -15,7 +15,9 @@ import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "../ui/M
 interface ChatHeaderProps {
   chat: Chat;
   rightOpen: boolean;
+  searchOpen: boolean;
   onOpenInfo: () => void;
+  onSearch: () => void;
   onSelectAll: () => void;
   onDownloadAll: () => void;
   onToast: (message: string) => void;
@@ -24,7 +26,9 @@ interface ChatHeaderProps {
 export function ChatHeader({
   chat,
   rightOpen,
+  searchOpen,
   onOpenInfo,
+  onSearch,
   onSelectAll,
   onDownloadAll,
   onToast,
@@ -63,7 +67,7 @@ export function ChatHeader({
       </button>
 
       <div className="tg-chat-header-actions">
-        <IconButton label={t("chat.searchInChat")} onClick={() => onToast(t("chat.searchToast"))}>
+        <IconButton label={t("chat.searchInChat")} active={searchOpen} onClick={onSearch}>
           <IconSearch size={21} stroke={1.8} />
         </IconButton>
         <IconButton
