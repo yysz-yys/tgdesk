@@ -64,6 +64,9 @@ type MessageDTO struct {
 	ForwardedFrom string           `json:"forwardedFrom,omitempty"`
 	ForwardedDate int64            `json:"forwardedDate,omitempty"`
 	Service       string           `json:"service,omitempty"`
+	ServiceKind   string           `json:"serviceKind,omitempty"`
+	ServiceActor  string           `json:"serviceActor,omitempty"`
+	ServiceValue  string           `json:"serviceValue,omitempty"`
 	Media         *MessageMediaDTO `json:"media,omitempty"`
 }
 
@@ -364,34 +367,39 @@ func mapService(chatID string, msg *tg.MessageService, senders map[int64]string)
 				names = append(names, name)
 			}
 		}
-		if len(names) > 0 {
-			item.Service = strings.Join(names, ", ") + " joined the group"
-		} else if actor != "" {
-			item.Service = actor + " joined the group"
+		item.ServiceKind = "join"
+		item.ServiceActor = strings.Join(names, ", ")
+		if item.ServiceActor == "" {
+			item.ServiceActor = actor
 		}
+		item.Service = item.ServiceActor + " joined the group"
 	case *tg.MessageActionChatJoinedByLink:
-		if actor != "" {
-			item.Service = actor + " joined via invite link"
-		} else {
-			item.Service = "Joined via invite link"
-		}
+		item.ServiceKind = "invite"
+		item.ServiceActor = actor
+		item.Service = actor + " joined via invite link"
 	case *tg.MessageActionChatDeleteUser:
-		name := senders[action.UserID]
-		if name == "" {
-			name = actor
+		item.ServiceKind = "leave"
+		item.ServiceActor = senders[action.UserID]
+		if item.ServiceActor == "" {
+			item.ServiceActor = actor
 		}
-		if name != "" {
-			item.Service = name + " left the group"
-		}
+		item.Service = item.ServiceActor + " left the group"
 	case *tg.MessageActionChatEditTitle:
+		item.ServiceKind = "title"
+		item.ServiceValue = action.Title
 		item.Service = "Group name changed to " + action.Title
 	case *tg.MessageActionPinMessage:
+		item.ServiceKind = "pin"
 		item.Service = "Message pinned"
 	case *tg.MessageActionChannelCreate:
+		item.ServiceKind = "channelCreated"
 		item.Service = "Channel created"
 	case *tg.MessageActionChatCreate:
+		item.ServiceKind = "groupCreated"
 		item.Service = "Group created"
 	case *tg.MessageActionSetMessagesTTL:
+		item.ServiceKind = "ttl"
+		item.ServiceValue = fmt.Sprintf("%d", action.Period)
 		if action.Period > 0 {
 			item.Service = fmt.Sprintf("Auto-delete timer set to %s", humanDuration(action.Period))
 		} else {

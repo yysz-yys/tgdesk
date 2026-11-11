@@ -49,6 +49,9 @@ export interface KernelMessage {
   forwardedFrom?: string;
   forwardedDate?: number;
   service?: string;
+  serviceKind?: string;
+  serviceActor?: string;
+  serviceValue?: string;
   media?: KernelMessageMedia | null;
 }
 
@@ -201,6 +204,50 @@ function normalizedMediaKind(kind: string): MediaKind {
   }
 }
 
+function localizedService(message: KernelMessage, t: TFunction): string | undefined {
+  const actor = message.serviceActor || "";
+  switch (message.serviceKind) {
+    case "join":
+      return actor
+        ? t("service.join", { name: actor })
+        : t("service.joinUnknown");
+    case "invite":
+      return actor
+        ? t("service.invite", { name: actor })
+        : t("service.inviteUnknown");
+    case "leave":
+      return actor
+        ? t("service.leave", { name: actor })
+        : t("service.leaveUnknown");
+    case "title":
+      return t("service.title", { title: message.serviceValue || "" });
+    case "pin":
+      return t("service.pin");
+    case "channelCreated":
+      return t("service.channelCreated");
+    case "groupCreated":
+      return t("service.groupCreated");
+    case "ttl": {
+      const seconds = Number(message.serviceValue || 0);
+      if (!seconds) {
+        return t("service.ttlDisabled");
+      }
+      if (seconds % 86400 === 0) {
+        return t("service.ttlDays", { count: seconds / 86400 });
+      }
+      if (seconds % 3600 === 0) {
+        return t("service.ttlHours", { count: seconds / 3600 });
+      }
+      if (seconds % 60 === 0) {
+        return t("service.ttlMinutes", { count: seconds / 60 });
+      }
+      return t("service.ttlSeconds", { count: seconds });
+    }
+    default:
+      return message.service || undefined;
+  }
+}
+
 function mapMedia(
   media: KernelMessageMedia | null | undefined,
   t: TFunction,
@@ -251,7 +298,10 @@ export function mapMessage(
     forwarded: Boolean(message.forwarded),
     forwardedFrom: message.forwardedFrom || undefined,
     forwardedDate: message.forwardedDate || undefined,
-    service: message.service || undefined,
+    service: localizedService(message, t),
+    serviceKind: message.serviceKind || undefined,
+    serviceActor: message.serviceActor || undefined,
+    serviceValue: message.serviceValue || undefined,
     media: mapMedia(message.media, t),
     tail: true,
   };

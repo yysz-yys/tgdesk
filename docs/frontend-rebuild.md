@@ -257,6 +257,12 @@ Composer drafts persist per chat in localStorage. Switching chats and returning
 restores the draft; sending or clearing the text removes it. Verified live:
 the draft key was written, switching away and back restored the same text.
 
+## Localized service messages
+
+Service actions now carry a structured kind/actor/value from the kernel and are
+formatted in the React language instead of being fixed English. Verified live:
+`ADKillerBot joined the group` renders as `ADKillerBot 加入了群组` in Chinese.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

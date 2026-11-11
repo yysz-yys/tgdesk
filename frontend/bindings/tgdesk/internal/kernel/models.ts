@@ -99,6 +99,9 @@ export interface MessageDTO {
     "forwardedFrom"?: string;
     "forwardedDate"?: number;
     "service"?: string;
+    "serviceKind"?: string;
+    "serviceActor"?: string;
+    "serviceValue"?: string;
     "media"?: MessageMediaDTO | null;
 }
 

@@ -89,6 +89,9 @@ export interface Message {
   forwardedFrom?: string;
   forwardedDate?: number;
   service?: string;
+  serviceKind?: string;
+  serviceActor?: string;
+  serviceValue?: string;
   media?: MessageMedia;
   tail?: boolean;
 }
