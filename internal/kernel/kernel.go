@@ -47,8 +47,8 @@ type ChecklistItem struct {
 	Done   bool   `json:"done"`
 }
 
-// Service is the UI-agnostic kernel facade. In the MVP it is intentionally
-// thin; auth, chat, message and download services will be added behind it.
+// Service is the UI-agnostic kernel facade. Wails-facing methods live in
+// internal/app; Telegram auth, chat, media and download work stay here.
 type Service struct {
 	startedAt time.Time
 	version   string
@@ -122,7 +122,7 @@ func (s *Service) Status() Status {
 		TDLVersion:     moduleVersion("github.com/iyear/tdl"),
 		TDLCoreVersion: moduleVersion("github.com/iyear/tdl/core"),
 		TDLAppID:       app.AppID,
-		Phase:          "skeleton",
+		Phase:          "desktop",
 		Ready:          true,
 		StartedAt:      s.startedAt.UTC().Format(time.RFC3339),
 	}

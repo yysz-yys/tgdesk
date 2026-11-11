@@ -62,72 +62,6 @@
   background: var(--tg-accent);
 }
 
-.tg-folder-tabs {
-  display: flex;
-  height: 40px;
-  flex: 0 0 40px;
-  align-items: stretch;
-  gap: 1px;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--tg-divider);
-  padding: 0 8px;
-  scrollbar-width: none;
-}
-
-.tg-folder-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.tg-folder-tab {
-  position: relative;
-  display: flex;
-  min-width: 0;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
-  padding: 0 11px;
-  color: var(--tg-secondary);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.tg-folder-tab:hover {
-  color: var(--tg-text);
-}
-
-.tg-folder-tab[data-active="true"] {
-  color: var(--tg-accent);
-}
-
-.tg-folder-tab[data-active="true"]::after {
-  position: absolute;
-  right: 10px;
-  bottom: 0;
-  left: 10px;
-  height: 2px;
-  border-radius: 2px 2px 0 0;
-  background: var(--tg-accent);
-  content: "";
-}
-
-.tg-folder-count {
-  display: inline-grid;
-  min-width: 16px;
-  height: 16px;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--tg-accent-soft);
-  padding: 0 4px;
-  color: var(--tg-accent);
-  font-size: 9.5px;
-  font-weight: 700;
-}
-
 .sidebar-warning {
   display: flex;
   width: 100%;
@@ -217,10 +151,6 @@
   .sidebar {
     width: 320px;
     flex-basis: 320px;
-  }
-
-  .tg-folder-tab {
-    padding: 0 8px;
   }
 }
 
