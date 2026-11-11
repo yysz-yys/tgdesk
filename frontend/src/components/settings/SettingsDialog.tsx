@@ -11,9 +11,11 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconExternalLink,
+  IconAt,
   IconInfoCircle,
   IconLanguage,
   IconLogout,
+  IconPhone,
   IconQrcode,
   IconRefresh,
   IconX,
@@ -23,7 +25,14 @@ import type { AppSettings } from "../../hooks/useSettings";
 import { Avatar } from "../ui/Avatar";
 import "./settings-panel.css";
 
-type Section = "general" | "appearance" | "downloads" | "network" | "advanced" | "about";
+type Section =
+  | "account"
+  | "general"
+  | "appearance"
+  | "downloads"
+  | "network"
+  | "advanced"
+  | "about";
 
 interface SettingsItem {
   id: string;
@@ -32,7 +41,7 @@ interface SettingsItem {
 }
 
 const SETTINGS_ITEMS: SettingsItem[] = [
-  { id: "myAccount", labelKey: "settings.list.myAccount", section: "general" },
+  { id: "myAccount", labelKey: "settings.list.myAccount", section: "account" },
   { id: "notifications", labelKey: "settings.list.notifications", section: "general" },
   { id: "privacy", labelKey: "settings.list.privacy" },
   { id: "chatSettings", labelKey: "settings.list.chatSettings", section: "appearance" },
@@ -106,6 +115,78 @@ export function SettingsDialog({
     setPlaceholder(t(item.labelKey));
     setView("placeholder");
   };
+
+  const renderAccount = () => (
+    <>
+      <div className="settings-account-hero">
+        <Avatar
+          title={user?.displayName ?? t("settings.general.telegramAccount")}
+          initials={user?.initials ?? "T"}
+          color={user?.color ?? "#65aadd"}
+          size={88}
+          online
+        />
+        <div className="settings-account-hero-name">
+          {user?.displayName ?? t("settings.general.telegramAccount")}
+        </div>
+        <div className="settings-account-hero-status">{t("chat.online")}</div>
+        <button
+          type="button"
+          className="settings-button"
+          onClick={() => onToast(t("settings.account.editSoon"))}
+        >
+          {t("settings.account.edit")}
+        </button>
+      </div>
+
+      <SettingsGroup title={t("settings.account.info")}>
+        <SettingRow
+          title={user?.phone ? formatPhone(user.phone) : t("settings.account.noPhone")}
+          description={t("settings.account.phone")}
+          icon={<IconPhone size={17} />}
+        >
+          <button
+            type="button"
+            className="settings-icon-button"
+            onClick={() => onToast(t("settings.account.qrSoon"))}
+            aria-label={t("settings.account.qr")}
+          >
+            <IconQrcode size={20} />
+          </button>
+        </SettingRow>
+        <SettingRow
+          title={user?.username ? `@${user.username}` : t("settings.account.setUsername")}
+          description={t("settings.account.username")}
+          icon={<IconAt size={17} />}
+        >
+          <button
+            type="button"
+            className="settings-icon-button"
+            onClick={() => onToast(t("settings.account.usernameSoon"))}
+            aria-label={t("settings.account.setUsername")}
+          >
+            <IconChevronRight size={18} />
+          </button>
+        </SettingRow>
+        <SettingRow
+          title={t("settings.account.bioEmpty")}
+          description={t("settings.account.bio")}
+          icon={<IconInfoCircle size={17} />}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup title={t("settings.account.session")}>
+        <button
+          type="button"
+          className="settings-logout-row"
+          onClick={onLogout}
+        >
+          <IconLogout size={17} />
+          {t("settings.general.logOut")}
+        </button>
+      </SettingsGroup>
+    </>
+  );
 
   const renderGeneral = () => (
     <>
@@ -591,6 +672,8 @@ export function SettingsDialog({
 
   const content = (() => {
     switch (section) {
+      case "account":
+        return renderAccount();
       case "general":
         return renderGeneral();
       case "appearance":
@@ -663,7 +746,11 @@ export function SettingsDialog({
                       {user?.displayName ?? t("settings.general.telegramAccount")}
                     </div>
                     <div className="settings-account-detail">
-                      {user?.phone || (user?.username ? `@${user.username}` : t("settings.account.noPhone"))}
+                      {user?.phone
+                        ? formatPhone(user.phone)
+                        : user?.username
+                          ? `@${user.username}`
+                          : t("settings.account.noPhone")}
                     </div>
                     <button
                       type="button"
@@ -803,6 +890,10 @@ function SettingSelect({
       </Select.Portal>
     </Select.Root>
   );
+}
+
+function formatPhone(phone: string) {
+  return phone.startsWith("+") ? phone : `+${phone}`;
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {

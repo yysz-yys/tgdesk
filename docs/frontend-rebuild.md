@@ -78,6 +78,10 @@ Features, Ask). Existing tgdesk controls open as subpages with a back button;
 sections without kernel support open an explicit placeholder instead of fake
 controls.
 
+The My account subpage now follows the official profile layout: large avatar,
+online line, Edit profile action, an account-information card with phone +
+QR entry, username and bio, then the session/log-out row.
+
 The test tdata was also imported into an isolated tgdesk home. It authenticated
 and displayed the account and six chats. Its server-side frozen state is not
 exposed by `Self.Restricted` in this Kernel version, so the sidebar warning
