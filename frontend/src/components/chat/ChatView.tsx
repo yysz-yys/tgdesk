@@ -5,6 +5,7 @@ import type { Chat, Message } from "../../types";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { ChatSearchBar } from "./ChatSearchBar";
+import { ChannelBar } from "./ChannelBar";
 import { MessageList } from "./MessageList";
 import { SelectionBar } from "./SelectionBar";
 import "./chat.css";
@@ -131,6 +132,8 @@ export function ChatView({
           onClear={onClearSelection}
           onDownload={onDownloadSelected}
         />
+      ) : chat.kind === "channel" ? (
+        <ChannelBar chat={chat} onToast={onToast} />
       ) : (
         <ChatComposer
           key={chat.id}

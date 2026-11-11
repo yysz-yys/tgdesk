@@ -9,7 +9,6 @@ import {
   IconMenu2,
   IconMoon,
   IconMoodSmile,
-  IconPencil,
   IconPhone,
   IconSearch,
   IconSettings,
@@ -50,7 +49,6 @@ interface SidebarProps {
   onLogout: () => void;
   onAbout: () => void;
   onToast: (message: string) => void;
-  activeDownloads: number;
   accountName: string;
   accountInitials: string;
   accountColor: string;
@@ -78,7 +76,6 @@ export function Sidebar({
   onLogout,
   onAbout,
   onToast,
-  activeDownloads,
   accountName,
   accountInitials,
   accountColor,
@@ -195,23 +192,6 @@ export function Sidebar({
           ) : null}
         </div>
 
-        {activeDownloads > 0 ? (
-          <IconButton
-            label={t("sidebar.downloadsWithCount", { count: activeDownloads })}
-            onClick={onSelectDownloads}
-            className="sidebar-download-indicator"
-          >
-            <IconDownload size={20} />
-            <span className="sidebar-download-dot" />
-          </IconButton>
-        ) : null}
-
-        <IconButton
-          label={t("sidebar.newMessage")}
-          onClick={() => onToast(t("sidebar.newMessageSoon"))}
-        >
-          <IconPencil size={20} stroke={1.8} />
-        </IconButton>
       </div>
 
       {accountRestricted ? (

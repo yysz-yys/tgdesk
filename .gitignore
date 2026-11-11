@@ -9,6 +9,8 @@ frontend/node_modules
 # Private Telegram Desktop session copied for testing
 tdata/
 /tdataTest/
+/tdataNomal/
+/dataNomal/
 
 # Throwaway analysis, portable toolchain, spikes
 temp/

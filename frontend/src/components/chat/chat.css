@@ -6,7 +6,12 @@
 
 .tg-chat-header {
   gap: 6px;
-  padding: 0 9px 0 12px;
+  border-bottom: 0;
+  padding: 0 10px 0 16px;
+}
+
+.tg-chat-identity {
+  gap: 0;
 }
 
 .tg-chat-identity {
@@ -201,6 +206,53 @@
   width: 42px;
   height: 42px;
   margin-bottom: 0;
+}
+
+.tg-channel-bar {
+  display: flex;
+  height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--tg-divider);
+  background: var(--tg-sidebar);
+  padding: 0 12px;
+}
+
+.tg-channel-action {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--tg-accent);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.tg-channel-action:hover {
+  text-decoration: underline;
+}
+
+.tg-channel-gift {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--tg-secondary);
+  cursor: pointer;
+}
+
+.tg-channel-gift:hover {
+  background: var(--tg-hover);
+  color: var(--tg-text);
 }
 
 .tg-selection-bar {

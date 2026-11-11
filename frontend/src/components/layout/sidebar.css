@@ -1,15 +1,15 @@
 /* Telegram Desktop sidebar: folder tabs, search row, chat list, account footer. */
 
 .sidebar {
-  width: 420px;
-  flex-basis: 420px;
+  width: 394px;
+  flex-basis: 394px;
 }
 
 .sidebar-header {
-  height: 58px;
-  flex-basis: 58px;
-  gap: 4px;
-  padding: 0 9px;
+  height: 56px;
+  flex-basis: 56px;
+  gap: 8px;
+  padding: 0 10px;
 }
 
 .sidebar-header > .icon-button {
@@ -18,9 +18,10 @@
 }
 
 .sidebar-header .search-box {
-  height: 42px;
-  border-radius: 10px;
+  height: 36px;
+  border-radius: 9px;
   padding: 0 10px;
+  transform: translateY(6px);
 }
 
 .sidebar-header .search-box input {
@@ -183,8 +184,8 @@
 }
 
 .sidebar-footer {
-  height: 62px;
-  flex-basis: 62px;
+  height: 60px;
+  flex-basis: 60px;
   gap: 9px;
   padding: 0 11px;
 }
@@ -207,8 +208,8 @@
 
 @media (max-width: 1280px) and (min-width: 981px) {
   .sidebar {
-    width: 420px;
-    flex-basis: 420px;
+    width: 394px;
+    flex-basis: 394px;
   }
 }
 

@@ -3,7 +3,9 @@ import {
   IconBell,
   IconDownload,
   IconFile,
+  IconGift,
   IconLink,
+  IconLogout,
   IconPhoto,
   IconSearch,
   IconUsers,
@@ -36,7 +38,7 @@ export function RightPanel({ chat, messages, onClose, onDownloadAll, onToast }: 
   return (
     <aside className="right-panel" aria-label={t("rightPanel.chatInfo")}>
       <div className="right-panel-header">
-        <span className="right-panel-title">{t("rightPanel.chatInfo")}</span>
+        <span className="sr-only">{t("rightPanel.chatInfo")}</span>
         <IconButton label={t("rightPanel.close")} onClick={onClose}>
           <IconX size={20} />
         </IconButton>
@@ -48,7 +50,7 @@ export function RightPanel({ chat, messages, onClose, onDownloadAll, onToast }: 
             title={chat.title}
             initials={chat.initials}
             color={chat.color}
-            size={96}
+            size={64}
             online={chat.online}
           />
           <div className="profile-name">{chat.title}</div>
@@ -56,30 +58,61 @@ export function RightPanel({ chat, messages, onClose, onDownloadAll, onToast }: 
           <div className="profile-status">{subtitle}</div>
 
           <div className="profile-actions">
-            <button
-              type="button"
-              className="profile-action"
-              onClick={() => onToast(t("rightPanel.muteToast", { title: chat.title }))}
-            >
-              <IconBell size={19} />
-              {t("rightPanel.mute")}
-            </button>
-            <button
-              type="button"
-              className="profile-action"
-              onClick={() => onToast(t("rightPanel.searchToast"))}
-            >
-              <IconSearch size={19} />
-              {t("rightPanel.search")}
-            </button>
-            <button
-              type="button"
-              className="profile-action"
-              onClick={onDownloadAll}
-            >
-              <IconDownload size={19} />
-              {t("rightPanel.download")}
-            </button>
+            {chat.kind === "channel" ? (
+              <>
+                <button
+                  type="button"
+                  className="profile-action"
+                  onClick={() => onToast(t("rightPanel.muteToast", { title: chat.title }))}
+                >
+                  <IconBell size={19} />
+                  {t("rightPanel.mute")}
+                </button>
+                <button
+                  type="button"
+                  className="profile-action"
+                  onClick={() => onToast(t("rightPanel.giftSoon"))}
+                >
+                  <IconGift size={19} />
+                  {t("rightPanel.gift")}
+                </button>
+                <button
+                  type="button"
+                  className="profile-action"
+                  onClick={() => onToast(t("rightPanel.leaveSoon"))}
+                >
+                  <IconLogout size={19} />
+                  {t("rightPanel.leave")}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="profile-action"
+                  onClick={() => onToast(t("rightPanel.muteToast", { title: chat.title }))}
+                >
+                  <IconBell size={19} />
+                  {t("rightPanel.mute")}
+                </button>
+                <button
+                  type="button"
+                  className="profile-action"
+                  onClick={() => onToast(t("rightPanel.searchToast"))}
+                >
+                  <IconSearch size={19} />
+                  {t("rightPanel.search")}
+                </button>
+                <button
+                  type="button"
+                  className="profile-action"
+                  onClick={onDownloadAll}
+                >
+                  <IconDownload size={19} />
+                  {t("rightPanel.download")}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -142,6 +175,26 @@ export function RightPanel({ chat, messages, onClose, onDownloadAll, onToast }: 
             <IconFile size={17} />
             <span>{t("rightPanel.sharedFiles")}</span>
           </div>
+          {chat.kind === "channel" ? (
+            <>
+              <button
+                type="button"
+                className="info-row info-row-action"
+                onClick={() => onToast(t("rightPanel.leaveSoon"))}
+              >
+                <IconLogout size={17} />
+                <span>{t("rightPanel.leaveChannel")}</span>
+              </button>
+              <button
+                type="button"
+                className="info-row info-row-action info-row-danger"
+                onClick={() => onToast(t("rightPanel.reportSoon"))}
+              >
+                <IconX size={17} />
+                <span>{t("rightPanel.report")}</span>
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
     </aside>

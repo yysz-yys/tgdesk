@@ -1,14 +1,16 @@
 /* Telegram Desktop chat info panel. */
 
 .right-panel {
-  width: 340px;
-  flex-basis: 340px;
+  width: 290px;
+  flex-basis: 290px;
 }
 
 .right-panel-header {
   height: 56px;
   flex-basis: 56px;
-  padding: 0 10px 0 16px;
+  justify-content: flex-end;
+  border-bottom: 0;
+  padding: 0 8px;
 }
 
 .right-panel-title {
@@ -20,11 +22,17 @@
 }
 
 .profile-block {
-  padding: 24px 18px 18px;
+  padding: 2px 14px 14px;
 }
 
 .profile-name {
-  font-size: 18px;
+  margin-top: 8px;
+  font-size: 16px;
+}
+
+.profile-username,
+.profile-status {
+  font-size: 12px;
 }
 
 .profile-actions {
@@ -124,10 +132,28 @@
   font-size: 12.5px;
 }
 
+.info-row-action {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--tg-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.info-row-action:hover {
+  color: var(--tg-accent);
+}
+
+.info-row-danger,
+.info-row-danger svg {
+  color: var(--tg-danger);
+}
+
 @media (max-width: 1280px) and (min-width: 981px) {
   .right-panel {
-    width: 340px;
-    flex-basis: 340px;
+    width: 290px;
+    flex-basis: 290px;
   }
 }
 

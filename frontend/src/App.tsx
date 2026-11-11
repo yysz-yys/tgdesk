@@ -631,9 +631,6 @@ export default function App() {
     );
   }
 
-  const activeCount = active.filter(
-    (task) => task.status === "active" || task.status === "queued",
-  ).length;
   return (
     <TooltipProvider delayDuration={350}>
       <div className="app-shell">
@@ -655,7 +652,6 @@ export default function App() {
           onLogout={handleLogout}
           onAbout={() => setAboutOpen(true)}
           onToast={showToast}
-          activeDownloads={activeCount}
           accountName={authUser?.displayName ?? t("settings.general.telegramAccount")}
           accountInitials={authUser?.initials ?? "T"}
           accountColor={authUser?.color ?? "#65aadd"}

@@ -79,6 +79,26 @@ body,
   margin: 0;
 }
 
+.tg-shell {
+  display: flex;
+  height: 100dvh;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--tg-sidebar);
+}
+
+.tg-shell > .app-shell,
+.tg-shell > .tg-login-page {
+  height: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.tg-shell > .tg-login-page {
+  min-height: 0;
+}
+
 body {
   overflow: hidden;
   background: var(--tg-sidebar);
@@ -143,8 +163,8 @@ input:focus-visible {
 
 .sidebar {
   display: flex;
-  width: 380px;
-  flex: 0 0 380px;
+  width: 394px;
+  flex: 0 0 394px;
   min-width: 0;
   flex-direction: column;
   background: var(--tg-sidebar);
@@ -206,7 +226,7 @@ input:focus-visible {
 }
 
 .search-box:focus-within {
-  box-shadow: 0 0 0 2px var(--tg-accent-soft);
+  box-shadow: none;
 }
 
 .search-box input {
@@ -314,12 +334,12 @@ input:focus-visible {
   position: relative;
   display: flex;
   width: 100%;
-  height: 72px;
+  height: 60px;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
   border: 0;
   background: transparent;
-  padding: 0 10px;
+  padding: 0 15px;
   text-align: left;
   cursor: pointer;
   transition: background-color 120ms ease;
@@ -391,7 +411,7 @@ input:focus-visible {
 
 .chat-side {
   display: flex;
-  height: 42px;
+  height: 38px;
   flex: 0 0 auto;
   flex-direction: column;
   align-items: flex-end;
@@ -902,8 +922,8 @@ input:focus-visible {
 
 .right-panel {
   display: flex;
-  width: 340px;
-  flex: 0 0 340px;
+  width: 290px;
+  flex: 0 0 290px;
   min-width: 0;
   flex-direction: column;
   border-left: 1px solid var(--tg-divider);
@@ -1388,8 +1408,8 @@ input:focus-visible {
 
 @media (max-width: 1280px) {
   .sidebar {
-    width: 420px;
-    flex-basis: 420px;
+    width: 394px;
+    flex-basis: 394px;
   }
 
 }

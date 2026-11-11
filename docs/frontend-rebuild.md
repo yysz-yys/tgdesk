@@ -104,6 +104,30 @@ exposed by `Self.Restricted` in this Kernel version, so the sidebar warning
 renders only when that flag is present; the official banner remains unverified
 for this account.
 
+## Official geometry at 1107×725
+
+The official portable client was resized until its client area was exactly
+1107×725, then captured by rendering the physical 2214×1450 surface and scaling
+it down. Measured values:
+
+| Region | Official | tgdesk |
+|---|---|---|
+| Caption bar | 24 px | 24 px |
+| Sidebar | 394 px | 394 px |
+| Chat header | 56 px | 56 px |
+| Chat row | 60 px | 60 px |
+| Chat-list avatar | 48 px | 48 px |
+| Right info panel | 290 px | 290 px |
+
+Official colors sampled from that capture: caption `#242f3d`, sidebar
+`#17212b`, chat background `#0e1621`, selected row `#2b5278`, right panel
+`#232e3c`. Those are the values already used by the dark palette.
+
+The chat header no longer shows an avatar. It now matches the official
+search / info-panel / overflow layout, with the call button only for private
+chats. Channels get the official bottom “disable notifications” bar instead of
+a message composer, and the channel info panel exposes Mute / Gift / Leave.
+
 ## Chat surface pass
 
 - Sidebar is 420px at the target viewport; chat header is 56px; composer measures

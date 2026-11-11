@@ -121,6 +121,7 @@ func main() {
 
 	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "Telegram",
+		Frameless:        true,
 		Width:            width,
 		Height:           height,
 		MinWidth:         640,
@@ -140,11 +141,17 @@ func main() {
 // Wails window sizes are DIPs, so convert the physical work area by the
 // monitor scale factor. The app still starts maximised.
 func initialWindowSize(app *application.App) (int, int) {
-	width, height := 1120, 760
+	width, height := 1107, 725
 
 	if screen := app.Screen.GetPrimary(); screen != nil && screen.ScaleFactor > 0 {
-		width = int(float64(screen.WorkArea.Width) / float64(screen.ScaleFactor) * 0.94)
-		height = int(float64(screen.WorkArea.Height) / float64(screen.ScaleFactor) * 0.94)
+		maxWidth := int(float64(screen.WorkArea.Width) / float64(screen.ScaleFactor) * 0.94)
+		maxHeight := int(float64(screen.WorkArea.Height) / float64(screen.ScaleFactor) * 0.94)
+		if width > maxWidth {
+			width = maxWidth
+		}
+		if height > maxHeight {
+			height = maxHeight
+		}
 	}
 
 	if width < 640 {

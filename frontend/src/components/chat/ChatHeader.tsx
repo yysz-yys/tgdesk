@@ -3,12 +3,12 @@ import {
   IconDots,
   IconDownload,
   IconInfoCircle,
+  IconLayoutSidebarRight,
   IconPhone,
   IconSearch,
   IconSelectAll,
 } from "@tabler/icons-react";
 import type { Chat } from "../../types";
-import { Avatar } from "../ui/Avatar";
 import { IconButton } from "../ui/IconButton";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "../ui/Menu";
 
@@ -50,13 +50,6 @@ export function ChatHeader({
         aria-label={t("chat.chatInfo")}
         aria-expanded={rightOpen}
       >
-        <Avatar
-          title={chat.title}
-          initials={chat.initials}
-          color={chat.color}
-          size={42}
-          online={chat.online}
-        />
         <span className="chat-header-copy">
           <span className="chat-header-title">{chat.title}</span>
           <span className="chat-header-subtitle" data-online={chat.online}>
@@ -70,12 +63,21 @@ export function ChatHeader({
         <IconButton label={t("chat.searchInChat")} active={searchOpen} onClick={onSearch}>
           <IconSearch size={21} stroke={1.8} />
         </IconButton>
+        {chat.kind === "private" ? (
+          <IconButton
+            label={t("chat.call")}
+            onClick={() => onToast(t("chat.callsSoon"))}
+            className="tg-chat-call"
+          >
+            <IconPhone size={20} stroke={1.8} />
+          </IconButton>
+        ) : null}
         <IconButton
-          label={t("chat.call")}
-          onClick={() => onToast(t("chat.callsSoon"))}
-          className="tg-chat-call"
+          label={t("chat.chatInfo")}
+          active={rightOpen}
+          onClick={onOpenInfo}
         >
-          <IconPhone size={20} stroke={1.8} />
+          <IconLayoutSidebarRight size={21} stroke={1.8} />
         </IconButton>
         <Menu>
           <MenuTrigger asChild>

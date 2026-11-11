@@ -66,6 +66,7 @@ export function ChatRow({
             title={chat.title}
             initials={chat.initials}
             color={chat.color}
+            size={48}
             online={chat.online}
           />
 

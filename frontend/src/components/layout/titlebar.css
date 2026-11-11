@@ -1,0 +1,55 @@
+/* Telegram Desktop custom caption bar. */
+
+.tg-titlebar {
+  position: relative;
+  z-index: 80;
+  display: flex;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: flex-end;
+  background: var(--tg-titlebar, #242f3d);
+  color: var(--tg-secondary);
+  user-select: none;
+}
+
+.tg-titlebar-controls {
+  display: flex;
+  height: 24px;
+  align-items: stretch;
+}
+
+.tg-titlebar-controls button {
+  display: grid;
+  width: 46px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--tg-secondary);
+  cursor: default;
+}
+
+.tg-titlebar-controls button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--tg-text);
+}
+
+.tg-titlebar-controls .tg-titlebar-close:hover {
+  background: #e53935;
+  color: #fff;
+}
+
+[data-theme="light"] .tg-titlebar {
+  background: #e4ebf2;
+}
+
+[data-theme="light"] .tg-titlebar-controls button {
+  color: #526575;
+}
+
+[data-theme="light"] .tg-titlebar-controls button:hover {
+  background: rgba(23, 33, 43, 0.08);
+  color: #17212b;
+}
