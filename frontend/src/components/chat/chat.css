@@ -488,3 +488,64 @@
 .poll-option[data-chosen="true"] .poll-option-text {
   color: var(--tg-accent);
 }
+.location-card,
+.contact-card {
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.location-card {
+  width: 250px;
+  padding: 0;
+  overflow: hidden;
+  flex-direction: column;
+  align-items: stretch;
+  background: var(--tg-hover);
+}
+
+.location-map {
+  position: relative;
+  display: block;
+  height: 92px;
+  overflow: hidden;
+  background:
+    linear-gradient(32deg, transparent 46%, rgba(255, 255, 255, 0.08) 47%, rgba(255, 255, 255, 0.08) 50%, transparent 51%),
+    linear-gradient(148deg, transparent 58%, rgba(255, 255, 255, 0.06) 59%, rgba(255, 255, 255, 0.06) 62%, transparent 63%),
+    #29445d;
+}
+
+.location-pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  background: var(--tg-accent);
+  transform: translate(-50%, -50%);
+}
+
+.location-road {
+  position: absolute;
+  display: block;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.location-road-a { top: 26px; left: -20px; width: 160px; transform: rotate(18deg); }
+.location-road-b { top: 58px; right: -10px; width: 190px; transform: rotate(-12deg); }
+.location-road-c { top: 78px; left: 20px; width: 120px; transform: rotate(35deg); }
+
+.location-card .location-copy {
+  padding: 8px 10px 9px;
+}
+
+.contact-card {
+  width: 240px;
+}
+
+.contact-card:hover,
+.location-card:hover {
+  filter: brightness(1.06);
+}

@@ -215,6 +215,13 @@ chat renders per-option percentage bars, a chosen marker and a
 votes/final-results footer. Verified live: three polls, eight options and eight
 bars, with footers such as `81 votes · Final results`.
 
+## Location and contact actions
+
+Location cards now draw a lightweight map-like road surface with a centered pin;
+clicking opens the coordinates in OpenStreetMap through the Wails browser
+opener. Contact cards copy the phone number to the clipboard and report success
+through the existing toast.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

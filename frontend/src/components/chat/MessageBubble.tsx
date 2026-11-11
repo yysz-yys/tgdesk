@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Browser } from "@wailsio/runtime";
 import {
   IconArrowForwardUp,
   IconCheck,
@@ -45,6 +46,27 @@ export function MessageBubble({
   const { t } = useTranslation();
   const hasText = Boolean(message.text?.trim());
   const media = message.media;
+
+  const openLocation = () => {
+    if (media?.latitude === undefined || media.longitude === undefined) {
+      return;
+    }
+    void Browser.OpenURL(
+      `https://www.openstreetmap.org/?mlat=${media.latitude}&mlon=${media.longitude}#map=15/${media.latitude}/${media.longitude}`,
+    );
+  };
+
+  const copyPhone = async () => {
+    if (!media?.phone) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(media.phone);
+      onToast(t("chat.phoneCopied"));
+    } catch {
+      onToast(t("chat.clipboardError"));
+    }
+  };
 
   const copyText = async () => {
     if (!message.text) {
@@ -137,9 +159,19 @@ export function MessageBubble({
                 </div>
               </div>
             ) : media?.kind === "location" ? (
-              <div className="location-card">
-                <span className="location-pin">
-                  <IconMapPin size={22} />
+              <button
+                type="button"
+                className="location-card"
+                onClick={openLocation}
+                title={t("chat.openMap")}
+              >
+                <span className="location-map" aria-hidden="true">
+                  <span className="location-road location-road-a" />
+                  <span className="location-road location-road-b" />
+                  <span className="location-road location-road-c" />
+                  <span className="location-pin">
+                    <IconMapPin size={21} />
+                  </span>
                 </span>
                 <span className="location-copy">
                   <span className="location-title">{t("media.location")}</span>
@@ -147,9 +179,14 @@ export function MessageBubble({
                     {media.latitude?.toFixed(4)}, {media.longitude?.toFixed(4)}
                   </span>
                 </span>
-              </div>
+              </button>
             ) : media?.kind === "contact" ? (
-              <div className="contact-card">
+              <button
+                type="button"
+                className="contact-card"
+                onClick={() => void copyPhone()}
+                title={t("chat.copyPhone")}
+              >
                 <span className="contact-avatar">
                   {(media.contactName || media.name || "?").slice(0, 1).toUpperCase()}
                 </span>
@@ -162,7 +199,7 @@ export function MessageBubble({
                     {media.phone}
                   </span>
                 </span>
-              </div>
+              </button>
             ) : media?.kind === "video" ? (
               <div className="video-card">
                 <MediaThumb
