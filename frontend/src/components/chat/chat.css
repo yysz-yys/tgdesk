@@ -570,3 +570,24 @@
 .location-card:hover {
   filter: brightness(1.06);
 }
+.location-tile {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.82;
+}
+
+.location-pin {
+  z-index: 2;
+}
+
+.location-attribution {
+  position: absolute;
+  right: 5px;
+  bottom: 3px;
+  z-index: 2;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 7.5px;
+}

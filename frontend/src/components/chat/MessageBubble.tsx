@@ -6,7 +6,6 @@ import {
   IconChecks,
   IconDownload,
   IconFile,
-  IconMapPin,
   IconPlayerPlay,
   IconPhone,
   IconSelectAll,
@@ -14,6 +13,7 @@ import {
 import type { Message } from "../../types";
 import { chatColor } from "../../data/telegram";
 import { MediaThumb } from "./MediaThumb";
+import { LocationPreview } from "./LocationPreview";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -165,14 +165,10 @@ export function MessageBubble({
                 onClick={openLocation}
                 title={t("chat.openMap")}
               >
-                <span className="location-map" aria-hidden="true">
-                  <span className="location-road location-road-a" />
-                  <span className="location-road location-road-b" />
-                  <span className="location-road location-road-c" />
-                  <span className="location-pin">
-                    <IconMapPin size={21} />
-                  </span>
-                </span>
+                <LocationPreview
+                  latitude={media.latitude ?? 0}
+                  longitude={media.longitude ?? 0}
+                />
                 <span className="location-copy">
                   <span className="location-title">{t("media.location")}</span>
                   <span className="location-coords">

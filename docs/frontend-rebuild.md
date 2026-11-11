@@ -247,6 +247,16 @@ clears the image and falls back to the Telegram glow preset.
 Verified live: a data-URL image set `data-wallpaper="custom"`, populated the CSS
 variable, and produced the layered background stack.
 
+## Map preview and drafts
+
+Location cards now attempt a real OpenStreetMap tile at zoom 15, with the
+schematic road surface as an automatic fallback and an OSM attribution label.
+Clicking still opens the coordinates in OpenStreetMap.
+
+Composer drafts persist per chat in localStorage. Switching chats and returning
+restores the draft; sending or clearing the text removes it. Verified live:
+the draft key was written, switching away and back restored the same text.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

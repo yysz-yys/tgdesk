@@ -5,16 +5,33 @@ import { IconButton } from "../ui/IconButton";
 import { Spinner } from "../ui/Spinner";
 
 interface ChatComposerProps {
+  chatId: string;
   onSend: (text: string) => Promise<void>;
   onToast: (message: string) => void;
   enterToSend: boolean;
 }
 
-export function ChatComposer({ onSend, onToast, enterToSend }: ChatComposerProps) {
+export function ChatComposer({ chatId, onSend, onToast, enterToSend }: ChatComposerProps) {
   const { t } = useTranslation();
-  const [text, setText] = useState("");
+  const draftKey = `tgdesk.draft.${chatId}`;
+  const [text, setText] = useState(() => localStorage.getItem(draftKey) ?? "");
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setText(localStorage.getItem(draftKey) ?? "");
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!chatId) {
+      return;
+    }
+    if (text.trim()) {
+      localStorage.setItem(draftKey, text);
+    } else {
+      localStorage.removeItem(draftKey);
+    }
+  }, [chatId, draftKey, text]);
 
   useEffect(() => {
     const node = inputRef.current;

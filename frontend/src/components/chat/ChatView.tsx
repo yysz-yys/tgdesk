@@ -140,6 +140,7 @@ export function ChatView({
       ) : (
         <ChatComposer
           key={chat.id}
+          chatId={chat.id}
           onSend={onSendMessage}
           onToast={onToast}
           enterToSend={enterToSend}
