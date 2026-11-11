@@ -65,6 +65,10 @@ export interface MessageMedia {
   sizeBytes?: number;
   mime?: string;
   options?: string[];
+  voteCounts?: number[];
+  chosen?: boolean[];
+  totalVoters?: number;
+  pollClosed?: boolean;
   latitude?: number;
   longitude?: number;
   phone?: string;

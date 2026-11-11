@@ -100,14 +100,41 @@ export function MessageBubble({
               <div className="poll-card">
                 <div className="poll-question">{media.name}</div>
                 <div className="poll-options">
-                  {(media.options ?? []).map((option, index) => (
-                    <div className="poll-option" key={`${option}-${index}`}>
-                      <span className="poll-radio" />
-                      <span>{option}</span>
-                    </div>
-                  ))}
+                  {(media.options ?? []).map((option, index) => {
+                    const voters = media.voteCounts?.[index] ?? 0;
+                    const total = media.totalVoters ?? 0;
+                    const percent = total > 0 ? Math.round((voters / total) * 100) : 0;
+                    return (
+                      <div
+                        className="poll-option"
+                        data-chosen={media.chosen?.[index] === true}
+                        key={`${option}-${index}`}
+                      >
+                        <span className="poll-radio" />
+                        <span className="poll-option-copy">
+                          <span className="poll-option-text">{option}</span>
+                          {total > 0 ? (
+                            <span className="poll-option-percent">{percent}%</span>
+                          ) : null}
+                        </span>
+                        {total > 0 ? (
+                          <span className="poll-option-track" aria-hidden="true">
+                            <span
+                              className="poll-option-fill"
+                              style={{ width: `${percent}%` }}
+                            />
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="poll-footer">{t("media.poll")}</div>
+                <div className="poll-footer">
+                  {media.totalVoters
+                    ? t("media.votes", { count: media.totalVoters })
+                    : t("media.poll")}
+                  {media.pollClosed ? ` · ${t("media.finalResults")}` : ""}
+                </div>
               </div>
             ) : media?.kind === "location" ? (
               <div className="location-card">

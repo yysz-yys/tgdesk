@@ -27,6 +27,10 @@ export interface KernelMessageMedia {
   sizeBytes?: number;
   mime?: string;
   options?: string[] | null;
+  voteCounts?: number[] | null;
+  chosen?: boolean[] | null;
+  totalVoters?: number;
+  pollClosed?: boolean;
   latitude?: number;
   longitude?: number;
   phone?: string;
@@ -214,6 +218,10 @@ function mapMedia(
     sizeBytes: media.sizeBytes || undefined,
     mime: media.mime || undefined,
     options: media.options || undefined,
+    voteCounts: media.voteCounts || undefined,
+    chosen: media.chosen || undefined,
+    totalVoters: media.totalVoters || undefined,
+    pollClosed: media.pollClosed || undefined,
     latitude: media.latitude || undefined,
     longitude: media.longitude || undefined,
     phone: media.phone || undefined,

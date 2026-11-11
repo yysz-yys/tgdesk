@@ -198,6 +198,8 @@ export default {
     location: "Location",
     contact: "Contact",
     poll: "Poll",
+    votes: "{{count}} votes",
+    finalResults: "Final results",
     service: "Service message",
   },
   toasts: {

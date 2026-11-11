@@ -444,3 +444,47 @@
   color: var(--tg-secondary);
   font-size: 11px;
 }
+.poll-option-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.poll-option-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.poll-option-percent {
+  flex: 0 0 auto;
+  color: var(--tg-secondary);
+  font-size: 10.5px;
+}
+
+.poll-option-track {
+  width: calc(100% - 23px);
+  height: 3px;
+  margin-left: 23px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(127, 145, 164, 0.2);
+}
+
+.poll-option-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--tg-accent);
+}
+
+.poll-option[data-chosen="true"] .poll-radio {
+  border-color: var(--tg-accent);
+  background: radial-gradient(circle at center, var(--tg-accent) 0 4px, transparent 5px);
+}
+
+.poll-option[data-chosen="true"] .poll-option-text {
+  color: var(--tg-accent);
+}

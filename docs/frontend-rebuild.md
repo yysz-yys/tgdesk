@@ -208,6 +208,13 @@ The chat background keeps the local dot-pattern preference but now adds a
 low-contrast blue radial lighting layer, avoiding the previous flat dot grid.
 Verified against the live chat: three poll cards rendered in a channel.
 
+## Poll results
+
+Polls now carry vote counts, chosen flags, total voters and closed state. The
+chat renders per-option percentage bars, a chosen marker and a
+votes/final-results footer. Verified live: three polls, eight options and eight
+bars, with footers such as `81 votes · Final results`.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

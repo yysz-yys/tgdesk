@@ -42,6 +42,10 @@ type MessageMediaDTO struct {
 	Height      int      `json:"height,omitempty"`
 	Mime        string   `json:"mime,omitempty"`
 	Options     []string `json:"options,omitempty"`
+	VoteCounts  []int    `json:"voteCounts,omitempty"`
+	Chosen      []bool   `json:"chosen,omitempty"`
+	TotalVoters int      `json:"totalVoters,omitempty"`
+	PollClosed  bool     `json:"pollClosed,omitempty"`
 	Latitude    float64  `json:"latitude,omitempty"`
 	Longitude   float64  `json:"longitude,omitempty"`
 	Phone       string   `json:"phone,omitempty"`
@@ -427,12 +431,26 @@ func mapMedia(media tg.MessageMediaClass) *MessageMediaDTO {
 		for _, answer := range m.Poll.Answers {
 			options = append(options, answer.Text.Text)
 		}
-		return &MessageMediaDTO{
-			Kind:    "poll",
-			Name:    m.Poll.Question.Text,
-			Color:   "#f08a3c",
-			Options: options,
+		item := &MessageMediaDTO{
+			Kind:       "poll",
+			Name:       m.Poll.Question.Text,
+			Color:      "#f08a3c",
+			Options:    options,
+			PollClosed: m.Poll.Closed,
+			VoteCounts: make([]int, len(options)),
+			Chosen:     make([]bool, len(options)),
 		}
+		for _, result := range m.Results.Results {
+			for index, answer := range m.Poll.Answers {
+				if string(result.Option) == string(answer.Option) {
+					item.VoteCounts[index] = result.Voters
+					item.Chosen[index] = result.Chosen
+					break
+				}
+			}
+		}
+		item.TotalVoters = m.Results.TotalVoters
+		return item
 	default:
 		return nil
 	}

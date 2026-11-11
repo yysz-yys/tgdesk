@@ -198,6 +198,8 @@ export default {
     location: "位置",
     contact: "联系人",
     poll: "投票",
+    votes: "{{count}} 票",
+    finalResults: "最终结果",
     service: "服务消息",
   },
   toasts: {

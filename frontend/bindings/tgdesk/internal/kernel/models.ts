@@ -113,6 +113,10 @@ export interface MessageMediaDTO {
     "height"?: number;
     "mime"?: string;
     "options"?: string[] | null;
+    "voteCounts"?: number[] | null;
+    "chosen"?: boolean[] | null;
+    "totalVoters"?: number;
+    "pollClosed"?: boolean;
     "latitude"?: number;
     "longitude"?: number;
     "phone"?: string;
