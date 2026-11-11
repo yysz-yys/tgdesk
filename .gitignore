@@ -1,0 +1,24 @@
+# Wails / build outputs
+.task
+.wails
+bin
+release
+frontend/dist
+frontend/node_modules
+
+# Private Telegram Desktop session copied for testing
+tdata/
+
+# Throwaway analysis, portable toolchain, spikes
+temp/
+
+# Local logs and editor noise
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Portable runtime data at the repository root (private)
+/data/
+/downloads/
+/tgdesk.exe

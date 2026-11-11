@@ -1,0 +1,882 @@
+package kernel
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"text/template"
+	"time"
+
+	"github.com/gotd/td/tg"
+	"github.com/iyear/tdl/core/dcpool"
+	"github.com/iyear/tdl/core/downloader"
+	coretclient "github.com/iyear/tdl/core/tclient"
+	"github.com/iyear/tdl/core/tmedia"
+	"github.com/iyear/tdl/core/util/tutil"
+	"github.com/iyear/tdl/pkg/tplfunc"
+)
+
+const (
+	downloadQueued  = "queued"
+	downloadActive  = "active"
+	downloadPaused  = "paused"
+	downloadDone    = "done"
+	downloadFailed  = "failed"
+	downloadTempExt = ".tmp"
+)
+
+type DownloadTaskDTO struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Chat     string `json:"chat"`
+	Size     string `json:"size"`
+	Progress int    `json:"progress"`
+	Speed    string `json:"speed,omitempty"`
+	ETA      string `json:"eta,omitempty"`
+	Status   string `json:"status"`
+	Ext      string `json:"ext"`
+	Color    string `json:"color"`
+	Error    string `json:"error,omitempty"`
+	Path     string `json:"path,omitempty"`
+}
+
+type DownloadEvent struct {
+	Task    *DownloadTaskDTO `json:"task,omitempty"`
+	Removed bool             `json:"removed,omitempty"`
+}
+
+type downloadTask struct {
+	dto DownloadTaskDTO
+
+	chatID    string
+	messageID int
+	proxy     string
+	ntp       string
+	dir       string
+	template  string
+	threads   int
+
+	ctx        context.Context
+	cancel     context.CancelFunc
+	generation int
+	done       chan struct{}
+
+	total      int64
+	downloaded int64
+	tempPath   string
+	created    int64
+}
+
+func (s *Service) SetDownloadEventSink(sink func(DownloadEvent)) {
+	s.downloadMu.Lock()
+	s.downloadSink = sink
+	s.downloadMu.Unlock()
+}
+
+func (s *Service) emitDownload(event DownloadEvent) {
+	s.downloadMu.Lock()
+	sink := s.downloadSink
+	s.downloadMu.Unlock()
+	if sink != nil {
+		sink(event)
+	}
+}
+
+// StartDownload queues one task per message. Downloads share the long-lived
+// Telegram session and run at most two at a time.
+func (s *Service) StartDownload(
+	chatID, chatTitle string,
+	messageIDs []int,
+	proxy, ntp, dir, fileNameTemplate string,
+	threads int,
+) ([]string, error) {
+	if len(messageIDs) == 0 {
+		return nil, fmt.Errorf("no messages selected")
+	}
+	dir = strings.TrimSpace(dir)
+	if dir == "" {
+		return nil, fmt.Errorf("download folder is empty")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("create download folder: %w", err)
+	}
+	if threads < 1 {
+		threads = 4
+	}
+	if threads > 16 {
+		threads = 16
+	}
+	if strings.TrimSpace(fileNameTemplate) == "" {
+		fileNameTemplate = "{{ .DialogID }}_{{ .MessageID }}_{{ filenamify .FileName }}"
+	}
+
+	// Fail before creating tasks when the session/proxy cannot connect.
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	_, err := s.ensureSession(ctx, proxy, ntp)
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		ids    []string
+		start  []*downloadTask
+		queued []DownloadEvent
+	)
+	seen := make(map[int]struct{}, len(messageIDs))
+
+	s.downloadMu.Lock()
+	if s.downloadTasks == nil {
+		s.downloadTasks = make(map[string]*downloadTask)
+	}
+	if s.downloadSem == nil {
+		s.downloadSem = make(chan struct{}, 2)
+	}
+	for _, messageID := range messageIDs {
+		if messageID <= 0 {
+			continue
+		}
+		if _, duplicate := seen[messageID]; duplicate {
+			continue
+		}
+		seen[messageID] = struct{}{}
+		s.downloadCounter++
+		id := fmt.Sprintf("dl-%d", s.downloadCounter)
+		task := &downloadTask{
+			dto: DownloadTaskDTO{
+				ID:     id,
+				Name:   fmt.Sprintf("Message %d", messageID),
+				Chat:   chatTitle,
+				Status: downloadQueued,
+				Color:  "#f0a04b",
+			},
+			chatID:    chatID,
+			messageID: messageID,
+			proxy:     proxy,
+			ntp:       ntp,
+			dir:       dir,
+			template:  fileNameTemplate,
+			threads:   threads,
+			created:   time.Now().Unix(),
+		}
+		s.downloadTasks[id] = task
+		s.downloadOrder = append(s.downloadOrder, id)
+		ids = append(ids, id)
+		queued = append(queued, DownloadEvent{Task: cloneTask(task.dto)})
+	}
+	s.downloadMu.Unlock()
+
+	for _, event := range queued {
+		s.emitDownload(event)
+	}
+
+	s.downloadMu.Lock()
+	for _, id := range ids {
+		task := s.downloadTasks[id]
+		if task == nil {
+			continue
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		task.ctx = ctx
+		task.cancel = cancel
+		task.generation++
+		task.done = make(chan struct{})
+		start = append(start, task)
+	}
+	s.persistDownloadsLocked(true)
+	s.downloadMu.Unlock()
+
+	for _, task := range start {
+		go s.runDownload(task, task.ctx, task.generation, task.done)
+	}
+	return ids, nil
+}
+
+func (s *Service) GetDownloads() []DownloadTaskDTO {
+	s.downloadMu.Lock()
+	defer s.downloadMu.Unlock()
+
+	result := make([]DownloadTaskDTO, 0, len(s.downloadOrder))
+	for _, id := range s.downloadOrder {
+		if task := s.downloadTasks[id]; task != nil {
+			result = append(result, task.dto)
+		}
+	}
+	return result
+}
+
+func (s *Service) PauseDownload(id string) error {
+	s.downloadMu.Lock()
+	task := s.downloadTasks[id]
+	if task == nil {
+		s.downloadMu.Unlock()
+		return fmt.Errorf("task not found")
+	}
+	if task.dto.Status == downloadDone || task.dto.Status == downloadPaused {
+		s.downloadMu.Unlock()
+		return nil
+	}
+	task.dto.Status = downloadPaused
+	task.dto.Speed = ""
+	task.dto.ETA = ""
+	cancel := task.cancel
+	done := task.done
+	event := DownloadEvent{Task: cloneTask(task.dto)}
+	s.persistDownloadsLocked(true)
+	s.downloadMu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	s.emitDownload(event)
+	if done != nil {
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+		}
+	}
+	return nil
+}
+
+func (s *Service) ResumeDownload(id, proxy, ntp string) error {
+	s.downloadMu.Lock()
+	task := s.downloadTasks[id]
+	if task == nil {
+		s.downloadMu.Unlock()
+		return fmt.Errorf("task not found")
+	}
+	if task.dto.Status == downloadActive || task.dto.Status == downloadQueued {
+		s.downloadMu.Unlock()
+		return nil
+	}
+	task.proxy = proxy
+	task.ntp = ntp
+	ctx, cancel := context.WithCancel(context.Background())
+	task.ctx = ctx
+	task.cancel = cancel
+	task.generation++
+	task.done = make(chan struct{})
+	task.dto.Status = downloadQueued
+	task.dto.Error = ""
+	task.dto.Speed = ""
+	task.dto.ETA = ""
+	generation := task.generation
+	done := task.done
+	event := DownloadEvent{Task: cloneTask(task.dto)}
+	s.persistDownloadsLocked(true)
+	s.downloadMu.Unlock()
+
+	s.emitDownload(event)
+	go s.runDownload(task, ctx, generation, done)
+	return nil
+}
+
+func (s *Service) CancelDownload(id string) error {
+	s.downloadMu.Lock()
+	task := s.downloadTasks[id]
+	if task == nil {
+		s.downloadMu.Unlock()
+		return nil
+	}
+	if task.cancel != nil {
+		task.cancel()
+	}
+	delete(s.downloadTasks, id)
+	next := s.downloadOrder[:0]
+	for _, item := range s.downloadOrder {
+		if item != id {
+			next = append(next, item)
+		}
+	}
+	s.downloadOrder = next
+	s.persistDownloadsLocked(true)
+	s.downloadMu.Unlock()
+
+	s.emitDownload(DownloadEvent{Removed: true, Task: &DownloadTaskDTO{ID: id}})
+	return nil
+}
+
+func (s *Service) ClearCompletedDownloads() error {
+	s.downloadMu.Lock()
+	next := s.downloadOrder[:0]
+	for _, id := range s.downloadOrder {
+		task := s.downloadTasks[id]
+		if task == nil || task.dto.Status != downloadDone {
+			next = append(next, id)
+		} else {
+			delete(s.downloadTasks, id)
+		}
+	}
+	s.downloadOrder = next
+	s.persistDownloadsLocked(true)
+	s.downloadMu.Unlock()
+	return nil
+}
+
+func (s *Service) OpenDownloadFolder(path string) error {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return fmt.Errorf("empty download path")
+	}
+	if info, err := os.Stat(path); err == nil && !info.IsDir() {
+		path = filepath.Dir(path)
+	}
+	return exec.Command("explorer.exe", path).Start()
+}
+
+func (s *Service) cancelAllDownloads() {
+	s.downloadMu.Lock()
+	for _, task := range s.downloadTasks {
+		if task.cancel != nil {
+			task.cancel()
+		}
+	}
+	s.downloadTasks = make(map[string]*downloadTask)
+	s.downloadOrder = nil
+	s.persistDownloadsLocked(true)
+	s.downloadMu.Unlock()
+}
+
+func (s *Service) runDownload(task *downloadTask, ctx context.Context, generation int, done chan struct{}) {
+	defer close(done)
+
+	select {
+	case s.downloadSem <- struct{}{}:
+	case <-ctx.Done():
+		return
+	}
+	defer func() { <-s.downloadSem }()
+
+	if !s.activateTask(task.dto.ID, generation) {
+		return
+	}
+
+	client, err := s.ensureSession(ctx, task.proxy, task.ntp)
+	if err != nil {
+		s.failDownload(task.dto.ID, generation, err)
+		return
+	}
+	peer, err := parsePeerID(task.chatID)
+	if err != nil {
+		s.failDownload(task.dto.ID, generation, err)
+		return
+	}
+	msg, err := tutil.GetSingleMessage(ctx, client.API(), peer, task.messageID)
+	if err != nil {
+		s.failDownload(task.dto.ID, generation, err)
+		return
+	}
+	media, ok := tmedia.GetMedia(msg)
+	if !ok {
+		s.failDownload(task.dto.ID, generation, fmt.Errorf("message has no downloadable media"))
+		return
+	}
+
+	finalPath := task.dto.Path
+	if finalPath == "" {
+		finalPath, err = taskPath(task, media, msg)
+		if err != nil {
+			s.failDownload(task.dto.ID, generation, err)
+			return
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(finalPath), 0o755); err != nil {
+		s.failDownload(task.dto.ID, generation, fmt.Errorf("create download folder: %w", err))
+		return
+	}
+	tempPath := task.tempPath
+	if tempPath == "" {
+		tempPath = finalPath + downloadTempExt
+	}
+
+	startSize := int64(0)
+	if info, statErr := os.Stat(tempPath); statErr == nil {
+		startSize = info.Size()
+		if startSize > media.Size {
+			startSize = 0
+		}
+		// Resume on a 4 KiB boundary so Telegram accepts the offset.
+		const align = int64(4096)
+		startSize = startSize / align * align
+		if startSize > 0 {
+			if err := os.Truncate(tempPath, startSize); err != nil {
+				s.failDownload(task.dto.ID, generation, fmt.Errorf("resume file: %w", err))
+				return
+			}
+		}
+	}
+	flags := os.O_CREATE | os.O_WRONLY
+	if startSize == 0 {
+		flags |= os.O_TRUNC
+	}
+	file, err := os.OpenFile(tempPath, flags, 0o644)
+	if err != nil {
+		s.failDownload(task.dto.ID, generation, fmt.Errorf("create file: %w", err))
+		return
+	}
+
+	name := filepath.Base(finalPath)
+	ext := strings.ToUpper(strings.TrimPrefix(filepath.Ext(name), "."))
+	progress := int64(0)
+	if media.Size > 0 {
+		progress = startSize * 100 / media.Size
+	}
+	if !s.prepareDownloadTask(task, generation, finalPath, tempPath, media.Size, startSize, name, ext, int(progress)) {
+		_ = file.Close()
+		return
+	}
+
+	pool := dcpool.NewPool(client, 4, coretclient.NewDefaultMiddlewares(ctx, 2*time.Minute)...)
+	taskProgress := &downloadProgress{
+		service:    s,
+		id:         task.dto.ID,
+		generation: generation,
+		lastTime:   time.Now(),
+		last:       startSize,
+		total:      media.Size,
+	}
+
+	var downloadErr error
+	if startSize > 0 {
+		downloadErr = s.downloadRange(ctx, pool, media, file, startSize, taskProgress)
+		if errors.Is(downloadErr, errCDNRedirect) {
+			// CDN files cannot be fetched with the simple range call. Fall
+			// back to gotd's full downloader and restart this file.
+			if truncateErr := file.Truncate(0); truncateErr != nil {
+				downloadErr = truncateErr
+			} else {
+				_ = s.updateTask(task.dto.ID, generation, func(dto *DownloadTaskDTO) {
+					dto.Progress = 0
+					dto.Speed = ""
+					dto.ETA = ""
+				})
+				taskProgress.Reset()
+				downloadErr = s.downloadFresh(ctx, pool, media, file, task, taskProgress)
+			}
+		}
+	} else {
+		downloadErr = s.downloadFresh(ctx, pool, media, file, task, taskProgress)
+	}
+	_ = file.Close()
+	_ = pool.Close()
+
+	if downloadErr == nil && taskProgress.Err() != nil {
+		downloadErr = taskProgress.Err()
+	}
+	if downloadErr != nil {
+		if ctx.Err() != nil {
+			s.downloadMu.Lock()
+			current := s.downloadTasks[task.dto.ID]
+			paused := current != nil && current.generation == generation && current.dto.Status == downloadPaused
+			s.downloadMu.Unlock()
+			if paused {
+				return
+			}
+		}
+		s.failDownload(task.dto.ID, generation, downloadErr)
+		return
+	}
+
+	if err := os.Rename(tempPath, finalPath); err != nil {
+		s.failDownload(task.dto.ID, generation, fmt.Errorf("rename download: %w", err))
+		return
+	}
+
+	s.downloadMu.Lock()
+	current := s.downloadTasks[task.dto.ID]
+	if current == nil || current.generation != generation {
+		s.downloadMu.Unlock()
+		return
+	}
+	current.dto.Status = downloadDone
+	current.dto.Progress = 100
+	current.dto.Speed = ""
+	current.dto.ETA = ""
+	current.dto.Size = humanSize(media.Size)
+	current.dto.Path = finalPath
+	current.tempPath = ""
+	current.total = media.Size
+	current.downloaded = media.Size
+	s.persistDownloadsLocked(true)
+	event := DownloadEvent{Task: cloneTask(current.dto)}
+	s.downloadMu.Unlock()
+	s.emitDownload(event)
+}
+
+func (s *Service) prepareDownloadTask(
+	task *downloadTask,
+	generation int,
+	finalPath, tempPath string,
+	total, downloaded int64,
+	name, ext string,
+	progress int,
+) bool {
+	s.downloadMu.Lock()
+	current := s.downloadTasks[task.dto.ID]
+	if current == nil || current.generation != generation || current.dto.Status == downloadPaused {
+		s.downloadMu.Unlock()
+		return false
+	}
+	current.tempPath = tempPath
+	current.total = total
+	current.downloaded = downloaded
+	current.dto.Name = name
+	current.dto.Size = humanSize(total)
+	current.dto.Ext = ext
+	current.dto.Color = downloadColor(name)
+	current.dto.Path = finalPath
+	current.dto.Progress = progress
+	current.dto.Error = ""
+	s.persistDownloadsLocked(true)
+	event := DownloadEvent{Task: cloneTask(current.dto)}
+	s.downloadMu.Unlock()
+	s.emitDownload(event)
+	return true
+}
+
+func (s *Service) downloadFresh(
+	ctx context.Context,
+	pool dcpool.Pool,
+	media *tmedia.Media,
+	file *os.File,
+	task *downloadTask,
+	progress *downloadProgress,
+) error {
+	element := &downloadElement{media: media, to: file}
+	dl := downloader.New(downloader.Options{
+		Pool:     pool,
+		Threads:  task.threads,
+		Iter:     &singleIter{elem: element},
+		Progress: progress,
+	})
+	err := dl.Download(ctx, 1)
+	if err == nil && progress.Err() != nil {
+		err = progress.Err()
+	}
+	return err
+}
+
+var errCDNRedirect = errors.New("CDN download requires full transfer")
+
+func (s *Service) downloadRange(
+	ctx context.Context,
+	pool dcpool.Pool,
+	media *tmedia.Media,
+	file *os.File,
+	start int64,
+	progress *downloadProgress,
+) error {
+	const (
+		partSize   = int64(1024 * 1024)
+		chunkAlign = int64(4096)
+	)
+	offset := start
+	client := pool.Client(ctx, media.DC)
+
+	for offset < media.Size {
+		remaining := media.Size - offset
+		limit := partSize
+		if remaining < limit {
+			limit = remaining
+		}
+		// Telegram requires offset and limit to be divisible by 4 KiB.
+		limit = limit / chunkAlign * chunkAlign
+		if limit < chunkAlign {
+			limit = chunkAlign
+		}
+		result, err := client.UploadGetFile(ctx, &tg.UploadGetFileRequest{
+			Location: media.InputFileLoc,
+			Offset:   offset,
+			Limit:    int(limit),
+			Precise:  true,
+		})
+		if err != nil {
+			return fmt.Errorf("resume download: %w", err)
+		}
+		switch value := result.(type) {
+		case *tg.UploadFile:
+			data := value.Bytes
+			if len(data) == 0 {
+				return fmt.Errorf("resume download returned no data at %d/%d", offset, media.Size)
+			}
+			if int64(len(data)) > remaining {
+				data = data[:remaining]
+			}
+			if _, err := file.WriteAt(data, offset); err != nil {
+				return fmt.Errorf("write resumed file: %w", err)
+			}
+			offset += int64(len(data))
+			progress.Report(offset, media.Size)
+		case *tg.UploadFileCDNRedirect:
+			return errCDNRedirect
+		default:
+			return fmt.Errorf("unexpected upload.getFile result %T", result)
+		}
+	}
+	return nil
+}
+
+func (s *Service) activateTask(id string, generation int) bool {
+	s.downloadMu.Lock()
+	task := s.downloadTasks[id]
+	if task == nil || task.generation != generation || task.dto.Status == downloadPaused {
+		s.downloadMu.Unlock()
+		return false
+	}
+	task.dto.Status = downloadActive
+	event := DownloadEvent{Task: cloneTask(task.dto)}
+	s.persistDownloadsLocked(true)
+	s.downloadMu.Unlock()
+	s.emitDownload(event)
+	return true
+}
+
+func (s *Service) updateTask(id string, generation int, fn func(*DownloadTaskDTO)) bool {
+	s.downloadMu.Lock()
+	task := s.downloadTasks[id]
+	if task == nil || task.generation != generation {
+		s.downloadMu.Unlock()
+		return false
+	}
+	fn(&task.dto)
+	s.persistDownloadsLocked(false)
+	event := DownloadEvent{Task: cloneTask(task.dto)}
+	s.downloadMu.Unlock()
+	s.emitDownload(event)
+	return true
+}
+
+func (s *Service) failDownload(id string, generation int, err error) {
+	s.downloadMu.Lock()
+	task := s.downloadTasks[id]
+	if task == nil || task.generation != generation {
+		s.downloadMu.Unlock()
+		return
+	}
+	if task.dto.Status == downloadPaused {
+		s.downloadMu.Unlock()
+		return
+	}
+	task.dto.Status = downloadFailed
+	task.dto.Speed = ""
+	task.dto.ETA = ""
+	task.dto.Error = err.Error()
+	s.persistDownloadsLocked(true)
+	event := DownloadEvent{Task: cloneTask(task.dto)}
+	s.downloadMu.Unlock()
+	s.emitDownload(event)
+}
+
+func cloneTask(task DownloadTaskDTO) *DownloadTaskDTO {
+	copy := task
+	return &copy
+}
+
+type downloadElement struct {
+	media *tmedia.Media
+	to    *os.File
+}
+
+func (d *downloadElement) File() downloader.File { return d }
+func (d *downloadElement) To() io.WriterAt       { return d.to }
+func (d *downloadElement) AsTakeout() bool       { return false }
+func (d *downloadElement) Location() tg.InputFileLocationClass {
+	return d.media.InputFileLoc
+}
+func (d *downloadElement) Size() int64 { return d.media.Size }
+func (d *downloadElement) DC() int     { return d.media.DC }
+
+type singleIter struct {
+	elem downloader.Elem
+	done bool
+	err  error
+}
+
+func (i *singleIter) Next(context.Context) bool {
+	if i.done {
+		return false
+	}
+	i.done = true
+	return true
+}
+func (i *singleIter) Value() downloader.Elem { return i.elem }
+func (i *singleIter) Err() error             { return i.err }
+
+type downloadProgress struct {
+	service    *Service
+	id         string
+	generation int
+
+	mu       sync.Mutex
+	doneErr  error
+	lastTime time.Time
+	last     int64
+	total    int64
+}
+
+func (p *downloadProgress) OnAdd(elem downloader.Elem) {
+	p.total = elem.File().Size()
+	_ = p.service.updateTask(p.id, p.generation, func(dto *DownloadTaskDTO) {
+		dto.Size = humanSize(p.total)
+	})
+}
+
+func (p *downloadProgress) OnDownload(_ downloader.Elem, state downloader.ProgressState) {
+	p.Report(state.Downloaded, state.Total)
+}
+
+func (p *downloadProgress) Report(downloaded, total int64) {
+	now := time.Now()
+	p.mu.Lock()
+	elapsed := now.Sub(p.lastTime).Seconds()
+	delta := downloaded - p.last
+	speed := 0.0
+	if elapsed > 0 {
+		speed = float64(delta) / elapsed
+	}
+	if elapsed < 0.2 && downloaded < total {
+		p.mu.Unlock()
+		return
+	}
+	p.last = downloaded
+	p.lastTime = now
+	p.mu.Unlock()
+
+	progress := 0
+	if total > 0 {
+		progress = int(downloaded * 100 / total)
+		if progress > 100 {
+			progress = 100
+		}
+	}
+	speedText := ""
+	etaText := ""
+	if speed > 0 {
+		speedText = humanSize(int64(speed)) + "/s"
+		if total > downloaded {
+			seconds := int(float64(total-downloaded) / speed)
+			etaText = formatETA(seconds)
+		}
+	}
+	_ = p.service.updateTask(p.id, p.generation, func(dto *DownloadTaskDTO) {
+		dto.Progress = progress
+		dto.Speed = speedText
+		dto.ETA = etaText
+		dto.Size = humanSize(total)
+	})
+}
+
+func (p *downloadProgress) Reset() {
+	p.mu.Lock()
+	p.last = 0
+	p.lastTime = time.Now()
+	p.mu.Unlock()
+}
+
+func (p *downloadProgress) OnDone(_ downloader.Elem, err error) {
+	p.mu.Lock()
+	p.doneErr = err
+	p.mu.Unlock()
+}
+
+func (p *downloadProgress) Err() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.doneErr
+}
+
+type downloadTemplateData struct {
+	DialogID     int64
+	MessageID    int
+	MessageDate  int64
+	FileName     string
+	FileCaption  string
+	FileSize     string
+	DownloadDate int64
+}
+
+func taskPath(task *downloadTask, media *tmedia.Media, msg *tg.Message) (string, error) {
+	id, err := peerRawID(task.chatID)
+	if err != nil {
+		return "", err
+	}
+	tpl, err := template.New("filename").Funcs(tplfunc.FuncMap(tplfunc.All...)).Parse(task.template)
+	if err != nil {
+		return "", fmt.Errorf("parse file template: %w", err)
+	}
+
+	var rendered strings.Builder
+	err = tpl.Execute(&rendered, &downloadTemplateData{
+		DialogID:     id,
+		MessageID:    msg.ID,
+		MessageDate:  int64(msg.Date),
+		FileName:     media.Name,
+		FileCaption:  msg.Message,
+		FileSize:     humanSize(media.Size),
+		DownloadDate: time.Now().Unix(),
+	})
+	if err != nil {
+		return "", fmt.Errorf("render file template: %w", err)
+	}
+
+	name := strings.TrimSpace(rendered.String())
+	if name == "" {
+		name = fmt.Sprintf("%d_%d_%s", id, msg.ID, media.Name)
+	}
+	name = filepath.Clean(name)
+	if filepath.IsAbs(name) || name == "." || strings.HasPrefix(name, "..") {
+		name = fmt.Sprintf("%d_%d_%s", id, msg.ID, media.Name)
+	}
+
+	finalPath := filepath.Join(task.dir, name)
+	rel, err := filepath.Rel(task.dir, finalPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", fmt.Errorf("invalid download path")
+	}
+	return finalPath, nil
+}
+
+func peerRawID(chatID string) (int64, error) {
+	parts := strings.Split(chatID, ":")
+	if len(parts) != 3 {
+		return 0, fmt.Errorf("invalid chat id")
+	}
+	return strconv.ParseInt(parts[1], 10, 64)
+}
+
+func downloadColor(name string) string {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".jpg", ".jpeg", ".png", ".webp", ".gif":
+		return "#65aadd"
+	case ".mp4", ".mov", ".mkv", ".webm":
+		return "#e05a8a"
+	case ".mp3", ".ogg", ".m4a", ".wav", ".flac":
+		return "#7bc862"
+	default:
+		return "#f0a04b"
+	}
+}
+
+func formatETA(seconds int) string {
+	if seconds < 0 {
+		return ""
+	}
+	if seconds < 60 {
+		return fmt.Sprintf("00:%02d", seconds)
+	}
+	minutes := seconds / 60
+	seconds %= 60
+	if minutes < 60 {
+		return fmt.Sprintf("%02d:%02d", minutes, seconds)
+	}
+	hours := minutes / 60
+	minutes %= 60
+	return fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds)
+}
