@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Events } from "@wailsio/runtime";
 import { Service as AppService } from "../../../bindings/tgdesk/internal/app";
 import type { AppSettings } from "../../hooks/useSettings";
-import type { AuthEvent, AuthUser, ResolvedTheme } from "../../types";
+import type { AuthEvent, AuthUser } from "../../types";
 import { LoginShell } from "./LoginShell";
 import { LoginQrStep } from "./LoginQrStep";
 import { LoginPhoneStep } from "./LoginPhoneStep";
@@ -17,8 +17,6 @@ import "./login.css";
 type Mode = "welcome" | "qr" | "phone" | "code" | "password" | "success";
 
 interface LoginScreenProps {
-  theme: ResolvedTheme;
-  onToggleTheme: () => void;
   onAuthenticated: (user: AuthUser) => void;
   tdlVersion?: string;
   proxy?: string;
@@ -55,8 +53,6 @@ function errorText(error: unknown): string {
 }
 
 export function LoginScreen({
-  theme,
-  onToggleTheme,
   onAuthenticated,
   tdlVersion,
   proxy = "",
@@ -281,12 +277,7 @@ export function LoginScreen({
           : "form";
 
   return (
-    <LoginShell
-      theme={theme}
-      onToggleTheme={onToggleTheme}
-      tdlVersion={tdlVersion}
-      surface={surface}
-    >
+    <LoginShell tdlVersion={tdlVersion} surface={surface}>
       {mode === "welcome" ? (
         <LoginWelcomeStep
           busy={busy}

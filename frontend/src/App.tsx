@@ -619,8 +619,6 @@ export default function App() {
     return (
       <TooltipProvider delayDuration={350}>
         <LoginScreen
-          theme={resolvedTheme}
-          onToggleTheme={toggleTheme}
           onAuthenticated={handleAuthenticated}
           tdlVersion={status?.tdlVersion}
           proxy={proxyUrl}
