@@ -222,6 +222,13 @@ clicking opens the coordinates in OpenStreetMap through the Wails browser
 opener. Contact cards copy the phone number to the clipboard and report success
 through the existing toast.
 
+## Service messages
+
+`MessageService` entries are now mapped into the message timeline instead of
+being dropped: joins, invite-link joins, leaves, title changes, pins, channel
+creation and TTL changes render as centered Telegram-style service pills with a
+small timestamp. Verified live: one join service message was rendered.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

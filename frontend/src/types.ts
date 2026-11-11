@@ -88,6 +88,7 @@ export interface Message {
   forwarded?: boolean;
   forwardedFrom?: string;
   forwardedDate?: number;
+  service?: string;
   media?: MessageMedia;
   tail?: boolean;
 }

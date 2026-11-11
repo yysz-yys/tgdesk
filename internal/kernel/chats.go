@@ -63,6 +63,7 @@ type MessageDTO struct {
 	Forwarded     bool             `json:"forwarded,omitempty"`
 	ForwardedFrom string           `json:"forwardedFrom,omitempty"`
 	ForwardedDate int64            `json:"forwardedDate,omitempty"`
+	Service       string           `json:"service,omitempty"`
 	Media         *MessageMediaDTO `json:"media,omitempty"`
 }
 
@@ -209,12 +210,12 @@ func (s *Service) GetMessages(chatID, proxy, ntp string, limit int) ([]MessageDT
 		}
 
 		for _, raw := range messages {
-			msg, ok := raw.(*tg.Message)
-			if !ok {
-				continue
+			switch msg := raw.(type) {
+			case *tg.Message:
+				result = append(result, mapMessage(chatID, msg, senders))
+			case *tg.MessageService:
+				result = append(result, mapService(chatID, msg, senders))
 			}
-			item := mapMessage(chatID, msg, senders)
-			result = append(result, item)
 		}
 		return nil
 	})
@@ -345,6 +346,72 @@ func mapMessage(chatID string, msg *tg.Message, senders map[int64]string) Messag
 	}
 	item.Media = mapMedia(msg.Media)
 	return item
+}
+
+func mapService(chatID string, msg *tg.MessageService, senders map[int64]string) MessageDTO {
+	actor := senderName(msg.FromID, senders)
+	item := MessageDTO{
+		ID:      msg.ID,
+		ChatID:  chatID,
+		Date:    int64(msg.Date),
+		Service: "Service message",
+	}
+	switch action := msg.Action.(type) {
+	case *tg.MessageActionChatAddUser:
+		names := make([]string, 0, len(action.Users))
+		for _, id := range action.Users {
+			if name := senders[id]; name != "" {
+				names = append(names, name)
+			}
+		}
+		if len(names) > 0 {
+			item.Service = strings.Join(names, ", ") + " joined the group"
+		} else if actor != "" {
+			item.Service = actor + " joined the group"
+		}
+	case *tg.MessageActionChatJoinedByLink:
+		if actor != "" {
+			item.Service = actor + " joined via invite link"
+		} else {
+			item.Service = "Joined via invite link"
+		}
+	case *tg.MessageActionChatDeleteUser:
+		name := senders[action.UserID]
+		if name == "" {
+			name = actor
+		}
+		if name != "" {
+			item.Service = name + " left the group"
+		}
+	case *tg.MessageActionChatEditTitle:
+		item.Service = "Group name changed to " + action.Title
+	case *tg.MessageActionPinMessage:
+		item.Service = "Message pinned"
+	case *tg.MessageActionChannelCreate:
+		item.Service = "Channel created"
+	case *tg.MessageActionChatCreate:
+		item.Service = "Group created"
+	case *tg.MessageActionSetMessagesTTL:
+		if action.Period > 0 {
+			item.Service = fmt.Sprintf("Auto-delete timer set to %s", humanDuration(action.Period))
+		} else {
+			item.Service = "Auto-delete timer disabled"
+		}
+	}
+	return item
+}
+
+func humanDuration(seconds int) string {
+	switch {
+	case seconds >= 86400 && seconds%86400 == 0:
+		return fmt.Sprintf("%d days", seconds/86400)
+	case seconds >= 3600 && seconds%3600 == 0:
+		return fmt.Sprintf("%d hours", seconds/3600)
+	case seconds >= 60 && seconds%60 == 0:
+		return fmt.Sprintf("%d minutes", seconds/60)
+	default:
+		return fmt.Sprintf("%d seconds", seconds)
+	}
 }
 
 func senderName(from tg.PeerClass, senders map[int64]string) string {

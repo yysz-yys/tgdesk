@@ -307,6 +307,27 @@
   }
 }
 
+.service-message {
+  display: flex;
+  width: fit-content;
+  max-width: 76%;
+  align-items: center;
+  gap: 7px;
+  margin: 7px auto;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 4px 10px;
+  color: #b7c3cf;
+  font-size: 11.5px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.service-time {
+  color: rgba(183, 195, 207, 0.55);
+  font-size: 9.5px;
+}
+
 .message-forwarded {
   display: flex;
   align-items: center;

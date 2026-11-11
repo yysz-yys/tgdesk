@@ -70,6 +70,18 @@ export function MessageList({
             next?.sender === message.sender &&
             next?.out === message.out;
 
+          if (message.service) {
+            return (
+              <div key={message.id}>
+                {showDate && <div className="date-pill">{message.date}</div>}
+                <div className="service-message">
+                  <span>{message.service}</span>
+                  <span className="service-time">{message.time}</span>
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div key={message.id}>
               {showDate && <div className="date-pill">{message.date}</div>}

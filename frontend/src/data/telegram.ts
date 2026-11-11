@@ -48,6 +48,7 @@ export interface KernelMessage {
   forwarded?: boolean;
   forwardedFrom?: string;
   forwardedDate?: number;
+  service?: string;
   media?: KernelMessageMedia | null;
 }
 
@@ -250,6 +251,7 @@ export function mapMessage(
     forwarded: Boolean(message.forwarded),
     forwardedFrom: message.forwardedFrom || undefined,
     forwardedDate: message.forwardedDate || undefined,
+    service: message.service || undefined,
     media: mapMedia(message.media, t),
     tail: true,
   };
