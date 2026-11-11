@@ -85,8 +85,8 @@
   - **Phone Number**：国家码 + 手机号 → Telegram 验证码 → 可选 2FA 密码；“Back” 会取消当前 flow。
 - 登录页内嵌 **Proxy settings**：None / SOCKS5 / HTTP、host/port/username/password（密码只在内存中），保存后重连；用于 Telegram 被墙的网络。
 - 登录事件通过 `auth:event` 推送：`starting` / `qr` / `code` / `password` / `success` / `error`。首个响应超过 30 秒会显示本地化超时错误。
-- 会话写入 `<exe>/tdata/tgdesk`，与 tdl CLI 的 `default` namespace 隔离；`AuthStatus` 要求 session + 已登录用户标记，避免“扫到一半”的 QR auth key 被误判为已登录。把整个 `tdata/` 放到另一个 `tgdesk.exe` 同目录即可直接登录。
-- **Telegram Desktop tdata**：把 Telegram Desktop 的 `tdata` 内容复制到 `<exe>/tdata` 后启动，`gotd/td/session/tdesktop` 会读取授权 key，自动导入为 tdl session；已有 tgdesk session 会先备份为 `tdata/tgdesk.bak`。带本地 passcode 的 tdata 暂不支持，登录页显示导入错误但二维码仍可用。
+- 会话写入 `<exe>/data/tgdesk`，与 tdl CLI 的 `default` namespace 隔离；`AuthStatus` 要求 session + 已登录用户标记，避免“扫到一半”的 QR auth key 被误判为已登录。`tdata/` 只放官方 Telegram Desktop 文件，tgdesk 自己的状态全部在 `data/`。把 `tdata/` 或 `data/tgdesk` 放到另一个 `tgdesk.exe` 同目录即可直接登录。
+- **Telegram Desktop tdata**：把 Telegram Desktop 的 `tdata` 内容复制到 `<exe>/tdata` 后启动，`gotd/td/session/tdesktop` 会读取授权 key，自动导入为 `data/tgdesk`；已有 tgdesk session 会先备份为 `data/tgdesk.bak`。带本地 passcode 的 tdata 暂不支持，登录页显示导入错误但二维码仍可用。
 - 处理 Telegram 的 `AUTH_LOGIN_TOKEN_MIGRATE_TO`：扫描后要求迁移到 DC 5 时，自动 `MigrateTo` 并导入已扫描 token，不要求二次扫码；如果是刷新 token 时要求迁移（还没有扫描），迁移后在新 DC 生成新二维码。
 - 登录后进入主界面；主界面菜单 / 设置里的 “Log out” 删除 tgdesk 的 tdl session 和用户缓存，回到登录页。
 - 账号名、头像首字母来自 `client.Self()`，并缓存在 tdl KV，重启后仍显示。

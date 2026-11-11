@@ -22,8 +22,8 @@
 - 2026-11-11：Telegram Desktop 风格 UI 壳已实现（Tailwind 4 + Radix + Tabler，浅色/深色、聊天列表、消息气泡、下载管理、右侧信息栏、About）；设置页（General/Appearance/Downloads/Network/Advanced/About）完成；界面支持 English / 简体中文 / 日本語，默认跟随系统语言；详见 `docs/ui.md`。
 - 2026-11-11：登录页已接 **真实 gotd QR / 手机号 / 验证码 / 2FA flow**，通过 kernel 的 `auth:event` 驱动；QR 已用 HTTP 代理 `127.0.0.1:7897` 实测生成并完成真实账号登录。会话写入独立 `tgdesk` namespace，`AuthStatus` 要求 session + 已登录用户标记。
 - 2026-11-11：聊天列表和最近 50 条消息已接真实 Telegram 数据（`GetChats` / `GetMessages`，opaque peer ID + 共享 session）；媒体下载任务已接 `core/tmedia` + `core/downloader`，支持真实进度/暂停/继续/取消、文件名模板和 Explorer 打开目录。任务元数据持久化到 `<exe>/data/downloads.json`，重启后恢复为 paused，并从 `.tmp` 字节偏移继续；CDN redirect 暂回退完整重下。聊天 Pin/Mute/Mark read 仍是本地动作。
-- 2026-11-11：改为**便携模式**。运行时默认只写 `tgdesk.exe` 同目录：`tdata/`（tdl 登录会话）、`data/webview`（设置/主题/语言）、`data/downloads.json`、`downloads/`。旧 `~/.tdl` 会话与旧 WebView 配置只读取并一次性迁移。
-- 2026-11-11：支持直接复制 **Telegram Desktop 的 `tdata`** 到 `<exe>/tdata` 登录：用 `gotd/td/session/tdesktop` 解析授权 key，`session.Loader.Save` 到 tdl KV；已有 session 先备份为 `tgdesk.bak`，tdata 源文件不改。带本地 passcode 的 tdata 暂不支持。
+- 2026-11-11：改为**便携模式**。运行时默认只写 `tgdesk.exe` 同目录：`tdata/`（只放官方 Telegram Desktop 文件）、`data/tgdesk`（tdl 登录会话）、`data/webview`（设置/主题/语言）、`data/downloads.json`、`downloads/`。旧 `~/.tdl` 会话与旧 WebView 配置只读取并一次性迁移。
+- 2026-11-11：支持直接复制 **Telegram Desktop 的 `tdata`** 到 `<exe>/tdata` 登录：用 `gotd/td/session/tdesktop` 解析授权 key，`session.Loader.Save` 到 `data/tgdesk`；已有 session 先备份，tdata 源文件不改。带本地 passcode 的 tdata 暂不支持。QR/手机号登录后会反向生成官方格式 tdata（key_data + MTP auth + 空 map），已用官方 Telegram Desktop 7.4.1 验证可直接登录。
 - 已确认：产品范围 = 下载管理器 + 聊天浏览；许可证 = AGPL 开源；目标平台 = Windows only。
 
 ### 0.2 推荐技术栈（默认方案）

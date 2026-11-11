@@ -21,10 +21,9 @@ the gear in the sidebar footer or **☰ → Settings**.
 The interface defaults to the system language and can be switched between
 English, 简体中文, and 日本語 in **Settings → General → Language**.
 
-Sessions are stored in the `tgdesk` namespace inside the portable `tdata`
-folder next to the executable, separate from the tdl CLI's default namespace.
-Logging out of tgdesk does not clear the CLI session, and the two can run
-without sharing a bolt database.
+tgdesk's tdl session is stored in `data/tgdesk`, separate from the tdl CLI's
+default namespace. Logging out of tgdesk does not clear the CLI session, and
+the two can run without sharing a bolt database.
 
 ## Portable layout
 
@@ -33,32 +32,44 @@ All runtime writes default to folders beside `tgdesk.exe`:
 ```text
 tgdesk.exe
 data/
+  tgdesk            tgdesk's tdl bbolt session + cached user identity
   webview/          WebView2 state (settings/theme/language live here)
   downloads.json    download task metadata
-tdata/
-  tgdesk            tgdesk's tdl bbolt session + cached user identity
-  key_data* etc.    optional Telegram Desktop tdata files
+tdata/              official Telegram Desktop files only
+  key_data*         Telegram Desktop local key
+  data* / maps      Telegram Desktop account authorization/map
 downloads/          default download folder
 ```
 
-- Copy the whole folder to move the app. To carry only the login, copy `tdata/`
-  next to another `tgdesk.exe`; the app starts logged in and recreates portable
-  `data/` and `downloads/` as needed.
+`tdata/` is kept compatible with Telegram Desktop. tgdesk-specific state never
+goes there.
+
+- **Automatic tdata export:** after a successful QR or phone login, tgdesk
+  writes a no-passcode Telegram Desktop tdata (local key, MTP authorization and
+  an empty account map) next to the executable. This has been tested with the
+  official portable Telegram Desktop 7.4.1: it opens the account and chat list
+  from the generated tdata. The generated tdata contains only the main DC key;
+  Telegram Desktop fills in the rest as it connects.
 - **Telegram Desktop login:** close Telegram Desktop, then copy the contents of
   its `tdata` folder into `<exe>\tdata` (or copy the whole `tdata` folder next
   to `tgdesk.exe`). On the next start tgdesk reads the MTProto authorization
-  key with `gotd/td/session/tdesktop` and imports it; no QR scan is needed.
-  - Telegram Desktop files are only read and are not modified.
-  - If tgdesk already had a session, it is saved as `tdata/tgdesk.bak` before
+  key with `gotd/td/session/tdesktop` and imports it into `data/tgdesk`; no QR
+  scan is needed.
+  - Telegram Desktop files are only read; tgdesk never rewrites the source
+    files. A new login/export backs up the previous official files under
+    `data/tdata-backup/`.
+  - If tgdesk already had a session, it is saved as `data/tgdesk.bak` before
     the imported session replaces it.
   - A marker in `data/.telegram-desktop-import` records the source tdata
     fingerprint, so the same tdata is imported only once.
   - tdata protected by a Telegram Desktop **local passcode** is not supported
     yet; the login screen reports the import error and QR login still works.
+- Copy the whole folder to move the app. To carry only the login, copy `tdata/`
+  (official) or `data/tgdesk` (tgdesk session) next to another `tgdesk.exe`.
 - Existing profile-backed data is migrated once: the old WebView profile is
-  copied, and the old `~/.tdl/data/tgdesk` session file is copied into `tdata/`.
-  The old files are only read, never rewritten. Telegram Desktop tdata takes
-  precedence over that legacy session.
+  copied, and the old `~/.tdl/data/tgdesk` session file is copied into
+  `data/tgdesk`. The old files are only read, never rewritten. Telegram Desktop
+  tdata takes precedence over that legacy session.
 - `TGDESK_HOME` can point the portable root somewhere else for development.
 - The executable directory must be writable. Do not install in a read-only
   Program Files location if you want portable mode.
@@ -108,7 +119,8 @@ wails3 build
 
 `wails3 build` writes `bin/tgdesk.exe`. Development and test runs use that
 executable and keep all portable runtime data in `bin/data`, `bin/tdata` and
-`bin/downloads`; nothing is written to the repository root.
+`bin/downloads`; nothing is written to the repository root. `bin/tdata` holds
+only official Telegram Desktop files; tgdesk-specific state is in `bin/data`.
 
 For layout debugging, set `TGDESK_WEBVIEW_DEBUG=1` before launching. It exposes
 the WebView2 DevTools endpoint on `127.0.0.1:9222`; do not enable it in a
