@@ -433,6 +433,11 @@ export default {
       title: "言語",
       note: "インターフェースの言語はローカルに保存され、すぐに反映されます。",
     },
+    scale: {
+      title: "インターフェースの拡大率",
+      description: "{{percent}}% — デスクトップ UI 全体に適用されます。",
+      note: "このウィンドウの Telegram Desktop 拡大率設定。",
+    },
     faq: {
       title: "Telegram よくある質問",
       note: "公式ヘルプページは既定のブラウザで開きます。",

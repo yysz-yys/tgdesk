@@ -12,6 +12,7 @@ import {
   type KernelMessage,
 } from "./data/telegram";
 import type { DownloadTaskDTO } from "../bindings/tgdesk/internal/kernel/models";
+import { Window as WailsWindow } from "@wailsio/runtime";
 import type { AuthUser, Chat, DownloadEvent, DownloadTask, TaskStatus } from "./types";
 import { useTheme } from "./hooks/useTheme";
 import { useSettings, type AppSettings } from "./hooks/useSettings";
@@ -215,6 +216,12 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.accent = settings.accent;
   }, [settings.accent]);
+
+  useEffect(() => {
+    void WailsWindow.SetZoom(Math.max(0.8, Math.min(1.5, settings.interfaceScale / 100))).catch(
+      () => undefined,
+    );
+  }, [settings.interfaceScale]);
 
   useEffect(() => {
     const language = resolveLanguage(settings.language);

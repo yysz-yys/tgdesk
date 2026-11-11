@@ -433,6 +433,11 @@ export default {
       title: "语言",
       note: "界面语言保存在本地，修改后立即生效。",
     },
+    scale: {
+      title: "默认界面缩放比例",
+      description: "{{percent}}% — 应用于整个桌面界面。",
+      note: "当前窗口的 Telegram Desktop 缩放设置。",
+    },
     faq: {
       title: "Telegram 常见问题",
       note: "官方帮助页面会在默认浏览器中打开。",

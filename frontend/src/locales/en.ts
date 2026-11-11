@@ -433,6 +433,11 @@ export default {
       title: "Language",
       note: "The interface language is stored locally and applied immediately.",
     },
+    scale: {
+      title: "Interface scale",
+      description: "{{percent}}% — applies to the whole desktop UI.",
+      note: "Telegram Desktop scale setting for this window.",
+    },
     faq: {
       title: "Telegram FAQ",
       note: "Official Telegram help pages open in your default browser.",

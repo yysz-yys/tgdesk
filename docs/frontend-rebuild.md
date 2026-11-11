@@ -270,6 +270,13 @@ the Wails browser opener, and Keyboard shortcuts is a real reference page. This
 replaces three more settings placeholders. Verified live: FAQ had 4 links and
 the shortcuts page had 6 rows.
 
+## Interface scale
+
+Interface scale is a real local setting rather than a placeholder. The app calls
+the Wails window zoom API for 100/110/125/150%, clamped to 0.8–1.5, and applies
+the saved value on startup. Verified live: 125% changed the CSS viewport from
+1107×725 to 885×580 and the responsive sidebar from 394 to 320px.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

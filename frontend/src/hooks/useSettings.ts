@@ -24,6 +24,7 @@ export interface AppSettings {
   chatPattern: boolean;
   wallpaper: "glow" | "plain" | "blue" | "custom";
   wallpaperImage?: string;
+  interfaceScale: number;
   enterToSend: boolean;
   accent: Accent;
 }
@@ -51,6 +52,7 @@ export const defaultSettings: AppSettings = {
   chatPattern: true,
   wallpaper: "glow",
   wallpaperImage: "",
+  interfaceScale: 100,
   enterToSend: true,
   accent: "blue",
 };

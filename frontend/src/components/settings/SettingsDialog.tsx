@@ -36,6 +36,7 @@ type Section =
   | "chat"
   | "folders"
   | "language"
+  | "scale"
   | "faq"
   | "shortcuts"
   | "features"
@@ -61,7 +62,7 @@ const SETTINGS_ITEMS: SettingsItem[] = [
   { id: "speakers", labelKey: "settings.list.speakers" },
   { id: "battery", labelKey: "settings.list.battery" },
   { id: "language", labelKey: "settings.list.language", section: "language" },
-  { id: "scale", labelKey: "settings.list.scale" },
+  { id: "scale", labelKey: "settings.list.scale", section: "scale" },
   { id: "premium", labelKey: "settings.list.premium" },
   { id: "stars", labelKey: "settings.list.stars" },
   { id: "business", labelKey: "settings.list.business" },
@@ -357,6 +358,28 @@ export function SettingsDialog({
         </SettingRow>
       </SettingsGroup>
     </>
+  );
+
+  const renderScale = () => (
+    <SettingsGroup title={t("settings.scale.title")}>
+      <p className="settings-note">{t("settings.scale.note")}</p>
+      <SettingRow
+        title={t("settings.scale.title")}
+        description={t("settings.scale.description", {
+          percent: settings.interfaceScale,
+        })}
+      >
+        <SettingSelect
+          ariaLabel={t("settings.scale.title")}
+          value={String(settings.interfaceScale)}
+          onValueChange={(value) => onUpdate("interfaceScale", Number(value))}
+          options={[100, 110, 125, 150].map((percent) => ({
+            value: String(percent),
+            label: `${percent}%`,
+          }))}
+        />
+      </SettingRow>
+    </SettingsGroup>
   );
 
   const renderFaq = () => (
@@ -1009,6 +1032,8 @@ export function SettingsDialog({
         return renderFolders();
       case "language":
         return renderLanguage();
+      case "scale":
+        return renderScale();
       case "faq":
         return renderFaq();
       case "shortcuts":
