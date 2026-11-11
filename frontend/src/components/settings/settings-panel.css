@@ -243,6 +243,11 @@
   line-height: 1.45;
 }
 
+.settings-value {
+  color: var(--tg-secondary);
+  font-size: 12px;
+}
+
 .settings-coming {
   border-radius: 999px;
   background: var(--tg-hover);

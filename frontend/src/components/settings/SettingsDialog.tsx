@@ -29,7 +29,10 @@ type Section =
   | "account"
   | "general"
   | "notifications"
+  | "privacy"
   | "chat"
+  | "folders"
+  | "language"
   | "appearance"
   | "downloads"
   | "network"
@@ -45,13 +48,13 @@ interface SettingsItem {
 const SETTINGS_ITEMS: SettingsItem[] = [
   { id: "myAccount", labelKey: "settings.list.myAccount", section: "account" },
   { id: "notifications", labelKey: "settings.list.notifications", section: "notifications" },
-  { id: "privacy", labelKey: "settings.list.privacy" },
+  { id: "privacy", labelKey: "settings.list.privacy", section: "privacy" },
   { id: "chatSettings", labelKey: "settings.list.chatSettings", section: "chat" },
-  { id: "folders", labelKey: "settings.list.folders" },
+  { id: "folders", labelKey: "settings.list.folders", section: "folders" },
   { id: "advancedSettings", labelKey: "settings.list.advanced", section: "advanced" },
   { id: "speakers", labelKey: "settings.list.speakers" },
   { id: "battery", labelKey: "settings.list.battery" },
-  { id: "language", labelKey: "settings.list.language", section: "general" },
+  { id: "language", labelKey: "settings.list.language", section: "language" },
   { id: "scale", labelKey: "settings.list.scale" },
   { id: "premium", labelKey: "settings.list.premium" },
   { id: "stars", labelKey: "settings.list.stars" },
@@ -269,6 +272,96 @@ export function SettingsDialog({
         </SettingRow>
       </SettingsGroup>
     </>
+  );
+
+  const renderPrivacy = () => (
+    <>
+      <SettingsGroup title={t("settings.privacy.security")}>
+        <SettingRow
+          title={t("settings.privacy.twoStep")}
+          description={t("settings.privacy.twoStepDesc")}
+        >
+          <span className="settings-coming">{t("settings.comingSoon")}</span>
+        </SettingRow>
+        <SettingRow
+          title={t("settings.privacy.sessions")}
+          description={t("settings.privacy.sessionsDesc")}
+        >
+          <span className="settings-value">{t("settings.privacy.thisDevice")}</span>
+        </SettingRow>
+        <SettingRow
+          title={t("settings.privacy.passcode")}
+          description={t("settings.privacy.passcodeDesc")}
+        >
+          <span className="settings-coming">{t("settings.comingSoon")}</span>
+        </SettingRow>
+      </SettingsGroup>
+
+      <SettingsGroup title={t("settings.privacy.privacy")}>
+        {[
+          "phone",
+          "lastSeen",
+          "photo",
+          "calls",
+          "groups",
+          "forwards",
+        ].map((key) => (
+          <SettingRow
+            key={key}
+            title={t(`settings.privacy.${key}`)}
+            description={t(`settings.privacy.${key}Desc`)}
+          >
+            <span className="settings-coming">{t("settings.comingSoon")}</span>
+          </SettingRow>
+        ))}
+      </SettingsGroup>
+
+      <SettingsGroup title={t("settings.privacy.data")}>
+        <SettingRow
+          title={t("settings.privacy.blocked")}
+          description={t("settings.privacy.blockedDesc")}
+        >
+          <span className="settings-coming">{t("settings.comingSoon")}</span>
+        </SettingRow>
+        <SettingRow
+          title={t("settings.privacy.deleteAccount")}
+          description={t("settings.privacy.deleteAccountDesc")}
+        >
+          <span className="settings-coming">{t("settings.comingSoon")}</span>
+        </SettingRow>
+      </SettingsGroup>
+    </>
+  );
+
+  const renderFolders = () => (
+    <SettingsGroup title={t("settings.folders.title")}>
+      <p className="settings-note">{t("settings.folders.note")}</p>
+      <SettingRow title={t("settings.folders.all")} description={t("settings.folders.allDesc")}>
+        <span className="settings-value">{t("settings.folders.active")}</span>
+      </SettingRow>
+    </SettingsGroup>
+  );
+
+  const renderLanguage = () => (
+    <SettingsGroup title={t("settings.language.title")}>
+      <SettingRow
+        title={t("settings.general.language")}
+        description={t("settings.general.languageDesc")}
+      >
+        <SettingSelect
+          ariaLabel={t("settings.general.language")}
+          value={settings.language}
+          onValueChange={(value) => onUpdate("language", value as AppSettings["language"])}
+          options={[
+            { value: "system", label: t("common.systemDefault") },
+            { value: "en", label: "English" },
+            { value: "zh", label: "简体中文" },
+            { value: "ja", label: "日本語" },
+          ]}
+        />
+      </SettingRow>
+      <p className="settings-note">{t("settings.language.note")}</p>
+    </SettingsGroup>
   );
 
   const renderGeneral = () => (
@@ -761,8 +854,14 @@ export function SettingsDialog({
         return renderGeneral();
       case "notifications":
         return renderNotifications();
+      case "privacy":
+        return renderPrivacy();
       case "chat":
         return renderChat();
+      case "folders":
+        return renderFolders();
+      case "language":
+        return renderLanguage();
       case "appearance":
         return renderAppearance();
       case "downloads":

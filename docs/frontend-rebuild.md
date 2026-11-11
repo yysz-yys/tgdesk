@@ -82,6 +82,13 @@ The My account subpage now follows the official profile layout: large avatar,
 online line, Edit profile action, an account-information card with phone +
 QR entry, username and bio, then the session/log-out row.
 
+Privacy and security, Chat folders and Language are now real subpages too.
+Privacy/security presents Security, Privacy and Data groups with clearly
+labelled “coming soon” values where the kernel has no privacy API. Chat folders
+explains that custom folders are stored by Telegram and the current kernel only
+exposes the default list. Language reuses the local language preference and
+applies it immediately.
+
 Notifications and Chat settings are now real subpages:
 
 - Notifications: download-finished notifications, an explicit note that message
