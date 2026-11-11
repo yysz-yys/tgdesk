@@ -23,6 +23,7 @@ interface MessageBubbleProps {
   message: Message;
   selected: boolean;
   showSender?: boolean;
+  tail?: boolean;
   onToggleSelect: (id: number) => void;
   onDownloadMessage?: (id: number) => void;
   onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
@@ -33,6 +34,7 @@ export function MessageBubble({
   message,
   selected,
   showSender,
+  tail = message.tail,
   onToggleSelect,
   onDownloadMessage,
   onLoadThumbnail,
@@ -62,7 +64,7 @@ export function MessageBubble({
           className="message-row"
           data-out={message.out}
           data-selected={selected}
-          data-tail={message.tail}
+          data-tail={tail}
         >
           <span className="message-actions">
             <button
@@ -75,7 +77,7 @@ export function MessageBubble({
             </button>
           </span>
 
-          <div className="message-bubble" data-tail={message.tail}>
+          <div className="message-bubble" data-tail={tail}>
             {message.forwarded ? (
               <span className="message-forwarded">
                 <IconArrowForwardUp size={13} stroke={1.9} />

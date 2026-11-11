@@ -59,7 +59,16 @@ export function MessageList({
       <div className="message-list">
         {messages.map((message, index) => {
           const previous = messages[index - 1];
+          const next = messages[index + 1];
           const showDate = !previous || previous.date !== message.date;
+          const sameSenderAsPrevious =
+            !showDate &&
+            previous?.sender === message.sender &&
+            previous?.out === message.out;
+          const sameSenderAsNext =
+            next?.date === message.date &&
+            next?.sender === message.sender &&
+            next?.out === message.out;
 
           return (
             <div key={message.id}>
@@ -67,7 +76,8 @@ export function MessageList({
               <MessageBubble
                 message={message}
                 selected={selectedIds.has(message.id)}
-                showSender={showSender}
+                showSender={showSender && !sameSenderAsPrevious}
+                tail={!sameSenderAsNext}
                 onToggleSelect={onToggleSelect}
                 onDownloadMessage={onDownloadMessage}
                 onLoadThumbnail={onLoadThumbnail}

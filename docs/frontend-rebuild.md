@@ -191,6 +191,13 @@ Verified in the live chat: two video cards rendered, with duration metadata
 (`0:02`) and file sizes. Forward headers are rendered when the loaded messages
 contain them.
 
+## Message grouping
+
+Consecutive messages from the same sender on the same day now hide repeated
+sender labels and only the last bubble in the run draws the Telegram tail.
+Verified on 50 loaded messages: 50 bubbles, only 37 sender labels and 13
+non-tail bubbles.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,
