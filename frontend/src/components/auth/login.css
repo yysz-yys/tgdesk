@@ -697,3 +697,266 @@
     font-size: 27px;
   }
 }
+
+/* Official welcome illustration */
+
+.tg-login-page[data-surface="welcome"] {
+  background: #17212b;
+  color: #fff;
+}
+
+.tg-login-page[data-surface="welcome"] .tg-login-frame {
+  width: 100%;
+  max-width: none;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+.tg-login-hero {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 226px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 130% at 50% 120%, #2f7bbd 0%, transparent 62%),
+    linear-gradient(180deg, #164370 0%, #18538c 48%, #24679f 100%);
+}
+
+.tg-hero-cloud {
+  position: absolute;
+  bottom: -108px;
+  width: 270px;
+  height: 210px;
+  border-radius: 50%;
+  background: #2b6fa8;
+  opacity: 0.72;
+}
+
+.tg-hero-cloud-left {
+  left: -36px;
+  box-shadow:
+    74px 20px 0 -20px #2b6fa8,
+    150px 42px 0 -42px #2b6fa8;
+}
+
+.tg-hero-cloud-right {
+  right: -48px;
+  width: 300px;
+  box-shadow:
+    -84px 22px 0 -24px #2b6fa8,
+    -164px 40px 0 -40px #2b6fa8;
+}
+
+.tg-hero-icon {
+  position: absolute;
+  color: rgba(210, 231, 250, 0.22);
+  line-height: 0;
+  transform: rotate(-28deg);
+}
+
+.tg-hero-icon-1 { left: 1.2%; top: 32%; }
+.tg-hero-icon-2 { left: 6%; top: 48%; transform: rotate(-52deg); }
+.tg-hero-icon-3 { left: 9.5%; top: 55%; transform: rotate(-20deg); }
+.tg-hero-icon-4 { left: 13.5%; top: 70%; transform: rotate(-30deg); }
+.tg-hero-icon-5 { left: 18%; top: 80%; transform: rotate(-24deg); }
+.tg-hero-icon-6 { right: 1.4%; top: 34%; transform: rotate(22deg); }
+.tg-hero-icon-7 { right: 5.7%; top: 46%; transform: rotate(14deg); }
+.tg-hero-icon-8 { right: 9.4%; top: 56%; transform: rotate(26deg); }
+.tg-hero-icon-9 { right: 13%; top: 70%; transform: rotate(16deg); }
+.tg-hero-icon-10 { right: 17%; top: 78%; transform: rotate(20deg); }
+.tg-hero-icon-11 { right: 21%; top: 68%; transform: rotate(18deg); }
+
+.tg-hero-plane {
+  position: absolute;
+  top: 39%;
+  left: 50%;
+  width: 158px;
+  height: 108px;
+  transform: translate(-50%, -50%) rotate(-7deg);
+  filter: drop-shadow(0 8px 9px rgba(4, 28, 52, 0.24));
+}
+
+.tg-login-welcome {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 318px 24px 30px;
+  text-align: center;
+}
+
+.tg-login-welcome h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.tg-login-welcome p {
+  max-width: 420px;
+  margin: 10px auto 0;
+  color: #9fb0c0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.tg-login-page[data-surface="welcome"] .tg-login-start {
+  width: 300px;
+  height: 34px;
+  margin-top: 40px;
+  border-radius: 6px;
+  background: #2f6fa8;
+  box-shadow: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tg-login-page[data-surface="welcome"] .tg-login-start:hover:not(:disabled) {
+  background: #347bb7;
+}
+
+.tg-login-page[data-surface="welcome"] .tg-login-language {
+  display: block;
+  margin: 18px auto 0;
+  color: #64b5ef;
+  font-size: 12px;
+}
+
+.tg-login-page[data-surface="welcome"] .tg-login-language:hover {
+  color: #85c8f5;
+  text-decoration: none;
+}
+
+.tg-login-welcome-error {
+  margin: 14px auto 0;
+}
+
+/* Official QR screen */
+
+.tg-login-page[data-surface="qr"] {
+  background: #17212b;
+}
+
+.tg-login-page[data-surface="qr"] .tg-login-frame {
+  width: 100%;
+  max-width: none;
+  justify-content: flex-start;
+  padding: 138px 22px 20px;
+}
+
+.tg-login-qr-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  left: 12px;
+}
+
+.tg-login-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.tg-login-top-actions button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #64b5ef;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.tg-login-top-actions button:hover {
+  color: #85c8f5;
+}
+
+.tg-login-qr {
+  gap: 0;
+  align-items: center;
+}
+
+.tg-login-qr-body {
+  width: 100%;
+  align-items: center;
+}
+
+.tg-login-qr-shell {
+  width: 188px;
+  height: 188px;
+  padding: 4px;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+}
+
+.tg-login-qr-mark .tg-brand-mark {
+  width: 34px !important;
+  height: 34px !important;
+}
+
+.tg-login-qr-title {
+  margin: 28px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.tg-login-steps {
+  max-width: 300px;
+  margin: 16px auto 0;
+  gap: 5px;
+}
+
+.tg-login-steps li {
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 4px;
+}
+
+.tg-login-steps .tg-login-step-num {
+  display: inline;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  color: #8b9baa;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 26px;
+}
+
+.tg-login-steps p {
+  margin: 0;
+  color: #9fb0c0;
+  font-size: 12.5px;
+  line-height: 26px;
+}
+
+.tg-login-qr-links {
+  margin-top: 34px;
+  gap: 8px;
+}
+
+.tg-login-qr-links .tg-btn[data-variant="link"] {
+  color: #64b5ef;
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+.tg-login-qr-links .tg-btn[data-variant="link"]:hover {
+  color: #85c8f5;
+  text-decoration: none;
+}
+
+.tg-login-qr .tg-callout {
+  margin-top: 12px;
+}

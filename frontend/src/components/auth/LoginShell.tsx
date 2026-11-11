@@ -1,6 +1,6 @@
-import { IconBrandTelegram } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { LoginHero } from "./LoginHero";
 
 type LoginSurface = "welcome" | "qr" | "form" | "success";
 
@@ -15,13 +15,7 @@ export function LoginShell({ tdlVersion, surface, children }: LoginShellProps) {
 
   return (
     <div className="tg-login-page" data-surface={surface}>
-      <div className="tg-login-atmosphere" aria-hidden="true">
-        <span className="tg-login-aurora" />
-        <span className="tg-login-orbit tg-login-orbit-one" />
-        <span className="tg-login-orbit tg-login-orbit-two" />
-        <span className="tg-login-iconfield" />
-        <IconBrandTelegram className="tg-login-plane" size={540} stroke={0.7} />
-      </div>
+      {surface === "welcome" ? <LoginHero /> : null}
 
       <main className="tg-login-frame">{children}</main>
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconArrowLeft, IconRefresh, IconSettings } from "@tabler/icons-react";
+import { IconArrowLeft } from "@tabler/icons-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button";
@@ -12,13 +12,11 @@ import type { AppSettings } from "../../hooks/useSettings";
 
 interface LoginQrStepProps {
   qrUrl: string;
-  busy: boolean;
   error: string;
   notice?: string;
   importError?: string;
   settings: AppSettings;
   onUpdate: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
-  onRefresh: () => void;
   onPhone: () => void;
   onPasskey: () => void;
   onBack: () => void;
@@ -27,13 +25,11 @@ interface LoginQrStepProps {
 
 export function LoginQrStep({
   qrUrl,
-  busy,
   error,
   notice,
   importError,
   settings,
   onUpdate,
-  onRefresh,
   onPhone,
   onPasskey,
   onBack,
@@ -41,6 +37,7 @@ export function LoginQrStep({
 }: LoginQrStepProps) {
   const { t } = useTranslation();
   const [networkOpen, setNetworkOpen] = useState(false);
+  const [updateNote, setUpdateNote] = useState(false);
 
   return (
     <div className="tg-login-qr">
@@ -48,13 +45,17 @@ export function LoginQrStep({
         <IconButton label={t("login.back")} onClick={onBack}>
           <IconArrowLeft size={21} />
         </IconButton>
-        <IconButton
-          label={t("login.networkSettings")}
-          onClick={() => setNetworkOpen((current) => !current)}
-          active={networkOpen}
-        >
-          <IconSettings size={21} />
-        </IconButton>
+        <div className="tg-login-top-actions">
+          <button type="button" onClick={() => setUpdateNote(true)}>
+            {t("login.update")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setNetworkOpen((current) => !current)}
+          >
+            {t("login.settings")}
+          </button>
+        </div>
       </div>
 
       <div className="tg-login-qr-body">
@@ -63,7 +64,7 @@ export function LoginQrStep({
             <>
               <QRCodeSVG
                 value={qrUrl}
-                size={204}
+                size={180}
                 level="M"
                 bgColor="#ffffff"
                 fgColor="#111111"
@@ -86,15 +87,15 @@ export function LoginQrStep({
 
         <ol className="tg-login-steps">
           <li>
-            <span>1</span>
+            <span className="tg-login-step-num">1.</span>
             <p>{t("login.qrStep1")}</p>
           </li>
           <li>
-            <span>2</span>
+            <span className="tg-login-step-num">2.</span>
             <p>{t("login.qrStep2")}</p>
           </li>
           <li>
-            <span>3</span>
+            <span className="tg-login-step-num">3.</span>
             <p>{t("login.qrStep3")}</p>
           </li>
         </ol>
@@ -102,6 +103,7 @@ export function LoginQrStep({
         {importError ? <Callout tone="error">{importError}</Callout> : null}
         {error ? <Callout tone="error">{error}</Callout> : null}
         {notice ? <Callout tone="info">{notice}</Callout> : null}
+        {updateNote ? <Callout tone="info">{t("login.updateSoon")}</Callout> : null}
 
         <div className="tg-login-qr-links">
           <Button variant="link" onClick={onPhone}>
@@ -111,11 +113,6 @@ export function LoginQrStep({
             {t("login.passkeyLogin")}
           </Button>
         </div>
-
-        <button type="button" className="tg-login-refresh" onClick={onRefresh} disabled={busy}>
-          <IconRefresh size={14} />
-          {t("login.refreshQr")}
-        </button>
       </div>
 
       {networkOpen ? (

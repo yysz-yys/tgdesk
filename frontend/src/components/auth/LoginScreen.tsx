@@ -297,13 +297,11 @@ export function LoginScreen({
       {mode === "qr" ? (
         <LoginQrStep
           qrUrl={qrUrl}
-          busy={busy}
           error={error}
           notice={notice}
           importError={importError ? localizeError(importError) : ""}
           settings={settings}
           onUpdate={onUpdate}
-          onRefresh={() => void startQr()}
           onPhone={goPhone}
           onPasskey={() => setNotice(t("login.passkeySoon"))}
           onBack={goWelcome}

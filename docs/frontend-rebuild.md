@@ -128,6 +128,25 @@ search / info-panel / overflow layout, with the call button only for private
 chats. Channels get the official bottom “disable notifications” bar instead of
 a message composer, and the channel info panel exposes Mute / Gift / Leave.
 
+## Official login geometry
+
+Captured the clean official welcome and QR screens at the same 1107×725 client
+size (physical 2× render, downscaled):
+
+- Frozen caption bar: 24 px.
+- Welcome illustration: 226 px tall.
+- Welcome title: y = 342; button 300×34.
+- QR: 188×188 at y = 162.
+- QR title: y = 377/378.
+- QR steps: 26 px line-height starting around y = 421.
+- Phone/passkey links around y = 540.
+- Top-right text actions: `UPDATE` and `SETTINGS`.
+- QR screen has no chat wallpaper/plane/aurora background.
+
+The rebuilt login now uses a 226 px illustrated hero, the same title and QR
+coordinates, a 188 px QR, numbered `1.` steps instead of circular badges,
+plain `UPDATE`/`SETTINGS` actions, and a plain `#17212b` QR background.
+
 ## Chat surface pass
 
 - Sidebar is 420px at the target viewport; chat header is 56px; composer measures
