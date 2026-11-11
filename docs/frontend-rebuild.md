@@ -49,6 +49,28 @@ Telegram is often blocked on the target network.
   remain placeholders.
 - Download-all moved to the chat overflow menu; batch selection has its own bar.
 
+## Official test-account pass (Telegram Desktop 7.4.1)
+
+The supplied limited test tdata was copied to an isolated `-workdir` and used
+only with the official portable client. The source folder stays private and is
+ignored by git (`/tdataTest/`).
+
+Observed on the signed-in but restricted account:
+
+- Main window shows a **“your account is frozen”** warning above the chat list.
+- No folder tab strip is shown when the account has no custom folders.
+- Main menu: Set emoji status, My profile, New group, New channel, Contacts,
+  Calls, Saved messages, Settings, Night mode, About.
+- Chat header exposes search, chat menu and profile info.
+- The settings surface was visible before dismissal: account row, My account,
+  Notifications and sounds, Privacy and security, and the remaining settings
+  sections.
+
+The tgdesk menu now mirrors the official item order (with “coming soon”
+placeholders where the kernel has no API), and the folder strip is hidden for
+accounts without folders. The frozen-account banner still needs an account
+restriction DTO from the kernel.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

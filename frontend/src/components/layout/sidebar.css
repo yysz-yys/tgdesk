@@ -176,13 +176,26 @@
   height: 36px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1280px) and (min-width: 981px) {
   .sidebar {
-    width: 340px;
-    flex-basis: 340px;
+    width: 420px;
+    flex-basis: 420px;
+  }
+}
+
+@media (max-width: 980px) {
+  .sidebar {
+    width: 320px;
+    flex-basis: 320px;
   }
 
   .tg-folder-tab {
     padding: 0 8px;
+  }
+}
+
+@media (max-width: 720px) {
+  .sidebar {
+    display: none;
   }
 }

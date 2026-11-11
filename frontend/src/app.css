@@ -1381,8 +1381,8 @@ input:focus-visible {
 
 @media (max-width: 1280px) {
   .sidebar {
-    width: 344px;
-    flex-basis: 344px;
+    width: 420px;
+    flex-basis: 420px;
   }
 
   .right-panel {
@@ -1397,8 +1397,8 @@ input:focus-visible {
 
 @media (max-width: 980px) {
   .sidebar {
-    width: 300px;
-    flex-basis: 300px;
+    width: 320px;
+    flex-basis: 320px;
   }
 
   .message-scroll {

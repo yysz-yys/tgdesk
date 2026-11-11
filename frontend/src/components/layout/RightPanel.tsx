@@ -4,24 +4,28 @@ import {
   IconDownload,
   IconFile,
   IconLink,
+  IconPhoto,
   IconSearch,
   IconUsers,
   IconWorld,
   IconX,
 } from "@tabler/icons-react";
-import type { Chat } from "../../types";
+import type { Chat, Message } from "../../types";
 import { Avatar } from "../ui/Avatar";
 import { IconButton } from "../ui/IconButton";
+import "./right-panel.css";
 
 interface RightPanelProps {
   chat: Chat;
+  messages: Message[];
   onClose: () => void;
   onDownloadAll: () => void;
   onToast: (message: string) => void;
 }
 
-export function RightPanel({ chat, onClose, onDownloadAll, onToast }: RightPanelProps) {
+export function RightPanel({ chat, messages, onClose, onDownloadAll, onToast }: RightPanelProps) {
   const { t } = useTranslation();
+  const sharedMedia = messages.filter((message) => message.media).slice(0, 9);
   const subtitle =
     chat.kind === "private"
       ? chat.online
@@ -80,12 +84,40 @@ export function RightPanel({ chat, onClose, onDownloadAll, onToast }: RightPanel
         </div>
 
         <div className="info-section">
-          <div className="info-section-title">{t("rightPanel.sharedMedia")}</div>
-          <div className="media-grid">
-            {Array.from({ length: 9 }).map((_, index) => (
-              <div className="media-tile" key={index} />
-            ))}
+          <div className="info-section-title">
+            <span>{t("rightPanel.sharedMedia")}</span>
+            {sharedMedia.length > 0 ? (
+              <button
+                type="button"
+                className="info-section-link"
+                onClick={() => onToast(t("rightPanel.mediaToast"))}
+              >
+                {t("rightPanel.seeAll")}
+              </button>
+            ) : null}
           </div>
+          {sharedMedia.length > 0 ? (
+            <div className="media-grid">
+              {sharedMedia.map((message) => (
+                <button
+                  type="button"
+                  className="media-tile"
+                  key={message.id}
+                  data-kind={message.media?.kind}
+                  title={message.media?.name}
+                  onClick={() => onToast(t("rightPanel.mediaToast"))}
+                >
+                  {message.media?.kind === "photo" ? (
+                    <IconPhoto size={18} />
+                  ) : (
+                    <IconFile size={18} />
+                  )}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="info-empty">{t("rightPanel.noMedia")}</div>
+          )}
         </div>
 
         <div className="info-section">

@@ -1,15 +1,21 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  IconAddressBook,
+  IconBookmark,
+  IconBroadcast,
   IconDownload,
   IconInfoCircle,
   IconLogout,
   IconMenu2,
   IconMoon,
+  IconMoodSmile,
   IconPencil,
+  IconPhone,
   IconSearch,
   IconSettings,
   IconSun,
+  IconUserCircle,
+  IconUsersPlus,
   IconX,
 } from "@tabler/icons-react";
 import type { Chat, ResolvedTheme } from "../../types";
@@ -24,7 +30,6 @@ import {
   MenuTrigger,
 } from "../ui/Menu";
 import { ChatRow } from "../chat/ChatRow";
-import { FolderTabs, type ChatFolder } from "./FolderTabs";
 import "./sidebar.css";
 
 interface SidebarProps {
@@ -34,7 +39,6 @@ interface SidebarProps {
   query: string;
   onQueryChange: (value: string) => void;
   onSelectChat: (id: string) => void;
-  onOpenChats: () => void;
   onSelectDownloads: () => void;
   onTogglePin: (id: string) => void;
   onToggleMute: (id: string) => void;
@@ -61,7 +65,6 @@ export function Sidebar({
   query,
   onQueryChange,
   onSelectChat,
-  onOpenChats,
   onSelectDownloads,
   onTogglePin,
   onToggleMute,
@@ -81,42 +84,14 @@ export function Sidebar({
   failed,
 }: SidebarProps) {
   const { t } = useTranslation();
-  const [folder, setFolder] = useState<ChatFolder>("all");
-
-  const counts: Record<ChatFolder, number> = {
-    all: chats.length,
-    unread: chats.filter((chat) => Boolean(chat.unread)).length,
-    groups: chats.filter((chat) => chat.kind === "group").length,
-    channels: chats.filter((chat) => chat.kind === "channel").length,
-  };
-
-  const visibleChats = chats.filter((chat) => {
-    switch (folder) {
-      case "unread":
-        return Boolean(chat.unread);
-      case "groups":
-        return chat.kind === "group";
-      case "channels":
-        return chat.kind === "channel";
-      default:
-        return true;
-    }
-  });
-
-  const changeFolder = (next: ChatFolder) => {
-    setFolder(next);
-    onOpenChats();
-  };
-
+  const visibleChats = chats;
   const emptyText = loading
     ? t("chat.loadingChats")
     : failed
       ? t("chat.loadChatsFailed")
       : query
         ? t("sidebar.noMatches", { query })
-        : folder === "all"
-          ? t("chat.noChats")
-          : t("sidebar.noFolderChats");
+        : t("chat.noChats");
 
   return (
     <aside className="sidebar" aria-label={t("sidebar.chats")}>
@@ -128,9 +103,53 @@ export function Sidebar({
             </button>
           </MenuTrigger>
           <MenuContent>
-            <MenuLabel>Telegram</MenuLabel>
-            <MenuItem icon={<IconDownload size={16} />} onSelect={onSelectDownloads}>
-              {t("sidebar.downloads")}
+            <MenuLabel>Telegram Desktop</MenuLabel>
+            <MenuItem
+              icon={<IconMoodSmile size={16} />}
+              onSelect={() => onToast(t("sidebar.emojiStatusSoon"))}
+            >
+              {t("sidebar.setEmojiStatus")}
+            </MenuItem>
+            <MenuItem
+              icon={<IconUserCircle size={16} />}
+              onSelect={() => onToast(t("sidebar.profileSoon"))}
+            >
+              {t("sidebar.myProfile")}
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem
+              icon={<IconUsersPlus size={16} />}
+              onSelect={() => onToast(t("sidebar.newGroupSoon"))}
+            >
+              {t("sidebar.newGroup")}
+            </MenuItem>
+            <MenuItem
+              icon={<IconBroadcast size={16} />}
+              onSelect={() => onToast(t("sidebar.newChannelSoon"))}
+            >
+              {t("sidebar.newChannel")}
+            </MenuItem>
+            <MenuItem
+              icon={<IconAddressBook size={16} />}
+              onSelect={() => onToast(t("sidebar.contactsSoon"))}
+            >
+              {t("sidebar.contacts")}
+            </MenuItem>
+            <MenuItem
+              icon={<IconPhone size={16} />}
+              onSelect={() => onToast(t("sidebar.callsSoon"))}
+            >
+              {t("sidebar.calls")}
+            </MenuItem>
+            <MenuItem
+              icon={<IconBookmark size={16} />}
+              onSelect={() => onToast(t("sidebar.savedSoon"))}
+            >
+              {t("sidebar.savedMessages")}
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem icon={<IconSettings size={16} />} onSelect={onSettings}>
+              {t("common.settings")}
             </MenuItem>
             <MenuItem
               icon={theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
@@ -139,8 +158,8 @@ export function Sidebar({
               {theme === "dark" ? t("common.lightTheme") : t("common.darkTheme")}
             </MenuItem>
             <MenuSeparator />
-            <MenuItem icon={<IconSettings size={16} />} onSelect={onSettings}>
-              {t("common.settings")}
+            <MenuItem icon={<IconDownload size={16} />} onSelect={onSelectDownloads}>
+              {t("sidebar.downloads")}
             </MenuItem>
             <MenuItem icon={<IconInfoCircle size={16} />} onSelect={onAbout}>
               {t("common.about")}
@@ -190,8 +209,6 @@ export function Sidebar({
           <IconPencil size={20} stroke={1.8} />
         </IconButton>
       </div>
-
-      <FolderTabs active={folder} counts={counts} onChange={changeFolder} />
 
       <div className="sidebar-scroll">
         <div className="chat-list">

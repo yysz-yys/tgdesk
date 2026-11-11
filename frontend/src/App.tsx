@@ -646,7 +646,6 @@ export default function App() {
           query={query}
           onQueryChange={setQuery}
           onSelectChat={openChat}
-          onOpenChats={() => setView("chats")}
           onSelectDownloads={openDownloads}
           onTogglePin={togglePin}
           onToggleMute={toggleMute}
@@ -721,6 +720,7 @@ export default function App() {
         {rightOpen && selectedChat && view === "chats" && (
           <RightPanel
             chat={selectedChat}
+            messages={messages}
             onClose={() => setRightOpen(false)}
             onDownloadAll={() => downloadAll(selectedChat)}
             onToast={showToast}
