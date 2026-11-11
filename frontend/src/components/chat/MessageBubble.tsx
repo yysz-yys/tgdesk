@@ -5,7 +5,9 @@ import {
   IconChecks,
   IconDownload,
   IconFile,
+  IconMapPin,
   IconPlayerPlay,
+  IconPhone,
   IconSelectAll,
 } from "@tabler/icons-react";
 import type { Message } from "../../types";
@@ -94,7 +96,47 @@ export function MessageBubble({
                 {message.sender}
               </span>
             ) : null}
-            {media?.kind === "video" ? (
+            {media?.kind === "poll" ? (
+              <div className="poll-card">
+                <div className="poll-question">{media.name}</div>
+                <div className="poll-options">
+                  {(media.options ?? []).map((option, index) => (
+                    <div className="poll-option" key={`${option}-${index}`}>
+                      <span className="poll-radio" />
+                      <span>{option}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="poll-footer">{t("media.poll")}</div>
+              </div>
+            ) : media?.kind === "location" ? (
+              <div className="location-card">
+                <span className="location-pin">
+                  <IconMapPin size={22} />
+                </span>
+                <span className="location-copy">
+                  <span className="location-title">{t("media.location")}</span>
+                  <span className="location-coords">
+                    {media.latitude?.toFixed(4)}, {media.longitude?.toFixed(4)}
+                  </span>
+                </span>
+              </div>
+            ) : media?.kind === "contact" ? (
+              <div className="contact-card">
+                <span className="contact-avatar">
+                  {(media.contactName || media.name || "?").slice(0, 1).toUpperCase()}
+                </span>
+                <span className="contact-copy">
+                  <span className="contact-name">
+                    {media.contactName || media.name || t("media.contact")}
+                  </span>
+                  <span className="contact-phone">
+                    <IconPhone size={12} />
+                    {media.phone}
+                  </span>
+                </span>
+              </div>
+            ) : media?.kind === "video" ? (
               <div className="video-card">
                 <MediaThumb
                   chatID={message.chatId}

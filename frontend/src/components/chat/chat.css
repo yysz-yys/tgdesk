@@ -359,3 +359,88 @@
   padding: 2px 7px;
   font-size: 10.5px;
 }
+.poll-card {
+  min-width: 240px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 9px 10px 7px;
+}
+
+.poll-question {
+  margin-bottom: 7px;
+  color: var(--tg-text);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.poll-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  color: var(--tg-text);
+  font-size: 12.5px;
+}
+
+.poll-radio {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  border: 1.5px solid var(--tg-secondary);
+  border-radius: 50%;
+}
+
+.poll-footer {
+  margin-top: 5px;
+  color: var(--tg-secondary);
+  font-size: 10.5px;
+}
+
+.location-card,
+.contact-card {
+  display: flex;
+  min-width: 230px;
+  align-items: center;
+  gap: 10px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 9px;
+}
+
+.location-pin,
+.contact-avatar {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--tg-accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.location-copy,
+.contact-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.location-title,
+.contact-name {
+  color: var(--tg-text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.location-coords,
+.contact-phone {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tg-secondary);
+  font-size: 11px;
+}

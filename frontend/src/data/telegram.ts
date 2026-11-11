@@ -26,6 +26,11 @@ export interface KernelMessageMedia {
   height?: number;
   sizeBytes?: number;
   mime?: string;
+  options?: string[] | null;
+  latitude?: number;
+  longitude?: number;
+  phone?: string;
+  contactName?: string;
 }
 
 export interface KernelMessage {
@@ -178,7 +183,17 @@ function formatMessageDate(date: Date, language: string, t: TFunction, now = new
 }
 
 function normalizedMediaKind(kind: string): MediaKind {
-  return kind === "photo" || kind === "video" || kind === "audio" ? kind : "file";
+  switch (kind) {
+    case "photo":
+    case "video":
+    case "audio":
+    case "poll":
+    case "location":
+    case "contact":
+      return kind;
+    default:
+      return "file";
+  }
 }
 
 function mapMedia(
@@ -198,6 +213,11 @@ function mapMedia(
     height: media.height || undefined,
     sizeBytes: media.sizeBytes || undefined,
     mime: media.mime || undefined,
+    options: media.options || undefined,
+    latitude: media.latitude || undefined,
+    longitude: media.longitude || undefined,
+    phone: media.phone || undefined,
+    contactName: media.contactName || undefined,
     color: media.color || undefined,
   };
 }

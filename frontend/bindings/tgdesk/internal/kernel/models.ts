@@ -112,6 +112,11 @@ export interface MessageMediaDTO {
     "width"?: number;
     "height"?: number;
     "mime"?: string;
+    "options"?: string[] | null;
+    "latitude"?: number;
+    "longitude"?: number;
+    "phone"?: string;
+    "contactName"?: string;
 }
 
 /**

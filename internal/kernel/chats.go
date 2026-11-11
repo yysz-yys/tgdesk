@@ -31,16 +31,21 @@ type ChatDTO struct {
 }
 
 type MessageMediaDTO struct {
-	Kind      string `json:"kind"`
-	Name      string `json:"name"`
-	Size      string `json:"size,omitempty"`
-	Ext       string `json:"ext,omitempty"`
-	Color     string `json:"color,omitempty"`
-	SizeBytes int64  `json:"sizeBytes,omitempty"`
-	Duration  int    `json:"duration,omitempty"`
-	Width     int    `json:"width,omitempty"`
-	Height    int    `json:"height,omitempty"`
-	Mime      string `json:"mime,omitempty"`
+	Kind        string   `json:"kind"`
+	Name        string   `json:"name"`
+	Size        string   `json:"size,omitempty"`
+	Ext         string   `json:"ext,omitempty"`
+	Color       string   `json:"color,omitempty"`
+	SizeBytes   int64    `json:"sizeBytes,omitempty"`
+	Duration    int      `json:"duration,omitempty"`
+	Width       int      `json:"width,omitempty"`
+	Height      int      `json:"height,omitempty"`
+	Mime        string   `json:"mime,omitempty"`
+	Options     []string `json:"options,omitempty"`
+	Latitude    float64  `json:"latitude,omitempty"`
+	Longitude   float64  `json:"longitude,omitempty"`
+	Phone       string   `json:"phone,omitempty"`
+	ContactName string   `json:"contactName,omitempty"`
 }
 
 type MessageDTO struct {
@@ -402,12 +407,32 @@ func mapMedia(media tg.MessageMediaClass) *MessageMediaDTO {
 			}
 		}
 		return item
-	case *tg.MessageMediaGeo, *tg.MessageMediaGeoLive:
-		return &MessageMediaDTO{Kind: "file", Name: "Location", Color: "#5fb3a1"}
+	case *tg.MessageMediaGeo:
+		item := &MessageMediaDTO{Kind: "location", Name: "Location", Color: "#5fb3a1"}
+		if point, ok := m.Geo.(*tg.GeoPoint); ok {
+			item.Latitude = point.Lat
+			item.Longitude = point.Long
+		}
+		return item
 	case *tg.MessageMediaContact:
-		return &MessageMediaDTO{Kind: "file", Name: "Contact", Color: "#8774e1"}
+		return &MessageMediaDTO{
+			Kind:        "contact",
+			Name:        displayName(m.FirstName, m.LastName),
+			Color:       "#8774e1",
+			Phone:       m.PhoneNumber,
+			ContactName: displayName(m.FirstName, m.LastName),
+		}
 	case *tg.MessageMediaPoll:
-		return &MessageMediaDTO{Kind: "file", Name: "Poll", Color: "#f08a3c"}
+		options := make([]string, 0, len(m.Poll.Answers))
+		for _, answer := range m.Poll.Answers {
+			options = append(options, answer.Text.Text)
+		}
+		return &MessageMediaDTO{
+			Kind:    "poll",
+			Name:    m.Poll.Question.Text,
+			Color:   "#f08a3c",
+			Options: options,
+		}
 	default:
 		return nil
 	}
@@ -514,10 +539,18 @@ func lastPreview(last tg.NotEmptyMessage) (string, int64) {
 
 func mediaPreview(media tg.MessageMediaClass) string {
 	if dto := mapMedia(media); dto != nil {
-		if dto.Kind == "photo" {
+		switch dto.Kind {
+		case "photo":
 			return "Photo"
+		case "poll":
+			return "Poll"
+		case "location":
+			return "Location"
+		case "contact":
+			return "Contact"
+		default:
+			return dto.Name
 		}
-		return dto.Name
 	}
 	return ""
 }

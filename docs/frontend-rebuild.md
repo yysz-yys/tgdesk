@@ -198,6 +198,16 @@ sender labels and only the last bubble in the run draws the Telegram tail.
 Verified on 50 loaded messages: 50 bubbles, only 37 sender labels and 13
 non-tail bubbles.
 
+## Special message media and wallpaper
+
+Polls, locations and contacts now have dedicated models in `MessageMediaDTO`
+(options, latitude/longitude, phone/contact name) and dedicated chat cards:
+poll question + options, location coordinates, contact name and phone.
+
+The chat background keeps the local dot-pattern preference but now adds a
+low-contrast blue radial lighting layer, avoiding the previous flat dot grid.
+Verified against the live chat: three poll cards rendered in a channel.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

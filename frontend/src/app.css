@@ -561,9 +561,18 @@ input:focus-visible {
   overflow-x: hidden;
   overflow-y: auto;
   background-color: var(--tg-chat-bg);
-  background-image: radial-gradient(var(--tg-chat-pattern) 1px, transparent 1px);
-  background-size: 22px 22px;
+  background-image:
+    radial-gradient(ellipse 62% 52% at 18% 12%, rgba(58, 113, 158, 0.12), transparent 68%),
+    radial-gradient(ellipse 56% 48% at 84% 82%, rgba(42, 90, 132, 0.12), transparent 68%);
   padding: 12px 20px 18px;
+}
+
+[data-pattern="on"] .message-scroll {
+  background-image:
+    radial-gradient(ellipse 62% 52% at 18% 12%, rgba(58, 113, 158, 0.12), transparent 68%),
+    radial-gradient(ellipse 56% 48% at 84% 82%, rgba(42, 90, 132, 0.12), transparent 68%),
+    radial-gradient(var(--tg-chat-pattern) 1px, transparent 1px);
+  background-size: auto, auto, 22px 22px;
 }
 
 .message-status {

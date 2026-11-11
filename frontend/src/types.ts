@@ -52,7 +52,7 @@ export interface Chat {
   initials: string;
 }
 
-export type MediaKind = "photo" | "video" | "file" | "audio";
+export type MediaKind = "photo" | "video" | "file" | "audio" | "poll" | "location" | "contact";
 
 export interface MessageMedia {
   kind: MediaKind;
@@ -64,6 +64,11 @@ export interface MessageMedia {
   height?: number;
   sizeBytes?: number;
   mime?: string;
+  options?: string[];
+  latitude?: number;
+  longitude?: number;
+  phone?: string;
+  contactName?: string;
   color?: string;
 }
 
