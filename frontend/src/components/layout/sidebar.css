@@ -1,0 +1,188 @@
+/* Telegram Desktop sidebar: folder tabs, search row, chat list, account footer. */
+
+.sidebar {
+  width: 420px;
+  flex-basis: 420px;
+}
+
+.sidebar-header {
+  height: 58px;
+  flex-basis: 58px;
+  gap: 4px;
+  padding: 0 9px;
+}
+
+.sidebar-header > .icon-button {
+  width: 38px;
+  height: 38px;
+}
+
+.sidebar-header .search-box {
+  height: 42px;
+  border-radius: 10px;
+  padding: 0 10px;
+}
+
+.sidebar-header .search-box input {
+  font-size: 14px;
+}
+
+.search-clear {
+  display: grid;
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  padding: 0;
+  color: var(--tg-secondary);
+  cursor: pointer;
+}
+
+.search-clear:hover {
+  background: var(--tg-hover);
+  color: var(--tg-text);
+}
+
+.sidebar-download-indicator {
+  position: relative;
+}
+
+.sidebar-download-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid var(--tg-sidebar);
+  border-radius: 50%;
+  background: var(--tg-accent);
+}
+
+.tg-folder-tabs {
+  display: flex;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: stretch;
+  gap: 1px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--tg-divider);
+  padding: 0 8px;
+  scrollbar-width: none;
+}
+
+.tg-folder-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tg-folder-tab {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  padding: 0 11px;
+  color: var(--tg-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tg-folder-tab:hover {
+  color: var(--tg-text);
+}
+
+.tg-folder-tab[data-active="true"] {
+  color: var(--tg-accent);
+}
+
+.tg-folder-tab[data-active="true"]::after {
+  position: absolute;
+  right: 10px;
+  bottom: 0;
+  left: 10px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--tg-accent);
+  content: "";
+}
+
+.tg-folder-count {
+  display: inline-grid;
+  min-width: 16px;
+  height: 16px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--tg-accent-soft);
+  padding: 0 4px;
+  color: var(--tg-accent);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.sidebar-scroll {
+  padding: 3px 0 8px;
+}
+
+.sidebar-empty {
+  padding: 34px 22px;
+  color: var(--tg-secondary);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.chat-title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.chat-verified {
+  flex: 0 0 auto;
+  color: var(--tg-accent);
+}
+
+.chat-row[data-active="true"] .chat-verified {
+  color: #fff;
+}
+
+.sidebar-footer {
+  height: 62px;
+  flex-basis: 62px;
+  gap: 9px;
+  padding: 0 11px;
+}
+
+.sidebar-footer .account-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar-footer .account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-footer .icon-button {
+  width: 36px;
+  height: 36px;
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: 340px;
+    flex-basis: 340px;
+  }
+
+  .tg-folder-tab {
+    padding: 0 8px;
+  }
+}

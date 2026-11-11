@@ -636,9 +636,6 @@ export default function App() {
   const activeCount = active.filter(
     (task) => task.status === "active" || task.status === "queued",
   ).length;
-  const activeSpeed =
-    active.find((task) => task.status === "active" && task.speed)?.speed ?? "0 B/s";
-
   return (
     <TooltipProvider delayDuration={350}>
       <div className="app-shell">
@@ -649,6 +646,7 @@ export default function App() {
           query={query}
           onQueryChange={setQuery}
           onSelectChat={openChat}
+          onOpenChats={() => setView("chats")}
           onSelectDownloads={openDownloads}
           onTogglePin={togglePin}
           onToggleMute={toggleMute}
@@ -661,8 +659,6 @@ export default function App() {
           onAbout={() => setAboutOpen(true)}
           onToast={showToast}
           activeDownloads={activeCount}
-          activeSpeed={activeSpeed}
-          tdlVersion={status?.tdlVersion ?? "v0.20.4"}
           accountName={authUser?.displayName ?? t("settings.general.telegramAccount")}
           accountInitials={authUser?.initials ?? "T"}
           accountColor={authUser?.color ?? "#65aadd"}

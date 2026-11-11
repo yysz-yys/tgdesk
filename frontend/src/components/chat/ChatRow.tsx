@@ -4,6 +4,7 @@ import {
   IconDownload,
   IconLink,
   IconPin,
+  IconRosetteDiscountCheckFilled,
   IconVolumeOff,
 } from "@tabler/icons-react";
 import type { Chat } from "../../types";
@@ -71,6 +72,13 @@ export function ChatRow({
           <span className="chat-body">
             <span className="chat-topline">
               <span className="chat-title">{chat.title}</span>
+              {chat.verified ? (
+                <IconRosetteDiscountCheckFilled
+                  className="chat-verified"
+                  size={14}
+                  aria-label={t("chat.verified")}
+                />
+              ) : null}
               <span className="chat-flags">
                 {chat.muted && <IconVolumeOff size={13} stroke={2} />}
                 {chat.pinned && <IconPin className="pin-mark" size={13} stroke={2} />}

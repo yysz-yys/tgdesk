@@ -44,6 +44,7 @@ export function ChatHeader({
         className="tg-chat-identity"
         onClick={onOpenInfo}
         aria-label={t("chat.chatInfo")}
+        aria-expanded={rightOpen}
       >
         <Avatar
           title={chat.title}
@@ -72,10 +73,6 @@ export function ChatHeader({
         >
           <IconPhone size={20} stroke={1.8} />
         </IconButton>
-        <IconButton label={t("chat.chatInfo")} active={rightOpen} onClick={onOpenInfo}>
-          <IconInfoCircle size={21} stroke={1.8} />
-        </IconButton>
-
         <Menu>
           <MenuTrigger asChild>
             <button type="button" className="icon-button" aria-label={t("chat.chatMenu")}>

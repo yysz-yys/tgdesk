@@ -1,11 +1,12 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   IconDownload,
   IconInfoCircle,
-  IconLink,
   IconLogout,
   IconMenu2,
   IconMoon,
+  IconPencil,
   IconSearch,
   IconSettings,
   IconSun,
@@ -23,6 +24,8 @@ import {
   MenuTrigger,
 } from "../ui/Menu";
 import { ChatRow } from "../chat/ChatRow";
+import { FolderTabs, type ChatFolder } from "./FolderTabs";
+import "./sidebar.css";
 
 interface SidebarProps {
   chats: Chat[];
@@ -31,6 +34,7 @@ interface SidebarProps {
   query: string;
   onQueryChange: (value: string) => void;
   onSelectChat: (id: string) => void;
+  onOpenChats: () => void;
   onSelectDownloads: () => void;
   onTogglePin: (id: string) => void;
   onToggleMute: (id: string) => void;
@@ -43,8 +47,6 @@ interface SidebarProps {
   onAbout: () => void;
   onToast: (message: string) => void;
   activeDownloads: number;
-  activeSpeed: string;
-  tdlVersion?: string;
   accountName: string;
   accountInitials: string;
   accountColor: string;
@@ -59,6 +61,7 @@ export function Sidebar({
   query,
   onQueryChange,
   onSelectChat,
+  onOpenChats,
   onSelectDownloads,
   onTogglePin,
   onToggleMute,
@@ -71,8 +74,6 @@ export function Sidebar({
   onAbout,
   onToast,
   activeDownloads,
-  activeSpeed,
-  tdlVersion,
   accountName,
   accountInitials,
   accountColor,
@@ -80,22 +81,54 @@ export function Sidebar({
   failed,
 }: SidebarProps) {
   const { t } = useTranslation();
+  const [folder, setFolder] = useState<ChatFolder>("all");
+
+  const counts: Record<ChatFolder, number> = {
+    all: chats.length,
+    unread: chats.filter((chat) => Boolean(chat.unread)).length,
+    groups: chats.filter((chat) => chat.kind === "group").length,
+    channels: chats.filter((chat) => chat.kind === "channel").length,
+  };
+
+  const visibleChats = chats.filter((chat) => {
+    switch (folder) {
+      case "unread":
+        return Boolean(chat.unread);
+      case "groups":
+        return chat.kind === "group";
+      case "channels":
+        return chat.kind === "channel";
+      default:
+        return true;
+    }
+  });
+
+  const changeFolder = (next: ChatFolder) => {
+    setFolder(next);
+    onOpenChats();
+  };
+
+  const emptyText = loading
+    ? t("chat.loadingChats")
+    : failed
+      ? t("chat.loadChatsFailed")
+      : query
+        ? t("sidebar.noMatches", { query })
+        : folder === "all"
+          ? t("chat.noChats")
+          : t("sidebar.noFolderChats");
 
   return (
     <aside className="sidebar" aria-label={t("sidebar.chats")}>
       <div className="sidebar-header">
         <Menu>
           <MenuTrigger asChild>
-            <button
-              type="button"
-              className="icon-button"
-              aria-label={t("sidebar.menu")}
-            >
+            <button type="button" className="icon-button" aria-label={t("sidebar.menu")}>
               <IconMenu2 size={22} stroke={1.8} />
             </button>
           </MenuTrigger>
           <MenuContent>
-            <MenuLabel>tgdesk</MenuLabel>
+            <MenuLabel>Telegram</MenuLabel>
             <MenuItem icon={<IconDownload size={16} />} onSelect={onSelectDownloads}>
               {t("sidebar.downloads")}
             </MenuItem>
@@ -127,58 +160,42 @@ export function Sidebar({
             placeholder={t("sidebar.searchPlaceholder")}
             aria-label={t("sidebar.searchChats")}
           />
-          {query && (
+          {query ? (
             <button
               type="button"
-              className="grid place-items-center rounded-full p-0.5 text-[var(--tg-secondary)] hover:bg-black/5"
+              className="search-clear"
               onClick={() => onQueryChange("")}
               aria-label={t("sidebar.clearSearch")}
             >
               <IconX size={15} />
             </button>
-          )}
+          ) : null}
         </div>
 
+        {activeDownloads > 0 ? (
+          <IconButton
+            label={t("sidebar.downloadsWithCount", { count: activeDownloads })}
+            onClick={onSelectDownloads}
+            className="sidebar-download-indicator"
+          >
+            <IconDownload size={20} />
+            <span className="sidebar-download-dot" />
+          </IconButton>
+        ) : null}
+
         <IconButton
-          label={t("sidebar.pasteLink")}
-          onClick={() => onToast(t("sidebar.pasteLinkToast"))}
+          label={t("sidebar.newMessage")}
+          onClick={() => onToast(t("sidebar.newMessageSoon"))}
         >
-          <IconLink size={21} stroke={1.8} />
+          <IconPencil size={20} stroke={1.8} />
         </IconButton>
       </div>
 
+      <FolderTabs active={folder} counts={counts} onChange={changeFolder} />
+
       <div className="sidebar-scroll">
-        <button
-          type="button"
-          className="downloads-row"
-          data-active={view === "downloads"}
-          onClick={onSelectDownloads}
-        >
-          <span className="downloads-tile">
-            <IconDownload size={25} stroke={1.8} />
-          </span>
-          <span className="downloads-main">
-            <span className="downloads-title">
-              <span>{t("sidebar.downloads")}</span>
-              {activeDownloads > 0 && (
-                <span className="downloads-badge">{activeDownloads}</span>
-              )}
-            </span>
-            <span className="downloads-subtitle">
-              {activeDownloads > 0
-                ? t("sidebar.activeSummary", {
-                    count: activeDownloads,
-                    speed: activeSpeed,
-                  })
-                : t("sidebar.noActive")}
-            </span>
-          </span>
-        </button>
-
-        <div className="sidebar-label">{t("sidebar.chats")}</div>
-
         <div className="chat-list">
-          {chats.map((chat) => (
+          {visibleChats.map((chat) => (
             <ChatRow
               key={chat.id}
               chat={chat}
@@ -192,17 +209,9 @@ export function Sidebar({
             />
           ))}
 
-          {chats.length === 0 && (
-            <div className="px-5 py-8 text-center text-[12.5px] text-[var(--tg-secondary)]">
-              {loading
-                ? t("chat.loadingChats")
-                : failed
-                  ? t("chat.loadChatsFailed")
-                  : query
-                    ? t("sidebar.noMatches", { query })
-                    : t("chat.noChats")}
-            </div>
-          )}
+          {visibleChats.length === 0 ? (
+            <div className="sidebar-empty">{emptyText}</div>
+          ) : null}
         </div>
       </div>
 
@@ -217,17 +226,9 @@ export function Sidebar({
           <div className="account-name">{accountName}</div>
           <div className="account-status">
             <span className="online-dot" />
-            {tdlVersion
-              ? t("sidebar.tdlVersion", { version: tdlVersion })
-              : t("sidebar.kernel")}
+            {t("chat.online")}
           </div>
         </div>
-        <IconButton
-          label={theme === "dark" ? t("login.themeLight") : t("login.themeDark")}
-          onClick={onToggleTheme}
-        >
-          {theme === "dark" ? <IconSun size={20} /> : <IconMoon size={20} />}
-        </IconButton>
         <IconButton label={t("common.settings")} onClick={onSettings}>
           <IconSettings size={20} />
         </IconButton>
