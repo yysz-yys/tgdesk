@@ -1,5 +1,9 @@
 # Telegram Desktop frontend rebuild
 
+> **Status:** current design reference for the UI implementation. For the
+> codebase map see [architecture.md](architecture.md); for build/debug commands
+> see [development.md](development.md).
+
 Reference target: official portable Telegram Desktop 7.4.1 on Windows, captured at
 the same 1107×725 CSS viewport as tgdesk. Text labels and control order were
 cross-checked with Windows UI Automation, not guessed.
@@ -15,13 +19,13 @@ cross-checked with Windows UI Automation, not guessed.
 
 | Layer | Components |
 |---|---|
-| Controls | `Button`, `IconButton`, `TextField`, `SelectField`, `Callout`, `Spinner` |
-| Brand | `BrandMark` |
-| Login | `LoginShell`, `LoginWelcomeStep`, `LoginQrStep`, `LoginPhoneStep`, `LoginCodeStep`, `LoginPasswordStep`, `LoginSuccessStep`, `LoginNetworkSettings` |
-| Conversation | `ChatHeader`, `ChatComposer`, `SelectionBar`, `MessageList`, `MessageBubble` |
+| Controls | `Button`, `IconButton`, `TextField`, `SelectField`, `Callout`, `Spinner`, `Menu`, `Tooltip`, `Avatar` |
+| Shell | `TitleBar`, `Sidebar`, `RightPanel`, `SettingsDialog` |
+| Login | `LoginShell`, `LoginHero`, `LoginWelcomeStep`, `LoginQrStep`, `LoginPhoneStep`, `LoginCodeStep`, `LoginPasswordStep`, `LoginSuccessStep`, `LoginNetworkSettings`, `BrandMark` |
+| Conversation | `ChatView`, `ChatHeader`, `ChatRow`, `ChatSearchBar`, `ChatComposer`, `ChannelBar`, `SelectionBar`, `MessageList`, `MessageBubble`, `MediaThumb`, `LocationPreview` |
 
-The old monolithic login markup and the custom download selection bottom bar
-were removed from the active path.
+The old monolithic login markup, fabricated media artwork and the always-on
+download bottom bar were removed from the active path.
 
 ## Login flow (implemented)
 
@@ -295,13 +299,13 @@ image can be selected), the welcome illustration is a rebuilt approximation,
 map tiles need network, and settings backed by unavailable Telegram APIs show
 explicit placeholders rather than fake controls.
 
-## Next page-sized slices
+## Remaining visual work
 
-1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,
-   account footer; compare against official at 1107×725.
-2. Chat pane: pixel metrics for header (56 px), bubbles, date pills and composer;
-   verify against reference screenshots.
-3. Right panel: profile, actions, shared media, members.
-4. Settings: align dialogs, tabs and rows with Telegram Desktop.
-5. Remove remaining legacy `login-settings.css` login rules after the new login
-   is pixel-stable.
+1. Replace the rebuilt welcome illustration only if a redistributable official
+   asset is available.
+2. Add a real map provider for location previews instead of the OSM-tile
+   best-effort/fallback combination.
+3. Close the remaining typography differences under 150% interface scale.
+4. Finish settings sections whose Telegram APIs are still unavailable.
+5. Remove remaining legacy rules from `login-settings.css` after a final
+   cross-screen CSS audit.
