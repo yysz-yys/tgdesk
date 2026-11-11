@@ -1,23 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Events } from "@wailsio/runtime";
-import {
-  IconArrowLeft,
-  IconCheck,
-  IconLoader2,
-  IconMoon,
-  IconPhone,
-  IconQrcode,
-  IconRefresh,
-  IconShieldLock,
-  IconSun,
-} from "@tabler/icons-react";
-import { QRCodeSVG } from "qrcode.react";
 import { Service as AppService } from "../../../bindings/tgdesk/internal/app";
 import type { AppSettings } from "../../hooks/useSettings";
 import type { AuthEvent, AuthUser, ResolvedTheme } from "../../types";
+import { LoginShell } from "./LoginShell";
+import { LoginQrStep } from "./LoginQrStep";
+import { LoginPhoneStep } from "./LoginPhoneStep";
+import { LoginCodeStep } from "./LoginCodeStep";
+import { LoginPasswordStep } from "./LoginPasswordStep";
+import { LoginSuccessStep } from "./LoginSuccessStep";
+import { LoginWelcomeStep } from "./LoginWelcomeStep";
+import { Callout } from "../ui/Callout";
+import "./login.css";
 
-type Mode = "qr" | "phone" | "code" | "password" | "success";
+type Mode = "welcome" | "qr" | "phone" | "code" | "password" | "success";
 
 interface LoginScreenProps {
   theme: ResolvedTheme;
@@ -70,13 +67,14 @@ export function LoginScreen({
 }: LoginScreenProps) {
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage ?? "en";
-  const [mode, setMode] = useState<Mode>("qr");
+  const [mode, setMode] = useState<Mode>("welcome");
   const [country, setCountry] = useState("+86");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(true);
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
   const [user, setUser] = useState<AuthUser | null>(null);
   const phoneRef = useRef("");
@@ -167,13 +165,6 @@ export function LoginScreen({
       }
     });
 
-    void AppService.StartQR(proxyRef.current, ntpRef.current).catch((startError: unknown) => {
-      if (alive) {
-        setBusy(false);
-        setError(localizeError(errorText(startError)));
-      }
-    });
-
     return () => {
       alive = false;
       off();
@@ -187,6 +178,7 @@ export function LoginScreen({
     setMode("qr");
     setBusy(true);
     setError("");
+    setNotice("");
     setQrUrl("");
     try {
       await AppService.StartQR(proxy, ntp);
@@ -196,17 +188,36 @@ export function LoginScreen({
     }
   };
 
+  const goWelcome = () => {
+    void AppService.CancelLogin();
+    setMode("welcome");
+    setBusy(false);
+    setError("");
+    setNotice("");
+    setQrUrl("");
+  };
+
   const goPhone = () => {
     void AppService.CancelLogin();
     setMode("phone");
     setBusy(false);
     setError("");
+    setNotice("");
     setQrUrl("");
   };
 
   const goQr = () => {
     void startQr();
   };
+
+  const toggleLanguage = () => {
+    const next = language.startsWith("zh") ? "en" : "zh";
+    onUpdate("language", next);
+  };
+
+  const languageLabel = language.startsWith("zh")
+    ? t("login.continueEnglish")
+    : t("login.continueChinese");
 
   const submitPhone = async () => {
     if (phone.replace(/\D/g, "").length < 6) {
@@ -260,300 +271,106 @@ export function LoginScreen({
   };
 
   const fullPhone = phoneRef.current || `${country} ${phone}`;
-  const errorBlock = error ? (
-    <>
-      <p className="login-error">{error}</p>
-      {mode === "code" || mode === "password" ? (
-        <button type="button" className="login-link" onClick={goPhone}>
-          {t("login.startOver")}
-        </button>
-      ) : null}
-    </>
-  ) : null;
+  const surface =
+    mode === "welcome"
+      ? "welcome"
+      : mode === "qr"
+        ? "qr"
+        : mode === "success"
+          ? "success"
+          : "form";
 
   return (
-    <div className="login-screen">
-      <button
-        type="button"
-        className="icon-button login-theme-toggle"
-        onClick={onToggleTheme}
-        aria-label={theme === "dark" ? t("login.themeLight") : t("login.themeDark")}
-      >
-        {theme === "dark" ? <IconSun size={20} /> : <IconMoon size={20} />}
-      </button>
+    <LoginShell
+      theme={theme}
+      onToggleTheme={onToggleTheme}
+      tdlVersion={tdlVersion}
+      surface={surface}
+    >
+      {mode === "welcome" ? (
+        <LoginWelcomeStep
+          busy={busy}
+          onStart={() => void startQr()}
+          onLanguage={toggleLanguage}
+          languageLabel={languageLabel}
+          extra={
+            importError ? (
+              <Callout tone="error" className="tg-login-welcome-error">
+                {localizeError(importError)}
+              </Callout>
+            ) : null
+          }
+        />
+      ) : null}
 
-      <main className="login-card">
-        <div className="login-brand">
-          <span className="login-logo">tg</span>
-          <h1>{t("login.title")}</h1>
-          <p>{t("login.subtitle")}</p>
-        </div>
+      {mode === "qr" ? (
+        <LoginQrStep
+          qrUrl={qrUrl}
+          busy={busy}
+          error={error}
+          notice={notice}
+          importError={importError ? localizeError(importError) : ""}
+          settings={settings}
+          onUpdate={onUpdate}
+          onRefresh={() => void startQr()}
+          onPhone={goPhone}
+          onPasskey={() => setNotice(t("login.passkeySoon"))}
+          onBack={goWelcome}
+          onApplyNetwork={() => void startQr()}
+        />
+      ) : null}
 
-        {importError ? <p className="login-error">{localizeError(importError)}</p> : null}
+      {mode === "phone" ? (
+        <LoginPhoneStep
+          country={country}
+          countries={COUNTRIES}
+          countryName={countryName}
+          language={language}
+          phone={phone}
+          busy={busy}
+          error={error}
+          onCountry={(value) => {
+            setCountry(value);
+            resetError();
+          }}
+          onPhone={(value) => {
+            setPhone(value);
+            resetError();
+          }}
+          onSubmit={() => void submitPhone()}
+          onBack={goQr}
+        />
+      ) : null}
 
-        {(mode === "qr" || mode === "phone") && (
-          <div className="login-tabs" role="tablist" aria-label={t("login.methodLabel")}>
-            <button
-              type="button"
-              role="tab"
-              className="login-tab"
-              data-active={mode === "qr"}
-              aria-selected={mode === "qr"}
-              onClick={goQr}
-            >
-              <IconQrcode size={16} />
-              {t("login.qrTab")}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              className="login-tab"
-              data-active={mode === "phone"}
-              aria-selected={mode === "phone"}
-              onClick={goPhone}
-            >
-              <IconPhone size={16} />
-              {t("login.phoneTab")}
-            </button>
-          </div>
-        )}
+      {mode === "code" ? (
+        <LoginCodeStep
+          phone={fullPhone}
+          code={code}
+          busy={busy}
+          error={error}
+          onCode={(value) => {
+            setCode(value);
+            resetError();
+          }}
+          onSubmit={() => void submitCode()}
+          onBack={goPhone}
+        />
+      ) : null}
 
-        {mode === "qr" && (
-          <div className="login-body">
-            <div className="qr-card">
-              {qrUrl ? (
-                <QRCodeSVG
-                  value={qrUrl}
-                  size={204}
-                  level="M"
-                  bgColor="#ffffff"
-                  fgColor="#111111"
-                  marginSize={1}
-                  title={t("login.qrTitle")}
-                />
-              ) : (
-                <div className="qr-placeholder">
-                  <IconLoader2 className="login-spin" size={26} />
-                  <span>{t("login.generatingQr")}</span>
-                </div>
-              )}
-            </div>
-            <p className="login-hint">{t("login.scanHint")}</p>
-            {errorBlock}
-            <button type="button" className="login-link" onClick={() => void startQr()}>
-              <IconRefresh size={14} />
-              {t("login.refreshQr")}
-            </button>
-            <div className="login-divider">
-              <span>{t("login.or")}</span>
-            </div>
-            <button type="button" className="login-secondary" onClick={goPhone}>
-              <IconPhone size={16} />
-              {t("login.phoneLogin")}
-            </button>
+      {mode === "password" ? (
+        <LoginPasswordStep
+          password={password}
+          busy={busy}
+          error={error}
+          onPassword={(value) => {
+            setPassword(value);
+            resetError();
+          }}
+          onSubmit={() => void submitPassword()}
+        />
+      ) : null}
 
-            <details className="login-network">
-              <summary>{t("login.networkSettings")}</summary>
-              <p className="login-network-hint">{t("login.networkHint")}</p>
-              <select
-                className="login-select login-network-select"
-                value={settings.proxyType}
-                onChange={(event) =>
-                  onUpdate("proxyType", event.target.value as AppSettings["proxyType"])
-                }
-                aria-label={t("settings.network.proxyType")}
-              >
-                <option value="none">{t("settings.network.none")}</option>
-                <option value="socks5">{t("settings.network.socks5")}</option>
-                <option value="http">{t("settings.network.http")}</option>
-              </select>
-              {settings.proxyType !== "none" && (
-                <>
-                  <div className="login-network-row">
-                    <input
-                      className="login-input"
-                      value={settings.proxyHost}
-                      onChange={(event) => onUpdate("proxyHost", event.target.value)}
-                      placeholder={t("settings.network.host")}
-                      spellCheck={false}
-                    />
-                    <input
-                      className="login-input"
-                      value={settings.proxyPort}
-                      onChange={(event) => onUpdate("proxyPort", event.target.value)}
-                      placeholder={t("settings.network.port")}
-                      inputMode="numeric"
-                    />
-                  </div>
-                  <div className="login-network-row">
-                    <input
-                      className="login-input"
-                      value={settings.proxyUser}
-                      onChange={(event) => onUpdate("proxyUser", event.target.value)}
-                      placeholder={t("settings.network.username")}
-                      spellCheck={false}
-                    />
-                    <input
-                      className="login-input"
-                      type="password"
-                      value={settings.proxyPass}
-                      onChange={(event) => onUpdate("proxyPass", event.target.value)}
-                      placeholder={t("settings.network.password")}
-                    />
-                  </div>
-                </>
-              )}
-              <button
-                type="button"
-                className="login-secondary login-network-apply"
-                onClick={() => void startQr()}
-              >
-                {t("login.applyNetwork")}
-              </button>
-            </details>
-          </div>
-        )}
-
-        {mode === "phone" && (
-          <form
-            className="login-body"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void submitPhone();
-            }}
-          >
-            <div className="login-heading">
-              <h2>{t("login.phoneTitle")}</h2>
-              <p>{t("login.phoneDescription")}</p>
-            </div>
-
-            <div className="phone-row">
-              <select
-                className="login-select"
-                value={country}
-                onChange={(event) => setCountry(event.target.value)}
-                aria-label={t("login.country")}
-              >
-                {COUNTRIES.map((item) => (
-                  <option value={item.code} key={item.code}>
-                    {item.code} {countryName(item.region, language)}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="login-input"
-                value={phone}
-                onChange={(event) => {
-                  setPhone(event.target.value);
-                  resetError();
-                }}
-                placeholder={t("login.phonePlaceholder")}
-                inputMode="tel"
-                autoFocus
-              />
-            </div>
-
-            {errorBlock}
-
-            <button type="submit" className="login-primary" disabled={busy}>
-              {busy ? <IconLoader2 className="login-spin" size={18} /> : null}
-              {busy ? t("login.signingIn") : t("login.continue")}
-            </button>
-          </form>
-        )}
-
-        {mode === "code" && (
-          <form
-            className="login-body"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void submitCode();
-            }}
-          >
-            <button type="button" className="login-back" onClick={goPhone}>
-              <IconArrowLeft size={16} />
-              {t("login.back")}
-            </button>
-            <div className="login-heading">
-              <h2>{t("login.codeTitle")}</h2>
-              <p>{t("login.codeSent", { phone: fullPhone })}</p>
-            </div>
-            <input
-              className="login-input login-code-input"
-              value={code}
-              onChange={(event) => {
-                setCode(event.target.value);
-                resetError();
-              }}
-              placeholder={t("login.codePlaceholder")}
-              inputMode="numeric"
-              autoFocus
-            />
-            {errorBlock}
-            <button type="submit" className="login-primary" disabled={busy}>
-              {busy ? <IconLoader2 className="login-spin" size={18} /> : null}
-              {busy ? t("login.signingIn") : t("login.continue")}
-            </button>
-          </form>
-        )}
-
-        {mode === "password" && (
-          <form
-            className="login-body"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void submitPassword();
-            }}
-          >
-            <div className="login-heading">
-              <span className="login-lock">
-                <IconShieldLock size={20} />
-              </span>
-              <h2>{t("login.passwordTitle")}</h2>
-              <p>{t("login.passwordDescription")}</p>
-            </div>
-            <input
-              className="login-input"
-              type="password"
-              value={password}
-              onChange={(event) => {
-                setPassword(event.target.value);
-                resetError();
-              }}
-              placeholder={t("login.passwordPlaceholder")}
-              autoFocus
-            />
-            {errorBlock}
-            <button type="submit" className="login-primary" disabled={busy}>
-              {busy ? <IconLoader2 className="login-spin" size={18} /> : null}
-              {busy ? t("login.signingIn") : t("login.continue")}
-            </button>
-          </form>
-        )}
-
-        {mode === "success" && (
-          <div className="login-body login-success">
-            <span className="login-success-icon">
-              <IconCheck size={30} stroke={2.4} />
-            </span>
-            <h2>{t("login.successTitle")}</h2>
-            <p>{user?.displayName ?? t("login.successDescription")}</p>
-            <IconLoader2 className="login-spin" size={18} />
-          </div>
-        )}
-
-        <footer className="login-footer">
-          <span>
-            {tdlVersion
-              ? t("sidebar.tdlVersion", { version: tdlVersion })
-              : t("sidebar.kernel")}
-          </span>
-          <span className="login-footer-dot" />
-          <span>AGPL-3.0</span>
-          <span className="login-footer-dot" />
-          <span>{t("login.footerReal")}</span>
-        </footer>
-      </main>
-    </div>
+      {mode === "success" ? <LoginSuccessStep user={user} /> : null}
+    </LoginShell>
   );
 }

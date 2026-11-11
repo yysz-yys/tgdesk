@@ -54,6 +54,10 @@ func (s *Service) GetMessages(chatID, proxy, ntp string, limit int) ([]kernel.Me
 	return s.kernel.GetMessages(chatID, proxy, ntp, limit)
 }
 
+func (s *Service) SendMessage(chatID, text, proxy, ntp string) error {
+	return s.kernel.SendMessage(chatID, text, proxy, ntp)
+}
+
 func (s *Service) StartDownload(
 	chatID, chatTitle string,
 	messageIDs []int,

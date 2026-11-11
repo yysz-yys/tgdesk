@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import "./i18n";
 import App from "./App";
 import "./app.css";
+import "./components/ui/atoms.css";
 import "./login-settings.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

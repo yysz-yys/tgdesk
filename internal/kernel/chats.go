@@ -92,6 +92,40 @@ func (s *Service) GetChats(proxy, ntp string, limit int) ([]ChatDTO, error) {
 	return result, nil
 }
 
+// SendMessage sends a plain text message through the shared session.
+func (s *Service) SendMessage(chatID, text, proxy, ntp string) error {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return fmt.Errorf("message is empty")
+	}
+	peer, err := parsePeerID(chatID)
+	if err != nil {
+		return err
+	}
+
+	s.chatMu.Lock()
+	defer s.chatMu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	randomID := time.Now().UnixNano()
+	if randomID < 0 {
+		randomID = -randomID
+	}
+	return s.withChatClient(ctx, proxy, ntp, func(ctx context.Context, client *telegram.Client) error {
+		_, err := client.API().MessagesSendMessage(ctx, &tg.MessagesSendMessageRequest{
+			Peer:     peer,
+			Message:  text,
+			RandomID: randomID,
+		})
+		if err != nil {
+			return fmt.Errorf("send message: %w", err)
+		}
+		return nil
+	})
+}
+
 // GetMessages loads the latest messages for an opaque chat ID. Telegram returns
 // newest first; the UI wants oldest-to-newest, so the slice is reversed.
 func (s *Service) GetMessages(chatID, proxy, ntp string, limit int) ([]MessageDTO, error) {

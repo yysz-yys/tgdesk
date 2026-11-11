@@ -75,6 +75,10 @@ export function ResumeDownload(id: string, proxy: string, ntp: string): $Cancell
     return $Call.ByID(2763229687, id, proxy, ntp);
 }
 
+export function SendMessage(chatID: string, text: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(1826619901, chatID, text, proxy, ntp);
+}
+
 export function StartDownload(chatID: string, chatTitle: string, messageIDs: number[] | null, proxy: string, ntp: string, dir: string, fileNameTemplate: string, threads: number): $CancellablePromise<string[] | null> {
     return $Call.ByID(915368180, chatID, chatTitle, messageIDs, proxy, ntp, dir, fileNameTemplate, threads);
 }

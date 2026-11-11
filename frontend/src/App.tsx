@@ -567,6 +567,15 @@ export default function App() {
       .catch(() => showToast(t("toasts.downloadActionFailed")));
   };
 
+  const sendMessage = async (text: string) => {
+    if (!selectedChatId) {
+      throw new Error("No chat selected");
+    }
+    await AppService.SendMessage(selectedChatId, text, proxyUrl, settings.ntp);
+    const next = await AppService.GetMessages(selectedChatId, proxyUrl, settings.ntp, 50);
+    setMessageDTOs(next ?? []);
+  };
+
   const handleAuthenticated = useCallback((user: AuthUser) => {
     setAuthUser(user);
     setLoggedIn(true);
@@ -692,6 +701,7 @@ export default function App() {
             onDownloadSelected={downloadSelected}
             onDownloadAll={() => downloadAll(selectedChat)}
             onOpenInfo={() => setRightOpen((open) => !open)}
+            onSendMessage={sendMessage}
             onToast={showToast}
             rightOpen={rightOpen}
             loading={messagesLoading}
