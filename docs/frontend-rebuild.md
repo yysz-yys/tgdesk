@@ -237,6 +237,16 @@ settings and applied through `data-wallpaper`; the dot-pattern switch composes
 with each preset. Verified live: selecting `blue` set the dataset and produced
 the radial/linear background stack.
 
+## Custom background image
+
+Chat settings can now load a local image (up to 3 MB) as the chat background.
+The image is stored as a data URL in the existing portable settings and applied
+through `--tg-wallpaper-image` with a dark readability overlay. A Remove action
+clears the image and falls back to the Telegram glow preset.
+
+Verified live: a data-URL image set `data-wallpaper="custom"`, populated the CSS
+variable, and produced the layered background stack.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

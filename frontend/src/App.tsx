@@ -206,7 +206,11 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.pattern = settings.chatPattern ? "on" : "off";
     document.documentElement.dataset.wallpaper = settings.wallpaper;
-  }, [settings.chatPattern]);
+    document.documentElement.style.setProperty(
+      "--tg-wallpaper-image",
+      settings.wallpaperImage ? `url("${settings.wallpaperImage}")` : "none",
+    );
+  }, [settings.chatPattern, settings.wallpaper, settings.wallpaperImage]);
 
   useEffect(() => {
     document.documentElement.dataset.accent = settings.accent;

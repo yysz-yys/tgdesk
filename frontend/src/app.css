@@ -1575,3 +1575,29 @@ input:focus-visible {
     linear-gradient(180deg, #102a44 0%, #0e1b2a 60%, #0e1621 100%);
   background-size: 22px 22px, auto, auto;
 }
+[data-wallpaper="custom"] .message-scroll {
+  background-image:
+    linear-gradient(rgba(7, 15, 23, 0.55), rgba(7, 15, 23, 0.66)),
+    var(--tg-wallpaper-image);
+  background-position: center;
+  background-size: cover;
+}
+
+[data-pattern="on"][data-wallpaper="custom"] .message-scroll {
+  background-image:
+    radial-gradient(var(--tg-chat-pattern) 1px, transparent 1px),
+    linear-gradient(rgba(7, 15, 23, 0.55), rgba(7, 15, 23, 0.66)),
+    var(--tg-wallpaper-image);
+  background-position: center;
+  background-size: 22px 22px, cover, cover;
+}
+
+.settings-wallpaper-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-file-input {
+  display: none;
+}

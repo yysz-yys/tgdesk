@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Select from "@radix-ui/react-select";
@@ -16,7 +16,9 @@ import {
   IconLanguage,
   IconLogout,
   IconPhone,
+  IconPhoto,
   IconQrcode,
+  IconTrash,
   IconRefresh,
   IconX,
 } from "@tabler/icons-react";
@@ -109,6 +111,28 @@ export function SettingsDialog({
   const [view, setView] = useState<"list" | "page" | "placeholder">("list");
   const [pageTitle, setPageTitle] = useState("");
   const [placeholder, setPlaceholder] = useState("");
+  const wallpaperInput = useRef<HTMLInputElement>(null);
+
+  const chooseWallpaper = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      onToast(t("settings.chat.wallpaperTooLarge"));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        return;
+      }
+      onUpdate("wallpaperImage", reader.result);
+      onUpdate("wallpaper", "custom");
+    };
+    reader.readAsDataURL(file);
+  };
 
   const openItem = (item: SettingsItem) => {
     if (item.section) {
@@ -274,8 +298,48 @@ export function SettingsDialog({
               { value: "glow", label: t("settings.chat.wallpapers.glow") },
               { value: "plain", label: t("settings.chat.wallpapers.plain") },
               { value: "blue", label: t("settings.chat.wallpapers.blue") },
+              ...(settings.wallpaperImage
+                ? [{ value: "custom", label: t("settings.chat.wallpapers.custom") }]
+                : []),
             ]}
           />
+        </SettingRow>
+        <SettingRow
+          title={t("settings.chat.wallpaperImage")}
+          description={t("settings.chat.wallpaperImageDesc")}
+        >
+          <div className="settings-wallpaper-actions">
+            <input
+              ref={wallpaperInput}
+              className="settings-file-input"
+              type="file"
+              accept="image/*"
+              onChange={chooseWallpaper}
+            />
+            <button
+              type="button"
+              className="settings-button"
+              onClick={() => wallpaperInput.current?.click()}
+            >
+              <IconPhoto size={15} />
+              {t("settings.chat.chooseWallpaper")}
+            </button>
+            {settings.wallpaperImage ? (
+              <button
+                type="button"
+                className="settings-icon-button"
+                onClick={() => {
+                  onUpdate("wallpaperImage", "");
+                  if (settings.wallpaper === "custom") {
+                    onUpdate("wallpaper", "glow");
+                  }
+                }}
+                aria-label={t("settings.chat.removeWallpaper")}
+              >
+                <IconTrash size={16} />
+              </button>
+            ) : null}
+          </div>
         </SettingRow>
         <SettingRow
           title={t("settings.chat.enterToSend")}
