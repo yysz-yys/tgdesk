@@ -6,7 +6,6 @@ import {
   IconGift,
   IconLink,
   IconLogout,
-  IconPhoto,
   IconSearch,
   IconUsers,
   IconWorld,
@@ -15,17 +14,26 @@ import {
 import type { Chat, Message } from "../../types";
 import { Avatar } from "../ui/Avatar";
 import { IconButton } from "../ui/IconButton";
+import { MediaThumb } from "../chat/MediaThumb";
 import "./right-panel.css";
 
 interface RightPanelProps {
   chat: Chat;
   messages: Message[];
+  onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
   onClose: () => void;
   onDownloadAll: () => void;
   onToast: (message: string) => void;
 }
 
-export function RightPanel({ chat, messages, onClose, onDownloadAll, onToast }: RightPanelProps) {
+export function RightPanel({
+  chat,
+  messages,
+  onLoadThumbnail,
+  onClose,
+  onDownloadAll,
+  onToast,
+}: RightPanelProps) {
   const { t } = useTranslation();
   const sharedMedia = messages.filter((message) => message.media).slice(0, 9);
   const subtitle =
@@ -140,11 +148,13 @@ export function RightPanel({ chat, messages, onClose, onDownloadAll, onToast }: 
                   title={message.media?.name}
                   onClick={() => onToast(t("rightPanel.mediaToast"))}
                 >
-                  {message.media?.kind === "photo" ? (
-                    <IconPhoto size={18} />
-                  ) : (
-                    <IconFile size={18} />
-                  )}
+                  <MediaThumb
+                    chatID={message.chatId}
+                    messageID={message.id}
+                    alt={message.media?.name ?? ""}
+                    onLoad={onLoadThumbnail}
+                    className="media-thumb"
+                  />
                 </button>
               ))}
             </div>

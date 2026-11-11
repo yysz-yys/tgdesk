@@ -67,6 +67,10 @@ func (s *Service) StartDownload(
 	return s.kernel.StartDownload(chatID, chatTitle, messageIDs, proxy, ntp, dir, fileNameTemplate, threads)
 }
 
+func (s *Service) GetMessageThumb(chatID string, messageID int, proxy, ntp string) (string, error) {
+	return s.kernel.GetMessageThumb(chatID, messageID, proxy, ntp)
+}
+
 func (s *Service) GetDownloads() []kernel.DownloadTaskDTO {
 	return s.kernel.GetDownloads()
 }

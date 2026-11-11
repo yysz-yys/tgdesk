@@ -567,6 +567,12 @@ export default function App() {
       .catch(() => showToast(t("toasts.downloadActionFailed")));
   };
 
+  const loadThumbnail = useCallback(
+    (chatID: string, messageID: number) =>
+      AppService.GetMessageThumb(chatID, messageID, proxyUrl, settings.ntp),
+    [proxyUrl, settings.ntp],
+  );
+
   const sendMessage = async (text: string) => {
     if (!selectedChatId) {
       throw new Error("No chat selected");
@@ -687,6 +693,7 @@ export default function App() {
                 void queueDownloads(selectedChat, [id]);
               }
             }}
+            onLoadThumbnail={loadThumbnail}
             onClearSelection={() => setSelectedIds(new Set())}
             onSelectAll={selectAll}
             onDownloadSelected={downloadSelected}
@@ -718,6 +725,7 @@ export default function App() {
           <RightPanel
             chat={selectedChat}
             messages={messages}
+            onLoadThumbnail={loadThumbnail}
             onClose={() => setRightOpen(false)}
             onDownloadAll={() => downloadAll(selectedChat)}
             onToast={showToast}

@@ -89,6 +89,7 @@
 }
 
 .media-tile {
+  position: relative;
   display: grid;
   aspect-ratio: 1;
   place-items: center;
@@ -98,6 +99,15 @@
   background: linear-gradient(135deg, #9fb2c6, #566b80);
   color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
+}
+
+.media-tile .media-thumb-loading {
+  position: absolute;
+}
+
+.media-tile .media-thumb {
+  position: absolute;
+  inset: 0;
 }
 
 .media-tile[data-kind="photo"] {

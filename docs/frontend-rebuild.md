@@ -163,6 +163,22 @@ plain `UPDATE`/`SETTINGS` actions, and a plain `#17212b` QR background.
   shows an explicit empty state. The kernel has no server-side search endpoint;
   the UI labels this as search over loaded messages.
 
+## Real media thumbnails
+
+`GetMessageThumb` now resolves a single message, selects the Telegram thumbnail
+size for a photo or the document thumbnail, downloads only that small file,
+caches it under `<root>/data/thumbs`, and returns a base64 JPEG to the webview.
+
+The UI loads thumbnails lazily with an IntersectionObserver, caches data URLs in
+memory per chat/message, and swaps the placeholder for the real image when it
+arrives. Both message bubbles and the right-panel media grid use the same
+component. Full media downloads remain in the existing byte-resume download
+pipeline.
+
+Verified against a live photo message: the `img` arrived at 800×334 natural
+size and the cached thumbnail was 76 KB. No thumbnail or tdata file is tracked
+by git.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

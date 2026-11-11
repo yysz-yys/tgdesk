@@ -39,6 +39,10 @@ export function GetDownloads(): $CancellablePromise<kernel$0.DownloadTaskDTO[] |
     return $Call.ByID(337528261);
 }
 
+export function GetMessageThumb(chatID: string, messageID: number, proxy: string, ntp: string): $CancellablePromise<string> {
+    return $Call.ByID(103314033, chatID, messageID, proxy, ntp);
+}
+
 export function GetMessages(chatID: string, proxy: string, ntp: string, limit: number): $CancellablePromise<kernel$0.MessageDTO[] | null> {
     return $Call.ByID(1918792072, chatID, proxy, ntp, limit);
 }

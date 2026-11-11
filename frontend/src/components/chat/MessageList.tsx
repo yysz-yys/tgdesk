@@ -11,6 +11,7 @@ interface MessageListProps {
   showSender?: boolean;
   onToggleSelect: (id: number) => void;
   onDownloadMessage?: (id: number) => void;
+  onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
   onToast: (message: string) => void;
 }
 
@@ -21,6 +22,7 @@ export function MessageList({
   showSender,
   onToggleSelect,
   onDownloadMessage,
+  onLoadThumbnail,
   onToast,
 }: MessageListProps) {
   const { t } = useTranslation();
@@ -68,6 +70,7 @@ export function MessageList({
                 showSender={showSender}
                 onToggleSelect={onToggleSelect}
                 onDownloadMessage={onDownloadMessage}
+                onLoadThumbnail={onLoadThumbnail}
                 onToast={onToast}
               />
             </div>

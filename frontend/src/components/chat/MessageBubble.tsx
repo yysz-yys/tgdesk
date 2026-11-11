@@ -4,11 +4,11 @@ import {
   IconChecks,
   IconDownload,
   IconFile,
-  IconPhoto,
   IconSelectAll,
 } from "@tabler/icons-react";
 import type { Message } from "../../types";
 import { chatColor } from "../../data/telegram";
+import { MediaThumb } from "./MediaThumb";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -23,6 +23,7 @@ interface MessageBubbleProps {
   showSender?: boolean;
   onToggleSelect: (id: number) => void;
   onDownloadMessage?: (id: number) => void;
+  onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
   onToast: (message: string) => void;
 }
 
@@ -32,6 +33,7 @@ export function MessageBubble({
   showSender,
   onToggleSelect,
   onDownloadMessage,
+  onLoadThumbnail,
   onToast,
 }: MessageBubbleProps) {
   const { t } = useTranslation();
@@ -82,9 +84,12 @@ export function MessageBubble({
             ) : null}
             {media?.kind === "photo" ? (
               <div className="photo-card">
-                <span className="photo-placeholder" aria-hidden="true">
-                  <IconPhoto size={26} stroke={1.6} />
-                </span>
+                <MediaThumb
+                  chatID={message.chatId}
+                  messageID={message.id}
+                  alt={media.name || t("media.photo")}
+                  onLoad={onLoadThumbnail}
+                />
                 <span className="photo-caption">
                   {media.name || t("media.photo")}
                 </span>

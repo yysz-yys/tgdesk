@@ -16,6 +16,7 @@ interface ChatViewProps {
   selectedIds: Set<number>;
   onToggleSelect: (id: number) => void;
   onDownloadMessage: (id: number) => void;
+  onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
   onClearSelection: () => void;
   onSelectAll: () => void;
   onDownloadSelected: () => void;
@@ -35,6 +36,7 @@ export function ChatView({
   selectedIds,
   onToggleSelect,
   onDownloadMessage,
+  onLoadThumbnail,
   onClearSelection,
   onSelectAll,
   onDownloadSelected,
@@ -121,6 +123,7 @@ export function ChatView({
             showSender={chat.kind === "group"}
             onToggleSelect={onToggleSelect}
             onDownloadMessage={onDownloadMessage}
+            onLoadThumbnail={onLoadThumbnail}
             onToast={onToast}
           />
         )}
