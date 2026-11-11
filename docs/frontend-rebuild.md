@@ -277,6 +277,24 @@ the Wails window zoom API for 100/110/125/150%, clamped to 0.8–1.5, and applie
 the saved value on startup. Verified live: 125% changed the CSS viewport from
 1107×725 to 885×580 and the responsive sidebar from 394 to 320px.
 
+## Final verification
+
+- `go test ./...` passes.
+- `tsc` passes.
+- `wails3 build` passes.
+- Login at 1107×725: caption 24, hero 226, title y=342, button 300×34,
+  QR 188×188 at y=162, QR title y=378, no console errors.
+- Chat at 1107×725: caption 24, sidebar 394, row 60, header 56, static info
+  panel 290, composer 59, no console errors.
+- No tdata, thumbnail cache, or runtime data is tracked. `/tdataTest/`,
+  `/tdataNomal/` and `/dataNomal/` are ignored.
+
+Known differences that are asset/account or kernel-API limitations: the
+official account's custom wallpaper cannot be exported automatically (a local
+image can be selected), the welcome illustration is a rebuilt approximation,
+map tiles need network, and settings backed by unavailable Telegram APIs show
+explicit placeholders rather than fake controls.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,
