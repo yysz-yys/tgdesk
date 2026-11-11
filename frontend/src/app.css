@@ -1552,3 +1552,26 @@ input:focus-visible {
   }
 }
 
+
+[data-wallpaper="plain"] .message-scroll {
+  background-image: none;
+}
+
+[data-wallpaper="blue"] .message-scroll {
+  background-image:
+    radial-gradient(ellipse 90% 65% at 50% 0%, rgba(31, 91, 145, 0.45), transparent 70%),
+    linear-gradient(180deg, #102a44 0%, #0e1b2a 60%, #0e1621 100%);
+}
+
+[data-pattern="on"][data-wallpaper="plain"] .message-scroll {
+  background-image: radial-gradient(var(--tg-chat-pattern) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+[data-pattern="on"][data-wallpaper="blue"] .message-scroll {
+  background-image:
+    radial-gradient(var(--tg-chat-pattern) 1px, transparent 1px),
+    radial-gradient(ellipse 90% 65% at 50% 0%, rgba(31, 91, 145, 0.45), transparent 70%),
+    linear-gradient(180deg, #102a44 0%, #0e1b2a 60%, #0e1621 100%);
+  background-size: 22px 22px, auto, auto;
+}

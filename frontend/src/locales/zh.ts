@@ -361,6 +361,13 @@ export default {
     },
     chat: {
       title: "聊天设置",
+      wallpaper: "聊天背景",
+      wallpaperDesc: "消息区域的本地背景样式。",
+      wallpapers: {
+        glow: "Telegram 光晕",
+        plain: "纯深色",
+        blue: "深蓝色",
+      },
       enterToSend: "按 Enter 发送",
       enterToSendDesc: "关闭后 Enter 换行，请使用发送按钮。",
     },

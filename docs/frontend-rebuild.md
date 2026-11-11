@@ -229,6 +229,14 @@ being dropped: joins, invite-link joins, leaves, title changes, pins, channel
 creation and TTL changes render as centered Telegram-style service pills with a
 small timestamp. Verified live: one join service message was rendered.
 
+## Chat background presets
+
+Chat settings now exposes a real local background choice: Telegram glow,
+plain dark, or deep blue. The selected preset is stored with the other local
+settings and applied through `data-wallpaper`; the dot-pattern switch composes
+with each preset. Verified live: selecting `blue` set the dataset and produced
+the radial/linear background stack.
+
 ## Next page-sized slices
 
 1. Sidebar: Telegram folder tabs, search row, compose button, chat row metrics,

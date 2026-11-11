@@ -261,6 +261,23 @@ export function SettingsDialog({
           />
         </SettingRow>
         <SettingRow
+          title={t("settings.chat.wallpaper")}
+          description={t("settings.chat.wallpaperDesc")}
+        >
+          <SettingSelect
+            ariaLabel={t("settings.chat.wallpaper")}
+            value={settings.wallpaper}
+            onValueChange={(value) =>
+              onUpdate("wallpaper", value as AppSettings["wallpaper"])
+            }
+            options={[
+              { value: "glow", label: t("settings.chat.wallpapers.glow") },
+              { value: "plain", label: t("settings.chat.wallpapers.plain") },
+              { value: "blue", label: t("settings.chat.wallpapers.blue") },
+            ]}
+          />
+        </SettingRow>
+        <SettingRow
           title={t("settings.chat.enterToSend")}
           description={t("settings.chat.enterToSendDesc")}
         >

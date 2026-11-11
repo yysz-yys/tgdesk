@@ -361,6 +361,13 @@ export default {
     },
     chat: {
       title: "チャット設定",
+      wallpaper: "チャット背景",
+      wallpaperDesc: "メッセージ領域のローカル背景スタイル。",
+      wallpapers: {
+        glow: "Telegram グロー",
+        plain: "ダーク単色",
+        blue: "ディープブルー",
+      },
       enterToSend: "Enter で送信",
       enterToSendDesc: "オフにすると Enter は改行になります。送信ボタンを使用してください。",
     },

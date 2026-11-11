@@ -205,6 +205,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.pattern = settings.chatPattern ? "on" : "off";
+    document.documentElement.dataset.wallpaper = settings.wallpaper;
   }, [settings.chatPattern]);
 
   useEffect(() => {

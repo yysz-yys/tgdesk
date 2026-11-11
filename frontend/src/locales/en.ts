@@ -361,6 +361,13 @@ export default {
     },
     chat: {
       title: "Chat settings",
+      wallpaper: "Chat background",
+      wallpaperDesc: "Local background treatment for the message area.",
+      wallpapers: {
+        glow: "Telegram glow",
+        plain: "Plain dark",
+        blue: "Deep blue",
+      },
       enterToSend: "Send with Enter",
       enterToSendDesc: "Turn off to insert a newline; use the send button instead.",
     },
