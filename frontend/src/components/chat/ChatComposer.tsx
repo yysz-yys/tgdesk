@@ -7,9 +7,10 @@ import { Spinner } from "../ui/Spinner";
 interface ChatComposerProps {
   onSend: (text: string) => Promise<void>;
   onToast: (message: string) => void;
+  enterToSend: boolean;
 }
 
-export function ChatComposer({ onSend, onToast }: ChatComposerProps) {
+export function ChatComposer({ onSend, onToast, enterToSend }: ChatComposerProps) {
   const { t } = useTranslation();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -58,6 +59,9 @@ export function ChatComposer({ onSend, onToast }: ChatComposerProps) {
           value={text}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
+            if (!enterToSend) {
+              return;
+            }
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
               void submit();

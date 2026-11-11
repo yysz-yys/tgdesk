@@ -82,6 +82,15 @@ The My account subpage now follows the official profile layout: large avatar,
 online line, Edit profile action, an account-information card with phone +
 QR entry, username and bio, then the session/log-out row.
 
+Notifications and Chat settings are now real subpages:
+
+- Notifications: download-finished notifications, an explicit note that message
+  notifications require a background connection, and disabled “coming soon”
+  rows for message notifications and sound.
+- Chat settings: message text size slider, chat-background dot pattern, and a
+  new real `enterToSend` preference. The composer consumes it; with the
+  preference off, Enter inserts a newline and the send button remains.
+
 The test tdata was also imported into an isolated tgdesk home. It authenticated
 and displayed the account and six chats. Its server-side frozen state is not
 exposed by `Self.Restricted` in this Kernel version, so the sidebar warning

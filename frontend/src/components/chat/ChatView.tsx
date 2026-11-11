@@ -20,6 +20,7 @@ interface ChatViewProps {
   onOpenInfo: () => void;
   onSendMessage: (text: string) => Promise<void>;
   onToast: (message: string) => void;
+  enterToSend: boolean;
   rightOpen: boolean;
   loading?: boolean;
   failed?: boolean;
@@ -38,6 +39,7 @@ export function ChatView({
   onOpenInfo,
   onSendMessage,
   onToast,
+  enterToSend,
   rightOpen,
   loading,
   failed,
@@ -86,7 +88,12 @@ export function ChatView({
           onDownload={onDownloadSelected}
         />
       ) : (
-        <ChatComposer key={chat.id} onSend={onSendMessage} onToast={onToast} />
+        <ChatComposer
+          key={chat.id}
+          onSend={onSendMessage}
+          onToast={onToast}
+          enterToSend={enterToSend}
+        />
       )}
     </main>
   );

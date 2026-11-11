@@ -700,6 +700,7 @@ export default function App() {
             onOpenInfo={() => setRightOpen((open) => !open)}
             onSendMessage={sendMessage}
             onToast={showToast}
+            enterToSend={settings.enterToSend}
             rightOpen={rightOpen}
             loading={messagesLoading}
             failed={messagesFailed}

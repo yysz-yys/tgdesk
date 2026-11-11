@@ -28,6 +28,8 @@ import "./settings-panel.css";
 type Section =
   | "account"
   | "general"
+  | "notifications"
+  | "chat"
   | "appearance"
   | "downloads"
   | "network"
@@ -42,9 +44,9 @@ interface SettingsItem {
 
 const SETTINGS_ITEMS: SettingsItem[] = [
   { id: "myAccount", labelKey: "settings.list.myAccount", section: "account" },
-  { id: "notifications", labelKey: "settings.list.notifications", section: "general" },
+  { id: "notifications", labelKey: "settings.list.notifications", section: "notifications" },
   { id: "privacy", labelKey: "settings.list.privacy" },
-  { id: "chatSettings", labelKey: "settings.list.chatSettings", section: "appearance" },
+  { id: "chatSettings", labelKey: "settings.list.chatSettings", section: "chat" },
   { id: "folders", labelKey: "settings.list.folders" },
   { id: "advancedSettings", labelKey: "settings.list.advanced", section: "advanced" },
   { id: "speakers", labelKey: "settings.list.speakers" },
@@ -184,6 +186,87 @@ export function SettingsDialog({
           <IconLogout size={17} />
           {t("settings.general.logOut")}
         </button>
+      </SettingsGroup>
+    </>
+  );
+
+  const renderNotifications = () => (
+    <>
+      <SettingsGroup title={t("settings.notifications.title")}>
+        <p className="settings-note">{t("settings.notifications.note")}</p>
+        <SettingRow
+          title={t("settings.notifications.downloads")}
+          description={t("settings.notifications.downloadsDesc")}
+        >
+          <SettingSwitch
+            label={t("settings.notifications.downloads")}
+            checked={settings.notifications}
+            onCheckedChange={(value) => onUpdate("notifications", value)}
+          />
+        </SettingRow>
+      </SettingsGroup>
+
+      <SettingsGroup title={t("settings.notifications.messages")}>
+        <SettingRow
+          title={t("settings.notifications.messageNotifications")}
+          description={t("settings.notifications.messageNotificationsDesc")}
+        >
+          <span className="settings-coming">{t("settings.comingSoon")}</span>
+        </SettingRow>
+        <SettingRow
+          title={t("settings.notifications.sound")}
+          description={t("settings.notifications.soundDesc")}
+        >
+          <span className="settings-coming">{t("settings.comingSoon")}</span>
+        </SettingRow>
+      </SettingsGroup>
+    </>
+  );
+
+  const renderChat = () => (
+    <>
+      <SettingsGroup title={t("settings.chat.title")}>
+        <SettingRow
+          title={t("settings.appearance.messageSize")}
+          description={t("settings.appearance.messageSizeDesc", {
+            size: settings.messageSize,
+          })}
+        >
+          <Slider.Root
+            className="slider-root"
+            min={12}
+            max={20}
+            step={1}
+            value={[settings.messageSize]}
+            onValueChange={([value]) => onUpdate("messageSize", value)}
+            aria-label={t("settings.appearance.messageSize")}
+          >
+            <Slider.Track className="slider-track">
+              <Slider.Range className="slider-range" />
+            </Slider.Track>
+            <Slider.Thumb className="slider-thumb" />
+          </Slider.Root>
+        </SettingRow>
+        <SettingRow
+          title={t("settings.appearance.pattern")}
+          description={t("settings.appearance.patternDesc")}
+        >
+          <SettingSwitch
+            label={t("settings.appearance.pattern")}
+            checked={settings.chatPattern}
+            onCheckedChange={(value) => onUpdate("chatPattern", value)}
+          />
+        </SettingRow>
+        <SettingRow
+          title={t("settings.chat.enterToSend")}
+          description={t("settings.chat.enterToSendDesc")}
+        >
+          <SettingSwitch
+            label={t("settings.chat.enterToSend")}
+            checked={settings.enterToSend}
+            onCheckedChange={(value) => onUpdate("enterToSend", value)}
+          />
+        </SettingRow>
       </SettingsGroup>
     </>
   );
@@ -676,6 +759,10 @@ export function SettingsDialog({
         return renderAccount();
       case "general":
         return renderGeneral();
+      case "notifications":
+        return renderNotifications();
+      case "chat":
+        return renderChat();
       case "appearance":
         return renderAppearance();
       case "downloads":

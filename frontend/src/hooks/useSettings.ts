@@ -22,6 +22,7 @@ export interface AppSettings {
   logLevel: "info" | "debug";
   messageSize: number;
   chatPattern: boolean;
+  enterToSend: boolean;
   accent: Accent;
 }
 
@@ -46,6 +47,7 @@ export const defaultSettings: AppSettings = {
   logLevel: "info",
   messageSize: 14,
   chatPattern: true,
+  enterToSend: true,
   accent: "blue",
 };
 
