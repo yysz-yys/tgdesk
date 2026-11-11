@@ -127,6 +127,35 @@
   font-weight: 700;
 }
 
+.sidebar-warning {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 1px;
+  border: 0;
+  border-bottom: 1px solid var(--tg-divider);
+  background: transparent;
+  padding: 10px 16px 11px;
+  color: var(--tg-danger);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-warning:hover {
+  background: rgba(229, 57, 53, 0.06);
+}
+
+.sidebar-warning-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sidebar-warning-link {
+  color: var(--tg-secondary);
+  font-size: 11.5px;
+}
+
 .sidebar-scroll {
   padding: 3px 0 8px;
 }

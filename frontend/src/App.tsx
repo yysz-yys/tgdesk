@@ -661,6 +661,8 @@ export default function App() {
           accountName={authUser?.displayName ?? t("settings.general.telegramAccount")}
           accountInitials={authUser?.initials ?? "T"}
           accountColor={authUser?.color ?? "#65aadd"}
+          accountRestricted={authUser?.restricted}
+          accountRestriction={authUser?.restriction}
           loading={chatsLoading}
           failed={chatsFailed}
         />

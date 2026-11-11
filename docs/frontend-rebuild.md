@@ -68,8 +68,21 @@ Observed on the signed-in but restricted account:
 
 The tgdesk menu now mirrors the official item order (with “coming soon”
 placeholders where the kernel has no API), and the folder strip is hidden for
-accounts without folders. The frozen-account banner still needs an account
-restriction DTO from the kernel.
+accounts without folders.
+
+The settings surface was rebuilt as the official right-side sheet: account
+header with avatar, phone and username, then the single settings list (My
+account, Notifications, Privacy, Chat settings, Folders, Advanced, Speakers,
+Battery, Language, Scale, Premium, Stars, Business, Gifts, FAQ, Shortcuts,
+Features, Ask). Existing tgdesk controls open as subpages with a back button;
+sections without kernel support open an explicit placeholder instead of fake
+controls.
+
+The test tdata was also imported into an isolated tgdesk home. It authenticated
+and displayed the account and six chats. Its server-side frozen state is not
+exposed by `Self.Restricted` in this Kernel version, so the sidebar warning
+renders only when that flag is present; the official banner remains unverified
+for this account.
 
 ## Next page-sized slices
 

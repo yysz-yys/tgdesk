@@ -6,32 +6,53 @@ import * as Slider from "@radix-ui/react-slider";
 import * as Switch from "@radix-ui/react-switch";
 import {
   IconAdjustments,
+  IconArrowLeft,
   IconCheck,
   IconChevronDown,
-  IconDownload,
+  IconChevronRight,
   IconExternalLink,
   IconInfoCircle,
   IconLanguage,
   IconLogout,
-  IconPalette,
+  IconQrcode,
   IconRefresh,
-  IconUser,
-  IconWorld,
   IconX,
 } from "@tabler/icons-react";
 import type { Accent, AuthUser, Theme } from "../../types";
 import type { AppSettings } from "../../hooks/useSettings";
 import { Avatar } from "../ui/Avatar";
+import "./settings-panel.css";
 
 type Section = "general" | "appearance" | "downloads" | "network" | "advanced" | "about";
 
-const NAV: { id: Section; labelKey: string; icon: ReactNode }[] = [
-  { id: "general", labelKey: "settings.nav.general", icon: <IconUser size={18} /> },
-  { id: "appearance", labelKey: "settings.nav.appearance", icon: <IconPalette size={18} /> },
-  { id: "downloads", labelKey: "settings.nav.downloads", icon: <IconDownload size={18} /> },
-  { id: "network", labelKey: "settings.nav.network", icon: <IconWorld size={18} /> },
-  { id: "advanced", labelKey: "settings.nav.advanced", icon: <IconAdjustments size={18} /> },
-  { id: "about", labelKey: "settings.nav.about", icon: <IconInfoCircle size={18} /> },
+interface SettingsItem {
+  id: string;
+  labelKey: string;
+  section?: Section;
+}
+
+const SETTINGS_ITEMS: SettingsItem[] = [
+  { id: "myAccount", labelKey: "settings.list.myAccount", section: "general" },
+  { id: "notifications", labelKey: "settings.list.notifications", section: "general" },
+  { id: "privacy", labelKey: "settings.list.privacy" },
+  { id: "chatSettings", labelKey: "settings.list.chatSettings", section: "appearance" },
+  { id: "folders", labelKey: "settings.list.folders" },
+  { id: "advancedSettings", labelKey: "settings.list.advanced", section: "advanced" },
+  { id: "speakers", labelKey: "settings.list.speakers" },
+  { id: "battery", labelKey: "settings.list.battery" },
+  { id: "language", labelKey: "settings.list.language", section: "general" },
+  { id: "scale", labelKey: "settings.list.scale" },
+  { id: "premium", labelKey: "settings.list.premium" },
+  { id: "stars", labelKey: "settings.list.stars" },
+  { id: "business", labelKey: "settings.list.business" },
+  { id: "gifts", labelKey: "settings.list.gifts" },
+  { id: "faq", labelKey: "settings.list.faq" },
+  { id: "shortcuts", labelKey: "settings.list.shortcuts" },
+  { id: "features", labelKey: "settings.list.features" },
+  { id: "ask", labelKey: "settings.list.ask" },
+  { id: "downloads", labelKey: "settings.list.downloads", section: "downloads" },
+  { id: "network", labelKey: "settings.list.network", section: "network" },
+  { id: "about", labelKey: "settings.list.about", section: "about" },
 ];
 
 const ACCENTS: { id: Accent; labelKey: string; color: string }[] = [
@@ -71,8 +92,20 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const { t } = useTranslation();
   const [section, setSection] = useState<Section>("general");
+  const [view, setView] = useState<"list" | "page" | "placeholder">("list");
+  const [pageTitle, setPageTitle] = useState("");
+  const [placeholder, setPlaceholder] = useState("");
 
-  const active = NAV.find((item) => item.id === section) ?? NAV[0];
+  const openItem = (item: SettingsItem) => {
+    if (item.section) {
+      setSection(item.section);
+      setPageTitle(t(item.labelKey));
+      setView("page");
+      return;
+    }
+    setPlaceholder(t(item.labelKey));
+    setView("placeholder");
+  };
 
   const renderGeneral = () => (
     <>
@@ -574,52 +607,108 @@ export function SettingsDialog({
   })();
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) {
+          setView("list");
+        }
+        onOpenChange(next);
+      }}
+    >
       <Dialog.Portal>
-        <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="settings-dialog">
-          <aside className="settings-nav">
-            <div className="settings-nav-title">{t("settings.title")}</div>
-            <nav className="settings-nav-list">
-              {NAV.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="settings-nav-item"
-                  data-active={section === item.id}
-                  onClick={() => setSection(item.id)}
-                >
-                  {item.icon}
-                  <span>{t(item.labelKey)}</span>
-                </button>
-              ))}
-            </nav>
-            <div className="settings-nav-footer">
-              <span className="online-dot" />
-              {t("sidebar.tdlVersion", {
-                version: status?.tdlVersion ?? "v0.20.4",
-              })}
-            </div>
-          </aside>
+        <Dialog.Overlay className="settings-overlay" />
+        <Dialog.Content className="settings-sheet">
+          <header className="settings-sheet-header">
+            {view !== "list" ? (
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setView("list")}
+                aria-label={t("settings.back")}
+              >
+                <IconArrowLeft size={21} />
+              </button>
+            ) : null}
+            <Dialog.Title className="settings-sheet-title">
+              {view === "list"
+                ? t("settings.title")
+                : view === "placeholder"
+                  ? placeholder
+                  : pageTitle || t("settings.title")}
+            </Dialog.Title>
+            <Dialog.Description className="sr-only">
+              {t("settings.description")}
+            </Dialog.Description>
+            <Dialog.Close asChild>
+              <button type="button" className="icon-button" aria-label={t("settings.close")}>
+                <IconX size={21} />
+              </button>
+            </Dialog.Close>
+          </header>
 
-          <section className="settings-main">
-            <header className="settings-main-header">
-              <Dialog.Title className="settings-main-title">{t(active.labelKey)}</Dialog.Title>
-              <Dialog.Description className="sr-only">
-                {t("settings.description")}
-              </Dialog.Description>
-              <Dialog.Close asChild>
-                <button
-                  type="button"
-                  className="icon-button"
-                  aria-label={t("settings.close")}
-                >
-                  <IconX size={20} />
-                </button>
-              </Dialog.Close>
-            </header>
-            <div className="settings-scroll">{content}</div>
-          </section>
+          <div className="settings-sheet-scroll">
+            {view === "list" ? (
+              <>
+                <div className="settings-account">
+                  <Avatar
+                    title={user?.displayName ?? t("settings.general.telegramAccount")}
+                    initials={user?.initials ?? "T"}
+                    color={user?.color ?? "#65aadd"}
+                    size={72}
+                    online
+                  />
+                  <div className="settings-account-copy">
+                    <div className="settings-account-name">
+                      {user?.displayName ?? t("settings.general.telegramAccount")}
+                    </div>
+                    <div className="settings-account-detail">
+                      {user?.phone || (user?.username ? `@${user.username}` : t("settings.account.noPhone"))}
+                    </div>
+                    <button
+                      type="button"
+                      className="settings-account-link"
+                      onClick={() => onToast(t("settings.account.usernameSoon"))}
+                    >
+                      {user?.username ? `@${user.username}` : t("settings.account.setUsername")}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="settings-qr"
+                    onClick={() => onToast(t("settings.account.qrSoon"))}
+                    aria-label={t("settings.account.qr")}
+                  >
+                    <IconQrcode size={22} />
+                  </button>
+                </div>
+
+                <div className="settings-list">
+                  {SETTINGS_ITEMS.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="settings-list-item"
+                      onClick={() => openItem(item)}
+                    >
+                      <span>{t(item.labelKey)}</span>
+                      <IconChevronRight size={17} />
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : view === "placeholder" ? (
+              <div className="settings-placeholder">
+                <div className="settings-placeholder-icon">
+                  <IconInfoCircle size={26} />
+                </div>
+                <h2>{placeholder}</h2>
+                <p>{t("settings.placeholderDescription")}</p>
+              </div>
+            ) : (
+              <div className="settings-content">{content}</div>
+            )}
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

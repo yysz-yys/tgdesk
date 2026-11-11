@@ -54,6 +54,8 @@ interface SidebarProps {
   accountName: string;
   accountInitials: string;
   accountColor: string;
+  accountRestricted?: boolean;
+  accountRestriction?: string;
   loading?: boolean;
   failed?: boolean;
 }
@@ -80,6 +82,8 @@ export function Sidebar({
   accountName,
   accountInitials,
   accountColor,
+  accountRestricted,
+  accountRestriction,
   loading,
   failed,
 }: SidebarProps) {
@@ -209,6 +213,17 @@ export function Sidebar({
           <IconPencil size={20} stroke={1.8} />
         </IconButton>
       </div>
+
+      {accountRestricted ? (
+        <button
+          type="button"
+          className="sidebar-warning"
+          onClick={() => onToast(accountRestriction || t("sidebar.restrictedDetail"))}
+        >
+          <span className="sidebar-warning-title">{t("sidebar.restricted")}</span>
+          <span className="sidebar-warning-link">{t("sidebar.restrictedDetails")} ›</span>
+        </button>
+      ) : null}
 
       <div className="sidebar-scroll">
         <div className="chat-list">

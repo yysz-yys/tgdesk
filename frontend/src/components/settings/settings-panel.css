@@ -1,0 +1,224 @@
+/* Telegram Desktop settings sheet. */
+
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: transparent;
+}
+
+.settings-sheet {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 51;
+  display: flex;
+  width: 460px;
+  max-width: 100vw;
+  flex-direction: column;
+  border-left: 1px solid var(--tg-divider);
+  background: var(--tg-sidebar);
+  color: var(--tg-text);
+  box-shadow: -10px 0 36px rgba(0, 0, 0, 0.18);
+  outline: 0;
+  animation: settings-in 180ms ease-out;
+}
+
+@keyframes settings-in {
+  from {
+    opacity: 0.6;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.settings-sheet-header {
+  display: flex;
+  height: 56px;
+  flex: 0 0 56px;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid var(--tg-divider);
+  padding: 0 8px 0 12px;
+}
+
+.settings-sheet-title {
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  color: var(--tg-text);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.settings-sheet-header .icon-button {
+  width: 36px;
+  height: 36px;
+}
+
+.settings-sheet-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.settings-account {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 18px 20px;
+}
+
+.settings-account-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-account-name {
+  overflow: hidden;
+  color: var(--tg-text);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-account-detail {
+  overflow: hidden;
+  color: var(--tg-secondary);
+  font-size: 12.5px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-account-link {
+  width: fit-content;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--tg-accent);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-account-link:hover {
+  text-decoration: underline;
+}
+
+.settings-qr {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--tg-secondary);
+  cursor: pointer;
+}
+
+.settings-qr:hover {
+  background: var(--tg-hover);
+  color: var(--tg-text);
+}
+
+.settings-list {
+  border-top: 1px solid var(--tg-divider);
+  padding: 4px 0 16px;
+}
+
+.settings-list-item {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  padding: 0 18px;
+  color: var(--tg-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-list-item:hover {
+  background: var(--tg-hover);
+}
+
+.settings-list-item svg {
+  flex: 0 0 auto;
+  color: var(--tg-muted);
+}
+
+.settings-content {
+  padding: 2px 18px 24px;
+}
+
+.settings-content .settings-group {
+  margin-top: 16px;
+}
+
+.settings-content .settings-group-title {
+  padding: 0 0 7px;
+  color: var(--tg-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.settings-placeholder {
+  display: flex;
+  min-height: 340px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 44px 30px;
+  text-align: center;
+}
+
+.settings-placeholder-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--tg-accent-soft);
+  color: var(--tg-accent);
+}
+
+.settings-placeholder h2 {
+  margin: 14px 0 5px;
+  color: var(--tg-text);
+  font-size: 18px;
+}
+
+.settings-placeholder p {
+  max-width: 280px;
+  margin: 0;
+  color: var(--tg-secondary);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+@media (max-width: 560px) {
+  .settings-sheet {
+    width: 100vw;
+  }
+}

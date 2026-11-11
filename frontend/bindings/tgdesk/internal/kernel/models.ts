@@ -30,7 +30,10 @@ export interface AuthUser {
     "firstName": string;
     "lastName": string;
     "username": string;
+    "phone"?: string;
     "displayName": string;
+    "restricted"?: boolean;
+    "restriction"?: string;
     "initials": string;
     "color": string;
 }

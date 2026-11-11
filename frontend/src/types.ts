@@ -3,6 +3,9 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   username: string;
+  phone?: string;
+  restricted?: boolean;
+  restriction?: string;
   displayName: string;
   initials: string;
   color: string;

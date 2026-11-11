@@ -50,7 +50,10 @@ type AuthUser struct {
 	FirstName   string `json:"firstName"`
 	LastName    string `json:"lastName"`
 	Username    string `json:"username"`
+	Phone       string `json:"phone,omitempty"`
 	DisplayName string `json:"displayName"`
+	Restricted  bool   `json:"restricted,omitempty"`
+	Restriction string `json:"restriction,omitempty"`
 	Initials    string `json:"initials"`
 	Color       string `json:"color"`
 }
@@ -749,15 +752,22 @@ func makeAuthUser(user *tg.User) AuthUser {
 	if index < 0 {
 		index = -index
 	}
+	restriction := ""
+	if len(user.RestrictionReason) > 0 {
+		restriction = user.RestrictionReason[0].Text
+	}
 
 	return AuthUser{
 		ID:          user.ID,
 		FirstName:   first,
 		LastName:    last,
 		Username:    user.Username,
+		Phone:       user.Phone,
 		DisplayName: display,
 		Initials:    strings.ToUpper(initials),
 		Color:       colors[index],
+		Restricted:  user.Restricted,
+		Restriction: restriction,
 	}
 }
 
