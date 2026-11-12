@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei",
-    "Yu Gothic UI", "Yu Gothic", "Meiryo", system-ui, -apple-system, sans-serif;
+  --font-sans: "Roboto", "Noto Sans SC", "Noto Sans", "Segoe UI Variable", "Segoe UI",
+    "Microsoft YaHei UI", "Microsoft YaHei", "Yu Gothic UI", "Yu Gothic", "Meiryo",
+    system-ui, -apple-system, sans-serif;
 }
 
 :root,

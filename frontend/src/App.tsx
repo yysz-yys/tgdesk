@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Events } from "@wailsio/runtime";
-import { IconLoader2 } from "@tabler/icons-react";
 import { Service as AppService } from "../bindings/tgdesk/internal/app";
 import { resolveLanguage } from "./i18n";
 
@@ -12,24 +11,15 @@ import {
   type KernelMessage,
 } from "./data/telegram";
 import type { DownloadTaskDTO } from "../bindings/tgdesk/internal/kernel/models";
-import { Window as WailsWindow } from "@wailsio/runtime";
 import type { AuthUser, Chat, DownloadEvent, DownloadTask, TaskStatus } from "./types";
-import { useTheme } from "./hooks/useTheme";
 import { useSettings, type AppSettings } from "./hooks/useSettings";
 import { TooltipProvider } from "./components/ui/Tooltip";
 import { Sidebar } from "./components/layout/Sidebar";
 import { ChatView } from "./components/chat/ChatView";
 import { DownloadsView } from "./components/downloads/DownloadsView";
-import { RightPanel } from "./components/layout/RightPanel";
-import { AboutDialog } from "./components/layout/AboutDialog";
 import { LoginScreen } from "./components/auth/LoginScreen";
+import { LoginLoading } from "./components/auth/LoginLoading";
 import { SettingsDialog } from "./components/settings/SettingsDialog";
-
-type KernelStatus = {
-  appVersion: string;
-  tdlVersion: string;
-  tdlCoreVersion: string;
-};
 
 const TASK_STATUSES: TaskStatus[] = ["active", "queued", "paused", "done", "failed"];
 
@@ -70,8 +60,7 @@ function buildProxy(settings: AppSettings): string {
 
 export default function App() {
   const { t, i18n } = useTranslation();
-  const { preference, resolvedTheme, setPreference, toggleTheme } = useTheme();
-  const { settings, update, reset } = useSettings();
+  const { settings, update } = useSettings();
   const [authChecked, setAuthChecked] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -88,11 +77,8 @@ export default function App() {
   const [portableDownloads, setPortableDownloads] = useState("");
   const [view, setView] = useState<"chats" | "downloads">("chats");
   const [query, setQuery] = useState("");
-  const [rightOpen, setRightOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [downloads, setDownloads] = useState<DownloadTask[]>([]);
-  const [aboutOpen, setAboutOpen] = useState(false);
-  const [status, setStatus] = useState<KernelStatus | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -156,72 +142,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let alive = true;
-    AppService.GetStatus()
-      .then((next) => {
-        if (alive && next) {
-          setStatus({
-            appVersion: next.appVersion,
-            tdlVersion: next.tdlVersion,
-            tdlCoreVersion: next.tdlCoreVersion,
-          });
-        }
-      })
-      .catch(() => {
-        // The UI must stay usable when the kernel is still booting.
-      });
-
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  useEffect(() => {
     setSelectedIds(new Set());
   }, [selectedChatId]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      if (rightOpen) {
-        setRightOpen(false);
-      } else if (selectedIds.size > 0) {
+      if (event.key === "Escape" && selectedIds.size > 0) {
         setSelectedIds(new Set());
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [rightOpen, selectedIds]);
+  }, [selectedIds]);
 
   useEffect(() => {
     return () => window.clearTimeout(toastTimer.current);
   }, []);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty("--tg-message-size", `${settings.messageSize}px`);
-  }, [settings.messageSize]);
-
-  useEffect(() => {
-    document.documentElement.dataset.pattern = settings.chatPattern ? "on" : "off";
-    document.documentElement.dataset.wallpaper = settings.wallpaper;
-    document.documentElement.style.setProperty(
-      "--tg-wallpaper-image",
-      settings.wallpaperImage ? `url("${settings.wallpaperImage}")` : "none",
-    );
-  }, [settings.chatPattern, settings.wallpaper, settings.wallpaperImage]);
-
-  useEffect(() => {
-    document.documentElement.dataset.accent = settings.accent;
-  }, [settings.accent]);
-
-  useEffect(() => {
-    void WailsWindow.SetZoom(Math.max(0.8, Math.min(1.5, settings.interfaceScale / 100))).catch(
-      () => undefined,
-    );
-  }, [settings.interfaceScale]);
 
   useEffect(() => {
     const language = resolveLanguage(settings.language);
@@ -434,12 +371,10 @@ export default function App() {
   const openChat = (id: string) => {
     setSelectedChatId(id);
     setView("chats");
-    setRightOpen(false);
   };
 
   const openDownloads = () => {
     setView("downloads");
-    setRightOpen(false);
     setSelectedIds(new Set());
   };
 
@@ -606,7 +541,6 @@ export default function App() {
         setAuthUser(null);
         setLoggedIn(false);
         setSettingsOpen(false);
-        setRightOpen(false);
         setSelectedIds(new Set());
         setChatDTOs([]);
         setMessageDTOs([]);
@@ -622,13 +556,7 @@ export default function App() {
   if (!authChecked) {
     return (
       <TooltipProvider delayDuration={350}>
-        <div className="login-screen">
-          <div className="login-card app-loading">
-            <span className="login-logo">tg</span>
-            <IconLoader2 className="login-spin" size={22} />
-            <p>{t("login.checkingSession")}</p>
-          </div>
-        </div>
+        <LoginLoading />
       </TooltipProvider>
     );
   }
@@ -638,7 +566,6 @@ export default function App() {
       <TooltipProvider delayDuration={350}>
         <LoginScreen
           onAuthenticated={handleAuthenticated}
-          tdlVersion={status?.tdlVersion}
           proxy={proxyUrl}
           ntp={settings.ntp}
           importError={authImportError}
@@ -664,11 +591,8 @@ export default function App() {
           onToggleMute={toggleMute}
           onMarkRead={markRead}
           onDownloadAll={downloadAll}
-          theme={resolvedTheme}
-          onToggleTheme={toggleTheme}
           onSettings={() => setSettingsOpen(true)}
           onLogout={handleLogout}
-          onAbout={() => setAboutOpen(true)}
           onToast={showToast}
           accountName={authUser?.displayName ?? t("settings.general.telegramAccount")}
           accountInitials={authUser?.initials ?? "T"}
@@ -710,11 +634,9 @@ export default function App() {
             onSelectAll={selectAll}
             onDownloadSelected={downloadSelected}
             onDownloadAll={() => downloadAll(selectedChat)}
-            onOpenInfo={() => setRightOpen((open) => !open)}
             onSendMessage={sendMessage}
             onToast={showToast}
             enterToSend={settings.enterToSend}
-            rightOpen={rightOpen}
             loading={messagesLoading}
             failed={messagesFailed}
           />
@@ -732,39 +654,13 @@ export default function App() {
             )}
           </div>
         )}
-
-        {rightOpen && selectedChat && view === "chats" && (
-          <RightPanel
-            chat={selectedChat}
-            messages={messages}
-            onLoadThumbnail={loadThumbnail}
-            onClose={() => setRightOpen(false)}
-            onDownloadAll={() => downloadAll(selectedChat)}
-            onToast={showToast}
-          />
-        )}
       </div>
-
-      <AboutDialog
-        open={aboutOpen}
-        onOpenChange={setAboutOpen}
-        appVersion={status?.appVersion ?? "0.1.0"}
-        tdlVersion={status?.tdlVersion ?? "v0.20.4"}
-        tdlCoreVersion={status?.tdlCoreVersion ?? "v0.20.4"}
-      />
 
       <SettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         settings={settings}
         onUpdate={update}
-        onReset={reset}
-        themePreference={preference}
-        onThemePreferenceChange={setPreference}
-        onLogout={handleLogout}
-        onToast={showToast}
-        status={status}
-        user={authUser}
       />
 
       {toastMessage && <div className="toast">{toastMessage}</div>}

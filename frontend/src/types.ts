@@ -1,3 +1,5 @@
+import type { TDataExport } from "../bindings/tgdesk/internal/kernel/models";
+
 export interface AuthUser {
   id: number;
   firstName: string;
@@ -25,13 +27,21 @@ export type AuthEventState =
 export interface AuthEvent {
   state: AuthEventState;
   qrUrl?: string;
+  qrExpiresIn?: number;
+  phone?: string;
+  codeType?: string;
+  codeLength?: number;
+  codeTimeout?: number;
+  resent?: boolean;
+  passwordHint?: string;
+  nextCodeType?: string;
+  errorCode?: string;
+  retryAfter?: number;
   user?: AuthUser;
   error?: string;
+  tData?: TDataExport;
+  tDataError?: string;
 }
-
-export type Theme = "light" | "dark" | "system";
-export type ResolvedTheme = "light" | "dark";
-export type Accent = "blue" | "purple" | "green" | "orange" | "pink";
 
 export type ChatKind = "private" | "group" | "channel";
 

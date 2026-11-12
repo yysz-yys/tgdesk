@@ -107,16 +107,10 @@
 }
 
 .login-logo {
-  display: grid;
+  display: block;
   width: 56px;
   height: 56px;
-  place-items: center;
-  border-radius: 16px;
-  background: linear-gradient(135deg, var(--tg-accent), #9d7bff);
-  color: #fff;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  object-fit: cover;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
 }
 

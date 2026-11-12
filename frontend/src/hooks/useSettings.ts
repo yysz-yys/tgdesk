@@ -1,60 +1,31 @@
 import { useEffect, useState } from "react";
-import type { Accent } from "../types";
 
 export interface AppSettings {
   language: "system" | "en" | "zh" | "ja";
-  startWithWindows: boolean;
-  closeToTray: boolean;
-  notifications: boolean;
   downloadDir: string;
-  concurrency: number;
   threads: number;
   template: string;
-  skipSame: boolean;
-  takeout: boolean;
-  rewriteExt: boolean;
   proxyType: "none" | "socks5" | "http";
   proxyHost: string;
   proxyPort: string;
   proxyUser: string;
   proxyPass: string;
   ntp: string;
-  logLevel: "info" | "debug";
-  messageSize: number;
-  chatPattern: boolean;
-  wallpaper: "glow" | "plain" | "blue" | "custom";
-  wallpaperImage?: string;
-  interfaceScale: number;
   enterToSend: boolean;
-  accent: Accent;
 }
 
 export const defaultSettings: AppSettings = {
   language: "system",
-  startWithWindows: false,
-  closeToTray: true,
-  notifications: true,
   downloadDir: "",
-  concurrency: 2,
   threads: 4,
   template: "{{ .DialogID }}_{{ .MessageID }}_{{ filenamify .FileName }}",
-  skipSame: true,
-  takeout: false,
-  rewriteExt: false,
   proxyType: "none",
   proxyHost: "127.0.0.1",
   proxyPort: "1080",
   proxyUser: "",
   proxyPass: "",
   ntp: "",
-  logLevel: "info",
-  messageSize: 14,
-  chatPattern: true,
-  wallpaper: "glow",
-  wallpaperImage: "",
-  interfaceScale: 100,
   enterToSend: true,
-  accent: "blue",
 };
 
 const STORAGE_KEY = "tgdesk.settings";
@@ -84,7 +55,5 @@ export function useSettings() {
     setSettings((current) => ({ ...current, [key]: value }));
   };
 
-  const reset = () => setSettings(defaultSettings);
-
-  return { settings, update, reset };
+  return { settings, update };
 }

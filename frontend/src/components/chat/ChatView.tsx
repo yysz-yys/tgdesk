@@ -21,11 +21,9 @@ interface ChatViewProps {
   onSelectAll: () => void;
   onDownloadSelected: () => void;
   onDownloadAll: () => void;
-  onOpenInfo: () => void;
   onSendMessage: (text: string) => Promise<void>;
   onToast: (message: string) => void;
   enterToSend: boolean;
-  rightOpen: boolean;
   loading?: boolean;
   failed?: boolean;
 }
@@ -41,11 +39,9 @@ export function ChatView({
   onSelectAll,
   onDownloadSelected,
   onDownloadAll,
-  onOpenInfo,
   onSendMessage,
   onToast,
   enterToSend,
-  rightOpen,
   loading,
   failed,
 }: ChatViewProps) {
@@ -75,9 +71,7 @@ export function ChatView({
     <main className="main-pane tg-chat-pane">
       <ChatHeader
         chat={chat}
-        rightOpen={rightOpen}
         searchOpen={searchOpen}
-        onOpenInfo={onOpenInfo}
         onSearch={() => {
           setSearchOpen((open) => !open);
           if (searchOpen) {
@@ -86,7 +80,6 @@ export function ChatView({
         }}
         onSelectAll={onSelectAll}
         onDownloadAll={onDownloadAll}
-        onToast={onToast}
       />
 
       {searchOpen ? (
