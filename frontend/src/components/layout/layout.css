@@ -490,12 +490,19 @@
   flex: 0 0 auto;
   align-items: center;
   gap: var(--app-space-1);
+  overflow-x: auto;
   padding: 0 var(--app-space-3) var(--app-space-2);
+  scrollbar-width: none;
+}
+
+.g-list-filters::-webkit-scrollbar {
+  display: none;
 }
 
 .g-list-filters button {
   display: inline-flex;
   min-height: 30px;
+  flex: 0 0 auto;
   align-items: center;
   gap: 6px;
   border: 0;
@@ -506,6 +513,10 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+}
+
+.g-folder-emoticon {
+  font-size: 13px;
 }
 
 .g-list-filters button:hover {

@@ -116,8 +116,27 @@ export interface ChatDTO {
     "unread"?: number;
     "pinned"?: boolean;
     "muted"?: boolean;
+    "archived"?: boolean;
     "verified"?: boolean;
+    "bot"?: boolean;
+    "contact"?: boolean;
     "members"?: number;
+}
+
+export interface ChatFolderDTO {
+    "id": number;
+    "title": string;
+    "emoticon"?: string;
+    "chatKeys"?: string[] | null;
+    "excludeKeys"?: string[] | null;
+    "groups"?: boolean;
+    "broadcasts"?: boolean;
+    "contacts"?: boolean;
+    "nonContacts"?: boolean;
+    "bots"?: boolean;
+    "excludeMuted"?: boolean;
+    "excludeRead"?: boolean;
+    "excludeArchived"?: boolean;
 }
 
 export interface DownloadEvent {

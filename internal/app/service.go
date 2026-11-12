@@ -42,6 +42,22 @@ func (s *Service) GetChats(proxy, ntp string, limit int) ([]kernel.ChatDTO, erro
 	return s.kernel.GetChats(proxy, ntp, limit)
 }
 
+func (s *Service) GetArchivedChats(proxy, ntp string, limit int) ([]kernel.ChatDTO, error) {
+	return s.kernel.GetArchivedChats(proxy, ntp, limit)
+}
+
+func (s *Service) GetFolders(proxy, ntp string) ([]kernel.ChatFolderDTO, error) {
+	return s.kernel.GetFolders(proxy, ntp)
+}
+
+func (s *Service) SetChatArchived(
+	chatID string,
+	archived bool,
+	proxy, ntp string,
+) error {
+	return s.kernel.SetChatArchived(chatID, archived, proxy, ntp)
+}
+
 func (s *Service) GetMessages(chatID, proxy, ntp string, limit int) ([]kernel.MessageDTO, error) {
 	return s.kernel.GetMessages(chatID, proxy, ntp, limit)
 }

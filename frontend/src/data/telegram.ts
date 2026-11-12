@@ -11,7 +11,10 @@ export interface KernelChat {
   unread?: number;
   pinned?: boolean;
   muted?: boolean;
+  archived?: boolean;
   verified?: boolean;
+  bot?: boolean;
+  contact?: boolean;
   members?: number;
 }
 
@@ -189,6 +192,9 @@ export function mapChat(chat: KernelChat, language: string, t: TFunction): Chat 
     unread: chat.unread || undefined,
     pinned: chat.pinned,
     muted: chat.muted,
+    archived: chat.archived,
+    bot: chat.bot,
+    contact: chat.contact,
     verified: chat.verified,
     members: chat.members ? t("chat.members", { count: chat.members }) : undefined,
     memberCount: chat.members || undefined,

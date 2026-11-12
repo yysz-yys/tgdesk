@@ -11,7 +11,15 @@ import {
   type KernelMessage,
 } from "./data/telegram";
 import type { DownloadTaskDTO } from "../bindings/tgdesk/internal/kernel/models";
-import type { AuthUser, Chat, DownloadEvent, DownloadTask, TaskStatus } from "./types";
+import type { ChatFolderDTO } from "../bindings/tgdesk/internal/kernel/models";
+import type {
+  AuthUser,
+  Chat,
+  ChatFolder,
+  DownloadEvent,
+  DownloadTask,
+  TaskStatus,
+} from "./types";
 import { useSettings, type AppSettings } from "./hooks/useSettings";
 import { useTheme } from "./hooks/useTheme";
 import { TooltipProvider } from "./components/ui/Tooltip";
@@ -75,6 +83,7 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [newMessageOpen, setNewMessageOpen] = useState(false);
   const [chatDTOs, setChatDTOs] = useState<KernelChat[]>([]);
+  const [folders, setFolders] = useState<ChatFolder[]>([]);
   const [messageDTOs, setMessageDTOs] = useState<KernelMessage[]>([]);
   const [selectedChatId, setSelectedChatId] = useState("");
   const [chatsLoading, setChatsLoading] = useState(false);
@@ -247,7 +256,9 @@ export default function App() {
       return;
     }
     if (!filteredChats.some((chat) => chat.id === selectedChatId)) {
-      setSelectedChatId(filteredChats[0].id);
+      setSelectedChatId(
+        (filteredChats.find((chat) => !chat.archived) ?? filteredChats[0]).id,
+      );
     }
   }, [filteredChats, selectedChatId, view]);
 
@@ -269,22 +280,47 @@ export default function App() {
     let alive = true;
     setChatsLoading(true);
     setChatsFailed(false);
-    AppService.GetChats(proxyUrl, settings.ntp, 100)
-      .then((list) => {
+    Promise.all([
+      AppService.GetChats(proxyUrl, settings.ntp, 100),
+      AppService.GetArchivedChats(proxyUrl, settings.ntp, 100).catch(() => []),
+      AppService.GetFolders(proxyUrl, settings.ntp).catch(() => []),
+    ])
+      .then(([list, archived, folderList]) => {
         if (!alive) {
           return;
         }
-        const next = list ?? [];
+        const next = [...(list ?? []), ...(archived ?? [])];
         setChatDTOs(next);
-        setSelectedChatId((current) =>
-          next.some((chat) => chat.id === current) ? current : (next[0]?.id ?? ""),
+        setFolders(
+          (folderList ?? []).map((folder: ChatFolderDTO) => ({
+            id: folder.id,
+            title: folder.title,
+            emoticon: folder.emoticon || undefined,
+            chatKeys: folder.chatKeys ?? [],
+            excludeKeys: folder.excludeKeys ?? [],
+            groups: folder.groups,
+            broadcasts: folder.broadcasts,
+            contacts: folder.contacts,
+            nonContacts: folder.nonContacts,
+            bots: folder.bots,
+            excludeMuted: folder.excludeMuted,
+            excludeRead: folder.excludeRead,
+            excludeArchived: folder.excludeArchived,
+          })),
         );
+        setSelectedChatId((current) => {
+          if (next.some((chat) => chat.id === current)) {
+            return current;
+          }
+          return (next.find((chat) => !chat.archived) ?? next[0])?.id ?? "";
+        });
       })
       .catch(() => {
         if (!alive) {
           return;
         }
         setChatDTOs([]);
+        setFolders([]);
         setSelectedChatId("");
         setChatsFailed(true);
       })
@@ -414,6 +450,20 @@ export default function App() {
       current.map((chat) => (chat.id === id ? { ...chat, pinned: !chat.pinned } : chat)),
     );
     showToast(t("toasts.pinUpdated"));
+  };
+
+  const toggleArchive = (chat: Chat) => {
+    const archived = !chat.archived;
+    void AppService.SetChatArchived(chat.id, archived, proxyUrl, settings.ntp)
+      .then(() => {
+        setChatDTOs((current) =>
+          current.map((item) =>
+            item.id === chat.id ? { ...item, archived } : item,
+          ),
+        );
+        showToast(t(archived ? "toasts.archived" : "toasts.unarchived"));
+      })
+      .catch(() => showToast(t("toasts.archiveFailed")));
   };
 
   const toggleMute = (id: string) => {
@@ -685,10 +735,13 @@ export default function App() {
               onToggleMute={toggleMute}
               onMarkRead={markRead}
               onDownloadAll={downloadAll}
+              onToggleArchive={toggleArchive}
               onToast={showToast}
               onLoadAvatar={loadChatAvatar}
               onMenu={() => setDrawerOpen(true)}
               onCompose={() => setNewMessageOpen(true)}
+              folders={folders}
+              archivedCount={chatState.filter((chat) => chat.archived).length}
               accountRestricted={authUser?.restricted}
               accountRestriction={authUser?.restriction}
               loading={chatsLoading}

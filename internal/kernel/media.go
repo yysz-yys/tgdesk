@@ -78,9 +78,10 @@ func (s *Service) GetMessageMedia(
 	pool := dcpool.NewPool(client, 4, coretclient.NewDefaultMiddlewares(ctx, 5*time.Minute)...)
 	elem := &downloadElement{media: media, to: file}
 	dl := downloader.New(downloader.Options{
-		Pool:    pool,
-		Threads: 4,
-		Iter:    &singleIter{elem: elem},
+		Pool:     pool,
+		Threads:  4,
+		Iter:     &singleIter{elem: elem},
+		Progress: noopDownloadProgress{},
 	})
 	downloadErr := dl.Download(ctx, 1)
 	_ = file.Close()
@@ -143,3 +144,14 @@ func randomToken() (string, error) {
 	}
 	return hex.EncodeToString(buffer), nil
 }
+
+// noopDownloadProgress is required because tdl's downloader unconditionally
+// calls Progress.OnAdd/OnDone. A nil interface would panic the whole process as
+// soon as the user clicks a video.
+type noopDownloadProgress struct{}
+
+func (noopDownloadProgress) OnAdd(downloader.Elem) {}
+
+func (noopDownloadProgress) OnDownload(downloader.Elem, downloader.ProgressState) {}
+
+func (noopDownloadProgress) OnDone(downloader.Elem, error) {}

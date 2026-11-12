@@ -63,12 +63,17 @@
 - A tonal “jump to latest” button floats above the composer and replaces the old
   sticky FAB. The button is now a true circular control rather than a Material
   host square.
+- Telegram archive and official dialog folders are loaded: archived dialogs use
+  `messages.getDialogs(folder_id=1)`, and `messages.getDialogFilters` contributes
+  folder titles, emoticons, explicit peer lists and the common category flags to
+  the list filter row. The chat context menu can archive/unarchive a peer through
+  `folders.editPeerFolders`; folder definitions themselves remain read-only in
+  this iteration.
+- Video/video-note cards open a native player backed by a cached file and a
+  loopback HTTP Range server; the old nil progress handler that crashed on click
+  is fixed with an explicit no-op progress adapter.
 - Chat header is a floating bubble; search opens inline in the same bubble
   instead of inserting a second toolbar row.
-- Video and video-note cards now open a native HTML5 player. Full files are
-  cached under `data/media/` and served from a random loopback-only HTTP token
-  with Range support, so seeking works without embedding a full-screen player in
-  the timeline.
 - Earlier history is paginated with `GetOlderMessages` (`messages.getHistory`
   `OffsetID`) and a top-of-timeline “加载更早的消息” action; the previous first
   message stays anchored when older pages are prepended.

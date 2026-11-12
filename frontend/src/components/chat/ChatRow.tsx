@@ -19,6 +19,7 @@ interface ChatRowProps {
   onToggleMute: (id: string) => void;
   onMarkRead: (id: string) => void;
   onDownloadAll: (chat: Chat) => void;
+  onToggleArchive: (chat: Chat) => void;
   onToast: (message: string) => void;
   onLoadAvatar: ChatAvatarLoader;
 }
@@ -31,6 +32,7 @@ export function ChatRow({
   onToggleMute,
   onMarkRead,
   onDownloadAll,
+  onToggleArchive,
   onToast,
   onLoadAvatar,
 }: ChatRowProps) {
@@ -107,6 +109,12 @@ export function ChatRow({
         </ContextMenuItem>
         <ContextMenuItem icon={<Icon name="done_all" size={18} />} onSelect={() => onMarkRead(chat.id)}>
           {t("chatMenu.markRead")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          icon={<Icon name={chat.archived ? "unarchive" : "archive"} size={18} />}
+          onSelect={() => onToggleArchive(chat)}
+        >
+          {chat.archived ? t("chatMenu.unarchive") : t("chatMenu.archive")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem

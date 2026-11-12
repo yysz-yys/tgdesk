@@ -6,6 +6,7 @@ export type {
     AuthStatus,
     AuthUser,
     ChatDTO,
+    ChatFolderDTO,
     DownloadEvent,
     DownloadTaskDTO,
     MessageDTO,

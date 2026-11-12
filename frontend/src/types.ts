@@ -55,12 +55,31 @@ export interface Chat {
   unread?: number;
   pinned?: boolean;
   muted?: boolean;
+  archived?: boolean;
+  bot?: boolean;
+  contact?: boolean;
   online?: boolean;
   verified?: boolean;
   members?: string;
   memberCount?: number;
   color: string;
   initials: string;
+}
+
+export interface ChatFolder {
+  id: number;
+  title: string;
+  emoticon?: string;
+  chatKeys: string[];
+  excludeKeys: string[];
+  groups?: boolean;
+  broadcasts?: boolean;
+  contacts?: boolean;
+  nonContacts?: boolean;
+  bots?: boolean;
+  excludeMuted?: boolean;
+  excludeRead?: boolean;
+  excludeArchived?: boolean;
 }
 
 export type MediaKind =

@@ -117,6 +117,8 @@ original low-opacity Material outline pattern, not Telegram artwork.
 
 ![Earlier message pagination](assets/ui-chat-history.png)
 
+![Archive and official folders](assets/ui-archive-folders.png)
+
 ## 3. Shared component layer
 
 Everything under `frontend/src/components/ui` is the base layer. Feature
@@ -218,8 +220,13 @@ Automatic tdata lifecycle:
 - Pin/mute are quiet 13px icons before the preview, not inline with the title.
 - A hamburger + search pill form the top row; the hamburger opens the navigation
   drawer with Chats, Downloads, Settings and Log out.
-- “全部 / 未读” filter chips show counts; there is no “聊天” heading.
-- A floating pencil FAB opens the new-message picker.
+- “全部 / 未读 / 归档” filter chips show counts; official Telegram folders
+  from `messages.getDialogFilters` follow in the same horizontally scrollable
+  row, using their title and emoticon.
+- Archived dialogs come from `messages.getDialogs(folder_id=1)`. Selecting a
+  folder or Archive switches the active chat to the first matching row. The
+  context menu can archive/unarchive a peer; folder definitions are read-only.
+- The floating pencil FAB opens the new-message picker.
 - Loading uses skeleton rows with the same geometry as real rows.
 - No footer count and no permanent rail.
 

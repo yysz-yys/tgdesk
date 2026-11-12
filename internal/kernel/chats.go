@@ -26,8 +26,27 @@ type ChatDTO struct {
 	Unread          int    `json:"unread,omitempty"`
 	Pinned          bool   `json:"pinned,omitempty"`
 	Muted           bool   `json:"muted,omitempty"`
+	Archived        bool   `json:"archived,omitempty"`
 	Verified        bool   `json:"verified,omitempty"`
+	Bot             bool   `json:"bot,omitempty"`
+	Contact         bool   `json:"contact,omitempty"`
 	Members         int    `json:"members,omitempty"`
+}
+
+type ChatFolderDTO struct {
+	ID              int      `json:"id"`
+	Title           string   `json:"title"`
+	Emoticon        string   `json:"emoticon,omitempty"`
+	ChatKeys        []string `json:"chatKeys,omitempty"`
+	ExcludeKeys     []string `json:"excludeKeys,omitempty"`
+	Groups          bool     `json:"groups,omitempty"`
+	Broadcasts      bool     `json:"broadcasts,omitempty"`
+	Contacts        bool     `json:"contacts,omitempty"`
+	NonContacts     bool     `json:"nonContacts,omitempty"`
+	Bots            bool     `json:"bots,omitempty"`
+	ExcludeMuted    bool     `json:"excludeMuted,omitempty"`
+	ExcludeRead     bool     `json:"excludeRead,omitempty"`
+	ExcludeArchived bool     `json:"excludeArchived,omitempty"`
 }
 
 type MessageMediaDTO struct {
@@ -85,6 +104,15 @@ type MessageDTO struct {
 // keeps the bolt DB ownership simple: no long-running session is held between
 // Wails calls, and logout never has to race a background client.
 func (s *Service) GetChats(proxy, ntp string, limit int) ([]ChatDTO, error) {
+	return s.getDialogs(proxy, ntp, limit, 0)
+}
+
+// GetArchivedChats loads the Telegram archive (folder id 1).
+func (s *Service) GetArchivedChats(proxy, ntp string, limit int) ([]ChatDTO, error) {
+	return s.getDialogs(proxy, ntp, limit, 1)
+}
+
+func (s *Service) getDialogs(proxy, ntp string, limit, folderID int) ([]ChatDTO, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 100
 	}
@@ -97,7 +125,7 @@ func (s *Service) GetChats(proxy, ntp string, limit int) ([]ChatDTO, error) {
 
 	var result []ChatDTO
 	err := s.withChatClient(ctx, proxy, ntp, func(ctx context.Context, client *telegram.Client) error {
-		iter := query.GetDialogs(client.API()).BatchSize(100).Iter()
+		iter := query.GetDialogs(client.API()).FolderID(folderID).BatchSize(100).Iter()
 		for iter.Next(ctx) {
 			elem := iter.Value()
 			dialog, ok := elem.Dialog.(*tg.Dialog)
@@ -108,6 +136,7 @@ func (s *Service) GetChats(proxy, ntp string, limit int) ([]ChatDTO, error) {
 			if !ok {
 				continue
 			}
+			item.Archived = item.Archived || folderID == 1
 			result = append(result, item)
 			if len(result) >= limit {
 				break
@@ -122,6 +151,115 @@ func (s *Service) GetChats(proxy, ntp string, limit int) ([]ChatDTO, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+// SetChatArchived moves a peer into or out of Telegram's archive folder.
+func (s *Service) SetChatArchived(chatID string, archived bool, proxy, ntp string) error {
+	peer, err := parsePeerID(chatID)
+	if err != nil {
+		return err
+	}
+
+	s.chatMu.Lock()
+	defer s.chatMu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	folderID := 0
+	if archived {
+		folderID = 1
+	}
+	return s.withChatClient(ctx, proxy, ntp, func(ctx context.Context, client *telegram.Client) error {
+		_, err := client.API().FoldersEditPeerFolders(ctx, []tg.InputFolderPeer{
+			{Peer: peer, FolderID: folderID},
+		})
+		if err != nil {
+			return fmt.Errorf("update archive: %w", err)
+		}
+		return nil
+	})
+}
+
+// GetFolders exposes Telegram's official dialog filters. Explicit peer lists
+// and the common category flags are preserved; the frontend applies them to the
+// loaded dialog list.
+func (s *Service) GetFolders(proxy, ntp string) ([]ChatFolderDTO, error) {
+	s.chatMu.Lock()
+	defer s.chatMu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var result []ChatFolderDTO
+	err := s.withChatClient(ctx, proxy, ntp, func(ctx context.Context, client *telegram.Client) error {
+		filters, err := client.API().MessagesGetDialogFilters(ctx)
+		if err != nil {
+			return fmt.Errorf("get dialog filters: %w", err)
+		}
+		for _, raw := range filters.Filters {
+			switch f := raw.(type) {
+			case *tg.DialogFilter:
+				result = append(result, ChatFolderDTO{
+					ID:              f.ID,
+					Title:           f.Title.Text,
+					Emoticon:        f.Emoticon,
+					ChatKeys:        peerKeys(f.PinnedPeers, f.IncludePeers),
+					ExcludeKeys:     peerKeys(f.ExcludePeers),
+					Groups:          f.Groups,
+					Broadcasts:      f.Broadcasts,
+					Contacts:        f.Contacts,
+					NonContacts:     f.NonContacts,
+					Bots:            f.Bots,
+					ExcludeMuted:    f.ExcludeMuted,
+					ExcludeRead:     f.ExcludeRead,
+					ExcludeArchived: f.ExcludeArchived,
+				})
+			case *tg.DialogFilterChatlist:
+				result = append(result, ChatFolderDTO{
+					ID:       f.ID,
+					Title:    f.Title.Text,
+					Emoticon: f.Emoticon,
+					ChatKeys: peerKeys(f.PinnedPeers, f.IncludePeers),
+				})
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func peerKeys(groups ...[]tg.InputPeerClass) []string {
+	seen := make(map[string]struct{})
+	var result []string
+	for _, peers := range groups {
+		for _, peer := range peers {
+			if key := inputPeerKey(peer); key != "" {
+				if _, exists := seen[key]; exists {
+					continue
+				}
+				seen[key] = struct{}{}
+				result = append(result, key)
+			}
+		}
+	}
+	return result
+}
+
+func inputPeerKey(peer tg.InputPeerClass) string {
+	switch p := peer.(type) {
+	case *tg.InputPeerUser:
+		return fmt.Sprintf("user:%d", p.UserID)
+	case *tg.InputPeerChat:
+		return fmt.Sprintf("chat:%d", p.ChatID)
+	case *tg.InputPeerChannel:
+		return fmt.Sprintf("channel:%d", p.ChannelID)
+	default:
+		return ""
+	}
 }
 
 // SendMessage sends a plain text message through the shared session.
@@ -293,6 +431,8 @@ func mapDialog(elem dialogs.Elem, dialog *tg.Dialog) (ChatDTO, bool) {
 		username string
 		kind     string
 		verified bool
+		bot      bool
+		contact  bool
 		members  int
 		id       string
 		ok       bool
@@ -314,6 +454,8 @@ func mapDialog(elem dialogs.Elem, dialog *tg.Dialog) (ChatDTO, bool) {
 		username = user.Username
 		kind = "private"
 		verified = user.Verified
+		bot = user.Bot
+		contact = user.Contact || user.MutualContact
 		id = encodePeerID("user", p.UserID, p.AccessHash)
 		ok = true
 	case *tg.InputPeerChat:
@@ -359,6 +501,8 @@ func mapDialog(elem dialogs.Elem, dialog *tg.Dialog) (ChatDTO, bool) {
 		Pinned:          dialog.Pinned,
 		Muted:           mutedUntil(dialog.NotifySettings),
 		Verified:        verified,
+		Bot:             bot,
+		Contact:         contact,
 		Members:         members,
 	}, true
 }
