@@ -6,11 +6,11 @@ export function LoginLoading() {
   const { t } = useTranslation();
 
   return (
-    <div className="tg-login-loading">
-      <span className="tg-login-loading-mark">
-        <BrandMark size={58} />
+    <div className="g-login-loading">
+      <span className="g-login-loading-mark">
+        <BrandMark size={54} />
       </span>
-      <Spinner size={18} />
+      <Spinner size={20} />
       <p>{t("login.checkingSession")}</p>
     </div>
   );

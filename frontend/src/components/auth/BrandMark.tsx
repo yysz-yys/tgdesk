@@ -1,17 +1,22 @@
 import { cn } from "../../lib/cn";
 
-/**
- * Brand mark: the tgdesk app logo. Renders the squircle logo image at the
- * requested size; sizing is driven by the caller, rounding comes from CSS.
- */
-export function BrandMark({ size = 48, className }: { size?: number; className?: string }) {
+/** tgdesk app mark. The PNG includes its own white rounded tile. */
+export function BrandMark({
+  size = 48,
+  className,
+  alt = "tgdesk",
+}: {
+  size?: number;
+  className?: string;
+  alt?: string;
+}) {
   return (
     <img
-      className={cn("tg-brand-mark", className)}
+      className={cn("g-brand-mark", className)}
       src="/brand-192.png"
       width={size}
       height={size}
-      alt="tgdesk"
+      alt={alt}
       draggable={false}
     />
   );

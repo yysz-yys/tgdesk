@@ -1,8 +1,8 @@
-import { IconArrowLeft, IconMessageDots, IconPhone } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button";
 import { Callout } from "../ui/Callout";
-import { Spinner } from "../ui/Spinner";
+import { Icon } from "../ui/Icon";
+import { IconButton } from "../ui/IconButton";
 
 interface CodeInfo {
   type: string;
@@ -60,39 +60,38 @@ export function LoginCodeStep({
         return "login.codeTypeGeneric";
     }
   })();
-  const Icon = codeInfo.type === "call" || codeInfo.type === "missed_call" ? IconPhone : IconMessageDots;
+  const hintIcon =
+    codeInfo.type === "call" || codeInfo.type === "missed_call" ? "call" : "sms";
 
   return (
     <form
-      className="tg-login-step"
+      className="g-login-step"
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit();
       }}
     >
-      <button type="button" className="tg-login-back" onClick={onBack}>
-        <IconArrowLeft size={16} />
-        {t("login.back")}
-      </button>
+      <div className="g-login-toolbar">
+        <IconButton label={t("login.back")} icon="arrow_back" onClick={onBack} />
+      </div>
 
-      <header className="tg-login-heading">
-        <span className="tg-login-eyebrow">{t("login.codeEyebrow")}</span>
+      <header className="g-login-heading">
         <h2>{t("login.codeTitle")}</h2>
         <p>{t("login.codeSent", { phone })}</p>
       </header>
 
-      <div className="tg-login-code-hint">
-        <span className="tg-login-code-hint-icon">
-          <Icon size={17} />
+      <div className="g-login-code-hint">
+        <span className="g-login-code-hint-icon">
+          <Icon name={hintIcon} size={18} />
         </span>
         <span>{t(hintKey)}</span>
       </div>
 
       <input
-        className="tg-login-code tg-input"
+        className="g-login-code"
         value={code}
         onChange={(event) => onCode(event.target.value)}
-        placeholder={Array.from({ length }, () => "•").join(" ")}
+        placeholder={"•".repeat(length).split("").join(" ")}
         inputMode="numeric"
         autoComplete="one-time-code"
         maxLength={length}
@@ -105,12 +104,12 @@ export function LoginCodeStep({
 
       <Button
         type="submit"
-        variant="primary"
+        variant="filled"
         size="lg"
         fullWidth
-        disabled={busy || retryIn > 0}
+        loading={busy}
+        disabled={retryIn > 0}
       >
-        {busy ? <Spinner size={17} /> : null}
         {busy
           ? t("login.signingIn")
           : retryIn > 0
@@ -118,10 +117,10 @@ export function LoginCodeStep({
             : t("login.continue")}
       </Button>
 
-      <div className="tg-login-code-actions">
+      <div className="g-login-code-actions">
         <button
           type="button"
-          className="tg-login-text-link"
+          className="g-login-text-link"
           onClick={onResend}
           disabled={resendIn > 0 || busy}
         >
@@ -129,8 +128,8 @@ export function LoginCodeStep({
             ? t("login.resendIn", { seconds: resendIn })
             : t("login.resendCode")}
         </button>
-        <span className="tg-login-action-divider" />
-        <button type="button" className="tg-login-text-link" onClick={onBack}>
+        <span className="g-login-action-divider" />
+        <button type="button" className="g-login-text-link" onClick={onBack}>
           {t("login.startOver")}
         </button>
       </div>

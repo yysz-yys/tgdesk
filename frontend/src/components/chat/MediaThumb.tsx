@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { IconPhoto } from "@tabler/icons-react";
+import { Icon } from "../ui/Icon";
 import { Spinner } from "../ui/Spinner";
 
 interface MediaThumbProps {
@@ -67,18 +67,13 @@ export function MediaThumb({ chatID, messageID, alt, onLoad, className }: MediaT
 
   if (src) {
     return (
-      <img
-        className={className ?? "media-thumb"}
-        src={src}
-        alt={alt}
-        draggable={false}
-      />
+      <img className={className ?? "g-media-thumb"} src={src} alt={alt} draggable={false} />
     );
   }
 
   return (
-    <span ref={holder} className="media-thumb-loading">
-      {failed ? <IconPhoto size={26} stroke={1.6} /> : <Spinner size={20} />}
+    <span ref={holder} className="g-media-thumb-loading">
+      {failed ? <Icon name="image" size={28} /> : <Spinner size={22} />}
     </span>
   );
 }

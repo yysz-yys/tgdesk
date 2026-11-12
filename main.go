@@ -120,7 +120,7 @@ func main() {
 	width, height := initialWindowSize(wailsApp)
 
 	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:            "Telegram",
+		Title:            "tgdesk",
 		Frameless:        true,
 		Width:            width,
 		Height:           height,

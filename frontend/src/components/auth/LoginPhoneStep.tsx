@@ -1,12 +1,12 @@
-import { IconArrowLeft, IconSettings } from "@tabler/icons-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { AppSettings } from "../../hooks/useSettings";
 import { Button } from "../ui/Button";
 import { Callout } from "../ui/Callout";
-import { Spinner } from "../ui/Spinner";
+import { Icon } from "../ui/Icon";
+import { IconButton } from "../ui/IconButton";
 import { CountryPicker } from "./CountryPicker";
 import { LoginNetworkSettings } from "./LoginNetworkSettings";
-import type { AppSettings } from "../../hooks/useSettings";
-import { useState } from "react";
 
 interface LoginPhoneStepProps {
   country: string;
@@ -46,38 +46,46 @@ export function LoginPhoneStep({
 
   return (
     <form
-      className="tg-login-step"
+      className="g-login-step"
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit();
       }}
     >
-      <div className="tg-login-toolbar">
-        <button type="button" className="tg-login-back" onClick={onBack}>
-          <IconArrowLeft size={16} />
-          {t("login.back")}
-        </button>
+      <div className="g-login-toolbar">
+        <IconButton label={t("login.back")} icon="arrow_back" onClick={onBack} />
         <button
           type="button"
-          className="tg-login-toolbar-action"
+          className="g-login-toolbar-action"
           onClick={() => setNetworkOpen((current) => !current)}
           aria-expanded={networkOpen}
         >
-          <IconSettings size={15} />
+          <Icon name="tune" size={17} />
           {t("login.networkSettings")}
         </button>
       </div>
 
-      <header className="tg-login-heading">
-        <span className="tg-login-eyebrow">{t("login.phoneEyebrow")}</span>
+      <LoginNetworkSettings
+        open={networkOpen}
+        settings={settings}
+        onUpdate={onUpdate}
+        onApply={onApplyNetwork}
+      />
+
+      <header className="g-login-heading">
         <h2>{t("login.phoneTitle")}</h2>
         <p>{t("login.phoneDescription")}</p>
       </header>
 
-      <div className="tg-login-phone-field">
-        <CountryPicker value={country} onChange={onCountry} language={language} disabled={busy} />
+      <div className="g-login-phone-field">
+        <CountryPicker
+          value={country}
+          onChange={onCountry}
+          language={language}
+          disabled={busy}
+        />
         <input
-          className="tg-login-phone-input"
+          className="g-login-phone-input"
           value={phone}
           onChange={(event) => onPhone(event.target.value.replace(/[^\d\s-]/g, ""))}
           placeholder={t("login.phonePlaceholder")}
@@ -88,10 +96,10 @@ export function LoginPhoneStep({
         />
       </div>
 
-      <p className="tg-login-phone-hint">
+      <p className="g-login-phone-hint">
         {t("login.phoneHint")}
         {phone.replace(/\D/g, "").length >= 5 ? (
-          <span className="tg-login-phone-preview">{displayPhone}</span>
+          <span className="g-login-phone-preview">{displayPhone}</span>
         ) : null}
       </p>
 
@@ -99,28 +107,19 @@ export function LoginPhoneStep({
 
       <Button
         type="submit"
-        variant="primary"
+        variant="filled"
         size="lg"
         fullWidth
-        disabled={busy || retryIn > 0}
+        loading={busy}
+        icon={busy ? undefined : "arrow_forward"}
+        disabled={retryIn > 0}
       >
-        {busy ? <Spinner size={17} /> : null}
         {busy
           ? t("login.signingIn")
           : retryIn > 0
             ? t("login.retryIn", { seconds: retryIn })
             : t("login.continue")}
       </Button>
-
-      <p className="tg-login-fineprint">{t("login.phoneFineprint")}</p>
-
-      <LoginNetworkSettings
-        open={networkOpen}
-        onOpenChange={setNetworkOpen}
-        settings={settings}
-        onUpdate={onUpdate}
-        onApply={onApplyNetwork}
-      />
     </form>
   );
 }

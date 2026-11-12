@@ -1,0 +1,234 @@
+/* Material 3 settings sheet. */
+
+.g-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-5);
+  padding: var(--app-space-4) var(--app-space-5) var(--app-space-8);
+}
+
+.g-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.g-settings-group-title {
+  margin: 0 0 0 var(--app-space-1);
+  color: var(--app-on-surface);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.g-settings-card {
+  overflow: hidden;
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+}
+
+[data-theme="dark"] .g-sheet {
+  background: var(--md-sys-color-surface);
+}
+
+[data-theme="dark"] .g-settings-card {
+  background: var(--md-sys-color-surface-container);
+}
+
+.g-settings-row,
+.g-settings-path,
+.g-settings-stack {
+  border-bottom: 1px solid var(--app-outline-variant);
+}
+
+.g-settings-row:last-child,
+.g-settings-path:last-child,
+.g-settings-stack:last-child {
+  border-bottom: 0;
+}
+
+.g-settings-row {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  gap: var(--app-space-4);
+  padding: var(--app-space-3) var(--app-space-4);
+}
+
+.g-settings-row[data-stack] {
+  align-items: stretch;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.g-settings-row-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.g-settings-row-title {
+  color: var(--app-on-surface);
+  font-size: var(--app-font-size-body);
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.g-settings-row-description {
+  margin-top: 1px;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-label);
+  line-height: 16px;
+}
+
+.g-settings-row-control {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.g-settings-row[data-stack] .g-settings-row-control {
+  align-items: stretch;
+}
+
+.g-settings-row[data-stack] .g-segmented {
+  display: flex;
+  width: 100%;
+}
+
+.g-settings-row[data-stack] .g-segmented-item {
+  flex: 1;
+}
+
+.g-settings-select {
+  width: 184px;
+  --md-outlined-select-text-field-container-height: 48px;
+  --md-outlined-select-text-field-label-text-size: 12px;
+  --md-outlined-select-text-field-input-text-size: 13.5px;
+}
+
+.g-settings-card .g-text-field,
+.g-settings-card .g-select-field {
+  --md-outlined-text-field-container-height: 48px;
+  --md-outlined-select-text-field-container-height: 48px;
+  --md-outlined-text-field-label-text-size: 12px;
+  --md-outlined-select-text-field-label-text-size: 12px;
+  --md-outlined-text-field-input-text-size: 13.5px;
+  --md-outlined-select-text-field-input-text-size: 13.5px;
+}
+
+.g-settings-path {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4);
+}
+
+.g-settings-path-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: var(--app-radius-md);
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+}
+
+.g-settings-path-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.g-settings-path-value {
+  overflow: hidden;
+  margin-top: 1px;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-label);
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.g-settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  padding: var(--app-space-3) var(--app-space-4) var(--app-space-4);
+}
+
+.g-settings-inline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: var(--app-space-2);
+}
+
+.g-settings-slider {
+  display: flex;
+  width: 190px;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.g-settings-slider .g-slider {
+  min-width: 0;
+  flex: 1;
+}
+
+.g-settings-slider-value {
+  display: inline-grid;
+  min-width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-surface-container);
+  color: var(--app-on-surface);
+  font-size: var(--app-font-size-label);
+  font-weight: 500;
+}
+
+.g-settings-short-field {
+  width: 184px;
+}
+
+.g-settings-port {
+  width: 100%;
+}
+
+.g-settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--app-space-1);
+}
+
+@media (max-width: 560px) {
+  .g-settings {
+    padding-inline: var(--app-space-4);
+  }
+
+  .g-settings-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--app-space-2);
+  }
+
+  .g-settings-row-control {
+    width: 100%;
+  }
+
+  .g-settings-select,
+  .g-settings-short-field {
+    width: 100%;
+  }
+
+  .g-settings-slider {
+    width: 100%;
+  }
+
+  .g-settings-path {
+    padding-inline: var(--app-space-3);
+  }
+}

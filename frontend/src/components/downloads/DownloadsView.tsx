@@ -1,15 +1,13 @@
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  IconDownload,
-  IconDots,
-  IconFolder,
-  IconPlayerPause,
-  IconTrash,
-} from "@tabler/icons-react";
-import * as Tabs from "@radix-ui/react-tabs";
 import type { DownloadTask, TaskStatus } from "../../types";
+import { Button } from "../ui/Button";
+import { EmptyState } from "../ui/EmptyState";
+import { Icon } from "../ui/Icon";
 import { IconButton } from "../ui/IconButton";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "../ui/Menu";
+import { PaneHeader } from "../ui/PaneHeader";
+import { Tabs } from "../ui/Tabs";
 import { TaskRow } from "./TaskRow";
 
 interface DownloadsViewProps {
@@ -29,11 +27,19 @@ interface DownloadsViewProps {
 function EmptyTab({
   status,
   completedCount = 0,
+  onOpenFolder,
 }: {
   status: TaskStatus;
   completedCount?: number;
+  onOpenFolder: () => void;
 }) {
   const { t } = useTranslation();
+  const title =
+    status === "active"
+      ? t("downloads.emptyActiveTitle")
+      : status === "done"
+        ? t("downloads.emptyCompletedTitle")
+        : t("downloads.emptyFailedTitle");
   const copy =
     status === "active"
       ? completedCount > 0
@@ -44,13 +50,16 @@ function EmptyTab({
         : t("downloads.emptyFailed");
 
   return (
-    <div className="empty-state">
-      <span className="empty-icon">
-        <IconDownload size={27} stroke={1.7} />
-      </span>
-      <div className="empty-title">{t("downloads.emptyTitle")}</div>
-      <div className="empty-copy">{copy}</div>
-    </div>
+    <EmptyState
+      icon={status === "done" ? "task_alt" : status === "failed" ? "error" : "download"}
+      title={title}
+      description={copy}
+      action={
+        <Button variant="text" icon="folder_open" onClick={onOpenFolder}>
+          {t("downloads.openFolder")}
+        </Button>
+      }
+    />
   );
 }
 
@@ -68,90 +77,99 @@ export function DownloadsView({
   onOpenDownloadFolder,
 }: DownloadsViewProps) {
   const { t } = useTranslation();
+  const [tab, setTab] = useState("active");
   const running = active.filter((task) => task.status === "active").length;
   const queued = active.filter((task) => task.status === "queued").length;
 
-  const renderTasks = (tasks: DownloadTask[], status: TaskStatus) => {
-    if (tasks.length === 0) {
-      return <EmptyTab status={status} completedCount={completed.length} />;
+  const summary = useMemo(() => {
+    if (active.length === 0) {
+      return t("downloads.noActive");
     }
+    return [
+      t("downloads.activeCount", { count: running }),
+      queued > 0 ? t("downloads.queuedCount", { count: queued }) : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }, [active.length, queued, running, t]);
 
-    return (
-      <div className="task-list">
-        {tasks.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            onPause={onPause}
-            onResume={onResume}
-            onRetry={onRetry}
-            onOpenFolder={onOpenFolder}
-            onRemove={onRemove}
-          />
-        ))}
-      </div>
-    );
-  };
+  const tasks = tab === "completed" ? completed : tab === "failed" ? failed : active;
+  const status: TaskStatus = tab === "completed" ? "done" : tab === "failed" ? "failed" : "active";
 
   return (
-    <section className="downloads-view" aria-label={t("downloads.title")}>
-      <header className="downloads-header">
-        <div className="downloads-heading">
-          <h1>{t("downloads.title")}</h1>
-          <p>
-            {active.length > 0
-              ? [t("downloads.activeCount", { count: running }), queued > 0 ? t("downloads.queuedCount", { count: queued }) : null]
-                  .filter(Boolean)
-                  .join(" · ")
-              : t("downloads.noActive")}
-          </p>
+    <section className="g-downloads" aria-label={t("downloads.title")}>
+      <PaneHeader
+        className="g-downloads-header"
+        title={t("downloads.title")}
+        subtitle={summary}
+        actions={
+          <>
+            <IconButton
+              label={t("downloads.pauseAll")}
+              icon="pause_circle"
+              disabled={running === 0}
+              onClick={onPauseAll}
+            />
+            <Menu>
+              <MenuTrigger asChild>
+                <IconButton
+                  label={t("downloads.menu")}
+                  icon="more_vert"
+                  tooltip={false}
+                />
+              </MenuTrigger>
+              <MenuContent align="end">
+                <MenuItem icon={<Icon name="folder_open" size={18} />} onSelect={onOpenDownloadFolder}>
+                  {t("downloads.openFolder")}
+                </MenuItem>
+                <MenuSeparator />
+                <MenuItem icon={<Icon name="delete_sweep" size={18} />} onSelect={onClearCompleted} danger>
+                  {t("downloads.clearCompleted")}
+                </MenuItem>
+              </MenuContent>
+            </Menu>
+          </>
+        }
+      />
+
+      <div className="g-downloads-body">
+        <div className="g-downloads-tabs">
+          <Tabs
+            value={tab}
+            onChange={setTab}
+            ariaLabel={t("downloads.title")}
+            items={[
+              { value: "active", label: t("downloads.tabActive"), count: active.length },
+              { value: "completed", label: t("downloads.tabCompleted"), count: completed.length },
+              { value: "failed", label: t("downloads.tabFailed"), count: failed.length },
+            ]}
+          />
         </div>
 
-        <IconButton label={t("downloads.pauseAll")} disabled={running === 0} onClick={onPauseAll}>
-          <IconPlayerPause size={21} stroke={1.8} />
-        </IconButton>
-
-        <Menu>
-          <MenuTrigger asChild>
-            <button type="button" className="icon-button" aria-label={t("downloads.menu")}>
-              <IconDots size={21} stroke={1.8} />
-            </button>
-          </MenuTrigger>
-          <MenuContent align="end">
-            <MenuItem icon={<IconFolder size={16} />} onSelect={onOpenDownloadFolder}>
-              {t("downloads.openFolder")}
-            </MenuItem>
-            <MenuSeparator />
-            <MenuItem icon={<IconTrash size={16} />} onSelect={onClearCompleted} danger>
-              {t("downloads.clearCompleted")}
-            </MenuItem>
-          </MenuContent>
-        </Menu>
-      </header>
-
-      <Tabs.Root defaultValue="active" className="flex min-h-0 flex-1 flex-col">
-        <Tabs.List className="tabs" aria-label={t("downloads.title")}>
-          <Tabs.Trigger value="active" className="tab">
-            {t("downloads.tabActive")} <span className="tab-count">{active.length}</span>
-          </Tabs.Trigger>
-          <Tabs.Trigger value="completed" className="tab">
-            {t("downloads.tabCompleted")} <span className="tab-count">{completed.length}</span>
-          </Tabs.Trigger>
-          <Tabs.Trigger value="failed" className="tab">
-            {t("downloads.tabFailed")} <span className="tab-count">{failed.length}</span>
-          </Tabs.Trigger>
-        </Tabs.List>
-
-        <Tabs.Content value="active" className="downloads-scroll outline-none">
-          {renderTasks(active, "active")}
-        </Tabs.Content>
-        <Tabs.Content value="completed" className="downloads-scroll outline-none">
-          {renderTasks(completed, "done")}
-        </Tabs.Content>
-        <Tabs.Content value="failed" className="downloads-scroll outline-none">
-          {renderTasks(failed, "failed")}
-        </Tabs.Content>
-      </Tabs.Root>
+        <div className="g-downloads-scroll" role="tabpanel">
+          {tasks.length === 0 ? (
+            <EmptyTab
+              status={status}
+              completedCount={completed.length}
+              onOpenFolder={onOpenDownloadFolder}
+            />
+          ) : (
+            <div className="g-task-list">
+              {tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  onPause={onPause}
+                  onResume={onResume}
+                  onRetry={onRetry}
+                  onOpenFolder={onOpenFolder}
+                  onRemove={onRemove}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </section>
   );
 }

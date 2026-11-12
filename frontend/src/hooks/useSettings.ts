@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import type { ThemePreference } from "./useTheme";
 
 export interface AppSettings {
   language: "system" | "en" | "zh" | "ja";
+  theme: ThemePreference;
   downloadDir: string;
   threads: number;
   template: string;
@@ -16,6 +18,7 @@ export interface AppSettings {
 
 export const defaultSettings: AppSettings = {
   language: "system",
+  theme: "system",
   downloadDir: "",
   threads: 4,
   template: "{{ .DialogID }}_{{ .MessageID }}_{{ filenamify .FileName }}",

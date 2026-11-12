@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconMapPin } from "@tabler/icons-react";
+import { Icon } from "../ui/Icon";
 
 interface LocationPreviewProps {
   latitude: number;
@@ -24,23 +24,23 @@ export function LocationPreview({ latitude, longitude }: LocationPreviewProps) {
   const url = `https://tile.openstreetmap.org/${ZOOM}/${x}/${y}.png`;
 
   return (
-    <span className="location-map">
-      <span className="location-road location-road-a" />
-      <span className="location-road location-road-b" />
-      <span className="location-road location-road-c" />
+    <span className="g-location-map">
+      <span className="g-location-road g-location-road-a" />
+      <span className="g-location-road g-location-road-b" />
+      <span className="g-location-road g-location-road-c" />
       {!failed ? (
         <img
-          className="location-tile"
+          className="g-location-tile"
           src={url}
           alt=""
           draggable={false}
           onError={() => setFailed(true)}
         />
       ) : null}
-      <span className="location-pin">
-        <IconMapPin size={20} />
+      <span className="g-location-pin">
+        <Icon name="location_on" size={22} filled />
       </span>
-      <span className="location-attribution">© OpenStreetMap</span>
+      <span className="g-location-attribution">© OpenStreetMap</span>
     </span>
   );
 }

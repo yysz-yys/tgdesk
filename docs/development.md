@@ -202,7 +202,7 @@ paths without checking the official-client compatibility notes.
 
 ## Manual verification checklist
 
-- Welcome / QR / phone / country picker render at 1107×725 and 1440×900.
+- QR / phone / country picker and the language menu render at 1107×725 and 1440×900.
 - QR shows a real token and refreshes before expiry.
 - Phone submits `+<country> <number>`; code step shows type/length/resend.
 - 2FA step shows the cloud-password hint.

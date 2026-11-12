@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { IconSearch, IconX } from "@tabler/icons-react";
 import { IconButton } from "../ui/IconButton";
+import { SearchField } from "../ui/SearchField";
 
 interface ChatSearchBarProps {
   query: string;
@@ -18,25 +18,35 @@ export function ChatSearchBar({
   const { t } = useTranslation();
 
   return (
-    <div className="tg-chat-search">
-      <IconSearch size={18} stroke={1.8} />
-      <input
+    <div
+      className="g-chat-search"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          onClose();
+        }
+      }}
+    >
+      <SearchField
         autoFocus
+        compact
         value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
+        onValueChange={onQueryChange}
         placeholder={t("chat.searchLoadedPlaceholder")}
-        aria-label={t("chat.searchLoadedPlaceholder")}
+        label={t("chat.searchLoadedPlaceholder")}
+        clearLabel={t("common.clear")}
+        className="g-chat-search-field"
+        trailing={
+          query.trim() ? (
+            <span className="g-chat-search-count">
+              {t("chat.searchResultCount", { count: resultCount })}
+            </span>
+          ) : (
+            <span className="g-chat-search-hint">{t("chat.searchLoadedHint")}</span>
+          )
+        }
       />
-      {query.trim() ? (
-        <span className="tg-chat-search-count">
-          {t("chat.searchResultCount", { count: resultCount })}
-        </span>
-      ) : (
-        <span className="tg-chat-search-hint">{t("chat.searchLoadedHint")}</span>
-      )}
-      <IconButton label={t("chat.searchClose")} onClick={onClose}>
-        <IconX size={18} />
-      </IconButton>
+      <IconButton label={t("chat.searchClose")} icon="close" onClick={onClose} />
     </div>
   );
 }

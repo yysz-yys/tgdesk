@@ -1,0 +1,218 @@
+/* tgdesk design tokens.
+ *
+ * The values follow the Google Material 3 colour roles and the type/state
+ * system used by Google Workspace (Gmail, Chat, Drive). Every @material/web
+ * component reads the --md-sys-color-* roles, so theming here also themes
+ * Google's own components. Feature CSS must consume the app-level aliases
+ * below instead of inventing new colours, radii or motion values.
+ */
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/roboto-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/roboto-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Material 3 colour roles — Google Workspace light. */
+  --md-sys-color-primary: #0b57d0;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #d3e3fd;
+  --md-sys-color-on-primary-container: #041e49;
+  --md-sys-color-secondary: #00639b;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #cee5ff;
+  --md-sys-color-on-secondary-container: #001d35;
+  --md-sys-color-tertiary: #146c2e;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #c4eed0;
+  --md-sys-color-on-tertiary-container: #072711;
+  --md-sys-color-error: #b3261e;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #f9dedc;
+  --md-sys-color-on-error-container: #410e0b;
+  --md-sys-color-surface: #ffffff;
+  --md-sys-color-on-surface: #1f1f1f;
+  --md-sys-color-surface-variant: #e1e3e1;
+  --md-sys-color-on-surface-variant: #444746;
+  --md-sys-color-surface-dim: #d3dbe5;
+  --md-sys-color-surface-bright: #ffffff;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f8fafd;
+  --md-sys-color-surface-container: #f0f4f9;
+  --md-sys-color-surface-container-high: #e9eef6;
+  --md-sys-color-surface-container-highest: #dde3ea;
+  --md-sys-color-outline: #747775;
+  --md-sys-color-outline-variant: #c4c7c5;
+  --md-sys-color-inverse-surface: #303030;
+  --md-sys-color-inverse-on-surface: #f2f2f2;
+  --md-sys-color-inverse-primary: #a8c7fa;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-surface-tint: #0b57d0;
+
+  --app-elevation-1: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --app-elevation-2: 0 1px 3px rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+  --app-elevation-3: 0 4px 8px rgba(60, 64, 67, 0.28), 0 12px 32px 4px rgba(60, 64, 67, 0.18);
+  --app-hover: rgba(31, 31, 31, 0.08);
+  --app-active: rgba(31, 31, 31, 0.12);
+  --app-scrim: rgba(0, 0, 0, 0.32);
+  --app-chat-canvas: #ffffff;
+  --app-chat-pattern: transparent;
+  --app-success: #146c2e;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Material 3 colour roles — Google Workspace dark. */
+  --md-sys-color-primary: #a8c7fa;
+  --md-sys-color-on-primary: #062e6f;
+  --md-sys-color-primary-container: #0842a0;
+  --md-sys-color-on-primary-container: #d3e3fd;
+  --md-sys-color-secondary: #7fcfff;
+  --md-sys-color-on-secondary: #003355;
+  --md-sys-color-secondary-container: #004a77;
+  --md-sys-color-on-secondary-container: #c2e7ff;
+  --md-sys-color-tertiary: #6dd58c;
+  --md-sys-color-on-tertiary: #0a3818;
+  --md-sys-color-tertiary-container: #0f5223;
+  --md-sys-color-on-tertiary-container: #c4eed0;
+  --md-sys-color-error: #f2b8b5;
+  --md-sys-color-on-error: #601410;
+  --md-sys-color-error-container: #8c1d18;
+  --md-sys-color-on-error-container: #f9dedc;
+  --md-sys-color-surface: #131314;
+  --md-sys-color-on-surface: #e3e3e3;
+  --md-sys-color-surface-variant: #444746;
+  --md-sys-color-on-surface-variant: #c4c7c5;
+  --md-sys-color-surface-dim: #131314;
+  --md-sys-color-surface-bright: #37393b;
+  --md-sys-color-surface-container-lowest: #0e0e0e;
+  --md-sys-color-surface-container-low: #1b1b1b;
+  --md-sys-color-surface-container: #1f1f1f;
+  --md-sys-color-surface-container-high: #282a2c;
+  --md-sys-color-surface-container-highest: #333537;
+  --md-sys-color-outline: #8e918f;
+  --md-sys-color-outline-variant: #444746;
+  --md-sys-color-inverse-surface: #e3e3e3;
+  --md-sys-color-inverse-on-surface: #303030;
+  --md-sys-color-inverse-primary: #0b57d0;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-surface-tint: #a8c7fa;
+
+  --app-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 3px 1px rgba(0, 0, 0, 0.3);
+  --app-elevation-2: 0 2px 6px rgba(0, 0, 0, 0.5), 0 8px 20px 2px rgba(0, 0, 0, 0.34);
+  --app-elevation-3: 0 8px 20px rgba(0, 0, 0, 0.55), 0 18px 44px 6px rgba(0, 0, 0, 0.4);
+  --app-hover: rgba(227, 227, 227, 0.08);
+  --app-active: rgba(227, 227, 227, 0.12);
+  --app-scrim: rgba(0, 0, 0, 0.55);
+  --app-chat-canvas: #1b1b1b;
+  --app-chat-pattern: transparent;
+  --app-success: #6dd58c;
+}
+
+:root {
+  /* Material 3 type. Roboto is bundled; CJK falls back to the platform UI
+   * font so Chinese and Japanese keep native metrics and hinting. */
+  --md-ref-typeface-brand: "Roboto", "Noto Sans SC", "Noto Sans", "Microsoft YaHei UI",
+    "Microsoft YaHei", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --md-ref-typeface-plain: "Roboto", "Noto Sans SC", "Noto Sans", "Microsoft YaHei UI",
+    "Microsoft YaHei", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+
+  --app-font: var(--md-ref-typeface-plain);
+  --app-font-display: var(--md-ref-typeface-brand);
+  --app-font-size-display: 36px;
+  --app-font-size-headline: 24px;
+  --app-font-size-title: 22px;
+  --app-font-size-title-sm: 16px;
+  --app-font-size-body: 14px;
+  --app-font-size-label: 12px;
+  --app-font-size-caption: 11px;
+  --app-line-height-display: 44px;
+  --app-line-height-headline: 32px;
+  --app-line-height-title: 28px;
+  --app-line-height-body: 20px;
+  --app-line-height-label: 16px;
+
+  /* App aliases. */
+  --app-bg: var(--md-sys-color-surface-container-low);
+  --app-surface: var(--md-sys-color-surface);
+  --app-surface-raised: var(--md-sys-color-surface-container-lowest);
+  --app-surface-container-lowest: var(--md-sys-color-surface-container-lowest);
+  --app-surface-container-low: var(--md-sys-color-surface-container-low);
+  --app-surface-container: var(--md-sys-color-surface-container);
+  --app-surface-container-high: var(--md-sys-color-surface-container-high);
+  --app-surface-container-highest: var(--md-sys-color-surface-container-highest);
+  --app-surface-high: var(--md-sys-color-surface-container-high);
+  --app-surface-highest: var(--md-sys-color-surface-container-highest);
+  --app-on-surface: var(--md-sys-color-on-surface);
+  --app-on-surface-variant: var(--md-sys-color-on-surface-variant);
+  --app-outline: var(--md-sys-color-outline);
+  --app-outline-variant: var(--md-sys-color-outline-variant);
+  --app-primary: var(--md-sys-color-primary);
+  --app-on-primary: var(--md-sys-color-on-primary);
+  --app-primary-container: var(--md-sys-color-primary-container);
+  --app-on-primary-container: var(--md-sys-color-on-primary-container);
+  --app-secondary-container: var(--md-sys-color-secondary-container);
+  --app-on-secondary-container: var(--md-sys-color-on-secondary-container);
+  --app-error: var(--md-sys-color-error);
+  --app-error-container: var(--md-sys-color-error-container);
+  --app-on-error-container: var(--md-sys-color-on-error-container);
+  --app-selected: var(--md-sys-color-primary-container);
+  --app-selected-text: var(--md-sys-color-on-primary-container);
+  --app-incoming: var(--md-sys-color-surface-container);
+  --app-outgoing: var(--md-sys-color-primary-container);
+  --app-outgoing-text: var(--md-sys-color-on-primary-container);
+  --app-danger: var(--md-sys-color-error);
+
+  /* 4dp spacing scale. Feature layout should only use these steps. */
+  --app-space-1: 4px;
+  --app-space-2: 8px;
+  --app-space-3: 12px;
+  --app-space-4: 16px;
+  --app-space-5: 20px;
+  --app-space-6: 24px;
+  --app-space-8: 32px;
+  --app-space-10: 40px;
+  --app-space-12: 48px;
+
+  --app-radius-xs: 4px;
+  --app-radius-sm: 8px;
+  --app-radius-md: 12px;
+  --app-radius-lg: 16px;
+  --app-radius-xl: 24px;
+  --app-radius-2xl: 28px;
+  --app-radius-pill: 999px;
+
+  --app-rail-width: 76px;
+  --app-list-width: 360px;
+  --app-titlebar-height: 30px;
+  --app-toolbar-height: 64px;
+  --app-content-max: 960px;
+  --app-motion-fast: 120ms cubic-bezier(0.2, 0, 0, 1);
+  --app-motion: 200ms cubic-bezier(0.2, 0, 0, 1);
+  --app-motion-slow: 300ms cubic-bezier(0.2, 0, 0, 1);
+
+  --app-page-gutter: var(--app-space-6);
+}

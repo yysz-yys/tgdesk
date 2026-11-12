@@ -1,0 +1,995 @@
+/* Shared Material 3 primitives.
+ *
+ * Feature code consumes these classes only through the React wrappers in
+ * components/ui. A feature must not restyle raw buttons, fields or menus.
+ */
+
+/* ── Top app bar ─────────────────────────────────────────────────────────── */
+
+.g-pane-header {
+  display: flex;
+  height: var(--app-toolbar-height);
+  flex: 0 0 var(--app-toolbar-height);
+  align-items: center;
+  gap: var(--app-space-3);
+  border-bottom: 1px solid var(--app-outline-variant);
+  background: var(--app-surface);
+  padding: 0 var(--app-space-3) 0 var(--app-space-5);
+}
+
+.g-pane-header[data-with-leading] {
+  padding-left: var(--app-space-4);
+}
+
+.g-pane-header-leading {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.g-pane-header-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.g-pane-header-title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+
+.g-pane-header-title {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--app-on-surface);
+  font-family: var(--app-font-display);
+  font-size: var(--app-font-size-title);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: var(--app-line-height-title);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.g-pane-header[data-dense] .g-pane-header-title {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.g-pane-header-subtitle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--app-space-1);
+  overflow: hidden;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-label);
+  line-height: var(--app-line-height-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.g-pane-header-subtitle[data-online] {
+  color: var(--app-primary);
+}
+
+.g-pane-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.g-button {
+  --md-filled-button-container-shape: var(--app-radius-pill);
+  --md-filled-button-container-height: 40px;
+  --md-filled-button-label-text-font: var(--app-font);
+  --md-filled-button-label-text-size: var(--app-font-size-body);
+  --md-filled-button-label-text-weight: 500;
+  --md-filled-button-leading-space: 20px;
+  --md-filled-button-trailing-space: 20px;
+  --md-filled-tonal-button-container-shape: var(--app-radius-pill);
+  --md-filled-tonal-button-container-height: 40px;
+  --md-filled-tonal-button-label-text-font: var(--app-font);
+  --md-filled-tonal-button-label-text-size: var(--app-font-size-body);
+  --md-filled-tonal-button-label-text-weight: 500;
+  --md-filled-tonal-button-leading-space: 20px;
+  --md-filled-tonal-button-trailing-space: 20px;
+  --md-outlined-button-container-shape: var(--app-radius-pill);
+  --md-outlined-button-container-height: 40px;
+  --md-outlined-button-label-text-font: var(--app-font);
+  --md-outlined-button-label-text-size: var(--app-font-size-body);
+  --md-outlined-button-label-text-weight: 500;
+  --md-outlined-button-leading-space: 20px;
+  --md-outlined-button-trailing-space: 20px;
+  --md-text-button-container-shape: var(--app-radius-pill);
+  --md-text-button-container-height: 40px;
+  --md-text-button-label-text-font: var(--app-font);
+  --md-text-button-label-text-size: var(--app-font-size-body);
+  --md-text-button-label-text-weight: 500;
+  --md-text-button-leading-space: 16px;
+  --md-text-button-trailing-space: 16px;
+  flex: 0 0 auto;
+  min-width: 0;
+  vertical-align: middle;
+}
+
+.g-button[data-fullwidth] {
+  width: 100%;
+}
+
+.g-button--sm {
+  --md-filled-button-container-height: 32px;
+  --md-filled-tonal-button-container-height: 32px;
+  --md-outlined-button-container-height: 32px;
+  --md-text-button-container-height: 32px;
+  --md-filled-button-label-text-size: 13px;
+  --md-filled-tonal-button-label-text-size: 13px;
+  --md-outlined-button-label-text-size: 13px;
+  --md-text-button-label-text-size: 13px;
+  --md-filled-button-leading-space: 16px;
+  --md-filled-button-trailing-space: 16px;
+  --md-filled-tonal-button-leading-space: 16px;
+  --md-filled-tonal-button-trailing-space: 16px;
+  --md-outlined-button-leading-space: 16px;
+  --md-outlined-button-trailing-space: 16px;
+  --md-text-button-leading-space: 12px;
+  --md-text-button-trailing-space: 12px;
+}
+
+.g-button--lg {
+  --md-filled-button-container-height: 48px;
+  --md-filled-tonal-button-container-height: 48px;
+  --md-outlined-button-container-height: 48px;
+  --md-text-button-container-height: 48px;
+  --md-filled-button-label-text-size: 15px;
+  --md-filled-tonal-button-label-text-size: 15px;
+  --md-outlined-button-label-text-size: 15px;
+  --md-text-button-label-text-size: 15px;
+  --md-filled-button-leading-space: 24px;
+  --md-filled-button-trailing-space: 24px;
+  --md-filled-tonal-button-leading-space: 24px;
+  --md-filled-tonal-button-trailing-space: 24px;
+  --md-outlined-button-leading-space: 24px;
+  --md-outlined-button-trailing-space: 24px;
+}
+
+.g-button[data-variant="danger"] {
+  --md-filled-button-container-color: var(--md-sys-color-error);
+  --md-filled-button-label-text-color: var(--md-sys-color-on-error);
+  --md-filled-button-hover-label-text-color: var(--md-sys-color-on-error);
+  --md-filled-button-focus-label-text-color: var(--md-sys-color-on-error);
+  --md-filled-button-pressed-label-text-color: var(--md-sys-color-on-error);
+  --md-filled-button-icon-color: var(--md-sys-color-on-error);
+  --md-filled-button-hover-icon-color: var(--md-sys-color-on-error);
+  --md-filled-button-focus-icon-color: var(--md-sys-color-on-error);
+  --md-filled-button-pressed-icon-color: var(--md-sys-color-on-error);
+}
+
+.g-button-label {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.g-button-progress {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+}
+
+.g-button-progress md-circular-progress {
+  --md-circular-progress-active-indicator-color: currentColor;
+}
+
+/* ── Icon buttons ────────────────────────────────────────────────────────── */
+
+.g-icon-button-anchor {
+  display: inline-flex;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+
+.g-icon-button {
+  --md-icon-button-icon-color: var(--app-on-surface-variant);
+  --md-icon-button-hover-icon-color: var(--app-on-surface);
+  --md-icon-button-focus-icon-color: var(--app-on-surface);
+  --md-icon-button-pressed-icon-color: var(--app-on-surface);
+  --md-icon-button-icon-size: 20px;
+  --md-icon-button-state-layer-shape: var(--app-radius-pill);
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+
+.g-icon-button[data-active] {
+  border-radius: var(--app-radius-pill);
+  background: var(--app-secondary-container);
+  --md-icon-button-icon-color: var(--app-on-secondary-container);
+  --md-icon-button-hover-icon-color: var(--app-on-secondary-container);
+  --md-icon-button-focus-icon-color: var(--app-on-secondary-container);
+  --md-icon-button-pressed-icon-color: var(--app-on-secondary-container);
+}
+
+/* Plain 40px icon action used inside custom list rows and the rail. */
+.g-icon-action {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: transparent;
+  padding: 0;
+  color: var(--app-on-surface-variant);
+  transition:
+    background-color var(--app-motion-fast),
+    color var(--app-motion-fast);
+}
+
+.g-icon-action:hover {
+  background: var(--app-hover);
+  color: var(--app-on-surface);
+}
+
+.g-icon-action:active {
+  background: var(--app-active);
+}
+
+.g-icon-action:disabled {
+  color: color-mix(in srgb, var(--app-on-surface) 38%, transparent);
+  pointer-events: none;
+}
+
+/* ── Text fields and selects ─────────────────────────────────────────────── */
+
+.g-text-field,
+.g-select-field {
+  width: 100%;
+  --md-outlined-text-field-container-shape: var(--app-radius-sm);
+  --md-outlined-text-field-outline-color: var(--app-outline);
+  --md-outlined-text-field-hover-outline-color: var(--app-on-surface);
+  --md-outlined-text-field-focus-outline-color: var(--app-primary);
+  --md-outlined-text-field-input-text-font: var(--app-font);
+  --md-outlined-text-field-label-text-font: var(--app-font);
+  --md-outlined-text-field-label-text-size: 13px;
+  --md-outlined-text-field-input-text-size: var(--app-font-size-body);
+  --md-outlined-text-field-supporting-text-font: var(--app-font);
+  --md-outlined-text-field-supporting-text-size: var(--app-font-size-caption);
+  --md-outlined-text-field-leading-icon-color: var(--app-on-surface-variant);
+  --md-outlined-text-field-trailing-icon-color: var(--app-on-surface-variant);
+  --md-outlined-text-field-container-height: 56px;
+  --md-outlined-select-text-field-container-shape: var(--app-radius-sm);
+  --md-outlined-select-text-field-outline-color: var(--app-outline);
+  --md-outlined-select-text-field-hover-outline-color: var(--app-on-surface);
+  --md-outlined-select-text-field-focus-outline-color: var(--app-primary);
+  --md-outlined-select-text-field-label-text-font: var(--app-font);
+  --md-outlined-select-text-field-label-text-size: 13px;
+  --md-outlined-select-text-field-input-text-font: var(--app-font);
+  --md-outlined-select-text-field-input-text-size: var(--app-font-size-body);
+  --md-outlined-select-text-field-supporting-text-font: var(--app-font);
+  --md-outlined-select-text-field-supporting-text-size: var(--app-font-size-caption);
+  --md-outlined-select-text-field-container-height: 56px;
+}
+
+.g-text-field[type="textarea"] {
+  --md-outlined-text-field-container-shape: var(--app-radius-md);
+}
+
+.g-select-field {
+  cursor: pointer;
+}
+
+/* ── Switch and slider ───────────────────────────────────────────────────── */
+
+.g-switch {
+  --md-switch-selected-track-color: var(--app-primary);
+  --md-switch-selected-hover-track-color: var(--app-primary);
+  --md-switch-selected-focus-track-color: var(--app-primary);
+  --md-switch-selected-pressed-track-color: var(--app-primary);
+  --md-switch-track-outline-color: var(--app-outline);
+  flex: 0 0 auto;
+}
+
+.g-slider {
+  width: 190px;
+  --md-slider-active-track-color: var(--app-primary);
+  --md-slider-inactive-track-color: var(--app-surface-highest);
+  --md-slider-handle-color: var(--app-primary);
+  --md-slider-hover-handle-color: var(--app-primary);
+  --md-slider-focus-handle-color: var(--app-primary);
+  --md-slider-pressed-handle-color: var(--app-primary);
+  --md-slider-label-container-color: var(--md-sys-color-inverse-surface);
+  --md-slider-label-text-color: var(--md-sys-color-inverse-on-surface);
+}
+
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+
+.g-tabs {
+  width: 100%;
+  --md-primary-tab-container-color: transparent;
+  --md-primary-tab-label-text-font: var(--app-font);
+  --md-primary-tab-label-text-size: var(--app-font-size-body);
+  --md-primary-tab-label-text-weight: 500;
+  --md-primary-tab-label-text-color: var(--app-on-surface-variant);
+  --md-primary-tab-active-label-text-color: var(--app-primary);
+  --md-primary-tab-hover-label-text-color: var(--app-on-surface);
+  --md-primary-tab-focus-label-text-color: var(--app-on-surface);
+  --md-primary-tab-active-indicator-color: var(--app-primary);
+  --md-primary-tab-active-indicator-height: 3px;
+  --md-primary-tab-active-indicator-shape: 3px 3px 0 0;
+  --md-primary-tab-container-height: 48px;
+  --md-primary-tab-container-shape: 8px 8px 0 0;
+  --md-primary-tab-hover-state-layer-opacity: 0.04;
+  --md-primary-tab-active-hover-state-layer-opacity: 0.04;
+}
+
+.g-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.g-tabs > md-primary-tab {
+  flex: 0 0 auto;
+}
+
+.g-tab-count {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-surface-container);
+  padding: 0 5px;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-caption);
+  font-weight: 500;
+  line-height: 1;
+}
+
+md-primary-tab[active] .g-tab-count,
+md-primary-tab[aria-selected="true"] .g-tab-count {
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+}
+
+/* ── Progress ────────────────────────────────────────────────────────────── */
+
+.g-linear-progress {
+  width: 100%;
+  --md-linear-progress-track-color: var(--app-surface-highest);
+  --md-linear-progress-track-height: 4px;
+  --md-linear-progress-track-shape: var(--app-radius-pill);
+  --md-linear-progress-active-indicator-color: var(--app-primary);
+  --md-linear-progress-active-indicator-height: 4px;
+}
+
+.g-linear-progress[data-tone="error"] {
+  --md-linear-progress-active-indicator-color: var(--app-error);
+}
+
+/* ── Search bar ──────────────────────────────────────────────────────────── */
+
+.g-search {
+  display: flex;
+  height: var(--app-space-12);
+  min-width: 0;
+  align-items: center;
+  gap: var(--app-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-surface-container);
+  padding: 0 var(--app-space-2) 0 var(--app-space-4);
+  color: var(--app-on-surface-variant);
+  transition:
+    background-color var(--app-motion-fast),
+    border-color var(--app-motion-fast),
+    box-shadow var(--app-motion-fast);
+}
+
+.g-search:hover {
+  background: var(--app-surface-container-high);
+}
+
+.g-search:focus-within {
+  border-color: var(--app-primary);
+  background: var(--app-surface);
+  box-shadow: 0 0 0 1px var(--app-primary);
+}
+
+.g-search--compact {
+  height: 40px;
+  padding-inline: var(--app-space-3) var(--app-space-1);
+}
+
+.g-search-icon {
+  color: var(--app-on-surface-variant);
+}
+
+.g-search-input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--app-on-surface);
+  font: inherit;
+  font-size: var(--app-font-size-body);
+}
+
+.g-search-input:focus-visible {
+  outline: 0;
+}
+
+.g-search-input::placeholder {
+  color: var(--app-on-surface-variant);
+  opacity: 1;
+}
+
+.g-search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.g-search-clear {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: transparent;
+  padding: 0;
+  color: var(--app-on-surface-variant);
+}
+
+.g-search-clear:hover {
+  background: var(--app-hover);
+  color: var(--app-on-surface);
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+
+.g-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-radius: var(--app-radius-md);
+  padding: var(--app-space-4);
+}
+
+.g-card[data-variant="outlined"] {
+  border: 1px solid var(--app-outline-variant);
+  background: var(--app-surface);
+}
+
+.g-card[data-variant="filled"] {
+  background: var(--app-surface-container);
+}
+
+.g-card[data-variant="tonal"] {
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+}
+
+.g-card[data-variant="elevated"] {
+  background: var(--app-surface);
+  box-shadow: var(--app-elevation-1);
+}
+
+.g-card-icon {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: var(--app-radius-md);
+  margin-bottom: 2px;
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+}
+
+.g-card-icon[data-tone="secondary"] {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.g-card-icon[data-tone="tertiary"] {
+  background: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
+}
+
+.g-card-title {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.g-card-body {
+  color: var(--app-on-surface-variant);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* ── Avatar and badge ────────────────────────────────────────────────────── */
+
+.g-avatar {
+  position: relative;
+  display: inline-flex;
+  width: var(--avatar-size, 40px);
+  height: var(--avatar-size, 40px);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--avatar-color, var(--app-primary));
+  color: #fff;
+  font-size: var(--avatar-font-size, 14px);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+[data-theme="dark"] .g-avatar {
+  filter: saturate(0.88) brightness(0.9);
+}
+
+.g-avatar-initials {
+  transform: translateY(0.5px);
+}
+
+.g-avatar-online {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--app-surface);
+  border-radius: 50%;
+  background: #34a853;
+}
+
+.g-badge {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-primary);
+  padding: 0 5px;
+  color: var(--app-on-primary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.g-badge[data-muted] {
+  background: var(--app-surface-container-highest);
+  color: var(--app-on-surface-variant);
+}
+
+/* ── Callouts ────────────────────────────────────────────────────────────── */
+
+.g-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-3);
+  border-radius: var(--app-radius-sm);
+  padding: var(--app-space-3) var(--app-space-4);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.g-callout[data-tone="error"] {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+.g-callout[data-tone="info"] {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.g-callout[data-tone="success"] {
+  background: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
+}
+
+.g-callout[data-tone="warning"] {
+  background: var(--app-surface-container-high);
+  color: var(--app-on-surface);
+}
+
+.g-callout-icon {
+  margin-top: 1px;
+}
+
+.g-callout-copy {
+  min-width: 0;
+}
+
+.g-callout-title {
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.g-callout-text {
+  overflow-wrap: anywhere;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+
+.g-empty-state {
+  display: flex;
+  max-width: 360px;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-2);
+  margin: 0 auto;
+  padding: var(--app-space-10) var(--app-space-6);
+  text-align: center;
+}
+
+.g-empty-icon {
+  display: inline-grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: var(--app-radius-lg);
+  margin-bottom: var(--app-space-1);
+  background: var(--app-surface-container);
+  color: var(--app-on-surface-variant);
+}
+
+.g-empty-title {
+  font-size: var(--app-font-size-title-sm);
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.g-empty-copy {
+  color: var(--app-on-surface-variant);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.g-empty-action {
+  margin-top: var(--app-space-2);
+}
+
+/* ── Menus ───────────────────────────────────────────────────────────────── */
+
+.g-menu {
+  z-index: 100;
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 24px));
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-radius-sm);
+  background: var(--app-surface-container-lowest);
+  padding: var(--app-space-1);
+  color: var(--app-on-surface);
+  box-shadow: var(--app-elevation-2);
+  animation: g-menu-in var(--app-motion-fast);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+}
+
+@keyframes g-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.g-menu-item {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: var(--app-space-3);
+  border-radius: var(--app-radius-xs);
+  padding: 0 var(--app-space-3);
+  color: var(--app-on-surface);
+  font-size: 13.5px;
+  outline: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.g-menu-item[data-highlighted] {
+  background: var(--app-hover);
+}
+
+.g-menu-item[data-danger] {
+  color: var(--app-error);
+}
+
+.g-menu-item[data-danger] .g-menu-icon {
+  color: var(--app-error);
+}
+
+.g-menu-item[data-disabled] {
+  cursor: default;
+  opacity: 0.38;
+}
+
+.g-menu-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--app-on-surface-variant);
+}
+
+.g-menu-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.g-menu-check {
+  flex: 0 0 auto;
+  color: var(--app-primary);
+}
+
+.g-menu-item[data-selected] .g-menu-label {
+  font-weight: 500;
+}
+
+.g-menu-separator {
+  height: 1px;
+  margin: var(--app-space-1) var(--app-space-2);
+  background: var(--app-outline-variant);
+}
+
+.g-menu-label-section {
+  padding: var(--app-space-2) var(--app-space-3) var(--app-space-1);
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-caption);
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+/* ── Tooltip ─────────────────────────────────────────────────────────────── */
+
+.g-tooltip {
+  z-index: 120;
+  max-width: 280px;
+  border-radius: var(--app-radius-xs);
+  background: var(--md-sys-color-inverse-surface);
+  padding: 5px 8px;
+  color: var(--md-sys-color-inverse-on-surface);
+  font-size: var(--app-font-size-caption);
+  line-height: 16px;
+  box-shadow: var(--app-elevation-1);
+  animation: g-tooltip-in 100ms ease-out;
+}
+
+@keyframes g-tooltip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ── Snackbar ────────────────────────────────────────────────────────────── */
+
+.g-snackbar {
+  position: fixed;
+  bottom: var(--app-space-6);
+  left: 50%;
+  z-index: 130;
+  display: flex;
+  min-height: var(--app-space-12);
+  max-width: min(520px, calc(100vw - 40px));
+  align-items: center;
+  gap: var(--app-space-2);
+  transform: translateX(-50%);
+  border-radius: var(--app-radius-sm);
+  background: var(--md-sys-color-inverse-surface);
+  padding: 10px var(--app-space-4);
+  color: var(--md-sys-color-inverse-on-surface);
+  font-size: 13px;
+  line-height: 18px;
+  box-shadow: var(--app-elevation-3);
+  animation: g-snackbar-in var(--app-motion);
+}
+
+@keyframes g-snackbar-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ── Side sheet ──────────────────────────────────────────────────────────── */
+
+.g-scrim {
+  position: fixed;
+  top: var(--app-titlebar-height);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 70;
+  background: var(--app-scrim);
+  animation: g-fade-in var(--app-motion);
+}
+
+@keyframes g-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.g-sheet {
+  position: fixed;
+  top: calc(var(--app-titlebar-height) + var(--app-space-2));
+  right: var(--app-space-2);
+  bottom: var(--app-space-2);
+  z-index: 71;
+  display: flex;
+  max-width: calc(100vw - 16px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-surface-container-low);
+  color: var(--app-on-surface);
+  box-shadow: var(--app-elevation-2);
+  outline: 0;
+  animation: g-sheet-in var(--app-motion-slow);
+}
+
+@keyframes g-sheet-in {
+  from {
+    opacity: 0.7;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.g-sheet-header {
+  display: flex;
+  min-height: var(--app-toolbar-height);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--app-space-3);
+  border-bottom: 1px solid var(--app-outline-variant);
+  padding: var(--app-space-2) var(--app-space-3) var(--app-space-2)
+    var(--app-space-6);
+}
+
+.g-sheet-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.g-sheet-title {
+  margin: 0;
+  font-family: var(--app-font-display);
+  font-size: var(--app-font-size-title);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: var(--app-line-height-title);
+}
+
+.g-sheet-close {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: transparent;
+  padding: 0;
+  color: var(--app-on-surface-variant);
+  transition: background-color var(--app-motion-fast);
+}
+
+.g-sheet-close:hover {
+  background: var(--app-hover);
+  color: var(--app-on-surface);
+}
+
+.g-sheet-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 560px) {
+  .g-sheet {
+    top: var(--app-titlebar-height);
+    right: 0;
+    bottom: 0;
+    max-width: 100vw;
+    border-radius: 0;
+  }
+}
+
+/* ── Segmented control ───────────────────────────────────────────────────── */
+
+.g-segmented {
+  display: inline-flex;
+  height: 40px;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--app-outline);
+  border-radius: var(--app-radius-pill);
+  background: var(--app-surface);
+}
+
+.g-segmented-item {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-right: 1px solid var(--app-outline);
+  background: transparent;
+  padding: 0 var(--app-space-3);
+  color: var(--app-on-surface);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background-color var(--app-motion-fast),
+    color var(--app-motion-fast);
+}
+
+.g-segmented-item:last-child {
+  border-right: 0;
+}
+
+.g-segmented-item:hover {
+  background: var(--app-hover);
+}
+
+.g-segmented-item[data-selected] {
+  background: var(--app-secondary-container);
+  color: var(--app-on-secondary-container);
+}
+
+.g-segmented-item:focus-visible {
+  outline-offset: -3px;
+}
+
+/* ── FAB ─────────────────────────────────────────────────────────────────── */
+
+.g-fab {
+  flex: 0 0 auto;
+}

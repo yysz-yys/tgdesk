@@ -12,11 +12,9 @@ import { LoginPhoneStep } from "./LoginPhoneStep";
 import { LoginCodeStep } from "./LoginCodeStep";
 import { LoginPasswordStep } from "./LoginPasswordStep";
 import { LoginSuccessStep } from "./LoginSuccessStep";
-import { LoginWelcomeStep } from "./LoginWelcomeStep";
-import { Callout } from "../ui/Callout";
 import "./login.css";
 
-type Mode = "welcome" | "qr" | "phone" | "code" | "password" | "success";
+type Mode = "qr" | "phone" | "code" | "password" | "success";
 
 interface CodeInfo {
   type: string;
@@ -54,7 +52,7 @@ export function LoginScreen({
 }: LoginScreenProps) {
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage ?? "en";
-  const [mode, setMode] = useState<Mode>("welcome");
+  const [mode, setMode] = useState<Mode>("qr");
   const [country, setCountry] = useState(DEFAULT_COUNTRY_ISO);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -80,7 +78,7 @@ export function LoginScreen({
   const proxyRef = useRef(proxy);
   const ntpRef = useRef(ntp);
   const phoneRef = useRef("");
-  const modeRef = useRef<Mode>("welcome");
+  const modeRef = useRef<Mode>("qr");
   const autoCodeRef = useRef("");
 
   useEffect(() => {
@@ -210,6 +208,11 @@ export function LoginScreen({
     [t],
   );
 
+  const localizeErrorRef = useRef(localizeError);
+  const tRef = useRef(t);
+  localizeErrorRef.current = localizeError;
+  tRef.current = t;
+
   useEffect(() => {
     let alive = true;
     const off = Events.On("auth:event", (event) => {
@@ -249,7 +252,7 @@ export function LoginScreen({
           autoCodeRef.current = "";
           if (next.resent) {
             setCode("");
-            setNotice(t("login.codeResent"));
+            setNotice(tRef.current("login.codeResent"));
           } else {
             setNotice("");
           }
@@ -275,7 +278,7 @@ export function LoginScreen({
         case "error": {
           setBusy(false);
           setError(
-            localizeError(
+            localizeErrorRef.current(
               payload.errorCode,
               payload.error ?? "",
               payload.retryAfter ?? 0,
@@ -305,7 +308,7 @@ export function LoginScreen({
       off();
       void AppService.CancelLogin();
     };
-  }, [localizeError, t]);
+  }, []);
 
   const resetError = () => {
     setError("");
@@ -328,14 +331,14 @@ export function LoginScreen({
     }
   };
 
-  const goWelcome = () => {
-    void AppService.CancelLogin();
-    setMode("welcome");
-    setBusy(false);
-    setQrUrl("");
-    setRetryIn(0);
-    resetError();
-  };
+  // The login screen is only mounted after AuthStatus reported "not signed in",
+  // so QR login is the primary action and should be ready without an extra tap.
+  useEffect(() => {
+    void startQr();
+    // Intentionally mount-only: language changes and re-renders must not restart
+    // an in-flight QR token.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const goPhone = () => {
     void AppService.CancelLogin();
@@ -349,15 +352,6 @@ export function LoginScreen({
   const goQr = () => {
     void startQr();
   };
-
-  const toggleLanguage = () => {
-    const next = language.startsWith("zh") ? "en" : "zh";
-    onUpdate("language", next);
-  };
-
-  const languageLabel = language.startsWith("zh")
-    ? t("login.continueEnglish")
-    : t("login.continueChinese");
 
   const countryInfo = findCountry(country);
   const nationalPhone = phone.replace(/\D/g, "");
@@ -474,41 +468,11 @@ export function LoginScreen({
     resetError();
   };
 
-  const surface: "welcome" | "qr" | "form" | "success" =
-    mode === "welcome"
-      ? "welcome"
-      : mode === "qr"
-        ? "qr"
-        : mode === "success"
-          ? "success"
-          : "form";
-
   return (
-    <LoginShell surface={surface}>
-      {mode === "welcome" ? (
-        <LoginWelcomeStep
-          busy={busy}
-          onStart={() => void startQr()}
-          onPhone={goPhone}
-          onLanguage={toggleLanguage}
-          languageLabel={languageLabel}
-          extra={
-            <>
-              {importError ? (
-                <Callout tone="error" className="tg-login-welcome-error">
-                  {localizeError(undefined, importError)}
-                </Callout>
-              ) : null}
-              {error ? (
-                <Callout tone="error" className="tg-login-welcome-error">
-                  {error}
-                </Callout>
-              ) : null}
-            </>
-          }
-        />
-      ) : null}
-
+    <LoginShell
+      language={settings.language}
+      onLanguageChange={(value) => onUpdate("language", value)}
+    >
       {mode === "qr" ? (
         <LoginQrStep
           qrUrl={qrUrl}
@@ -519,7 +483,6 @@ export function LoginScreen({
           settings={settings}
           onUpdate={onUpdate}
           onPhone={goPhone}
-          onBack={goWelcome}
           onRefresh={() => void startQr()}
           onApplyNetwork={() => void startQr()}
         />

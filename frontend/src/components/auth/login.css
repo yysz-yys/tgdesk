@@ -1,1350 +1,780 @@
-/* tgdesk login — Google Material 3 inspired surface.
+/* Minimal Material 3 sign-in surface.
  *
- * Reference: Material 3 color roles (primary / surface-container / outline),
- * Google's account sign-in layout (centred card, filled action, outlined
- * fields) and Roboto typography. The login is intentionally light even when
- * the chat shell uses its dark Telegram palette.
+ * One card. One brand lockup. Two login methods. No marketing panel: tdata is
+ * checked before this screen is mounted, so the only job here is QR or phone
+ * authentication.
  */
 
-@font-face {
-  font-family: "Roboto";
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url("/fonts/roboto-latin.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: "Roboto";
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url("/fonts/roboto-latin-ext.woff2") format("woff2");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
-    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
-    U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-.tg-login-page,
-.tg-login-loading {
-  --md-primary: #0b57d0;
-  --md-on-primary: #ffffff;
-  --md-primary-container: #d3e3fd;
-  --md-on-primary-container: #041e49;
-  --md-secondary-container: #ceead6;
-  --md-on-secondary-container: #0f5223;
-  --md-tertiary-container: #fef7e0;
-  --md-on-tertiary-container: #6c4a00;
-  --md-surface: #ffffff;
-  --md-surface-dim: #f8fafd;
-  --md-surface-container-low: #f7f9fc;
-  --md-surface-container: #f0f4f9;
-  --md-surface-container-high: #e9eef6;
-  --md-on-surface: #1f1f1f;
-  --md-on-surface-variant: #444746;
-  --md-outline: #747775;
-  --md-outline-variant: #c4c7c5;
-  --md-error: #b3261e;
-  --md-error-container: #f9dedc;
-  --md-on-error-container: #410e0b;
-  --md-success: #146c2e;
-  --md-success-container: #ceead6;
-  --md-shadow: 0 1px 3px rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
-  --md-shadow-low: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
-
-  color-scheme: light;
-  font-family: "Roboto", "Noto Sans SC", "Noto Sans", "Microsoft YaHei UI",
-    "Microsoft YaHei", "Yu Gothic UI", system-ui, sans-serif;
-}
-
-/* The caption bar follows the light login surface instead of the dark chat
- * palette. :has lets us do that without changing the app-wide theme. */
-.tg-shell:has(.tg-login-page) .tg-titlebar,
-.tg-shell:has(.tg-login-loading) .tg-titlebar {
-  background: #f8fafd;
-  color: #5f6368;
-}
-
-.tg-shell:has(.tg-login-page) .tg-titlebar-controls button,
-.tg-shell:has(.tg-login-loading) .tg-titlebar-controls button {
-  color: #5f6368;
-}
-
-.tg-shell:has(.tg-login-page) .tg-titlebar-controls button:hover,
-.tg-shell:has(.tg-login-loading) .tg-titlebar-controls button:hover {
-  background: rgba(31, 31, 31, 0.07);
-  color: #1f1f1f;
-}
-
-.tg-login-page {
-  display: flex;
-  min-height: 100dvh;
-  overflow: hidden;
-  background:
-    radial-gradient(ellipse 70% 60% at 8% 0%, rgba(168, 199, 250, 0.38), transparent 62%),
-    radial-gradient(ellipse 60% 55% at 100% 100%, rgba(206, 234, 214, 0.32), transparent 64%),
-    #f8fafd;
-  color: var(--md-on-surface);
-}
-
-/* Left brand panel */
-
-.tg-login-aside {
-  position: relative;
-  display: flex;
-  width: 45%;
-  max-width: 580px;
-  min-width: 330px;
-  flex-direction: column;
-  justify-content: space-between;
-  overflow: hidden;
-  border-right: 1px solid rgba(31, 31, 31, 0.06);
-  background:
-    linear-gradient(155deg, rgba(232, 240, 254, 0.9) 0%, rgba(248, 250, 253, 0.65) 58%, rgba(240, 247, 242, 0.8) 100%);
-  padding: 48px 48px 34px;
-}
-
-.tg-login-aside::after {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle at 1px 1px, rgba(11, 87, 208, 0.06) 1px, transparent 0);
-  background-size: 28px 28px;
-  content: "";
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 72%);
-  pointer-events: none;
-}
-
-.tg-login-aside-glow {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(4px);
-  pointer-events: none;
-}
-
-.tg-login-aside-glow-one {
-  right: -150px;
-  bottom: -180px;
-  width: 440px;
-  height: 440px;
-  background: radial-gradient(circle, rgba(168, 199, 250, 0.55), transparent 68%);
-}
-
-.tg-login-aside-glow-two {
-  top: 30%;
-  left: -160px;
-  width: 380px;
-  height: 380px;
-  background: radial-gradient(circle, rgba(206, 234, 214, 0.5), transparent 68%);
-}
-
-.tg-login-brand {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.tg-login-brand-mark {
-  display: grid;
-  width: 80px;
-  height: 80px;
+.g-brand-mark {
+  display: block;
   flex: 0 0 auto;
-  place-items: center;
-  border-radius: 24px;
-  background: #ffffff;
-  box-shadow:
-    0 10px 30px rgba(32, 74, 135, 0.16),
-    0 1px 2px rgba(60, 64, 67, 0.2);
+  border-radius: 22%;
+  object-fit: contain;
 }
 
-.tg-login-brand-mark .tg-brand-mark {
-  width: 58px;
-  height: 58px;
-}
-
-.tg-login-brand-text {
+.g-login {
   display: flex;
-  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--app-bg);
+  color: var(--app-on-surface);
+}
+
+.g-login-main {
+  display: flex;
+  min-height: 0;
+  flex: 1;
   flex-direction: column;
-  gap: 4px;
-}
-
-.tg-login-brand-text strong {
-  color: var(--md-on-surface);
-  font-size: 27px;
-  font-weight: 500;
-  letter-spacing: -0.5px;
-  line-height: 1.1;
-}
-
-.tg-login-brand-text span {
-  color: #5f6368;
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.tg-login-aside-copy {
-  position: relative;
-  z-index: 1;
-  max-width: 400px;
-  margin-top: 52px;
-}
-
-.tg-login-aside-copy h1 {
-  margin: 0;
-  color: var(--md-on-surface);
-  font-size: 38px;
-  font-weight: 500;
-  letter-spacing: -0.9px;
-  line-height: 1.15;
-  word-break: keep-all;
-}
-
-.tg-login-aside-copy p {
-  margin: 16px 0 0;
-  color: var(--md-on-surface-variant);
-  font-size: 14.5px;
-  line-height: 1.6;
-}
-
-.tg-login-features {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  margin: 42px 0 0;
-  padding: 0;
-  flex-direction: column;
-  gap: 18px;
-  list-style: none;
-}
-
-.tg-login-features li {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.tg-login-feature-icon {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 12px;
-  background: var(--md-primary-container);
-  color: var(--md-primary);
-}
-
-.tg-login-features li:nth-child(2) .tg-login-feature-icon {
-  background: var(--md-secondary-container);
-  color: var(--md-success);
-}
-
-.tg-login-features li:nth-child(3) .tg-login-feature-icon {
-  background: var(--md-tertiary-container);
-  color: var(--md-on-tertiary-container);
-}
-
-.tg-login-features div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-top: 1px;
-}
-
-.tg-login-features strong {
-  color: var(--md-on-surface);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.tg-login-features span {
-  color: #5f6368;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.tg-login-aside-footer {
-  position: relative;
-  z-index: 1;
-  display: flex;
   align-items: center;
-  gap: 9px;
-  color: #5f6368;
-  font-size: 11px;
+  justify-content: center;
+  gap: var(--app-space-4);
+  overflow-y: auto;
+  padding: var(--app-space-8);
 }
 
-.tg-login-aside-dot {
+.g-login-brand {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.g-login-brand .g-brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--app-radius-sm);
+}
+
+.g-login-wordmark {
+  font-family: var(--app-font-display);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  line-height: 28px;
+}
+
+.g-login-card {
+  width: min(420px, 100%);
+  max-height: calc(100dvh - 160px);
+  flex: 0 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-surface);
+  padding: var(--app-space-6) var(--app-space-6) var(--app-space-6);
+  box-shadow: var(--app-elevation-1);
+  animation: g-login-card-in var(--app-motion);
+}
+
+[data-theme="dark"] .g-login-card {
+  background: var(--md-sys-color-surface-container);
+}
+
+@keyframes g-login-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.g-login-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--app-space-2);
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-caption);
+  line-height: 16px;
+}
+
+.g-login-footer-dot {
   width: 3px;
   height: 3px;
   border-radius: 50%;
   background: currentColor;
-  opacity: 0.6;
 }
 
-/* Right card */
-
-.tg-login-main {
-  position: relative;
-  display: grid;
-  min-width: 0;
-  flex: 1;
-  place-items: center;
-  padding: 44px 32px;
-}
-
-.tg-login-main::before {
-  position: absolute;
-  top: -180px;
-  right: -160px;
-  width: 460px;
-  height: 460px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(168, 199, 250, 0.28), transparent 68%);
-  content: "";
-  pointer-events: none;
-}
-
-.tg-login-mobile-brand {
-  display: none;
+.g-login-language {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 24px;
-  color: var(--md-on-surface);
-  font-size: 21px;
+  gap: 4px;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: transparent;
+  padding: 6px 8px;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-caption);
   font-weight: 500;
-  letter-spacing: -0.4px;
+  cursor: pointer;
 }
 
-.tg-login-card {
-  position: relative;
-  z-index: 1;
-  width: min(400px, 100%);
-  border-radius: 28px;
-  background: var(--md-surface);
-  padding: 28px 32px 24px;
-  box-shadow: var(--md-shadow);
+.g-login-language:hover {
+  background: var(--app-hover);
+  color: var(--app-on-surface);
 }
 
-.tg-login-step,
-.tg-login-qr {
+/* ── Steps ───────────────────────────────────────────────────────────────── */
+
+.g-login-step {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--app-space-3);
 }
 
-.tg-login-eyebrow {
-  color: var(--md-primary);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.g-login-step h2 {
+  color: var(--app-on-surface);
+  font-family: var(--app-font-display);
+  font-size: var(--app-font-size-headline);
+  font-weight: 400;
+  letter-spacing: -0.2px;
+  line-height: var(--app-line-height-headline);
 }
 
-.tg-login-heading {
+.g-login-heading {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--app-space-1);
 }
 
-.tg-login-heading-center {
+.g-login-heading p {
+  color: var(--app-on-surface-variant);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.g-login-heading-center {
   align-items: center;
   text-align: center;
 }
 
-.tg-login-heading h2,
-.tg-login-welcome h2 {
-  margin: 0;
-  color: var(--md-on-surface);
-  font-size: 29px;
-  font-weight: 500;
-  letter-spacing: -0.6px;
-  line-height: 1.16;
-}
-
-.tg-login-heading p {
-  margin: 0;
-  color: var(--md-on-surface-variant);
-  font-size: 13.5px;
-  line-height: 1.5;
-}
-
-/* Toolbar */
-
-.tg-login-toolbar {
+.g-login-toolbar {
   display: flex;
+  min-height: 40px;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: -2px;
+  gap: var(--app-space-2);
 }
 
-.tg-login-back {
+.g-login-toolbar--end {
+  justify-content: flex-end;
+}
+
+.g-login-toolbar-action {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   background: transparent;
-  padding: 6px 10px 6px 6px;
-  color: var(--md-on-surface-variant);
-  font: inherit;
-  font-size: 12.5px;
+  padding: 8px 10px;
+  color: var(--app-primary);
+  font-size: var(--app-font-size-label);
+  font-weight: 500;
   cursor: pointer;
-  transition: background 120ms ease;
 }
 
-.tg-login-back:hover {
-  background: var(--md-surface-container);
-  color: var(--md-on-surface);
+.g-login-toolbar-action:hover {
+  background: var(--app-hover);
 }
 
-.tg-login-toolbar-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.g-login-text-link {
+  align-self: center;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--app-radius-sm);
   background: transparent;
   padding: 6px 10px;
-  color: var(--md-primary);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 120ms ease;
-}
-
-.tg-login-toolbar-action:hover,
-.tg-login-toolbar-action[aria-expanded="true"] {
-  background: rgba(11, 87, 208, 0.08);
-}
-
-/* Welcome */
-
-.tg-login-welcome {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-}
-
-.tg-login-welcome > p {
-  margin: 10px 0 0;
-  color: var(--md-on-surface-variant);
-  font-size: 13.5px;
-  line-height: 1.55;
-}
-
-.tg-login-welcome .tg-login-start {
-  margin-top: 26px;
-}
-
-.tg-login-secondary-link {
-  align-self: center;
-  margin-top: 10px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  padding: 8px 14px;
-  color: var(--md-primary);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 120ms ease;
-}
-
-.tg-login-secondary-link:hover {
-  background: rgba(11, 87, 208, 0.07);
-}
-
-.tg-login-welcome-footer {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-  border-top: 1px solid var(--md-surface-container-high);
-  padding-top: 14px;
-}
-
-.tg-login-language {
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  padding: 6px 12px;
-  color: #5f6368;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 120ms ease;
-}
-
-.tg-login-language:hover {
-  background: var(--md-surface-container);
-  color: var(--md-on-surface);
-}
-
-.tg-login-welcome-error {
-  margin-top: 14px;
-  text-align: left;
-}
-
-/* Buttons and inputs inside the card */
-
-.tg-login-card .tg-btn {
-  border-radius: 999px;
-  font-family: inherit;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-
-.tg-login-card .tg-btn[data-size="lg"] {
-  height: 48px;
-  border-radius: 999px;
-  font-size: 14px;
-}
-
-.tg-login-card .tg-btn[data-variant="primary"] {
-  background: var(--md-primary);
-  box-shadow: none;
-  color: var(--md-on-primary);
-}
-
-.tg-login-card .tg-btn[data-variant="primary"]:hover:not(:disabled) {
-  background: #0a4bb3;
-  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
-}
-
-.tg-login-card .tg-btn[data-variant="primary"]:focus-visible {
-  outline: 2px solid var(--md-primary);
-  outline-offset: 2px;
-}
-
-.tg-login-card .tg-btn[data-variant="link"] {
-  color: var(--md-primary);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.tg-login-card .tg-btn[data-variant="link"]:hover {
-  color: #0a4bb3;
-}
-
-.tg-login-card .tg-input-wrap {
-  height: 56px;
-  border: 1px solid transparent;
-  border-radius: 8px 8px 8px 8px;
-  background: var(--md-surface-container);
-  padding: 0 14px;
-}
-
-.tg-login-card .tg-input-wrap:focus-within {
-  border-color: transparent;
-  background: var(--md-surface);
-  box-shadow: inset 0 0 0 2px var(--md-primary);
-}
-
-.tg-login-card .tg-input {
-  color: var(--md-on-surface);
-  font-family: inherit;
-  font-size: 14.5px;
-}
-
-.tg-login-card .tg-input::placeholder {
-  color: #5f6368;
-}
-
-.tg-login-card .tg-field-label {
-  color: var(--md-on-surface-variant);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-}
-
-.tg-login-fineprint {
-  margin: 0;
-  color: #5f6368;
-  font-size: 11px;
-  line-height: 1.45;
-  text-align: center;
-}
-
-/* Phone */
-
-.tg-login-phone-field {
-  display: grid;
-  grid-template-columns: 132px minmax(0, 1fr);
-  gap: 10px;
-}
-
-.tg-login-phone-input {
-  width: 100%;
-  height: 56px;
-  min-width: 0;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: var(--md-surface-container);
-  padding: 0 14px;
-  color: var(--md-on-surface);
-  font: inherit;
-  font-size: 15px;
-  letter-spacing: 0.01em;
-  outline: 0;
-  transition: background 120ms ease, box-shadow 120ms ease;
-}
-
-.tg-login-phone-input:focus {
-  background: var(--md-surface);
-  box-shadow: inset 0 0 0 2px var(--md-primary);
-}
-
-.tg-login-phone-input::placeholder {
-  color: #5f6368;
-}
-
-.tg-login-phone-hint {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px;
-  margin: -4px 0 0;
-  color: #5f6368;
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.tg-login-phone-preview {
-  color: var(--md-primary);
-  font-family: "Roboto Mono", "Cascadia Mono", "Consolas", monospace;
-  font-size: 11.5px;
-  letter-spacing: 0.01em;
-}
-
-/* Country picker */
-
-.tg-country {
-  position: relative;
-}
-
-.tg-country-button {
-  display: flex;
-  width: 100%;
-  height: 56px;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid var(--md-outline);
-  border-radius: 8px;
-  background: var(--md-surface);
-  padding: 0 12px;
-  color: var(--md-on-surface);
-  font: inherit;
-  font-size: 13.5px;
-  cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease;
-}
-
-.tg-country-button:hover:not(:disabled) {
-  border-color: var(--md-on-surface);
-  background: var(--md-surface-container-low);
-}
-
-.tg-country-button:focus-visible {
-  border-color: var(--md-primary);
-  outline: 2px solid rgba(11, 87, 208, 0.2);
-}
-
-.tg-country-flag {
-  display: inline-flex;
-  width: 22px;
-  flex: 0 0 auto;
-  justify-content: center;
-  font-size: 15px;
-  line-height: 1;
-}
-
-.tg-country-dial {
-  flex: 1;
-  overflow: hidden;
-  text-align: left;
-  font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tg-country-chevron {
-  flex: 0 0 auto;
-  color: #5f6368;
-}
-
-.tg-country-popover {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 6px);
-  left: 0;
-  width: 320px;
-  max-width: min(320px, calc(100vw - 42px));
-  overflow: hidden;
-  border: 1px solid var(--md-outline-variant);
-  border-radius: 16px;
-  background: var(--md-surface);
-  box-shadow: var(--md-shadow);
-}
-
-.tg-country-search {
-  display: flex;
-  height: 48px;
-  align-items: center;
-  gap: 9px;
-  border-bottom: 1px solid var(--md-surface-container-high);
-  padding: 0 14px;
-  color: #5f6368;
-}
-
-.tg-country-search input {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--md-on-surface);
-  font: inherit;
-  font-size: 13.5px;
-  outline: 0;
-}
-
-.tg-country-search input::placeholder {
-  color: #5f6368;
-}
-
-.tg-country-list {
-  max-height: 272px;
-  overflow-y: auto;
-  padding: 6px;
-}
-
-.tg-country-option {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 10px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  padding: 9px 10px;
-  color: var(--md-on-surface);
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.tg-country-option:hover {
-  background: var(--md-surface-container);
-}
-
-.tg-country-option[data-selected] {
-  background: var(--md-primary-container);
-  color: var(--md-on-primary-container);
-}
-
-.tg-country-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tg-country-option-dial {
-  color: #5f6368;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.tg-country-option[data-selected] .tg-country-option-dial {
-  color: var(--md-on-primary-container);
-}
-
-.tg-country-empty {
-  margin: 0;
-  padding: 20px 12px;
-  color: #5f6368;
-  font-size: 12.5px;
-  text-align: center;
-}
-
-/* Code step */
-
-.tg-login-code-hint {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-radius: 12px;
-  background: var(--md-surface-container);
-  padding: 10px 12px;
-  color: var(--md-on-surface-variant);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.tg-login-code-hint-icon {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 10px;
-  background: var(--md-primary-container);
-  color: var(--md-primary);
-}
-
-.tg-login-code {
-  height: 64px !important;
-  border: 1px solid transparent !important;
-  border-radius: 8px !important;
-  background: var(--md-surface-container) !important;
-  color: var(--md-on-surface) !important;
-  font-family: inherit !important;
-  font-size: 24px !important;
-  font-weight: 500;
-  letter-spacing: 0.45em;
-  text-align: center;
-  text-indent: 0.45em;
-}
-
-.tg-login-code:focus {
-  border-color: transparent !important;
-  background: var(--md-surface) !important;
-  outline: 0;
-  box-shadow: inset 0 0 0 2px var(--md-primary);
-}
-
-.tg-login-code::placeholder {
-  color: #9aa0a6;
-  font-weight: 400;
-  letter-spacing: 0.35em;
-}
-
-.tg-login-code-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 1px;
-}
-
-.tg-login-text-link {
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  padding: 7px 10px;
-  color: var(--md-primary);
-  font: inherit;
+  color: var(--app-primary);
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 120ms ease;
 }
 
-.tg-login-text-link:hover:not(:disabled) {
-  background: rgba(11, 87, 208, 0.07);
+.g-login-text-link:hover:not(:disabled) {
+  background: var(--app-hover);
 }
 
-.tg-login-text-link:disabled {
-  color: #5f6368;
+.g-login-text-link:disabled {
+  color: var(--app-on-surface-variant);
   cursor: default;
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
-.tg-login-action-divider {
-  width: 1px;
-  height: 12px;
-  background: var(--md-outline-variant);
+/* ── QR ──────────────────────────────────────────────────────────────────── */
+
+.g-login-qr {
+  gap: var(--app-space-2);
 }
 
-/* Password */
-
-.tg-login-lock {
-  display: grid;
-  width: 52px;
-  height: 52px;
-  align-self: center;
-  place-items: center;
-  border-radius: 16px;
-  background: var(--md-primary-container);
-  color: var(--md-primary);
-}
-
-.tg-login-password-hint {
-  margin: -4px 0 0;
-  border-radius: 10px;
-  background: var(--md-surface-container);
-  padding: 10px 12px;
-  color: var(--md-on-surface-variant);
-  font-size: 12px;
-  line-height: 1.45;
-  text-align: center;
-}
-
-/* QR */
-
-.tg-login-qr {
-  align-items: stretch;
-}
-
-.tg-login-qr-body {
+.g-login-qr-body {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
+  flex-direction: column;
+  gap: var(--app-space-3);
 }
 
-.tg-login-qr-shell {
+.g-login-qr-body .g-login-heading {
+  gap: 2px;
+}
+
+.g-login-qr-shell {
   position: relative;
   display: grid;
-  width: 200px;
-  height: 200px;
+  width: 220px;
+  height: 220px;
+  flex: 0 0 auto;
   place-items: center;
-  border: 1px solid var(--md-outline-variant);
-  border-radius: 18px;
-  background: #ffffff;
-  padding: 10px;
-  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.18);
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-radius-lg);
+  background: #fff;
+  padding: 16px;
 }
 
-.tg-login-qr-shell[data-expired] svg {
-  opacity: 0.22;
-  filter: blur(1px);
+.g-login-qr-shell[data-expired] svg {
+  opacity: 0.16;
 }
 
-.tg-login-qr-shell svg {
-  display: block;
-  transition: opacity 160ms ease;
-}
-
-.tg-login-qr-mark {
+.g-login-qr-mark {
   position: absolute;
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   place-items: center;
-  border-radius: 50%;
-  background: #ffffff;
+  border: 4px solid #fff;
+  border-radius: 12px;
+  background: #fff;
 }
 
-.tg-login-qr-mark .tg-brand-mark {
-  width: 36px;
-  height: 36px;
+.g-login-qr-placeholder {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-label);
 }
 
-.tg-login-qr-expired {
+.g-login-qr-expired {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   border: 0;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.35);
-  color: var(--md-on-surface);
+  border-radius: var(--app-radius-lg);
+  background: color-mix(in srgb, var(--app-surface) 40%, transparent);
+  color: var(--app-on-surface);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--app-font-size-label);
   font-weight: 500;
   cursor: pointer;
 }
 
-.tg-login-qr-placeholder {
-  display: flex;
-  flex-direction: column;
+.g-login-status-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  color: #5f6368;
-  font-size: 12px;
+  gap: 6px;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-surface-container);
+  padding: 6px 12px;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-label);
 }
 
-.tg-login-qr-title {
-  margin: 18px 0 0;
-  color: var(--md-on-surface);
-  font-size: 24px;
-  font-weight: 500;
-  letter-spacing: -0.4px;
-  line-height: 1.2;
+.g-login-status-chip[data-expired] {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
 }
 
-.tg-login-qr-subtitle {
-  max-width: 320px;
-  margin: 8px 0 0;
-  color: var(--md-on-surface-variant);
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-
-.tg-login-steps {
-  display: flex;
+.g-login-qr .g-callout {
   width: 100%;
-  max-width: 330px;
-  margin: 14px auto 0;
-  padding: 0;
-  flex-direction: column;
-  gap: 7px;
-  list-style: none;
-  text-align: left;
 }
 
-.tg-login-steps li {
-  display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
-  gap: 9px;
-  align-items: start;
+/* ── Phone ───────────────────────────────────────────────────────────────── */
+
+.g-login-phone-field {
+  display: flex;
+  height: 56px;
+  min-width: 0;
+  align-items: stretch;
+  border: 1px solid var(--app-outline);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+  transition:
+    border-color var(--app-motion-fast),
+    box-shadow var(--app-motion-fast);
 }
 
-.tg-login-step-num {
-  display: grid;
-  width: 26px;
-  height: 26px;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--md-primary-container);
-  color: var(--md-on-primary-container);
-  font-size: 11px;
-  font-weight: 500;
+.g-login-phone-field:focus-within {
+  border-color: var(--app-primary);
+  box-shadow: inset 0 0 0 1px var(--app-primary);
 }
 
-.tg-login-steps p {
-  margin: 3px 0 0;
-  color: var(--md-on-surface-variant);
-  font-size: 12.5px;
+.g-login-phone-input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 0 16px;
+  color: var(--app-on-surface);
+  font-size: 15px;
+  letter-spacing: 0.4px;
+}
+
+.g-login-phone-input:focus-visible {
+  outline: 0;
+}
+
+.g-login-phone-input::placeholder {
+  color: var(--app-on-surface-variant);
+  opacity: 0.7;
+}
+
+.g-login-phone-hint {
+  display: flex;
+  min-height: 18px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-caption);
   line-height: 1.4;
 }
 
-.tg-login-qr-timer {
-  margin-top: 9px;
-  color: #5f6368;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
+.g-login-phone-preview {
+  flex: 0 0 auto;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-primary-container);
+  padding: 3px 9px;
+  color: var(--app-on-primary-container);
+  font-size: var(--app-font-size-caption);
+  font-weight: 500;
 }
 
-.tg-login-qr-timer-expired {
-  color: #a16400;
+/* ── Country picker ──────────────────────────────────────────────────────── */
+
+.g-country {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
 }
 
-.tg-login-qr-links {
+.g-country-trigger {
+  display: inline-flex;
+  height: 100%;
+  min-width: 112px;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-right: 1px solid var(--app-outline-variant);
+  border-radius: 11px 0 0 11px;
+  background: transparent;
+  padding: 0 10px 0 14px;
+  color: var(--app-on-surface);
+  cursor: pointer;
+}
+
+.g-country-trigger:hover {
+  background: var(--app-hover);
+}
+
+.g-country-trigger:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.g-country-flag {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.g-country-dial {
+  font-size: var(--app-font-size-body);
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.g-country-trigger > .g-icon {
+  color: var(--app-on-surface-variant);
+}
+
+.g-country-popover {
+  position: fixed;
+  z-index: 140;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  margin-top: 8px;
-  gap: 4px;
+  gap: var(--app-space-2);
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+  padding: var(--app-space-2);
+  box-shadow: var(--app-elevation-2);
+  animation: g-country-in var(--app-motion-fast);
 }
 
-.tg-login-qr .tg-callout,
-.tg-login-step .tg-callout {
-  margin-top: 2px;
-  text-align: left;
+@keyframes g-country-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Success */
-
-.tg-login-success {
-  align-items: center;
-  padding: 12px 0 8px;
-  text-align: center;
+.g-country-search {
+  flex: 0 0 auto;
 }
 
-.tg-login-success-icon {
-  display: grid;
-  width: 72px;
-  height: 72px;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--md-success-container);
-  color: var(--md-success);
+.g-country-list {
+  max-height: 220px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1px;
 }
 
-.tg-login-success h2 {
-  margin: 8px 0 0;
-  color: var(--md-on-surface);
-  font-size: 26px;
-  font-weight: 500;
-  letter-spacing: -0.5px;
-}
-
-.tg-login-success > p {
-  margin: 3px 0 0;
-  color: #5f6368;
-  font-size: 13px;
-}
-
-.tg-login-tdata {
+.g-country-option {
   display: flex;
   width: 100%;
-  align-items: flex-start;
+  min-height: 44px;
+  align-items: center;
   gap: 10px;
-  margin-top: 16px;
-  border-radius: 12px;
-  background: var(--md-success-container);
-  padding: 11px 12px;
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+  padding: 0 10px;
+  color: var(--app-on-surface);
   text-align: left;
+  cursor: pointer;
 }
 
-.tg-login-tdata-icon {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 9px;
-  background: rgba(20, 108, 46, 0.12);
-  color: var(--md-success);
+.g-country-option:hover {
+  background: var(--app-hover);
 }
 
-.tg-login-tdata strong {
-  display: block;
-  margin-bottom: 2px;
-  color: #0f5223;
-  font-size: 11.5px;
-  font-weight: 500;
+.g-country-option[data-selected] {
+  background: var(--app-secondary-container);
+  color: var(--app-on-secondary-container);
 }
 
-.tg-login-tdata span {
-  display: block;
+.g-country-name {
+  min-width: 0;
   overflow: hidden;
-  color: #2f5d3a;
-  font-family: "Roboto Mono", "Cascadia Mono", "Consolas", monospace;
-  font-size: 9.5px;
-  line-height: 1.45;
+  flex: 1;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.tg-login-success-loading {
+.g-country-option-dial {
+  flex: 0 0 auto;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-label);
+}
+
+.g-country-option[data-selected] .g-country-option-dial {
+  color: var(--app-on-secondary-container);
+}
+
+.g-country-check {
+  flex: 0 0 auto;
+}
+
+.g-country-empty {
+  padding: var(--app-space-6) var(--app-space-3);
+  color: var(--app-on-surface-variant);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+/* ── Code and password ───────────────────────────────────────────────────── */
+
+.g-login-code-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-2);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-container);
+  padding: 10px 12px;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-label);
+  line-height: 18px;
+}
+
+.g-login-code-hint-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--app-surface);
+  color: var(--app-primary);
+}
+
+.g-login-code {
+  width: 100%;
+  height: 60px;
+  border: 1px solid var(--app-outline);
+  border-radius: var(--app-radius-md);
+  outline: 0;
+  background: var(--app-surface);
+  padding: 0 12px;
+  color: var(--app-on-surface);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 10px;
+  text-align: center;
+  transition:
+    border-color var(--app-motion-fast),
+    box-shadow var(--app-motion-fast);
+}
+
+.g-login-code::placeholder {
+  color: var(--app-on-surface-variant);
+  opacity: 0.42;
+  letter-spacing: 8px;
+}
+
+.g-login-code:focus {
+  border-color: var(--app-primary);
+  box-shadow: inset 0 0 0 1px var(--app-primary);
+}
+
+.g-login-code-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.g-login-action-divider {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--app-outline);
+}
+
+.g-login-lock {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  margin: 2px auto 0;
+  border-radius: var(--app-radius-md);
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+}
+
+/* ── Success ─────────────────────────────────────────────────────────────── */
+
+.g-login-success {
+  align-items: center;
+  gap: var(--app-space-2);
+  text-align: center;
+}
+
+.g-login-success-icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  margin: var(--app-space-2) 0;
+  border-radius: 50%;
+  background: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
+}
+
+.g-login-success p {
+  color: var(--app-on-surface-variant);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.g-login-tdata {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 18px;
-  color: #5f6368;
-  font-size: 11.5px;
+  gap: 6px;
+  border-radius: var(--app-radius-pill);
+  background: var(--md-sys-color-tertiary-container);
+  padding: 6px 12px;
+  color: var(--md-sys-color-on-tertiary-container);
+  font-size: var(--app-font-size-label);
+  font-weight: 500;
 }
 
-/* Proxy panel */
-
-.tg-login-network {
-  margin-top: 4px;
-  border-top: 1px solid var(--md-surface-container-high);
-  padding-top: 10px;
-}
-
-.tg-login-network summary {
-  display: flex;
+.g-login-success-loading {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  border-radius: 999px;
-  padding: 6px 8px;
-  color: #5f6368;
-  font-size: 11.5px;
-  cursor: pointer;
-  list-style: none;
+  gap: 6px;
+  margin-top: var(--app-space-2);
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-caption);
 }
 
-.tg-login-network summary::-webkit-details-marker {
-  display: none;
+/* ── Proxy panel ─────────────────────────────────────────────────────────── */
+
+.g-login-network {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-container-low);
 }
 
-.tg-login-network summary:hover {
-  background: var(--md-surface-container);
-  color: var(--md-on-surface);
-}
-
-.tg-login-network[open] summary {
-  color: var(--md-primary);
-}
-
-.tg-login-network summary svg {
-  transition: transform 140ms ease;
-}
-
-.tg-login-network[open] summary svg {
-  transform: rotate(180deg);
-}
-
-.tg-login-network-body {
+.g-login-network-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 10px;
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
 }
 
-.tg-login-network-hint {
-  margin: 0;
-  color: #5f6368;
-  font-size: 11px;
-  line-height: 1.45;
+.g-login-network-hint {
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-caption);
+  line-height: 16px;
 }
 
-.tg-login-network-grid {
+.g-login-network-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
-  gap: 9px;
-}
-
-.tg-login-network-grid + .tg-login-network-grid {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--app-space-2);
 }
 
-.tg-login-network .tg-field-label {
-  color: #5f6368;
-}
-
-.tg-login-network .tg-input-wrap {
-  height: 44px;
-  border-radius: 8px;
-  background: var(--md-surface-container);
-}
-
-.tg-login-network .tg-input {
-  color: var(--md-on-surface);
-  font-size: 12.5px;
-}
-
-.tg-login-network .tg-btn {
+.g-login-network-body .g-button {
   align-self: flex-start;
 }
 
-.tg-login-network .tg-field-hint {
-  color: #5f6368;
-}
+/* ── Startup check ───────────────────────────────────────────────────────── */
 
-/* Callouts, scoped to the light card */
-
-.tg-login-card .tg-callout {
-  border-radius: 12px;
-  font-size: 12px;
-}
-
-.tg-login-card .tg-callout[data-tone="error"] {
-  background: var(--md-error-container);
-  color: var(--md-on-error-container);
-}
-
-.tg-login-card .tg-callout[data-tone="info"] {
-  background: var(--md-primary-container);
-  color: var(--md-on-primary-container);
-}
-
-/* Loading */
-
-.tg-login-loading {
+.g-login-loading {
   display: flex;
-  min-height: 100dvh;
+  height: 100%;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  background:
-    radial-gradient(70% 60% at 50% 0%, rgba(168, 199, 250, 0.35), transparent 64%),
-    #f8fafd;
-  color: #5f6368;
+  gap: var(--app-space-4);
+  background: var(--app-bg);
+  color: var(--app-on-surface-variant);
 }
 
-.tg-login-loading-mark {
+.g-login-loading-mark {
   display: grid;
-  width: 88px;
-  height: 88px;
+  width: 72px;
+  height: 72px;
   place-items: center;
-  border-radius: 26px;
-  background: #ffffff;
-  box-shadow: var(--md-shadow);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-primary-container);
 }
 
-.tg-login-loading p {
-  margin: 0;
-  font-size: 12.5px;
+.g-login-loading p {
+  font-size: var(--app-font-size-label);
+  line-height: var(--app-line-height-label);
 }
 
-/* Responsive */
+/* ── Responsive ──────────────────────────────────────────────────────────── */
 
-@media (max-width: 980px) {
-  .tg-login-aside {
-    width: 40%;
-    min-width: 290px;
-    padding: 38px 32px 28px;
+@media (max-width: 520px) {
+  .g-login-main {
+    gap: var(--app-space-3);
+    padding: var(--app-space-4) var(--app-space-3) var(--app-space-3);
   }
 
-  .tg-login-aside-copy h1 {
-    font-size: 32px;
+  .g-login-card {
+    max-height: calc(100dvh - 132px);
+    border: 0;
+    border-radius: var(--app-radius-lg);
+    padding: var(--app-space-5) var(--app-space-4);
+    box-shadow: none;
   }
 
-  .tg-login-features {
-    gap: 15px;
+  .g-login-step h2 {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .g-login-qr-shell {
+    width: 200px;
+    height: 200px;
   }
 }
 
-@media (max-width: 860px) {
-  .tg-login-page {
-    overflow-y: auto;
+@media (max-height: 620px) {
+  .g-login-main {
+    gap: var(--app-space-2);
+    padding: var(--app-space-2) var(--app-space-4);
   }
 
-  .tg-login-aside {
+  .g-login-card {
+    max-height: calc(100dvh - 130px);
+    padding: var(--app-space-3) var(--app-space-5);
+  }
+
+  .g-login-step {
+    gap: var(--app-space-1);
+  }
+
+  .g-login-qr {
+    gap: 2px;
+  }
+
+  .g-login-qr-body {
+    gap: 6px;
+  }
+
+  .g-login-qr-body .g-login-heading p {
     display: none;
   }
 
-  .tg-login-main {
-    display: flex;
-    min-height: 100dvh;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 32px 18px;
+  .g-login-qr-shell {
+    width: 160px;
+    height: 160px;
+    padding: 10px;
   }
 
-  .tg-login-mobile-brand {
-    display: flex;
+  .g-login-qr-shell svg {
+    width: 100%;
+    height: 100%;
   }
 
-  .tg-login-card {
-    width: min(420px, 100%);
-  }
-}
-
-@media (max-width: 480px) {
-  .tg-login-main {
-    justify-content: flex-start;
-    padding: 24px 14px;
+  .g-login-qr-mark {
+    width: 36px;
+    height: 36px;
+    border-width: 3px;
   }
 
-  .tg-login-card {
-    border-radius: 24px;
-    padding: 24px 20px 20px;
-    box-shadow: var(--md-shadow-low);
-  }
-
-  .tg-login-phone-field {
-    grid-template-columns: 118px minmax(0, 1fr);
-  }
-
-  .tg-login-qr-shell {
-    width: min(228px, 80vw);
-    height: min(228px, 80vw);
-  }
-
-  .tg-country-popover {
-    width: 296px;
+  .g-login-status-chip {
+    padding: 4px 10px;
   }
 }
 
-@media (max-height: 660px) and (min-width: 861px) {
-  .tg-login-aside {
-    padding-top: 30px;
-    padding-bottom: 24px;
+@media (max-height: 460px) {
+  .g-login-brand {
+    display: none;
   }
 
-  .tg-login-features {
-    margin-top: 24px;
-    gap: 12px;
+  .g-login-card {
+    max-height: calc(100dvh - 80px);
+    padding: var(--app-space-2) var(--app-space-4);
   }
 
-  .tg-login-aside-copy {
-    margin-top: 28px;
+  .g-login-qr-shell {
+    width: 140px;
+    height: 140px;
+    padding: 8px;
+  }
+
+  .g-login-qr-mark {
+    width: 32px;
+    height: 32px;
   }
 }

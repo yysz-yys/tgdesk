@@ -1,82 +1,86 @@
 import type { ReactNode } from "react";
-import { IconBolt, IconCloudDownload, IconShieldLock } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import type { AppSettings } from "../../hooks/useSettings";
+import { Icon } from "../ui/Icon";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "../ui/Menu";
 import { BrandMark } from "./BrandMark";
 
-type LoginSurface = "welcome" | "qr" | "form" | "success";
+export type LoginLanguage = AppSettings["language"];
+
+const LANGUAGE_NAMES: Record<"en" | "zh" | "ja", string> = {
+  en: "English",
+  zh: "简体中文",
+  ja: "日本語",
+};
 
 interface LoginShellProps {
-  surface: LoginSurface;
   children: ReactNode;
+  language: LoginLanguage;
+  onLanguageChange: (language: LoginLanguage) => void;
 }
 
-export function LoginShell({ surface, children }: LoginShellProps) {
-  const { t } = useTranslation();
+/**
+ * Minimal sign-in surface: one brand lockup, one card, one footer. The language
+ * menu is the only chrome outside the card. It offers "follow system" plus all
+ * three supported locales, and changes are persisted through AppSettings.
+ */
+export function LoginShell({ children, language, onLanguageChange }: LoginShellProps) {
+  const { t, i18n } = useTranslation();
+  const resolved = (i18n.resolvedLanguage ?? "en") as keyof typeof LANGUAGE_NAMES;
+  const currentName = LANGUAGE_NAMES[resolved] ?? LANGUAGE_NAMES.en;
+  const languageLabel =
+    language === "system"
+      ? `${t("common.systemDefault")} · ${currentName}`
+      : currentName;
 
   return (
-    <div className="tg-login-page" data-surface={surface}>
-      <aside className="tg-login-aside" aria-hidden="false">
-        <div className="tg-login-aside-glow tg-login-aside-glow-one" />
-        <div className="tg-login-aside-glow tg-login-aside-glow-two" />
-
-        <div className="tg-login-brand">
-          <span className="tg-login-brand-mark">
-            <BrandMark size={64} />
-          </span>
-          <div className="tg-login-brand-text">
-            <strong>{t("login.brandTitle")}</strong>
-            <span>{t("login.brandNote")}</span>
-          </div>
+    <div className="g-login">
+      <main className="g-login-main">
+        <div className="g-login-brand">
+          <BrandMark size={36} alt="" />
+          <span className="g-login-wordmark">tgdesk</span>
         </div>
 
-        <div className="tg-login-aside-copy">
-          <h1>{t("login.asideTitle")}</h1>
-          <p>{t("login.brandSubtitle")}</p>
-        </div>
+        <section className="g-login-card" aria-label={t("login.title")}>
+          {children}
+        </section>
 
-        <ul className="tg-login-features">
-          <li>
-            <span className="tg-login-feature-icon">
-              <IconBolt size={17} />
-            </span>
-            <div>
-              <strong>{t("login.featureFastTitle")}</strong>
-              <span>{t("login.featureFastDesc")}</span>
-            </div>
-          </li>
-          <li>
-            <span className="tg-login-feature-icon">
-              <IconCloudDownload size={17} />
-            </span>
-            <div>
-              <strong>{t("login.featureDownloadsTitle")}</strong>
-              <span>{t("login.featureDownloadsDesc")}</span>
-            </div>
-          </li>
-          <li>
-            <span className="tg-login-feature-icon">
-              <IconShieldLock size={17} />
-            </span>
-            <div>
-              <strong>{t("login.featureSecureTitle")}</strong>
-              <span>{t("login.featureSecureDesc")}</span>
-            </div>
-          </li>
-        </ul>
-
-        <div className="tg-login-aside-footer">
-          <span>{t("login.brandFooter")}</span>
-          <span className="tg-login-aside-dot" />
-          <span>AGPL-3.0</span>
+        <div className="g-login-footer">
+          <Menu>
+            <MenuTrigger asChild>
+              <button
+                type="button"
+                className="g-login-language"
+                aria-label={`${t("login.language")}: ${languageLabel}`}
+              >
+                <Icon name="language" size={16} />
+                <span>{languageLabel}</span>
+                <Icon name="expand_more" size={15} />
+              </button>
+            </MenuTrigger>
+            <MenuContent align="start" side="top">
+              <MenuLabel>{t("login.language")}</MenuLabel>
+              <MenuItem
+                selected={language === "system"}
+                onSelect={() => onLanguageChange("system")}
+              >
+                {t("common.systemDefault")}
+              </MenuItem>
+              <MenuSeparator />
+              {(["en", "zh", "ja"] as const).map((code) => (
+                <MenuItem
+                  key={code}
+                  selected={language === code}
+                  onSelect={() => onLanguageChange(code)}
+                >
+                  {LANGUAGE_NAMES[code]}
+                </MenuItem>
+              ))}
+            </MenuContent>
+          </Menu>
+          <span className="g-login-footer-dot" />
+          <span>{t("login.footerReal")}</span>
         </div>
-      </aside>
-
-      <main className="tg-login-main">
-        <div className="tg-login-mobile-brand">
-          <BrandMark size={40} />
-          <span>{t("login.brandTitle")}</span>
-        </div>
-        <div className="tg-login-card">{children}</div>
       </main>
     </div>
   );

@@ -1,90 +1,90 @@
-import { IconChevronDown } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import type { AppSettings } from "../../hooks/useSettings";
 import { Button } from "../ui/Button";
 import { SelectField } from "../ui/SelectField";
 import { TextField } from "../ui/TextField";
-import type { AppSettings } from "../../hooks/useSettings";
 
 interface LoginNetworkSettingsProps {
   settings: AppSettings;
   onUpdate: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   onApply: () => void;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  open: boolean;
 }
 
+/**
+ * Inline proxy editor used by both sign-in steps. The toolbar owns the
+ * disclosure button, so the panel intentionally has no second summary row.
+ */
 export function LoginNetworkSettings({
   settings,
   onUpdate,
   onApply,
   open,
-  onOpenChange,
 }: LoginNetworkSettingsProps) {
   const { t } = useTranslation();
 
+  if (!open) {
+    return null;
+  }
+
   return (
-    <details
-      className="tg-login-network"
-      open={open}
-      onToggle={(event) => onOpenChange?.(event.currentTarget.open)}
-    >
-      <summary>
-        <span>{t("login.networkSettings")}</span>
-        <IconChevronDown size={15} stroke={1.8} />
-      </summary>
-      <div className="tg-login-network-body">
-        <p className="tg-login-network-hint">{t("login.networkHint")}</p>
+    <div className="g-login-network g-login-network--inline">
+      <div className="g-login-network-body">
+        <p className="g-login-network-hint">{t("login.networkHint")}</p>
         <SelectField
           label={t("settings.network.proxyType")}
           value={settings.proxyType}
-          onChange={(event) =>
-            onUpdate("proxyType", event.target.value as AppSettings["proxyType"])
+          onValueChange={(value) =>
+            onUpdate("proxyType", value as AppSettings["proxyType"])
           }
-        >
-          <option value="none">{t("settings.network.none")}</option>
-          <option value="socks5">{t("settings.network.socks5")}</option>
-          <option value="http">{t("settings.network.http")}</option>
-        </SelectField>
+          options={[
+            { value: "none", label: t("settings.network.none") },
+            { value: "socks5", label: t("settings.network.socks5") },
+            { value: "http", label: t("settings.network.http") },
+          ]}
+        />
 
         {settings.proxyType !== "none" ? (
           <>
-            <div className="tg-login-network-grid">
+            <div className="g-login-network-grid">
               <TextField
                 label={t("settings.network.host")}
                 value={settings.proxyHost}
-                onChange={(event) => onUpdate("proxyHost", event.target.value)}
+                onValueChange={(value) => onUpdate("proxyHost", value)}
                 placeholder="127.0.0.1"
-                spellCheck={false}
+                autoComplete="off"
               />
               <TextField
                 label={t("settings.network.port")}
                 value={settings.proxyPort}
-                onChange={(event) => onUpdate("proxyPort", event.target.value)}
+                onValueChange={(value) => onUpdate("proxyPort", value)}
                 placeholder="1080"
                 inputMode="numeric"
+                autoComplete="off"
               />
             </div>
-            <div className="tg-login-network-grid">
+            <div className="g-login-network-grid">
               <TextField
                 label={t("settings.network.username")}
                 value={settings.proxyUser}
-                onChange={(event) => onUpdate("proxyUser", event.target.value)}
-                spellCheck={false}
+                onValueChange={(value) => onUpdate("proxyUser", value)}
+                autoComplete="off"
               />
               <TextField
                 label={t("settings.network.password")}
                 type="password"
                 value={settings.proxyPass}
-                onChange={(event) => onUpdate("proxyPass", event.target.value)}
+                onValueChange={(value) => onUpdate("proxyPass", value)}
+                autoComplete="off"
               />
             </div>
           </>
         ) : null}
 
-        <Button variant="secondary" size="sm" onClick={onApply}>
+        <Button variant="tonal" size="sm" icon="sync" onClick={onApply}>
           {t("login.applyNetwork")}
         </Button>
       </div>
-    </details>
+    </div>
   );
 }

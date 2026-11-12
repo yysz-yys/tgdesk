@@ -13,8 +13,12 @@ import {
 import type { DownloadTaskDTO } from "../bindings/tgdesk/internal/kernel/models";
 import type { AuthUser, Chat, DownloadEvent, DownloadTask, TaskStatus } from "./types";
 import { useSettings, type AppSettings } from "./hooks/useSettings";
+import { useTheme } from "./hooks/useTheme";
 import { TooltipProvider } from "./components/ui/Tooltip";
+import { Toast } from "./components/ui/Toast";
+import { EmptyState } from "./components/ui/EmptyState";
 import { Sidebar } from "./components/layout/Sidebar";
+import { NavigationRail } from "./components/layout/NavigationRail";
 import { ChatView } from "./components/chat/ChatView";
 import { DownloadsView } from "./components/downloads/DownloadsView";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -61,6 +65,7 @@ function buildProxy(settings: AppSettings): string {
 export default function App() {
   const { t, i18n } = useTranslation();
   const { settings, update } = useSettings();
+  useTheme(settings.theme);
   const [authChecked, setAuthChecked] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -143,6 +148,24 @@ export default function App() {
 
   useEffect(() => {
     setSelectedIds(new Set());
+  }, [selectedChatId]);
+
+  // Opening a conversation clears its local unread badge. Telegram read state
+  // is still backend-owned; this only keeps the shell honest until the read
+  // API is available.
+  useEffect(() => {
+    if (!selectedChatId) {
+      return;
+    }
+    setChatDTOs((current) => {
+      const selected = current.find((chat) => chat.id === selectedChatId);
+      if (!selected?.unread) {
+        return current;
+      }
+      return current.map((chat) =>
+        chat.id === selectedChatId ? { ...chat, unread: 0 } : chat,
+      );
+    });
   }, [selectedChatId]);
 
   useEffect(() => {
@@ -578,29 +601,18 @@ export default function App() {
 
   return (
     <TooltipProvider delayDuration={350}>
-      <div className="app-shell">
-        <Sidebar
-          chats={filteredChats}
-          selectedChatId={selectedChatId}
+      <div className="g-app-shell">
+        <NavigationRail
           view={view}
-          query={query}
-          onQueryChange={setQuery}
-          onSelectChat={openChat}
-          onSelectDownloads={openDownloads}
-          onTogglePin={togglePin}
-          onToggleMute={toggleMute}
-          onMarkRead={markRead}
-          onDownloadAll={downloadAll}
+          activeDownloads={active.length}
+          onChats={() => setView("chats")}
+          onDownloads={openDownloads}
           onSettings={() => setSettingsOpen(true)}
           onLogout={handleLogout}
-          onToast={showToast}
           accountName={authUser?.displayName ?? t("settings.general.telegramAccount")}
           accountInitials={authUser?.initials ?? "T"}
           accountColor={authUser?.color ?? "#65aadd"}
           accountRestricted={authUser?.restricted}
-          accountRestriction={authUser?.restriction}
-          loading={chatsLoading}
-          failed={chatsFailed}
         />
 
         {view === "downloads" ? (
@@ -617,41 +629,71 @@ export default function App() {
             onClearCompleted={clearCompleted}
             onOpenDownloadFolder={openDownloadFolder}
           />
-        ) : selectedChat ? (
-          <ChatView
-            chat={selectedChat}
-            messages={messages}
-            selectedIds={selectedIds}
-            onToggleSelect={toggleSelect}
-            onDownloadMessage={(id) => {
-              if (selectedChat) {
-                void queueDownloads(selectedChat, [id]);
-              }
-            }}
-            onLoadThumbnail={loadThumbnail}
-            onClearSelection={() => setSelectedIds(new Set())}
-            onSelectAll={selectAll}
-            onDownloadSelected={downloadSelected}
-            onDownloadAll={() => downloadAll(selectedChat)}
-            onSendMessage={sendMessage}
-            onToast={showToast}
-            enterToSend={settings.enterToSend}
-            loading={messagesLoading}
-            failed={messagesFailed}
-          />
         ) : (
-          <div className="empty-state">
-            <div className="empty-title">
-              {chatsLoading
-                ? t("chat.loadingChats")
-                : chatsFailed
-                  ? t("chat.loadChatsFailed")
-                  : t("chat.noChats")}
-            </div>
-            {!chatsLoading && !chatsFailed && (
-              <div className="empty-copy">{t("chat.noChatsDesc")}</div>
+          <>
+            <Sidebar
+              chats={filteredChats}
+              selectedChatId={selectedChatId}
+              query={query}
+              onQueryChange={setQuery}
+              onSelectChat={openChat}
+              onSelectDownloads={openDownloads}
+              onTogglePin={togglePin}
+              onToggleMute={toggleMute}
+              onMarkRead={markRead}
+              onDownloadAll={downloadAll}
+              onSettings={() => setSettingsOpen(true)}
+              onLogout={handleLogout}
+              onToast={showToast}
+              accountRestricted={authUser?.restricted}
+              accountRestriction={authUser?.restriction}
+              loading={chatsLoading}
+              failed={chatsFailed}
+            />
+
+            {selectedChat ? (
+              <ChatView
+                chat={selectedChat}
+                messages={messages}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                onDownloadMessage={(id) => {
+                  if (selectedChat) {
+                    void queueDownloads(selectedChat, [id]);
+                  }
+                }}
+                onLoadThumbnail={loadThumbnail}
+                onClearSelection={() => setSelectedIds(new Set())}
+                onSelectAll={selectAll}
+                onDownloadSelected={downloadSelected}
+                onDownloadAll={() => downloadAll(selectedChat)}
+                onSendMessage={sendMessage}
+                onToast={showToast}
+                enterToSend={settings.enterToSend}
+                loading={messagesLoading}
+                failed={messagesFailed}
+                selfName={authUser?.displayName ?? t("chat.you")}
+                selfInitials={authUser?.initials ?? "Y"}
+                selfColor={authUser?.color ?? "#7cacf8"}
+              />
+            ) : (
+              <main className="g-app-main">
+                <EmptyState
+                  icon={chatsLoading ? "hourglass_top" : chatsFailed ? "cloud_off" : "forum"}
+                  title={
+                    chatsLoading
+                      ? t("chat.loadingChats")
+                      : chatsFailed
+                        ? t("chat.loadChatsFailed")
+                        : t("chat.noChats")
+                  }
+                  description={
+                    !chatsLoading && !chatsFailed ? t("chat.noChatsDesc") : undefined
+                  }
+                />
+              </main>
             )}
-          </div>
+          </>
         )}
       </div>
 
@@ -660,9 +702,10 @@ export default function App() {
         onOpenChange={setSettingsOpen}
         settings={settings}
         onUpdate={update}
+        onOpenDownloadFolder={openDownloadFolder}
       />
 
-      {toastMessage && <div className="toast">{toastMessage}</div>}
+      {toastMessage ? <Toast message={toastMessage} /> : null}
     </TooltipProvider>
   );
 }

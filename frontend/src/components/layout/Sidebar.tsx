@@ -1,15 +1,8 @@
 import { useTranslation } from "react-i18next";
-import {
-  IconDownload,
-  IconLogout,
-  IconMenu2,
-  IconSearch,
-  IconSettings,
-  IconX,
-} from "@tabler/icons-react";
 import type { Chat } from "../../types";
-import { Avatar } from "../ui/Avatar";
+import { Icon } from "../ui/Icon";
 import { IconButton } from "../ui/IconButton";
+import { PaneHeader } from "../ui/PaneHeader";
 import {
   Menu,
   MenuContent,
@@ -17,13 +10,12 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from "../ui/Menu";
+import { SearchField } from "../ui/SearchField";
 import { ChatRow } from "../chat/ChatRow";
-import "./sidebar.css";
 
 interface SidebarProps {
   chats: Chat[];
   selectedChatId: string;
-  view: "chats" | "downloads";
   query: string;
   onQueryChange: (value: string) => void;
   onSelectChat: (id: string) => void;
@@ -35,9 +27,6 @@ interface SidebarProps {
   onSettings: () => void;
   onLogout: () => void;
   onToast: (message: string) => void;
-  accountName: string;
-  accountInitials: string;
-  accountColor: string;
   accountRestricted?: boolean;
   accountRestriction?: string;
   loading?: boolean;
@@ -47,7 +36,6 @@ interface SidebarProps {
 export function Sidebar({
   chats,
   selectedChatId,
-  view,
   query,
   onQueryChange,
   onSelectChat,
@@ -59,115 +47,107 @@ export function Sidebar({
   onSettings,
   onLogout,
   onToast,
-  accountName,
-  accountInitials,
-  accountColor,
   accountRestricted,
   accountRestriction,
   loading,
   failed,
 }: SidebarProps) {
   const { t } = useTranslation();
-  const emptyText = loading
-    ? t("chat.loadingChats")
-    : failed
-      ? t("chat.loadChatsFailed")
-      : query
-        ? t("sidebar.noMatches", { query })
-        : t("chat.noChats");
+  const emptyText = failed
+    ? t("chat.loadChatsFailed")
+    : query
+      ? t("sidebar.noMatches", { query })
+      : t("chat.noChats");
 
   return (
-    <aside className="sidebar" aria-label={t("sidebar.chats")}>
-      <div className="sidebar-header">
-        <Menu>
-          <MenuTrigger asChild>
-            <button type="button" className="icon-button" aria-label={t("sidebar.menu")}>
-              <IconMenu2 size={22} stroke={1.8} />
-            </button>
-          </MenuTrigger>
-          <MenuContent>
-            <MenuItem icon={<IconSettings size={16} />} onSelect={onSettings}>
-              {t("common.settings")}
-            </MenuItem>
-            <MenuItem icon={<IconDownload size={16} />} onSelect={onSelectDownloads}>
-              {t("sidebar.downloads")}
-            </MenuItem>
-            <MenuSeparator />
-            <MenuItem icon={<IconLogout size={16} />} onSelect={onLogout} danger>
-              {t("common.logOut")}
-            </MenuItem>
-          </MenuContent>
-        </Menu>
+    <aside className="g-sidebar" aria-label={t("sidebar.chats")}>
+      <PaneHeader
+        className="g-sidebar-header"
+        title={t("sidebar.chats")}
+        actions={
+          <Menu>
+            <MenuTrigger asChild>
+              <IconButton
+                label={t("sidebar.menu")}
+                icon="more_vert"
+                tooltip={false}
+              />
+            </MenuTrigger>
+            <MenuContent align="end">
+              <MenuItem icon={<Icon name="download" size={18} />} onSelect={onSelectDownloads}>
+                {t("sidebar.downloads")}
+              </MenuItem>
+              <MenuItem icon={<Icon name="settings" size={18} />} onSelect={onSettings}>
+                {t("common.settings")}
+              </MenuItem>
+              <MenuSeparator />
+              <MenuItem icon={<Icon name="logout" size={18} />} onSelect={onLogout} danger>
+                {t("common.logOut")}
+              </MenuItem>
+            </MenuContent>
+          </Menu>
+        }
+      />
 
-        <div className="search-box">
-          <IconSearch size={18} stroke={1.8} />
-          <input
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder={t("sidebar.searchPlaceholder")}
-            aria-label={t("sidebar.searchChats")}
-          />
-          {query ? (
-            <button
-              type="button"
-              className="search-clear"
-              onClick={() => onQueryChange("")}
-              aria-label={t("sidebar.clearSearch")}
-            >
-              <IconX size={15} />
-            </button>
-          ) : null}
-        </div>
+      <div className="g-sidebar-search">
+        <SearchField
+          value={query}
+          onValueChange={onQueryChange}
+          placeholder={t("sidebar.searchPlaceholder")}
+          label={t("sidebar.searchChats")}
+          clearLabel={t("sidebar.clearSearch")}
+        />
       </div>
 
       {accountRestricted ? (
         <button
           type="button"
-          className="sidebar-warning"
+          className="g-restricted-banner"
           onClick={() => onToast(accountRestriction || t("sidebar.restrictedDetail"))}
         >
-          <span className="sidebar-warning-title">{t("sidebar.restricted")}</span>
-          <span className="sidebar-warning-link">{t("sidebar.restrictedDetails")} ›</span>
+          <Icon name="error" size={20} filled />
+          <span>
+            <strong>{t("sidebar.restricted")}</strong>
+            <small>{t("sidebar.restrictedDetails")}</small>
+          </span>
         </button>
       ) : null}
 
-      <div className="sidebar-scroll">
-        <div className="chat-list">
-          {chats.map((chat) => (
-            <ChatRow
-              key={chat.id}
-              chat={chat}
-              active={view === "chats" && selectedChatId === chat.id}
-              onSelect={onSelectChat}
-              onTogglePin={onTogglePin}
-              onToggleMute={onToggleMute}
-              onMarkRead={onMarkRead}
-              onDownloadAll={onDownloadAll}
-              onToast={onToast}
-            />
-          ))}
-
-          {chats.length === 0 ? <div className="sidebar-empty">{emptyText}</div> : null}
-        </div>
-      </div>
-
-      <div className="sidebar-footer">
-        <Avatar
-          title={accountName}
-          initials={accountInitials}
-          color={accountColor}
-          size={34}
-        />
-        <div className="account-copy">
-          <div className="account-name">{accountName}</div>
-          <div className="account-status">
-            <span className="online-dot" />
-            {t("chat.online")}
+      <div className="g-sidebar-scroll">
+        {loading ? (
+          <div className="g-chat-list" aria-busy="true" aria-label={t("chat.loadingChats")}>
+            {Array.from({ length: 9 }).map((_, index) => (
+              <div className="g-chat-skeleton" key={index} aria-hidden="true">
+                <span className="g-chat-skeleton-avatar" />
+                <span className="g-chat-skeleton-copy">
+                  <span style={{ width: `${48 + ((index * 13) % 30)}%` }} />
+                  <span style={{ width: `${70 + ((index * 7) % 24)}%` }} />
+                </span>
+              </div>
+            ))}
           </div>
-        </div>
-        <IconButton label={t("common.settings")} onClick={onSettings}>
-          <IconSettings size={20} />
-        </IconButton>
+        ) : chats.length > 0 ? (
+          <div className="g-chat-list">
+            {chats.map((chat) => (
+              <ChatRow
+                key={chat.id}
+                chat={chat}
+                active={selectedChatId === chat.id}
+                onSelect={onSelectChat}
+                onTogglePin={onTogglePin}
+                onToggleMute={onToggleMute}
+                onMarkRead={onMarkRead}
+                onDownloadAll={onDownloadAll}
+                onToast={onToast}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="g-sidebar-empty">
+            <Icon name={query ? "search_off" : failed ? "cloud_off" : "forum"} size={28} />
+            <p>{emptyText}</p>
+          </div>
+        )}
       </div>
     </aside>
   );

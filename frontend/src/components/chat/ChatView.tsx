@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { IconLoader2 } from "@tabler/icons-react";
 import type { Chat, Message } from "../../types";
+import { EmptyState } from "../ui/EmptyState";
+import { Spinner } from "../ui/Spinner";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { ChatSearchBar } from "./ChatSearchBar";
 import { ChannelBar } from "./ChannelBar";
 import { MessageList } from "./MessageList";
 import { SelectionBar } from "./SelectionBar";
-import "./chat.css";
 
 interface ChatViewProps {
   chat: Chat;
@@ -26,6 +26,9 @@ interface ChatViewProps {
   enterToSend: boolean;
   loading?: boolean;
   failed?: boolean;
+  selfName: string;
+  selfInitials: string;
+  selfColor: string;
 }
 
 export function ChatView({
@@ -44,6 +47,9 @@ export function ChatView({
   enterToSend,
   loading,
   failed,
+  selfName,
+  selfInitials,
+  selfColor,
 }: ChatViewProps) {
   const { t } = useTranslation();
   const selectedCount = selectedIds.size;
@@ -68,7 +74,7 @@ export function ChatView({
   }, [messages, query]);
 
   return (
-    <main className="main-pane tg-chat-pane">
+    <main className="g-chat-pane" aria-label={chat.title}>
       <ChatHeader
         chat={chat}
         searchOpen={searchOpen}
@@ -94,23 +100,29 @@ export function ChatView({
         />
       ) : null}
 
-      <div className="tg-chat-message-area">
+      <div className="g-chat-canvas">
         {loading ? (
-          <div className="message-status">
-            <IconLoader2 className="login-spin" size={22} />
+          <div className="g-chat-status">
+            <Spinner size={24} label={t("chat.loadingMessages")} />
             <span>{t("chat.loadingMessages")}</span>
           </div>
         ) : failed ? (
-          <div className="message-status">
-            <span>{t("chat.loadMessagesFailed")}</span>
-          </div>
+          <EmptyState icon="cloud_off" title={t("chat.loadMessagesFailed")} />
         ) : query && filteredMessages.length === 0 ? (
-          <div className="message-status">
-            <span>{t("chat.noSearchResults", { query: searchQuery.trim() })}</span>
-          </div>
+          <EmptyState
+            icon="search_off"
+            title={t("chat.noSearchResults", { query: searchQuery.trim() })}
+            description={t("chat.searchLoadedHint")}
+          />
         ) : (
           <MessageList
             chatId={chat.id}
+            chatTitle={chat.title}
+            chatInitials={chat.initials}
+            chatColor={chat.color}
+            selfName={selfName}
+            selfInitials={selfInitials}
+            selfColor={selfColor}
             messages={filteredMessages}
             selectedIds={selectedIds}
             showSender={chat.kind === "group"}

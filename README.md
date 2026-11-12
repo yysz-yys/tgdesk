@@ -4,12 +4,13 @@ Windows-first desktop shell for [tdl](https://github.com/iyear/tdl), built with
 Wails v3, React 19 and TypeScript. tdl and gotd are consumed as Go modules; the
 upstream projects are **not forked or patched**.
 
-The UI keeps two working surfaces: the chat list/conversation and the download
-queue. Login (welcome, QR/phone, 2FA) is the entry point and uses a Google
-Material 3 surface; the working chat shell keeps a Telegram Desktop-style dark
-palette at a 1107×725 reference client area. A small settings sheet only exposes
-options those features use: language, send-on-Enter, download
-folder/threads/file-name template, proxy and NTP.
+The UI uses one Google Material 3 / Google Workspace visual language across
+login, conversations, downloads and settings: Roboto, Google's Material Web
+components, Material Symbols Rounded, the Workspace colour roles, a navigation
+rail and 64px app bars. Light and dark themes share the same tokens. The
+reference client area is 1107×725. A settings sheet only exposes options those
+features use: language, theme, send-on-Enter, download folder/threads/file-name
+template, proxy and NTP.
 
 ![tgdesk login](docs/assets/ui-login-current.png)
 
@@ -17,10 +18,11 @@ folder/threads/file-name template, proxy and NTP.
 
 Working end to end against real Telegram data:
 
-- Welcome → QR / phone → code → 2FA login, import from official Telegram Desktop
-  `tdata`, and export a compatible no-passcode `tdata` after login. The login
-  screen uses a Google Material 3 styled surface with a searchable country-code
-  picker, resendable codes and QR expiry feedback.
+- QR-first login with phone-number fallback and a Chinese/English/Japanese
+  language menu. A valid `tdata` next to the executable is imported and opens
+  the chat shell directly; after a successful login tgdesk writes an
+  official-compatible no-passcode `tdata`. The login card also offers a
+  searchable country-code picker, resendable codes and QR expiry feedback.
 - Real dialog list and recent history (latest 50 messages per open).
 - Plain-text message sending.
 - Byte-resumable media downloads with pause, resume and cancel.
@@ -138,10 +140,11 @@ frontend/src/
   App.tsx                   app shell, state, effects, event handlers
   components/auth/          Material 3 login steps, country picker, logo
   components/chat/          chat view, rows, header, composer, search, media
-  components/layout/        title bar and sidebar
-  components/settings/      settings sheet + form controls
+  components/layout/        window title bar, navigation rail, conversation list
+  components/settings/      settings sheet
   components/downloads/     download manager
-  components/ui/            Button, TextField, Menu, Avatar, Tooltip, …
+  components/ui/            shared Material 3 primitives; feature code imports these
+  styles/                   design tokens and base element styles
   data/countries.ts          ISO/dial-code table for phone login
   data/telegram.ts          DTO → UI model mapping and date formatting
   hooks/                    settings persistence
@@ -159,7 +162,7 @@ build/                      Wails build assets (Windows metadata/icon)
 - [docs/architecture.md](docs/architecture.md) — layers, data flows, extension points
 - [docs/development.md](docs/development.md) — setup, builds, tests, debugging, UI workflow
 - [docs/data-and-privacy.md](docs/data-and-privacy.md) — portable files, tdata safety, git hygiene
-- [docs/ui.md](docs/ui.md) — Material 3 login and Telegram chat design
+- [docs/ui.md](docs/ui.md) — Material 3 design system, layout and component rules
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contribution and review checklist
 - [CHANGELOG.md](CHANGELOG.md) — milestone summary
 
@@ -214,4 +217,5 @@ belong in git. A detailed checklist is in
 ## License
 
 AGPL-3.0. tdl is AGPL-3.0. This project is not affiliated with or endorsed by
-the tdl maintainer or Telegram.
+the tdl maintainer or Telegram. Third-party components and bundled font
+licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

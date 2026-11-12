@@ -1,13 +1,10 @@
 import { useTranslation } from "react-i18next";
-import {
-  IconDots,
-  IconDownload,
-  IconSearch,
-  IconSelectAll,
-} from "@tabler/icons-react";
 import type { Chat } from "../../types";
+import { Avatar } from "../ui/Avatar";
+import { Icon } from "../ui/Icon";
 import { IconButton } from "../ui/IconButton";
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/Menu";
+import { PaneHeader } from "../ui/PaneHeader";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "../ui/Menu";
 
 interface ChatHeaderProps {
   chat: Chat;
@@ -33,37 +30,65 @@ export function ChatHeader({
       : (chat.members ?? t(chat.kind === "channel" ? "chat.channel" : "chat.group"));
 
   return (
-    <header className="chat-header tg-chat-header">
-      <div className="tg-chat-identity">
-        <span className="chat-header-copy">
-          <span className="chat-header-title">{chat.title}</span>
-          <span className="chat-header-subtitle" data-online={chat.online}>
-            {chat.online ? <span className="online-dot" /> : null}
-            {subtitle}
-          </span>
+    <PaneHeader
+      className="g-chat-header"
+      dense
+      leading={
+        <Avatar
+          title={chat.title}
+          initials={chat.initials}
+          color={chat.color}
+          size={38}
+          online={chat.online}
+        />
+      }
+      title={chat.title}
+      titleAdornment={
+        chat.verified ? (
+          <Icon
+            name="verified"
+            size={16}
+            filled
+            className="g-chat-verified"
+            label={t("chat.verified")}
+          />
+        ) : null
+      }
+      subtitle={
+        <span className={chat.online ? "g-chat-online" : undefined}>
+          {chat.online ? <span className="g-online-dot" /> : null}
+          {subtitle}
         </span>
-      </div>
-
-      <div className="tg-chat-header-actions">
-        <IconButton label={t("chat.searchInChat")} active={searchOpen} onClick={onSearch}>
-          <IconSearch size={21} stroke={1.8} />
-        </IconButton>
-        <Menu>
-          <MenuTrigger asChild>
-            <button type="button" className="icon-button" aria-label={t("chat.chatMenu")}>
-              <IconDots size={21} stroke={1.8} />
-            </button>
-          </MenuTrigger>
-          <MenuContent align="end">
-            <MenuItem icon={<IconSelectAll size={16} />} onSelect={onSelectAll}>
-              {t("chat.selectAll")}
-            </MenuItem>
-            <MenuItem icon={<IconDownload size={16} />} onSelect={onDownloadAll}>
-              {t("chat.downloadAll")}
-            </MenuItem>
-          </MenuContent>
-        </Menu>
-      </div>
-    </header>
+      }
+      actions={
+        <>
+          <IconButton
+            label={t("chat.searchInChat")}
+            icon="search"
+            variant={searchOpen ? "tonal" : "standard"}
+            active={searchOpen}
+            onClick={onSearch}
+          />
+          <Menu>
+            <MenuTrigger asChild>
+              <IconButton
+                label={t("chat.chatMenu")}
+                icon="more_vert"
+                tooltip={false}
+              />
+            </MenuTrigger>
+            <MenuContent align="end">
+              <MenuItem icon={<Icon name="select_all" size={18} />} onSelect={onSelectAll}>
+                {t("chat.selectAll")}
+              </MenuItem>
+              <MenuSeparator />
+              <MenuItem icon={<Icon name="download" size={18} />} onSelect={onDownloadAll}>
+                {t("chat.downloadAll")}
+              </MenuItem>
+            </MenuContent>
+          </Menu>
+        </>
+      }
+    />
   );
 }

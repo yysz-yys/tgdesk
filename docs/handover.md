@@ -28,8 +28,9 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 - 媒体下载：断点续传、暂停/继续/取消、进度事件、任务持久化、缩略图缓存。
 - 设置：语言、Enter 发送、下载目录/并发/线程/模板、代理、NTP。
 - 三语言：English / 简体中文 / 日本語。
-- Google Material 3 风格登录页（Roboto、浅色 surface、药丸按钮、可搜索国家选择器）；
-  聊天主界面保留 Telegram 深色风格。
+- 全前端统一 Google Material 3 / Workspace 视觉（Roboto、Material Web 组件、
+  Material Symbols、导航栏 + 双 pane、明暗主题同一套 token）；登录页与聊天
+  主界面共用设计系统和通用组件。
 
 明确未实现：
 
@@ -50,7 +51,7 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 | tdata 只写 `s` 后缀 | 现代 Telegram Desktop 只保留/优先读取 `s` |
 | 导入按 user id + main DC + key id 去重 | Telegram Desktop 每次启动会重写 `key_data`（新 salt），mtime 不可靠 |
 | 手机号登录自写 `sendCode → signIn → checkPassword` | `auth.Flow` 拿不到验证码类型/长度，也不能优雅重发/重试 |
-| 登录页 Material 3 浅色，聊天 Telegram 深色 | 登录页突出品牌；聊天区保持 Telegram 原生观感 |
+| 全前端统一 Material 3 | 登录页/聊天/下载/设置共用 token 与通用组件，避免拼贴感 |
 | 代理密码不落盘 | 减少凭据泄露面；后续可接 Windows Credential Manager |
 
 ## 4. 代码地图
@@ -74,9 +75,10 @@ frontend/src/
   components/auth/              登录页（Material 3）各步骤 + 国家选择器
   components/chat/              会话视图、消息、媒体、输入框
   components/downloads/         下载管理器
-  components/layout/            TitleBar、Sidebar
-  components/settings/          设置面板（settings-panel + settings-controls）
-  components/ui/                通用原子组件
+  components/layout/            TitleBar、NavigationRail、Sidebar
+  components/settings/          设置 Sheet
+  components/ui/                通用 Material 3 组件（PaneHeader、Button、Menu 等）
+  styles/                       设计 token 与基础样式
   data/countries.ts             224 个国家/地区 + 呼叫前缀
   data/telegram.ts              DTO → UI 模型、日期/媒体格式化
   hooks/useSettings.ts          localStorage 设置
@@ -122,7 +124,7 @@ wails3 build
 
 建议的快速烟测：
 
-1. 用干净的 `TGDESK_HOME` 启动，确认欢迎/二维码/手机号/国家选择器布局。
+1. 用干净的 `TGDESK_HOME` 启动，确认直接进入二维码登录页，并可切换到手机号/国家选择器。
 2. 扫码或手机号登录，完成验证码/2FA。
 3. 确认 exe 同目录生成 `tdata/`（3 类文件）和 `data/tdata-export.json`。
 4. 关闭后重新启动，应直接进入会话列表。

@@ -1,0 +1,595 @@
+/* App chrome: frameless title bar, navigation rail and chat list panel. */
+
+.g-window {
+  display: flex;
+  height: 100dvh;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--app-bg);
+}
+
+.g-window-body {
+  min-height: 0;
+  flex: 1;
+}
+
+/* ── Windows caption bar ─────────────────────────────────────────────────── */
+
+.g-titlebar {
+  position: relative;
+  z-index: 80;
+  display: flex;
+  height: var(--app-titlebar-height);
+  flex: 0 0 var(--app-titlebar-height);
+  align-items: center;
+  justify-content: flex-end;
+  background: var(--app-bg);
+  color: var(--app-on-surface-variant);
+  user-select: none;
+}
+
+.g-titlebar-controls {
+  display: flex;
+  height: 100%;
+  align-items: stretch;
+}
+
+.g-titlebar-controls button {
+  display: grid;
+  width: 46px;
+  height: 100%;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--app-on-surface-variant);
+  cursor: default;
+  transition:
+    background-color var(--app-motion-fast),
+    color var(--app-motion-fast);
+}
+
+.g-titlebar-controls button:hover {
+  background: var(--app-hover);
+  color: var(--app-on-surface);
+}
+
+.g-titlebar-controls .g-titlebar-close:hover {
+  background: #c5221f;
+  color: #fff;
+}
+
+/* ── Shell ───────────────────────────────────────────────────────────────── */
+
+.g-app-shell {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--app-bg);
+}
+
+.g-app-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  background: var(--app-surface);
+}
+
+.g-online-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--app-success);
+}
+
+/* ── Navigation rail ─────────────────────────────────────────────────────── */
+
+.g-rail {
+  display: flex;
+  width: var(--app-rail-width);
+  flex: 0 0 var(--app-rail-width);
+  flex-direction: column;
+  align-items: center;
+  background: var(--app-bg);
+  padding: var(--app-space-2) 0 var(--app-space-3);
+}
+
+.g-rail-brand {
+  display: grid;
+  width: 56px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  margin-bottom: var(--app-space-2);
+}
+
+.g-rail-brand img {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--app-radius-sm);
+}
+
+.g-rail-destinations {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+
+.g-rail-item {
+  display: flex;
+  width: 100%;
+  min-height: 56px;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 0;
+  background: transparent;
+  padding: 4px 0 3px;
+  color: var(--app-on-surface-variant);
+  cursor: pointer;
+}
+
+.g-rail-indicator {
+  position: relative;
+  display: grid;
+  width: 56px;
+  height: 32px;
+  place-items: center;
+  border-radius: var(--app-radius-pill);
+  transition:
+    background-color var(--app-motion-fast),
+    color var(--app-motion-fast);
+}
+
+.g-rail-item:hover .g-rail-indicator {
+  background: var(--app-hover);
+  color: var(--app-on-surface);
+}
+
+.g-rail-item:active .g-rail-indicator {
+  background: var(--app-active);
+}
+
+.g-rail-item[data-active] .g-rail-indicator {
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+}
+
+.g-rail-item[data-active]:hover .g-rail-indicator {
+  background: color-mix(
+    in srgb,
+    var(--app-primary-container) 90%,
+    var(--app-on-primary-container)
+  );
+}
+
+.g-rail-label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--app-font-size-caption);
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.g-rail-item[data-active] .g-rail-label {
+  color: var(--app-on-surface);
+}
+
+.g-rail-badge {
+  position: absolute;
+  top: -4px;
+  right: 7px;
+  display: grid;
+  min-width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 2px solid var(--app-bg);
+  border-radius: var(--app-radius-pill);
+  background: var(--app-error);
+  padding: 0 3px;
+  color: var(--md-sys-color-on-error);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.g-rail-footer {
+  display: flex;
+  margin-top: auto;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.g-rail-account {
+  position: relative;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.g-rail-account:hover {
+  background: var(--app-hover);
+}
+
+.g-rail-account-warning {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 2px solid var(--app-bg);
+  border-radius: 50%;
+  background: var(--app-error);
+  color: var(--md-sys-color-on-error);
+}
+
+.g-account-menu-head {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  padding: var(--app-space-2) var(--app-space-3) var(--app-space-3);
+}
+
+.g-account-menu-name {
+  max-width: 190px;
+  overflow: hidden;
+  font-size: var(--app-font-size-body);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.g-account-menu-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-caption);
+}
+
+/* ── Conversation list ───────────────────────────────────────────────────── */
+
+.g-sidebar {
+  display: flex;
+  width: var(--app-list-width);
+  min-width: 0;
+  flex: 0 0 var(--app-list-width);
+  flex-direction: column;
+  border-right: 1px solid var(--app-outline-variant);
+  background: var(--app-surface);
+}
+
+.g-sidebar > .g-pane-header {
+  border-bottom: 0;
+}
+
+.g-sidebar-header {
+  display: flex;
+  height: 64px;
+  flex: 0 0 64px;
+  align-items: center;
+  gap: var(--app-space-2);
+  padding: 0 var(--app-space-2) 0 var(--app-space-5);
+}
+
+.g-sidebar-title {
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  color: var(--app-on-surface);
+  font-family: var(--app-font-display);
+  font-size: var(--app-font-size-title);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: var(--app-line-height-title);
+}
+
+.g-sidebar-search {
+  padding: 0 var(--app-space-4) var(--app-space-2);
+}
+
+.g-sidebar-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: var(--app-space-2);
+}
+
+.g-chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 var(--app-space-2);
+}
+
+.g-chat-row {
+  display: flex;
+  width: 100%;
+  min-height: 64px;
+  align-items: center;
+  gap: var(--app-space-3);
+  border: 0;
+  border-radius: var(--app-radius-md);
+  background: transparent;
+  padding: var(--app-space-2) var(--app-space-3);
+  color: var(--app-on-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--app-motion-fast);
+}
+
+.g-chat-row:hover {
+  background: var(--app-hover);
+}
+
+.g-chat-row:active {
+  background: var(--app-active);
+}
+
+.g-chat-row[data-active] {
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+}
+
+.g-chat-row[data-active]:hover {
+  background: color-mix(
+    in srgb,
+    var(--app-primary-container) 92%,
+    var(--app-on-primary-container)
+  );
+}
+
+.g-chat-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.g-chat-topline {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+
+.g-chat-title {
+  min-width: 0;
+  overflow: hidden;
+  flex: 0 1 auto;
+  font-size: var(--app-font-size-body);
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.g-chat-verified {
+  flex: 0 0 auto;
+  color: var(--app-primary);
+}
+
+.g-chat-row[data-active] .g-chat-verified {
+  color: var(--app-on-primary-container);
+}
+
+.g-chat-flags {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  color: var(--app-on-surface-variant);
+}
+
+.g-chat-row[data-active] .g-chat-flags {
+  color: var(--app-on-primary-container);
+}
+
+.g-chat-bottomline {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+
+.g-chat-preview {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+  color: var(--app-on-surface-variant);
+  font-size: 13px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.g-chat-row[data-active] .g-chat-preview {
+  color: color-mix(in srgb, var(--app-on-primary-container) 78%, transparent);
+}
+
+.g-chat-row[data-unread] .g-chat-preview {
+  color: var(--app-on-surface);
+  font-weight: 500;
+}
+
+.g-chat-side {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--app-space-1);
+  align-self: stretch;
+  justify-content: center;
+}
+
+.g-chat-time {
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-caption);
+  font-weight: 400;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.g-chat-row[data-active] .g-chat-time {
+  color: color-mix(in srgb, var(--app-on-primary-container) 72%, transparent);
+}
+
+.g-chat-skeleton {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: var(--app-space-3);
+  padding: var(--app-space-2) var(--app-space-3);
+}
+
+.g-chat-skeleton-avatar,
+.g-chat-skeleton-copy span {
+  background: linear-gradient(
+    90deg,
+    var(--app-surface-container) 25%,
+    var(--app-surface-container-high) 37%,
+    var(--app-surface-container) 63%
+  );
+  background-size: 400% 100%;
+  animation: g-skeleton 1.4s ease infinite;
+}
+
+.g-chat-skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+}
+
+.g-chat-skeleton-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.g-chat-skeleton-copy span {
+  display: block;
+  height: 10px;
+  border-radius: var(--app-radius-pill);
+}
+
+@keyframes g-skeleton {
+  from {
+    background-position: 100% 50%;
+  }
+  to {
+    background-position: 0 50%;
+  }
+}
+
+.g-sidebar-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--app-space-2);
+  padding: var(--app-space-10) var(--app-space-6);
+  color: var(--app-on-surface-variant);
+  text-align: center;
+}
+
+.g-sidebar-empty p {
+  max-width: 260px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.g-restricted-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-2);
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  margin: 0 var(--app-space-3) var(--app-space-2);
+  background: var(--md-sys-color-error-container);
+  padding: var(--app-space-3);
+  color: var(--md-sys-color-on-error-container);
+  text-align: left;
+}
+
+.g-restricted-banner span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.g-restricted-banner strong {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.g-restricted-banner small {
+  font-size: var(--app-font-size-caption);
+  line-height: 16px;
+  opacity: 0.85;
+}
+
+@media (max-width: 1120px) {
+  :root {
+    --app-rail-width: 72px;
+    --app-list-width: 336px;
+  }
+}
+
+@media (max-width: 900px) {
+  :root {
+    --app-list-width: 304px;
+  }
+
+  .g-sidebar-header {
+    padding-left: var(--app-space-4);
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --app-rail-width: 64px;
+    --app-list-width: 264px;
+  }
+
+  .g-rail-indicator {
+    width: 48px;
+  }
+
+  .g-sidebar-search {
+    padding-inline: var(--app-space-2);
+  }
+
+  .g-chat-list {
+    padding-inline: var(--app-space-1);
+  }
+
+  .g-chat-row {
+    padding-inline: var(--app-space-2);
+  }
+}

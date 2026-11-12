@@ -1,14 +1,8 @@
 import { useTranslation } from "react-i18next";
-import {
-  IconCheck,
-  IconDownload,
-  IconLink,
-  IconPin,
-  IconRosetteDiscountCheckFilled,
-  IconVolumeOff,
-} from "@tabler/icons-react";
 import type { Chat } from "../../types";
 import { Avatar } from "../ui/Avatar";
+import { Badge } from "../ui/Badge";
+import { Icon } from "../ui/Icon";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -57,8 +51,9 @@ export function ChatRow({
       <ContextMenuTrigger asChild>
         <button
           type="button"
-          className="chat-row"
-          data-active={active}
+          className="g-chat-row"
+          data-active={active || undefined}
+          data-unread={(Boolean(chat.unread) && !active) || undefined}
           aria-current={active ? "page" : undefined}
           onClick={() => onSelect(chat.id)}
         >
@@ -66,59 +61,65 @@ export function ChatRow({
             title={chat.title}
             initials={chat.initials}
             color={chat.color}
-            size={48}
+            size={42}
             online={chat.online}
           />
 
-          <span className="chat-body">
-            <span className="chat-topline">
-              <span className="chat-title">{chat.title}</span>
+          <span className="g-chat-body">
+            <span className="g-chat-topline">
+              <span className="g-chat-title">{chat.title}</span>
               {chat.verified ? (
-                <IconRosetteDiscountCheckFilled
-                  className="chat-verified"
-                  size={14}
-                  aria-label={t("chat.verified")}
+                <Icon
+                  className="g-chat-verified"
+                  name="verified"
+                  size={15}
+                  filled
+                  label={t("chat.verified")}
                 />
               ) : null}
-              <span className="chat-flags">
-                {chat.muted && <IconVolumeOff size={13} stroke={2} />}
-                {chat.pinned && <IconPin className="pin-mark" size={13} stroke={2} />}
-              </span>
             </span>
-            <span className="chat-bottomline">
-              <span className="chat-preview">{chat.preview}</span>
+            <span className="g-chat-bottomline">
+              {chat.muted || chat.pinned ? (
+                <span className="g-chat-flags" aria-hidden="true">
+                  {chat.muted ? <Icon name="notifications_off" size={13} /> : null}
+                  {chat.pinned ? <Icon name="keep" size={13} filled /> : null}
+                </span>
+              ) : null}
+              <span className="g-chat-preview">{chat.preview}</span>
             </span>
           </span>
 
-          <span className="chat-side">
-            <span className="chat-time">{chat.time}</span>
-            {!!chat.unread && (
-              <span className="chat-badge" data-muted={chat.muted}>
-                {chat.unread > 99 ? "99+" : chat.unread}
-              </span>
-            )}
+          <span className="g-chat-side">
+            <span className="g-chat-time">{chat.time}</span>
+            {chat.unread && !active ? <Badge count={chat.unread} muted={chat.muted} /> : null}
           </span>
         </button>
       </ContextMenuTrigger>
 
       <ContextMenuContent>
-        <ContextMenuItem icon={<IconPin size={16} />} onSelect={() => onTogglePin(chat.id)}>
+        <ContextMenuItem
+          icon={<Icon name="keep" size={18} />}
+          onSelect={() => onTogglePin(chat.id)}
+        >
           {chat.pinned ? t("chatMenu.unpin") : t("chatMenu.pin")}
         </ContextMenuItem>
         <ContextMenuItem
-          icon={<IconVolumeOff size={16} />}
+          icon={<Icon name="notifications_off" size={18} />}
           onSelect={() => onToggleMute(chat.id)}
         >
           {chat.muted ? t("chatMenu.unmute") : t("chatMenu.mute")}
         </ContextMenuItem>
-        <ContextMenuItem icon={<IconCheck size={16} />} onSelect={() => onMarkRead(chat.id)}>
+        <ContextMenuItem icon={<Icon name="done_all" size={18} />} onSelect={() => onMarkRead(chat.id)}>
           {t("chatMenu.markRead")}
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem icon={<IconDownload size={16} />} onSelect={() => onDownloadAll(chat)}>
+        <ContextMenuItem
+          icon={<Icon name="download" size={18} />}
+          onSelect={() => onDownloadAll(chat)}
+        >
           {t("chatMenu.downloadAll")}
         </ContextMenuItem>
-        <ContextMenuItem icon={<IconLink size={16} />} onSelect={() => void copyLink()}>
+        <ContextMenuItem icon={<Icon name="link" size={18} />} onSelect={() => void copyLink()}>
           {t("chatMenu.copyLink")}
         </ContextMenuItem>
       </ContextMenuContent>

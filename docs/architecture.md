@@ -96,6 +96,9 @@ tasks) and run in goroutines.
 - Keeps QR/phone/2FA channels for the React steps.
 - Verifies a session only when both the tdl session and the completed-login
   marker exist; an abandoned QR attempt is not "logged in".
+- `AuthStatus` first attempts to import a portable Telegram Desktop `tdata`; a
+  completed imported login is returned as authorized, so the frontend opens the
+  chat shell without showing the login card.
 - Stores the cached `AuthUser` in the session namespace.
 - On success, calls `exportTelegramDesktopTData` and reports the result to the
   UI (best effort: a failed export does not fail the login).
@@ -215,22 +218,23 @@ Component layers:
 - `components/auth` — one component per login step plus `CountryPicker`,
   `LoginLoading`, `BrandMark` and the proxy sub-panel. `LoginShell` owns the
   page surface; `LoginScreen` owns the state machine and `auth:event` handling.
-  This surface uses Google Material 3 tokens, Roboto and a light palette.
 - `components/chat` — conversation is split into header, search, list, bubble,
   media thumb, composer, channel bar and selection bar.
-- `components/layout` — caption bar and sidebar.
-- `components/settings` — settings sheet plus its form-control CSS
-  (`settings-panel.css`, `settings-controls.css`).
-- `components/ui` — generic atoms (`Button`, `TextField`, `Menu`, `Tooltip`,
-  `Avatar`, …). UI-specific CSS is namespaced with `tg-` or a component prefix.
+- `components/layout` — caption bar, navigation rail and conversation list.
+- `components/settings` — settings sheet; it uses the shared `Sheet`,
+  `SegmentedControl`, select, switch, slider and field primitives.
+- `components/ui` — the Material 3 base layer (`PaneHeader`, `Button`,
+  `TextField`, `Menu`, `Sheet`, `SegmentedControl`, `Avatar`, …). Every feature
+  imports these instead of recreating controls.
 
 Styling:
 
-- `app.css` holds the shell/design tokens, including dark and light Telegram
-  palettes; the chat shell defaults to dark.
-- `components/auth/login.css` is the self-contained Material 3 login theme
-  (tokens, Roboto faces, card/inputs/QR/country picker).
-- Component CSS is imported by its owning component.
+- `styles/tokens.css` is the single source of colour, type, spacing, shape and
+  motion tokens. Light and dark Material 3 colour roles are defined together.
+- `styles/base.css` owns element defaults, focus-visible rings, scrollbars and
+  the Material Symbols Rounded helper.
+- `components/ui/ui.css` owns the shared primitive surfaces; feature CSS is
+  layout-only and must not restyle `@material/web` internals.
 - `frontend/src/data/countries.ts` holds the ISO/dial-code table; display names
   are localized at runtime with `Intl.DisplayNames`.
 - Layout is designed for the 1107×725 reference window and verified with CDP

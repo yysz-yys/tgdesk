@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { IconMoodSmile, IconPaperclip, IconSend, IconMicrophone } from "@tabler/icons-react";
 import { IconButton } from "../ui/IconButton";
 import { Spinner } from "../ui/Spinner";
 
@@ -60,16 +59,14 @@ export function ChatComposer({ chatId, onSend, onToast, enterToSend }: ChatCompo
   };
 
   return (
-    <div className="tg-composer">
-      <IconButton
-        label={t("chat.attach")}
-        onClick={() => onToast(t("chat.attachmentsSoon"))}
-        className="tg-composer-tool"
-      >
-        <IconPaperclip size={22} stroke={1.8} />
-      </IconButton>
-
-      <div className="tg-composer-field">
+    <div className="g-composer">
+      <div className="g-composer-field">
+        <IconButton
+          label={t("chat.attach")}
+          icon="add"
+          iconSize={22}
+          onClick={() => onToast(t("chat.attachmentsSoon"))}
+        />
         <textarea
           ref={inputRef}
           rows={1}
@@ -79,7 +76,7 @@ export function ChatComposer({ chatId, onSend, onToast, enterToSend }: ChatCompo
             if (!enterToSend) {
               return;
             }
-            if (event.key === "Enter" && !event.shiftKey) {
+            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
               event.preventDefault();
               void submit();
             }
@@ -89,32 +86,31 @@ export function ChatComposer({ chatId, onSend, onToast, enterToSend }: ChatCompo
         />
         <IconButton
           label={t("chat.emoji")}
-          onClick={() => setText((current) => `${current}🙂`)}
-          className="tg-composer-tool"
-        >
-          <IconMoodSmile size={22} stroke={1.8} />
-        </IconButton>
+          icon="mood"
+          onClick={() => setText((current) => `${current}😊`)}
+        />
+        {text.trim() ? (
+          sending ? (
+            <span className="g-composer-sending">
+              <Spinner size={20} />
+            </span>
+          ) : (
+            <IconButton
+              className="g-composer-send"
+              variant="filled"
+              label={t("chat.send")}
+              icon="send"
+              onClick={() => void submit()}
+            />
+          )
+        ) : (
+          <IconButton
+            label={t("chat.voice")}
+            icon="mic"
+            onClick={() => onToast(t("chat.voiceSoon"))}
+          />
+        )}
       </div>
-
-      {text.trim() ? (
-        <button
-          type="button"
-          className="tg-composer-send"
-          onClick={() => void submit()}
-          disabled={sending}
-          aria-label={t("chat.send")}
-        >
-          {sending ? <Spinner size={20} /> : <IconSend size={21} stroke={2} />}
-        </button>
-      ) : (
-        <IconButton
-          label={t("chat.voice")}
-          onClick={() => onToast(t("chat.voiceSoon"))}
-          className="tg-composer-tool tg-composer-voice"
-        >
-          <IconMicrophone size={22} stroke={1.8} />
-        </IconButton>
-      )}
     </div>
   );
 }

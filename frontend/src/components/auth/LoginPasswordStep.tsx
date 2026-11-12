@@ -1,9 +1,8 @@
-import { IconShieldLock } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button";
 import { Callout } from "../ui/Callout";
+import { Icon } from "../ui/Icon";
 import { TextField } from "../ui/TextField";
-import { Spinner } from "../ui/Spinner";
 
 interface LoginPasswordStepProps {
   password: string;
@@ -30,48 +29,49 @@ export function LoginPasswordStep({
 
   return (
     <form
-      className="tg-login-step"
+      className="g-login-step"
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit();
       }}
     >
-      <span className="tg-login-lock">
-        <IconShieldLock size={22} />
+      <span className="g-login-lock">
+        <Icon name="lock" size={22} />
       </span>
 
-      <header className="tg-login-heading tg-login-heading-center">
-        <span className="tg-login-eyebrow">{t("login.codeEyebrow")}</span>
+      <header className="g-login-heading g-login-heading-center">
         <h2>{t("login.passwordTitle")}</h2>
         <p>{t("login.passwordDescription")}</p>
       </header>
 
       {passwordHint ? (
-        <p className="tg-login-password-hint">
-          {t("login.passwordHint", { hint: passwordHint })}
-        </p>
+        <div className="g-login-code-hint">
+          <span className="g-login-code-hint-icon">
+            <Icon name="key" size={18} />
+          </span>
+          <span>{t("login.passwordHint", { hint: passwordHint })}</span>
+        </div>
       ) : null}
 
       <TextField
         type="password"
+        label={t("login.passwordPlaceholder")}
         value={password}
-        onChange={(event) => onPassword(event.target.value)}
-        placeholder={t("login.passwordPlaceholder")}
+        onValueChange={onPassword}
         autoComplete="current-password"
         autoFocus
-        aria-label={t("login.passwordPlaceholder")}
       />
 
       {error ? <Callout tone="error">{error}</Callout> : null}
 
       <Button
         type="submit"
-        variant="primary"
+        variant="filled"
         size="lg"
         fullWidth
-        disabled={busy || retryIn > 0}
+        loading={busy}
+        disabled={retryIn > 0}
       >
-        {busy ? <Spinner size={17} /> : null}
         {busy
           ? t("login.signingIn")
           : retryIn > 0
@@ -79,7 +79,7 @@ export function LoginPasswordStep({
             : t("login.continue")}
       </Button>
 
-      <button type="button" className="tg-login-text-link" onClick={onBack}>
+      <button type="button" className="g-login-text-link" onClick={onBack}>
         {t("login.startOver")}
       </button>
     </form>

@@ -18,7 +18,7 @@ tgdesk is a Windows-first Wails desktop shell around tdl. Read
 4. **Do not fake UI capability.** If the kernel has no API, render an explicit
    placeholder, disabled state, or "coming soon" explanation.
 5. **Keep the UI atomic.** New screens should be composed from
-   `frontend/src/components/ui` atoms and `tg-*`-namespaced CSS, not a new
+   `frontend/src/components/ui` primitives and `g-*` layout classes, not a new
    monolithic page.
 
 ## Development setup
@@ -83,16 +83,28 @@ message when it is relevant.
 
 ## UI contribution rules
 
-- Login uses **Google Material 3** (Roboto, light surface, pill actions, tonal
-  containers); the chat shell keeps a **Telegram Desktop-style dark** palette.
-  Match the area you are changing instead of mixing the two languages.
-- Prefer measured layout values; record them in [docs/ui.md](docs/ui.md).
-- Icons: Tabler Icons or inline SVG only; do not import unrelated icon packs.
-- Strings: add `en`, `zh`, and `ja` keys together.
+- One visual language everywhere: **Google Material 3 / Google Workspace**,
+  light and dark. Do not reintroduce a separate Telegram palette or a one-off
+  marketing skin.
+- Build screens from `frontend/src/components/ui`. If a primitive is missing,
+  add it there first, then use it in the feature. Feature CSS controls layout
+  only; it must not restyle `@material/web` internals.
+- Consume `frontend/src/styles/tokens.css` for colour, type, spacing, shape,
+  elevation and motion. No raw hex colours or arbitrary radii in feature CSS.
+- Use Roboto (already bundled) and Material Symbols Rounded. Do not add another
+  icon font or an unrelated icon pack.
+- Interaction states follow [docs/ui.md](docs/ui.md): 8% hover, 12% pressed,
+  primary-container selection, visible 2px focus, 40px minimum target.
+- Every pane header uses the shared `PaneHeader`; every icon-only control has an
+  accessible label; search fields are real `type="search"` inputs.
+- Strings: add `en`, `zh`, and `ja` keys together, including window controls and
+  empty/error states.
 - Settings: add the field to `AppSettings`, default it, apply its effect in
-  `App.tsx`, and expose it in the settings sheet.
-- Accessibility: buttons need labels; decorative art should be `aria-hidden`.
-- Keep real screenshots of private chats out of commits.
+  `App.tsx`, and expose it through the shared settings controls.
+- Measure at 1107×725, 840×620 and 640×480 in both themes. Record geometry
+  changes in [docs/ui.md](docs/ui.md).
+- Keep real screenshots of private chats out of commits. Synthetic UI fixtures
+  belong in `temp/`; only login screenshots may live in `docs/assets/`.
 - Bundled fonts live in `frontend/public/fonts` with their license; do not add
   remote font CDN dependencies to the desktop build.
 

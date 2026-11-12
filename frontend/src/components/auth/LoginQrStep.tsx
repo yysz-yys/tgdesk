@@ -1,14 +1,13 @@
 import { useState } from "react";
-import { IconArrowLeft, IconRefresh, IconSettings } from "@tabler/icons-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
+import type { AppSettings } from "../../hooks/useSettings";
 import { Button } from "../ui/Button";
 import { Callout } from "../ui/Callout";
-import { IconButton } from "../ui/IconButton";
+import { Icon } from "../ui/Icon";
 import { Spinner } from "../ui/Spinner";
 import { BrandMark } from "./BrandMark";
 import { LoginNetworkSettings } from "./LoginNetworkSettings";
-import type { AppSettings } from "../../hooks/useSettings";
 
 interface LoginQrStepProps {
   qrUrl: string;
@@ -19,7 +18,6 @@ interface LoginQrStepProps {
   settings: AppSettings;
   onUpdate: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   onPhone: () => void;
-  onBack: () => void;
   onRefresh: () => void;
   onApplyNetwork: () => void;
 }
@@ -33,7 +31,6 @@ export function LoginQrStep({
   settings,
   onUpdate,
   onPhone,
-  onBack,
   onRefresh,
   onApplyNetwork,
 }: LoginQrStepProps) {
@@ -42,74 +39,66 @@ export function LoginQrStep({
   const expired = Boolean(qrUrl) && secondsLeft <= 0;
 
   return (
-    <div className="tg-login-qr">
-      <div className="tg-login-toolbar">
-        <IconButton label={t("login.back")} onClick={onBack}>
-          <IconArrowLeft size={20} />
-        </IconButton>
+    <div className="g-login-step g-login-qr">
+      <div className="g-login-toolbar g-login-toolbar--end">
         <button
           type="button"
-          className="tg-login-toolbar-action"
+          className="g-login-toolbar-action"
           onClick={() => setNetworkOpen((current) => !current)}
           aria-expanded={networkOpen}
         >
-          <IconSettings size={15} />
+          <Icon name="tune" size={17} />
           {t("login.networkSettings")}
         </button>
       </div>
 
-      <div className="tg-login-qr-body">
-        <div className="tg-login-qr-shell" data-expired={expired || undefined}>
+      <LoginNetworkSettings
+        open={networkOpen}
+        settings={settings}
+        onUpdate={onUpdate}
+        onApply={onApplyNetwork}
+      />
+
+      <div className="g-login-qr-body">
+        <header className="g-login-heading g-login-heading-center">
+          <h2>{t("login.qrHeading")}</h2>
+          <p>{t("login.scanHint")}</p>
+        </header>
+
+        <div className="g-login-qr-shell" data-expired={expired || undefined}>
           {qrUrl ? (
             <>
               <QRCodeSVG
                 value={qrUrl}
-                size={180}
+                size={188}
                 level="M"
                 bgColor="#ffffff"
-                fgColor="#111111"
+                fgColor="#1f1f1f"
                 marginSize={1}
                 title={t("login.qrTitle")}
               />
-              <span className="tg-login-qr-mark">
-                <BrandMark size={36} />
+              <span className="g-login-qr-mark" aria-hidden="true">
+                <BrandMark size={34} alt="" />
               </span>
               {expired ? (
-                <button type="button" className="tg-login-qr-expired" onClick={onRefresh}>
-                  <IconRefresh size={17} />
+                <button type="button" className="g-login-qr-expired" onClick={onRefresh}>
+                  <Icon name="refresh" size={18} />
                   {t("login.refreshQr")}
                 </button>
               ) : null}
             </>
           ) : (
-            <div className="tg-login-qr-placeholder">
-              <Spinner size={24} />
+            <div className="g-login-qr-placeholder">
+              <Spinner size={26} label={t("login.generatingQr")} />
               <span>{t("login.generatingQr")}</span>
             </div>
           )}
         </div>
 
-        <h1 className="tg-login-qr-title">{t("login.qrHeading")}</h1>
-        <p className="tg-login-qr-subtitle">{t("login.qrDescription")}</p>
-
-        <ol className="tg-login-steps">
-          <li>
-            <span className="tg-login-step-num">1</span>
-            <p>{t("login.qrStep1")}</p>
-          </li>
-          <li>
-            <span className="tg-login-step-num">2</span>
-            <p>{t("login.qrStep2")}</p>
-          </li>
-          <li>
-            <span className="tg-login-step-num">3</span>
-            <p>{t("login.qrStep3")}</p>
-          </li>
-        </ol>
-
-        <div className="tg-login-qr-timer">
+        <div className="g-login-status-chip" data-expired={expired || undefined}>
+          <Icon name={expired ? "timer_off" : "schedule"} size={17} />
           {expired ? (
-            <span className="tg-login-qr-timer-expired">{t("login.qrExpired")}</span>
+            <span>{t("login.qrExpired")}</span>
           ) : qrUrl && secondsLeft > 0 ? (
             <span>{t("login.qrExpiresIn", { seconds: secondsLeft })}</span>
           ) : (
@@ -121,20 +110,10 @@ export function LoginQrStep({
         {error ? <Callout tone="error">{error}</Callout> : null}
         {notice ? <Callout tone="info">{notice}</Callout> : null}
 
-        <div className="tg-login-qr-links">
-          <Button variant="link" onClick={onPhone}>
-            {t("login.phoneLogin")}
-          </Button>
-        </div>
+        <Button variant="text" icon="smartphone" onClick={onPhone}>
+          {t("login.phoneLogin")}
+        </Button>
       </div>
-
-      <LoginNetworkSettings
-        open={networkOpen}
-        onOpenChange={setNetworkOpen}
-        settings={settings}
-        onUpdate={onUpdate}
-        onApply={onApplyNetwork}
-      />
     </div>
   );
 }

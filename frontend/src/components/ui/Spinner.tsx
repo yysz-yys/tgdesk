@@ -1,13 +1,28 @@
-import { IconLoader2 } from "@tabler/icons-react";
-import { cn } from "../../lib/cn";
+import { createElement } from "react";
+import type { CSSProperties, ElementType } from "react";
+import "@material/web/progress/circular-progress.js";
 
-export function Spinner({ size = 18, className }: { size?: number; className?: string }) {
-  return (
-    <IconLoader2
-      className={cn("tg-spinner", className)}
-      size={size}
-      stroke={2}
-      aria-hidden="true"
-    />
-  );
+const MdCircularProgress = "md-circular-progress" as unknown as ElementType;
+
+/** Material 3 circular progress indicator. */
+export function Spinner({
+  size = 20,
+  label,
+  style,
+  className,
+}: {
+  size?: number;
+  label?: string;
+  style?: CSSProperties;
+  className?: string;
+}) {
+  return createElement(MdCircularProgress, {
+    indeterminate: true,
+    className,
+    "aria-label": label,
+    "aria-hidden": label ? undefined : true,
+    style: { width: size, height: size, ...style },
+  });
 }
+
+export const CircularProgress = Spinner;

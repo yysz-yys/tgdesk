@@ -14,7 +14,7 @@ export function ContextMenuContent({
 }) {
   return (
     <ContextMenuPrimitive.Portal>
-      <ContextMenuPrimitive.Content className={cn("menu-content", className)}>
+      <ContextMenuPrimitive.Content className={cn("g-menu", className)}>
         {children}
       </ContextMenuPrimitive.Content>
     </ContextMenuPrimitive.Portal>
@@ -36,16 +36,17 @@ export function ContextMenuItem({
 }) {
   return (
     <ContextMenuPrimitive.Item
-      className={cn("menu-item", danger && "text-[var(--tg-danger)]")}
+      className="g-menu-item"
+      data-danger={danger || undefined}
       onSelect={onSelect}
       disabled={disabled}
     >
-      {icon}
-      <span>{children}</span>
+      {icon ? <span className="g-menu-icon">{icon}</span> : null}
+      <span className="g-menu-label">{children}</span>
     </ContextMenuPrimitive.Item>
   );
 }
 
 export function ContextMenuSeparator() {
-  return <ContextMenuPrimitive.Separator className="menu-separator" />;
+  return <ContextMenuPrimitive.Separator className="g-menu-separator" />;
 }

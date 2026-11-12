@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { IconBell, IconBellOff, IconGift } from "@tabler/icons-react";
 import type { Chat } from "../../types";
+import { Button } from "../ui/Button";
+import { IconButton } from "../ui/IconButton";
 
 interface ChannelBarProps {
   chat: Chat;
@@ -12,23 +13,20 @@ export function ChannelBar({ chat, onToast }: ChannelBarProps) {
   const muted = Boolean(chat.muted);
 
   return (
-    <div className="tg-channel-bar">
-      <button
-        type="button"
-        className="tg-channel-action"
+    <div className="g-channel-bar">
+      <Button
+        variant="text"
+        size="sm"
+        icon={muted ? "notifications" : "notifications_off"}
         onClick={() => onToast(t("chat.channelNotificationsSoon"))}
       >
-        {muted ? <IconBellOff size={19} /> : <IconBell size={19} />}
-        <span>{muted ? t("chat.enableNotifications") : t("chat.disableNotifications")}</span>
-      </button>
-      <button
-        type="button"
-        className="tg-channel-gift"
+        {muted ? t("chat.enableNotifications") : t("chat.disableNotifications")}
+      </Button>
+      <IconButton
+        label={t("chat.sendGift")}
+        icon="redeem"
         onClick={() => onToast(t("chat.giftSoon"))}
-        aria-label={t("chat.sendGift")}
-      >
-        <IconGift size={20} />
-      </button>
+      />
     </div>
   );
 }

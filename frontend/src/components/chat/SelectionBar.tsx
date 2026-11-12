@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { IconCheck, IconDownload, IconX } from "@tabler/icons-react";
 import { Button } from "../ui/Button";
+import { Icon } from "../ui/Icon";
 
 interface SelectionBarProps {
   count: number;
@@ -12,21 +12,16 @@ export function SelectionBar({ count, onClear, onDownload }: SelectionBarProps) 
   const { t } = useTranslation();
 
   return (
-    <div className="tg-selection-bar">
-      <span className="tg-selection-icon">
-        <IconCheck size={17} stroke={2.4} />
+    <div className="g-selection-bar">
+      <span className="g-selection-icon">
+        <Icon name="check" size={17} />
       </span>
-      <span className="tg-selection-count">{t("chat.selected", { count })}</span>
-      <div className="tg-selection-actions">
-        <Button variant="ghost" size="sm" onClick={onClear} leading={<IconX size={16} />}>
+      <span className="g-selection-count">{t("chat.selected", { count })}</span>
+      <div className="g-selection-actions">
+        <Button variant="text" size="sm" onClick={onClear}>
           {t("chat.clear")}
         </Button>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={onDownload}
-          leading={<IconDownload size={16} />}
-        >
+        <Button variant="filled" size="sm" icon="download" onClick={onDownload}>
           {t("chat.download")}
         </Button>
       </div>

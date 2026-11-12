@@ -14,7 +14,8 @@ Chinese “current state / where things are / what to verify” guide.
    bindings, DevTools, common tasks, troubleshooting.
 4. [data-and-privacy.md](data-and-privacy.md) — portable layout, tdata
    import/export, backups, test-account handling, git hygiene.
-5. [ui.md](ui.md) — current Material 3 login and Telegram chat design system.
+5. [ui.md](ui.md) — unified Material 3 / Google Workspace design system,
+   layout, components and interaction rules.
 6. [assets/](assets/) — current screenshots and brand source files.
 7. [../CONTRIBUTING.md](../CONTRIBUTING.md) — contribution rules and review
    checklist.

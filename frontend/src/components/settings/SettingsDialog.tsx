@@ -1,221 +1,263 @@
 import { useTranslation } from "react-i18next";
-import * as Dialog from "@radix-ui/react-dialog";
-import * as Select from "@radix-ui/react-select";
-import * as Slider from "@radix-ui/react-slider";
-import * as Switch from "@radix-ui/react-switch";
-import { IconCheck, IconChevronDown, IconX } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import type { AppSettings } from "../../hooks/useSettings";
-import "./settings-panel.css";
-import "./settings-controls.css";
+import { Button } from "../ui/Button";
+import { Icon } from "../ui/Icon";
+import { IconButton } from "../ui/IconButton";
+import { SegmentedControl } from "../ui/SegmentedControl";
+import { SelectField } from "../ui/SelectField";
+import { Sheet } from "../ui/Sheet";
+import { Slider } from "../ui/Slider";
+import { Switch } from "../ui/Switch";
+import { TextField } from "../ui/TextField";
 
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   settings: AppSettings;
   onUpdate: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  onOpenDownloadFolder: () => void;
 }
 
 // Only settings that the chat and download features actually use.
-export function SettingsDialog({ open, onOpenChange, settings, onUpdate }: SettingsDialogProps) {
+export function SettingsDialog({
+  open,
+  onOpenChange,
+  settings,
+  onUpdate,
+  onOpenDownloadFolder,
+}: SettingsDialogProps) {
   const { t } = useTranslation();
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="settings-overlay" />
-        <Dialog.Content className="settings-sheet">
-          <header className="settings-sheet-header">
-            <Dialog.Title className="settings-sheet-title">{t("settings.title")}</Dialog.Title>
-            <Dialog.Description className="sr-only">
-              {t("settings.description")}
-            </Dialog.Description>
-            <Dialog.Close asChild>
-              <button type="button" className="icon-button" aria-label={t("settings.close")}>
-                <IconX size={21} />
-              </button>
-            </Dialog.Close>
-          </header>
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t("settings.title")}
+      description={t("settings.description")}
+      closeLabel={t("settings.close")}
+      width={480}
+    >
+      <div className="g-settings">
+        <SettingsGroup title={t("settings.nav.appearance")}>
+          <SettingRow
+            title={t("settings.appearance.theme")}
+            description={t("settings.appearance.themeDesc")}
+            stack
+          >
+            <SegmentedControl
+              value={settings.theme}
+              onChange={(value) => onUpdate("theme", value)}
+              label={t("settings.appearance.theme")}
+              options={[
+                {
+                  value: "system",
+                  label: t("settings.appearance.system"),
+                  icon: "brightness_auto",
+                },
+                {
+                  value: "light",
+                  label: t("settings.appearance.light"),
+                  icon: "light_mode",
+                },
+                {
+                  value: "dark",
+                  label: t("settings.appearance.dark"),
+                  icon: "dark_mode",
+                },
+              ]}
+            />
+          </SettingRow>
+          <SettingRow
+            title={t("settings.general.language")}
+            description={t("settings.general.languageDesc")}
+          >
+            <SelectField
+              className="g-settings-select"
+              value={settings.language}
+              onValueChange={(value) =>
+                onUpdate("language", value as AppSettings["language"])
+              }
+              ariaLabel={t("settings.general.language")}
+              options={[
+                { value: "system", label: t("common.systemDefault") },
+                { value: "en", label: "English" },
+                { value: "zh", label: "简体中文" },
+                { value: "ja", label: "日本語" },
+              ]}
+            />
+          </SettingRow>
+        </SettingsGroup>
 
-          <div className="settings-sheet-scroll">
-            <div className="settings-content">
-              <SettingsGroup title={t("settings.nav.general")}>
-                <SettingRow
-                  title={t("settings.general.language")}
-                  description={t("settings.general.languageDesc")}
-                >
-                  <SettingSelect
-                    ariaLabel={t("settings.general.language")}
-                    value={settings.language}
-                    onValueChange={(value) =>
-                      onUpdate("language", value as AppSettings["language"])
-                    }
-                    options={[
-                      { value: "system", label: t("common.systemDefault") },
-                      { value: "en", label: "English" },
-                      { value: "zh", label: "简体中文" },
-                      { value: "ja", label: "日本語" },
-                    ]}
-                  />
-                </SettingRow>
-              </SettingsGroup>
+        <SettingsGroup title={t("settings.nav.general")}>
+          <SettingRow
+            title={t("settings.chat.enterToSend")}
+            description={t("settings.chat.enterToSendDesc")}
+          >
+            <Switch
+              label={t("settings.chat.enterToSend")}
+              checked={settings.enterToSend}
+              onCheckedChange={(value) => onUpdate("enterToSend", value)}
+            />
+          </SettingRow>
+        </SettingsGroup>
 
-              <SettingsGroup title={t("settings.chat.title")}>
-                <SettingRow
-                  title={t("settings.chat.enterToSend")}
-                  description={t("settings.chat.enterToSendDesc")}
-                >
-                  <SettingSwitch
-                    label={t("settings.chat.enterToSend")}
-                    checked={settings.enterToSend}
-                    onCheckedChange={(value) => onUpdate("enterToSend", value)}
-                  />
-                </SettingRow>
-              </SettingsGroup>
-
-              <SettingsGroup title={t("settings.nav.downloads")}>
-                <div className="settings-row">
-                  <div className="settings-row-copy">
-                    <div className="settings-row-title">{t("settings.downloads.folder")}</div>
-                    <div className="settings-row-description path-value">
-                      {settings.downloadDir}
-                    </div>
-                  </div>
-                </div>
-                <SettingRow
-                  title={t("settings.downloads.threads")}
-                  description={t("settings.downloads.threadsDesc", {
-                    count: settings.threads,
-                  })}
-                >
-                  <Slider.Root
-                    className="slider-root"
-                    min={1}
-                    max={16}
-                    step={1}
-                    value={[settings.threads]}
-                    onValueChange={([value]) => onUpdate("threads", value)}
-                    aria-label={t("settings.downloads.threads")}
-                  >
-                    <Slider.Track className="slider-track">
-                      <Slider.Range className="slider-range" />
-                    </Slider.Track>
-                    <Slider.Thumb className="slider-thumb" />
-                  </Slider.Root>
-                </SettingRow>
-                <div className="settings-row settings-row-stack">
-                  <div className="settings-row-copy">
-                    <div className="settings-row-title">{t("settings.downloads.template")}</div>
-                    <div className="settings-row-description">
-                      {t("settings.downloads.templateDesc")}
-                    </div>
-                  </div>
-                  <input
-                    className="settings-input settings-input-wide"
-                    value={settings.template}
-                    onChange={(event) => onUpdate("template", event.target.value)}
-                    spellCheck={false}
-                  />
-                </div>
-              </SettingsGroup>
-
-              <SettingsGroup title={t("settings.nav.network")}>
-                <SettingRow
-                  title={t("settings.network.proxyType")}
-                  description={t("settings.network.proxyTypeDesc")}
-                >
-                  <SettingSelect
-                    ariaLabel={t("settings.network.proxyType")}
-                    value={settings.proxyType}
-                    onValueChange={(value) =>
-                      onUpdate("proxyType", value as AppSettings["proxyType"])
-                    }
-                    options={[
-                      { value: "none", label: t("settings.network.none") },
-                      { value: "socks5", label: t("settings.network.socks5") },
-                      { value: "http", label: t("settings.network.http") },
-                    ]}
-                  />
-                </SettingRow>
-
-                {settings.proxyType !== "none" && (
-                  <>
-                    <div className="settings-row settings-row-stack">
-                      <div className="settings-row-copy">
-                        <div className="settings-row-title">
-                          {t("settings.network.hostPort")}
-                        </div>
-                        <div className="settings-row-description">
-                          {t("settings.network.hostPortDesc")}
-                        </div>
-                      </div>
-                      <div className="inline-fields">
-                        <input
-                          className="settings-input"
-                          value={settings.proxyHost}
-                          onChange={(event) => onUpdate("proxyHost", event.target.value)}
-                          placeholder={t("settings.network.host")}
-                          spellCheck={false}
-                        />
-                        <input
-                          className="settings-input settings-input-port"
-                          value={settings.proxyPort}
-                          onChange={(event) => onUpdate("proxyPort", event.target.value)}
-                          placeholder={t("settings.network.port")}
-                          inputMode="numeric"
-                        />
-                      </div>
-                    </div>
-                    <SettingRow
-                      title={t("settings.network.username")}
-                      description={t("settings.network.usernameDesc")}
-                    >
-                      <input
-                        className="settings-input"
-                        value={settings.proxyUser}
-                        onChange={(event) => onUpdate("proxyUser", event.target.value)}
-                        placeholder={t("settings.network.username")}
-                        spellCheck={false}
-                      />
-                    </SettingRow>
-                    <SettingRow
-                      title={t("settings.network.password")}
-                      description={t("settings.network.passwordDesc")}
-                    >
-                      <input
-                        className="settings-input"
-                        type="password"
-                        value={settings.proxyPass}
-                        onChange={(event) => onUpdate("proxyPass", event.target.value)}
-                        placeholder={t("settings.network.password")}
-                      />
-                    </SettingRow>
-                  </>
-                )}
-
-                <SettingRow title={t("settings.network.ntp")} description={t("settings.network.ntpDesc")}>
-                  <input
-                    className="settings-input"
-                    value={settings.ntp}
-                    onChange={(event) => onUpdate("ntp", event.target.value)}
-                    placeholder="pool.ntp.org"
-                    spellCheck={false}
-                  />
-                </SettingRow>
-              </SettingsGroup>
+        <SettingsGroup title={t("settings.nav.downloads")}>
+          <div className="g-settings-path">
+            <span className="g-settings-path-icon">
+              <Icon name="folder" size={20} />
+            </span>
+            <div className="g-settings-path-copy">
+              <div className="g-settings-row-title">{t("settings.downloads.folder")}</div>
+              <div className="g-settings-path-value" title={settings.downloadDir}>
+                {settings.downloadDir || "—"}
+              </div>
             </div>
+            <IconButton
+              label={t("downloads.openFolder")}
+              icon="folder_open"
+              onClick={onOpenDownloadFolder}
+            />
           </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+
+          <SettingRow
+            title={t("settings.downloads.threads")}
+            description={t("settings.downloads.threadsDesc", {
+              count: settings.threads,
+            })}
+          >
+            <div className="g-settings-slider">
+              <Slider
+                min={1}
+                max={16}
+                step={1}
+                value={settings.threads}
+                onValueChange={(value) => onUpdate("threads", value)}
+                label={t("settings.downloads.threads")}
+              />
+              <span className="g-settings-slider-value">{settings.threads}</span>
+            </div>
+          </SettingRow>
+
+          <div className="g-settings-stack">
+            <TextField
+              value={settings.template}
+              onValueChange={(value) => onUpdate("template", value)}
+              label={t("settings.downloads.template")}
+              supportingText={t("settings.downloads.templateDesc")}
+              autoComplete="off"
+            />
+          </div>
+        </SettingsGroup>
+
+        <SettingsGroup title={t("settings.nav.network")}>
+          <SettingRow
+            title={t("settings.network.proxyType")}
+            description={t("settings.network.proxyTypeDesc")}
+          >
+            <SelectField
+              className="g-settings-select"
+              value={settings.proxyType}
+              onValueChange={(value) =>
+                onUpdate("proxyType", value as AppSettings["proxyType"])
+              }
+              ariaLabel={t("settings.network.proxyType")}
+              options={[
+                { value: "none", label: t("settings.network.none") },
+                { value: "socks5", label: t("settings.network.socks5") },
+                { value: "http", label: t("settings.network.http") },
+              ]}
+            />
+          </SettingRow>
+
+          {settings.proxyType !== "none" ? (
+            <>
+              <div className="g-settings-stack">
+                <div>
+                  <div className="g-settings-row-title">{t("settings.network.hostPort")}</div>
+                  <div className="g-settings-row-description">
+                    {t("settings.network.hostPortDesc")}
+                  </div>
+                </div>
+                <div className="g-settings-inline">
+                  <TextField
+                    value={settings.proxyHost}
+                    onValueChange={(value) => onUpdate("proxyHost", value)}
+                    label={t("settings.network.host")}
+                    placeholder="127.0.0.1"
+                    autoComplete="off"
+                  />
+                  <TextField
+                    className="g-settings-port"
+                    value={settings.proxyPort}
+                    onValueChange={(value) => onUpdate("proxyPort", value)}
+                    label={t("settings.network.port")}
+                    inputMode="numeric"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              <SettingRow
+                title={t("settings.network.username")}
+                description={t("settings.network.usernameDesc")}
+              >
+                <TextField
+                  className="g-settings-short-field"
+                  value={settings.proxyUser}
+                  onValueChange={(value) => onUpdate("proxyUser", value)}
+                  ariaLabel={t("settings.network.username")}
+                  placeholder={t("settings.network.username")}
+                  autoComplete="off"
+                />
+              </SettingRow>
+              <SettingRow
+                title={t("settings.network.password")}
+                description={t("settings.network.passwordDesc")}
+              >
+                <TextField
+                  className="g-settings-short-field"
+                  type="password"
+                  value={settings.proxyPass}
+                  onValueChange={(value) => onUpdate("proxyPass", value)}
+                  ariaLabel={t("settings.network.password")}
+                  placeholder={t("settings.network.password")}
+                  autoComplete="off"
+                />
+              </SettingRow>
+            </>
+          ) : null}
+
+          <SettingRow
+            title={t("settings.network.ntp")}
+            description={t("settings.network.ntpDesc")}
+          >
+            <TextField
+              className="g-settings-short-field"
+              value={settings.ntp}
+              onValueChange={(value) => onUpdate("ntp", value)}
+              ariaLabel={t("settings.network.ntp")}
+              placeholder="pool.ntp.org"
+              autoComplete="off"
+            />
+          </SettingRow>
+        </SettingsGroup>
+
+        <div className="g-settings-footer">
+          <Button variant="text" onClick={() => onOpenChange(false)}>
+            {t("settings.close")}
+          </Button>
+        </div>
+      </div>
+    </Sheet>
   );
 }
 
 function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="settings-group">
-      <div className="settings-group-title">{title}</div>
-      <div className="settings-group-body">{children}</div>
+    <section className="g-settings-group">
+      <h2 className="g-settings-group-title">{title}</h2>
+      <div className="g-settings-card">{children}</div>
     </section>
   );
 }
@@ -224,76 +266,20 @@ function SettingRow({
   title,
   description,
   children,
+  stack = false,
 }: {
   title: string;
   description?: string;
   children?: ReactNode;
+  stack?: boolean;
 }) {
   return (
-    <div className="settings-row">
-      <div className="settings-row-copy">
-        <div className="settings-row-title">{title}</div>
-        {description && <div className="settings-row-description">{description}</div>}
+    <div className="g-settings-row" data-stack={stack || undefined}>
+      <div className="g-settings-row-copy">
+        <div className="g-settings-row-title">{title}</div>
+        {description ? <div className="g-settings-row-description">{description}</div> : null}
       </div>
-      {children && <div className="settings-row-control">{children}</div>}
+      {children ? <div className="g-settings-row-control">{children}</div> : null}
     </div>
-  );
-}
-
-function SettingSwitch({
-  label,
-  checked,
-  onCheckedChange,
-}: {
-  label: string;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-}) {
-  return (
-    <Switch.Root
-      className="switch"
-      checked={checked}
-      onCheckedChange={onCheckedChange}
-      aria-label={label}
-    >
-      <Switch.Thumb className="switch-thumb" />
-    </Switch.Root>
-  );
-}
-
-function SettingSelect({
-  ariaLabel,
-  value,
-  onValueChange,
-  options,
-}: {
-  ariaLabel: string;
-  value: string;
-  onValueChange: (value: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <Select.Root value={value} onValueChange={onValueChange}>
-      <Select.Trigger className="select-trigger" aria-label={ariaLabel}>
-        <Select.Value />
-        <Select.Icon>
-          <IconChevronDown size={14} />
-        </Select.Icon>
-      </Select.Trigger>
-      <Select.Portal>
-        <Select.Content className="select-content" position="popper" sideOffset={4}>
-          <Select.Viewport className="select-viewport">
-            {options.map((option) => (
-              <Select.Item className="select-item" value={option.value} key={option.value}>
-                <Select.ItemText>{option.label}</Select.ItemText>
-                <Select.ItemIndicator className="select-indicator">
-                  <IconCheck size={14} />
-                </Select.ItemIndicator>
-              </Select.Item>
-            ))}
-          </Select.Viewport>
-        </Select.Content>
-      </Select.Portal>
-    </Select.Root>
   );
 }
