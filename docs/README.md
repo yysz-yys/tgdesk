@@ -19,7 +19,9 @@ Chinese “current state / where things are / what to verify” guide.
 6. [assets/](assets/) — current screenshots and brand source files.
 7. [../CONTRIBUTING.md](../CONTRIBUTING.md) — contribution rules and review
    checklist.
-8. [../CHANGELOG.md](../CHANGELOG.md) — milestone summary.
+8. [../THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) — bundled fonts and
+   third-party licenses.
+9. [../CHANGELOG.md](../CHANGELOG.md) — milestone summary.
 
 ## Source-of-truth rules
 

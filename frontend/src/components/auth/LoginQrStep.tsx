@@ -54,6 +54,7 @@ export function LoginQrStep({
 
       <LoginNetworkSettings
         open={networkOpen}
+        onOpenChange={setNetworkOpen}
         settings={settings}
         onUpdate={onUpdate}
         onApply={onApplyNetwork}

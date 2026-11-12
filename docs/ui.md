@@ -120,6 +120,7 @@ state layers.
 | `PaneHeader` | layout | identical 64px app bars for list/chat/downloads |
 | `Menu`, `ContextMenu` | Radix primitives | M3 menu surface, 40px items, keyboard managed |
 | `Sheet` | Radix Dialog | focus trap, Escape, inset side sheet |
+| `Dialog` | Radix Dialog | portalled centred modal for contained tasks such as proxy setup |
 | `Avatar`, `Badge`, `Icon`, `Callout`, `EmptyState`, `Toast` | app | shared geometry and colour roles |
 
 Rules:
@@ -141,6 +142,8 @@ Rules:
 
 ![Phone login](assets/ui-login-phone.png)
 
+![Proxy settings](assets/ui-login-proxy.png)
+
 The login screen is intentionally QR-first and almost copy-free: tdata is
 checked before it is mounted, so it only has to answer "QR or phone?".
 
@@ -150,7 +153,13 @@ checked before it is mounted, so it only has to answer "QR or phone?".
 - QR login starts automatically. One heading, one hint, the QR tile, countdown
   and a text link to phone login are the entire QR surface.
 - Phone login is one outlined 56px field (country trigger, divider, number),
-  one hint, one primary action. No redundant eyebrow or fine-print block.
+  one hint, one primary action. No redundant eyebrow or fine-print block. The
+  country prefix is **empty by default**; the user must pick a country, then the
+  +code appears and the continue action enables.
+- Proxy settings open as a centred Material dialog, not an inline expanding
+  panel, so the login card never changes height or clips the QR code. Proxy
+  edits are local until Save; saving on the QR step restarts the token with the
+  new proxy.
 - Language is a footer menu with **Follow system**, English, 简体中文 and 日本語.
   The default is `system`; the choice is written to `AppSettings` immediately
   and restored on the next launch. The footer shows `Follow system · <resolved>`
@@ -183,13 +192,15 @@ Automatic tdata lifecycle:
 - Search is a 48px pill directly below the pane header, with a clear button.
 - Loading uses skeleton rows with the same geometry as real rows.
 - No footer count; the pane header is the only title.
+- The navigation rail ends with the account avatar only. Settings lives inside
+  the account menu, so there is no duplicate gear button above the avatar.
 
 ### Chat
 
 - App bar: 38px avatar, 18px conversation name, 12px presence/member line,
-  40px search/menu actions.
-- Message canvas is flat `surface`; date separators are a 1px rule with a
-  11px label.
+  40px search/menu actions. It uses a tonal surface instead of a divider.
+- Message canvas is flat `surface`; date labels are compact tonal pills, not
+  full-width rules.
 - Comfortable density: 32px avatars on the first message of a group, sender name
   above the bubble, 18px bubbles, opposite alignment for outgoing messages.
 - Incoming bubble `surface-container`; outgoing `primary-container`. The last
@@ -211,7 +222,8 @@ Automatic tdata lifecycle:
 - Same `PaneHeader` as chat: 22px title, 12px live summary, pause-all and menu.
 - 48px primary tabs with counts; content aligned to the same 32px gutter as the
   header.
-- Tasks are one grouped card with 1px dividers, not one card per row.
+- Tasks are one grouped card with no per-row dividers; hover and padding carry
+  the row rhythm.
 - Each row: 40px tonal file tile, 14px name, 12px `chat · size · status`, 4px
   progress indicator, hover-revealed 40px actions.
 - Empty tabs use a shared 56px tonal icon, title, explanation and a text action
@@ -221,7 +233,8 @@ Automatic tdata lifecycle:
 ### Settings
 
 - 480px inset side sheet; 64px header with a close action.
-- Sections are 13px labels plus a single outlined surface card; rows are 68px.
+- Sections are 13px labels plus a single tonal surface card. Rows are 68px with
+  no internal rules; spacing and typography group the controls.
 - Controls align to a 184px rail; stack below the label when the sheet is
   narrow or the control needs the full width (theme segments).
 - Theme is a three-segment M3 control; language, proxy type and NTP use outlined
@@ -235,8 +248,9 @@ Automatic tdata lifecycle:
   Focus is never removed without a replacement.
 - Disabled: 38% content, no pointer events.
 - Minimum interactive target is 40×40; primary fields/buttons are 48px.
-- Keyboard: Escape closes menus, search, sheets and the country picker; focus
-  returns to the trigger. Enter submits forms; Enter sends a message only when
+- Keyboard: Escape closes menus, search, sheets, dialogs and the country picker;
+  focus returns to the trigger. An open Material select consumes Escape before
+  its containing dialog. Enter submits forms; Enter sends a message only when
   the setting is on; Shift+Enter inserts a newline.
 - Chat list rows are real buttons (no `role="listitem"` override). Search inputs
   are `type="search"`.
@@ -268,7 +282,7 @@ The minimum supported window is 640×420. Verify at 640×480, 840×620 and
 3. Exercise: list search, in-chat search/Escape, message context menu, selection
    bar, settings theme switch, download hover actions, downloads empty state,
    login QR/phone/code, language menu (system/English/中文/日本語) and its
-   persistence, country search in Chinese and English, proxy panel.
+   persistence, country search in Chinese and English, proxy dialog.
 4. Confirm the startup path: a valid `tdata` enters the chat shell without a
    login request; a missing/unauthorised `tdata` opens the QR card; a successful
    login reports a written tdata.

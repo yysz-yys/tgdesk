@@ -5,7 +5,7 @@ import { Service as AppService } from "../../../bindings/tgdesk/internal/app";
 import type { TDataExport } from "../../../bindings/tgdesk/internal/kernel/models";
 import type { AppSettings } from "../../hooks/useSettings";
 import type { AuthEvent, AuthUser } from "../../types";
-import { DEFAULT_COUNTRY_ISO, findCountry } from "../../data/countries";
+import { findCountry } from "../../data/countries";
 import { LoginShell } from "./LoginShell";
 import { LoginQrStep } from "./LoginQrStep";
 import { LoginPhoneStep } from "./LoginPhoneStep";
@@ -53,7 +53,7 @@ export function LoginScreen({
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage ?? "en";
   const [mode, setMode] = useState<Mode>("qr");
-  const [country, setCountry] = useState(DEFAULT_COUNTRY_ISO);
+  const [country, setCountry] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
@@ -355,9 +355,13 @@ export function LoginScreen({
 
   const countryInfo = findCountry(country);
   const nationalPhone = phone.replace(/\D/g, "");
-  const fullPhone = `${countryInfo.dial} ${nationalPhone}`;
+  const fullPhone = countryInfo ? `${countryInfo.dial} ${nationalPhone}` : "";
 
   const submitPhone = async () => {
+    if (!countryInfo) {
+      setError(t("login.errors.country"));
+      return;
+    }
     if (nationalPhone.length < 5) {
       setError(t("login.errors.phone"));
       return;
@@ -509,7 +513,7 @@ export function LoginScreen({
           }}
           onSubmit={() => void submitPhone()}
           onBack={goQr}
-          onApplyNetwork={() => void submitPhone()}
+          onApplyNetwork={() => undefined}
         />
       ) : null}
 

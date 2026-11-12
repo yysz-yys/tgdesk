@@ -23,7 +23,6 @@
 
 .g-settings-card {
   overflow: hidden;
-  border: 1px solid var(--app-outline-variant);
   border-radius: var(--app-radius-lg);
   background: var(--app-surface);
 }
@@ -34,18 +33,6 @@
 
 [data-theme="dark"] .g-settings-card {
   background: var(--md-sys-color-surface-container);
-}
-
-.g-settings-row,
-.g-settings-path,
-.g-settings-stack {
-  border-bottom: 1px solid var(--app-outline-variant);
-}
-
-.g-settings-row:last-child,
-.g-settings-path:last-child,
-.g-settings-stack:last-child {
-  border-bottom: 0;
 }
 
 .g-settings-row {

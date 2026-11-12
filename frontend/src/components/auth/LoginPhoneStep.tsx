@@ -67,6 +67,7 @@ export function LoginPhoneStep({
 
       <LoginNetworkSettings
         open={networkOpen}
+        onOpenChange={setNetworkOpen}
         settings={settings}
         onUpdate={onUpdate}
         onApply={onApplyNetwork}
@@ -97,8 +98,8 @@ export function LoginPhoneStep({
       </div>
 
       <p className="g-login-phone-hint">
-        {t("login.phoneHint")}
-        {phone.replace(/\D/g, "").length >= 5 ? (
+        {country ? t("login.phoneHint") : t("login.phoneHintCountry")}
+        {phone.replace(/\D/g, "").length >= 5 && displayPhone ? (
           <span className="g-login-phone-preview">{displayPhone}</span>
         ) : null}
       </p>
@@ -112,7 +113,7 @@ export function LoginPhoneStep({
         fullWidth
         loading={busy}
         icon={busy ? undefined : "arrow_forward"}
-        disabled={retryIn > 0}
+        disabled={retryIn > 0 || !country}
       >
         {busy
           ? t("login.signingIn")

@@ -12,7 +12,6 @@
   flex: 0 0 var(--app-toolbar-height);
   align-items: center;
   gap: var(--app-space-3);
-  border-bottom: 1px solid var(--app-outline-variant);
   background: var(--app-surface);
   padding: 0 var(--app-space-3) 0 var(--app-space-5);
 }
@@ -827,6 +826,118 @@ md-primary-tab[aria-selected="true"] .g-tab-count {
   }
 }
 
+/* ── Dialog ──────────────────────────────────────────────────────────────── */
+
+.g-dialog-scrim {
+  position: fixed;
+  inset: var(--app-titlebar-height) 0 0;
+  z-index: 150;
+  background: var(--app-scrim);
+  animation: g-fade-in var(--app-motion);
+}
+
+.g-dialog-layer {
+  position: fixed;
+  inset: var(--app-titlebar-height) 0 0;
+  z-index: 151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--app-space-4);
+  pointer-events: none;
+}
+
+.g-dialog {
+  position: relative;
+  display: flex;
+  max-height: 100%;
+  flex-direction: column;
+  pointer-events: auto;
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-surface);
+  color: var(--app-on-surface);
+  padding: var(--app-space-5);
+  box-shadow: var(--app-elevation-3);
+  outline: 0;
+  animation: g-dialog-in var(--app-motion);
+}
+
+@keyframes g-dialog-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.g-dialog-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  gap: var(--app-space-3);
+}
+
+.g-dialog-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.g-dialog-title {
+  margin: 0;
+  font-family: var(--app-font-display);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 28px;
+}
+
+.g-dialog-description {
+  margin-top: 2px;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-label);
+  line-height: 18px;
+}
+
+.g-dialog-close {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: transparent;
+  padding: 0;
+  color: var(--app-on-surface-variant);
+}
+
+.g-dialog-close:hover {
+  background: var(--app-hover);
+  color: var(--app-on-surface);
+}
+
+.g-dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: var(--app-space-5);
+}
+
+.g-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--app-space-2);
+  padding-top: var(--app-space-4);
+}
+
+@media (max-width: 560px) {
+  .g-dialog {
+    border-radius: var(--app-radius-lg);
+    padding: var(--app-space-4);
+  }
+}
+
 /* ── Side sheet ──────────────────────────────────────────────────────────── */
 
 .g-scrim {
@@ -868,6 +979,13 @@ md-primary-tab[aria-selected="true"] .g-tab-count {
   animation: g-sheet-in var(--app-motion-slow);
 }
 
+.g-sheet:focus,
+.g-sheet:focus-visible,
+.g-dialog:focus,
+.g-dialog:focus-visible {
+  outline: 0;
+}
+
 @keyframes g-sheet-in {
   from {
     opacity: 0.7;
@@ -885,7 +1003,6 @@ md-primary-tab[aria-selected="true"] .g-tab-count {
   flex: 0 0 auto;
   align-items: center;
   gap: var(--app-space-3);
-  border-bottom: 1px solid var(--app-outline-variant);
   padding: var(--app-space-2) var(--app-space-3) var(--app-space-2)
     var(--app-space-6);
 }

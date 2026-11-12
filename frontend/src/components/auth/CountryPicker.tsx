@@ -128,9 +128,13 @@ export function CountryPicker({ value, onChange, language, disabled }: CountryPi
         aria-label={t("login.country")}
       >
         <span className="g-country-flag" aria-hidden="true">
-          {flagEmoji(selected.iso)}
+          {selected ? flagEmoji(selected.iso) : <Icon name="public" size={17} />}
         </span>
-        <span className="g-country-dial">{selected.dial}</span>
+        {selected ? (
+          <span className="g-country-dial">{selected.dial}</span>
+        ) : (
+          <span className="g-country-placeholder">{t("login.countrySelect")}</span>
+        )}
         <Icon name="expand_more" size={17} />
       </button>
 
@@ -168,9 +172,9 @@ export function CountryPicker({ value, onChange, language, disabled }: CountryPi
                       type="button"
                       key={country.iso}
                       role="option"
-                      aria-selected={country.iso === selected.iso}
+                      aria-selected={country.iso === selected?.iso}
                       className="g-country-option"
-                      data-selected={country.iso === selected.iso || undefined}
+                      data-selected={country.iso === selected?.iso || undefined}
                       onClick={() => pick(country.iso)}
                     >
                       <span className="g-country-flag" aria-hidden="true">
@@ -178,7 +182,7 @@ export function CountryPicker({ value, onChange, language, disabled }: CountryPi
                       </span>
                       <span className="g-country-name">{countryName(country.iso, language)}</span>
                       <span className="g-country-option-dial">{country.dial}</span>
-                      {country.iso === selected.iso ? (
+                      {country.iso === selected?.iso ? (
                         <Icon name="check" size={17} className="g-country-check" />
                       ) : null}
                     </button>

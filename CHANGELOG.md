@@ -24,42 +24,45 @@
 
 ### UI
 
-- Google Material 3 login surface: Roboto, light surface, 28px card radius,
-  filled pill actions, Material 3 color roles, tonal feature icons and a
-  responsive brand panel.
-- Searchable country/region picker with 224 entries, `+86` default and
-  international formatting (`+886 905462282` normalized to `+886905462282`).
-- QR code shows a live expiry countdown, auto-refreshes when Telegram rotates
-  the token, and offers a manual refresh when expired.
-- Code step shows the delivery method, expected length, resend countdown and
-  localized Telegram errors (flood wait, invalid/expired code, unavailable SMS,
-  banned/unoccupied number, session revoked).
-- New tgdesk logo rolled out to the web favicon/PWA set, Windows ICO, macOS
-  ICNS/DMG icon, iOS icon and Android mipmaps; caption bar follows the light
-  login surface.
+- Rebuilt the whole frontend on one Material 3 / Google Workspace design
+  system: shared colour/type/spacing/motion tokens, `@material/web` controls,
+  `PaneHeader`, `SegmentedControl`, `Dialog` and a shared UI layer used by every
+  surface.
+- Login is now a single QR-first 420px card. Removed the marketing panel,
+  feature list and welcome step; phone login is a secondary action, proxy
+  settings open in a modal, and small windows compress the QR rather than
+  clipping it.
+- Language menu with **Follow system**, English, 简体中文 and 日本語. The default
+  follows the OS and the choice is persisted. Switching language no longer
+  restarts an in-flight QR token.
+- Phone login starts with **no country prefix**; the user must choose a country
+  before the continue action enables.
+- Reworked chat list, Google Chat-style message timeline, composer, download
+  manager and settings sheet. Removed most structural divider lines in favour
+  of tonal bands, grouped cards and spacing; settings is reached from the
+  account menu instead of a duplicate rail button.
+- Success screen confirms the official-format tdata write without showing a
+  filesystem path.
 
 ### Project hygiene
 
-- Removed the legacy login/theme CSS (`login-settings.css`): surviving settings
-  form controls now live in `components/settings/settings-controls.css`.
-- Removed the unused Inter font license, stale historical screenshots, duplicate
-  logo previews and the pre-handoff planning documents.
-- Reorganized documentation around a single handover guide
-  (`docs/handover.md`), with current architecture, development, data, UI and
-  asset indexes.
+- Added [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), an `AGPL-3.0-only`
+  package license and the bundled Material Symbols OFL text.
+- Replaced the old login/theme CSS (`login-settings.css`, `atoms.css`,
+  `settings-*.css`) with tokenised shared styles.
+- Updated UI, architecture, development and handover docs, plus new login and
+  proxy screenshots.
 - Minor kernel cleanup: single `TDataExport` DTO, no duplicate export record
   type, simplified tdata identity check.
 
 ### Verification
 
 - `go test ./internal/...`
-- `npm run build`
-- `wails3 build`
-- CDP checks of welcome, phone, country picker and QR screens with no console
-  errors.
-- Real phone `auth.sendCode` against Telegram (`+886`) reached the code step and
-  reported app delivery; `auth.resendCode` error `SEND_CODE_UNAVAILABLE` is
-  surfaced with a localized hint.
+- `npm run build` / `wails3 build`
+- Playwright checks for QR/phone language switching and persistence, no-prefix
+  phone state, the proxy modal at 1107×725 and 640×480, tdata-authorized startup,
+  light/dark chat, settings and downloads.
+- `TestTelegramDesktopImport` verifies the official tdata import/export path.
 
 ## v0.1.0 — 2026-11-11
 

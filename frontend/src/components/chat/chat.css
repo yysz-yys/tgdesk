@@ -12,6 +12,7 @@
 /* ── Top app bar ─────────────────────────────────────────────────────────── */
 
 .g-chat-header {
+  background: var(--app-surface-container);
   padding-left: var(--app-space-4);
 }
 
@@ -39,14 +40,17 @@
   flex: 0 0 auto;
   align-items: center;
   gap: var(--app-space-2);
-  border-bottom: 1px solid var(--app-outline-variant);
-  background: var(--app-surface);
+  background: var(--app-surface-container);
   padding: var(--app-space-2) var(--app-space-4);
 }
 
 .g-chat-search-field {
   min-width: 0;
   flex: 1;
+}
+
+.g-chat-search .g-search {
+  background: var(--app-surface);
 }
 
 .g-chat-search-count,
@@ -112,26 +116,17 @@
 }
 
 .g-date-chip {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  width: 100%;
-  margin: var(--app-space-5) 0 var(--app-space-2);
+  width: fit-content;
+  margin: var(--app-space-5) auto var(--app-space-2);
+  border-radius: var(--app-radius-pill);
+  background: var(--app-surface-container);
+  padding: 3px 10px;
   color: var(--app-on-surface-variant);
   font-size: var(--app-font-size-caption);
   font-weight: 500;
   letter-spacing: 0.1px;
   line-height: 16px;
   text-align: center;
-}
-
-.g-date-chip::before,
-.g-date-chip::after {
-  height: 1px;
-  flex: 1;
-  background: var(--app-outline-variant);
-  content: "";
-  opacity: 0.7;
 }
 
 .g-scroll-fab {
@@ -785,8 +780,7 @@
   min-height: 72px;
   flex: 0 0 auto;
   align-items: flex-end;
-  border-top: 1px solid var(--app-outline-variant);
-  background: var(--app-surface);
+  background: var(--app-surface-container);
   padding: var(--app-space-3) var(--app-space-5) var(--app-space-4);
 }
 
@@ -876,8 +870,7 @@
   flex: 0 0 auto;
   align-items: center;
   gap: var(--app-space-3);
-  border-top: 1px solid var(--app-outline-variant);
-  background: var(--app-surface-container-low);
+  background: var(--app-surface-container);
   padding: var(--app-space-2) var(--app-space-5);
 }
 
@@ -915,8 +908,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--app-space-2);
-  border-top: 1px solid var(--app-outline-variant);
-  background: var(--app-surface);
+  background: var(--app-surface-container);
   padding: var(--app-space-2) var(--app-space-5);
 }
 

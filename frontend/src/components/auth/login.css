@@ -401,6 +401,15 @@
   letter-spacing: 0.2px;
 }
 
+.g-country-placeholder {
+  max-width: 128px;
+  overflow: hidden;
+  color: var(--app-on-surface-variant);
+  font-size: var(--app-font-size-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .g-country-trigger > .g-icon {
   color: var(--app-on-surface-variant);
 }
@@ -624,34 +633,16 @@
 /* ── Proxy panel ─────────────────────────────────────────────────────────── */
 
 .g-login-network {
-  width: 100%;
-  overflow: hidden;
-  border: 1px solid var(--app-outline-variant);
-  border-radius: var(--app-radius-md);
-  background: var(--app-surface-container-low);
-}
-
-.g-login-network-body {
   display: flex;
+  width: 100%;
   flex-direction: column;
-  gap: var(--app-space-2);
-  padding: var(--app-space-3);
-}
-
-.g-login-network-hint {
-  color: var(--app-on-surface-variant);
-  font-size: var(--app-font-size-caption);
-  line-height: 16px;
+  gap: var(--app-space-3);
 }
 
 .g-login-network-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--app-space-2);
-}
-
-.g-login-network-body .g-button {
-  align-self: flex-start;
 }
 
 /* ── Startup check ───────────────────────────────────────────────────────── */

@@ -1,4 +1,4 @@
-/* Download manager surface. */
+﻿/* Download manager surface. */
 
 .g-downloads {
   display: flex;
@@ -23,8 +23,7 @@
 
 .g-downloads-tabs {
   flex: 0 0 auto;
-  border-bottom: 1px solid var(--app-outline-variant);
-  background: var(--app-surface);
+  background: var(--app-surface-container);
   padding: 0 var(--app-space-6) 0 var(--app-space-4);
 }
 
@@ -69,12 +68,8 @@
   transition: background-color var(--app-motion-fast);
 }
 
-.g-task-row + .g-task-row {
-  border-top: 1px solid var(--app-outline-variant);
-}
-
 .g-task-row:hover {
-  background: var(--app-surface-container-low);
+  background: var(--app-surface-container);
 }
 
 .g-task-row[data-status="failed"] {
@@ -199,3 +194,4 @@
     opacity: 1;
   }
 }
+

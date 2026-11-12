@@ -238,14 +238,13 @@ export const COUNTRIES: Country[] = [
   { iso: "PW", dial: "+680" },
 ];
 
-export const DEFAULT_COUNTRY_ISO = "CN";
-
 const countryIndex = new Map(COUNTRIES.map((country) => [country.iso, country]));
 
 const displayNamesCache = new Map<string, Intl.DisplayNames>();
 
-export function findCountry(iso: string): Country {
-  return countryIndex.get(iso) ?? countryIndex.get(DEFAULT_COUNTRY_ISO)!;
+/** Region lookup; empty or unknown codes deliberately return undefined. */
+export function findCountry(iso: string): Country | undefined {
+  return countryIndex.get(iso);
 }
 
 /** Localised region name, falling back to the ISO code. */

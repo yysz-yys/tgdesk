@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Avatar } from "../ui/Avatar";
 import { Icon } from "../ui/Icon";
-import { IconButton } from "../ui/IconButton";
 import {
   Menu,
   MenuContent,
@@ -75,13 +74,6 @@ export function NavigationRail({
       </div>
 
       <div className="g-rail-footer">
-        <IconButton
-          label={t("common.settings")}
-          icon="settings"
-          iconSize={21}
-          onClick={onSettings}
-        />
-
         <Menu>
           <MenuTrigger asChild>
             <button type="button" className="g-rail-account" aria-label={accountName}>
