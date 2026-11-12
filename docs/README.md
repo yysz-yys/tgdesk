@@ -24,7 +24,7 @@ may not match the current implementation:
 | [tdl-desktop-plan.zh-CN.md](tdl-desktop-plan.zh-CN.md) | Initial Chinese product/architecture plan, written before the kernel and UI existed |
 | [ui.md](ui.md) | Early Telegram-style UI specification and screenshots from before the official-size rebuild |
 | [spike-plan.md](spike-plan.md) | First validation spike plan |
-| [assets/](assets/) | Screenshots from earlier iterations; only `ui-login-current.png` is current |
+| [assets/](assets/) | Screenshots from earlier iterations; `ui-login-current.png` and `ui-login-phone.png` are current |
 
 ## Reading order for a first change
 

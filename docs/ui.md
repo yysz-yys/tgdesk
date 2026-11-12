@@ -2,6 +2,8 @@
 
 > 参考基准：**Telegram Desktop（Windows 原生客户端）**，不是 Telegram Web，也不是 Material / 管理后台风格。  
 > 当前状态：**登录页已接真实的 tdl/gotd QR、手机号、验证码、2FA flow**；**聊天列表、最近 50 条消息、媒体下载任务已接真实 Telegram 数据**。Pin/Mute/Mark read 和消息选择仍是本地 UI 动作。首次启动显示真实登录页；登录成功后进入主界面。
+>
+> 2026-11-11 收敛：界面只保留**聊天**和**下载**两个功能面。右侧信息栏、About 页、主题/背景/字号/缩放等外观设置、以及未实现的 Telegram 菜单入口均已移除；设置面板只剩语言、聊天、下载和网络。下文部分截图和章节属于历史设计记录。
 
 ![Dark chat](assets/ui-chat-dark.png)
 
@@ -65,7 +67,7 @@
 
 其他规则：
 
-- 字体：`Segoe UI Variable / Segoe UI / Microsoft YaHei UI`，不用 Inter。
+- 字体：聊天主界面使用 `Segoe UI Variable / Segoe UI / Microsoft YaHei UI`；登录页使用 Roboto（本地 `frontend/public/fonts`）+ 系统中文字体回退。
 - 字号：正文 14，辅助 13，时间 12；标题 600 字重。
 - 圆角：按钮 10，卡片 12，气泡 12，头像全圆。
 - 聊天背景：浅色 `#e6ebee` / 深色 `#0e1621`，叠一层低透明度点阵；不要复制 Telegram 壁纸。
@@ -75,20 +77,23 @@
 
 ## 4. 登录页
 
-![Login dark](assets/ui-login-dark.png)
+![Login](assets/ui-login-current.png)
 
-![Login light](assets/ui-login-light.png)
+![Phone login](assets/ui-login-phone.png)
 
-- 全屏点阵背景 + 420px 登录卡片；顶部只放一个主题切换按钮。
+- 登录页使用 **Google Material 3** 风格：Roboto 字体、28px 圆角白色卡片、填充式药丸按钮、Material 色板（primary `#0b57d0`、surface-container `#f0f4f9`、error-container `#f9dedc`），左侧为浅色品牌面板，右侧为登录卡片。聊天主界面仍保留 Telegram 深色配色，登录页独立使用浅色 surface。
 - 两条真实路径：
-  - **QR Code**：kernel 的 `client.QR().Auth` 返回真实 `tg://login?token=...`，前端 `qrcode.react` 渲染；Refresh 会取消旧 flow 并重新生成。
-  - **Phone Number**：国家码 + 手机号 → Telegram 验证码 → 可选 2FA 密码；“Back” 会取消当前 flow。
+  - **QR Code**：kernel 的 `client.QR().Auth` 返回真实 `tg://login?token=...`，前端 `qrcode.react` 渲染；后端在 token 刷新时重新推送 `qr` 事件，前端显示剩余秒数，过期后可手动刷新。
+  - **Phone Number**：国家/地区选择器（默认 +86，支持搜索，224 个国家和地区）→ 手机号 → Telegram 验证码 → 可选 2FA 密码；“Back” 会取消当前 flow。
+- 手机号以 `+国家码 号码` 形式提交（例如 `+886 905462282`），kernel 统一规范化为 `+886905462282`。
+- 验证码步骤展示投递方式（App / SMS / 电话 / 邮件）、验证码位数、重发倒计时和 2FA 密码提示；支持 `auth.resendCode`，Telegram 返回 `FLOOD_WAIT_*` 时显示剩余秒数并禁用提交。
 - 登录页内嵌 **Proxy settings**：None / SOCKS5 / HTTP、host/port/username/password（密码只在内存中），保存后重连；用于 Telegram 被墙的网络。
-- 登录事件通过 `auth:event` 推送：`starting` / `qr` / `code` / `password` / `success` / `error`。首个响应超过 30 秒会显示本地化超时错误。
-- 会话写入 `<exe>/data/tgdesk`，与 tdl CLI 的 `default` namespace 隔离；`AuthStatus` 要求 session + 已登录用户标记，避免“扫到一半”的 QR auth key 被误判为已登录。`tdata/` 只放官方 Telegram Desktop 文件，tgdesk 自己的状态全部在 `data/`。把 `tdata/` 或 `data/tgdesk` 放到另一个 `tgdesk.exe` 同目录即可直接登录。
-- **Telegram Desktop tdata**：把 Telegram Desktop 的 `tdata` 内容复制到 `<exe>/tdata` 后启动，`gotd/td/session/tdesktop` 会读取授权 key，自动导入为 `data/tgdesk`；已有 tgdesk session 会先备份为 `data/tgdesk.bak`。带本地 passcode 的 tdata 暂不支持，登录页显示导入错误但二维码仍可用。
+- 登录事件通过 `auth:event` 推送：`starting` / `qr` / `code` / `password` / `success` / `error`，并携带 `qrExpiresIn`、`codeType`、`codeLength`、`codeTimeout`、`retryAfter`、`passwordHint`、`tData` 等结构化字段。首个响应超过 40 秒会显示本地化超时错误。
+- 会话写入 `<exe>/data/tgdesk`，与 tdl CLI 的 `default` namespace 隔离；`AuthStatus` 要求 session + 已登录用户标记，避免“扫到一半”的 QR auth key 被误判为已登录。`tdata/` 只放官方 Telegram Desktop 文件，tgdesk 自己的状态全部在 `data/`。
+- 登录成功后自动写入官方格式 `tdata/`：`key_datas`、`D877F783D5D3EF8Cs`、`D877F783D5D3EF8C/maps`，以及 `data/tdata-export.json` 导出记录；原 tdata 授权文件备份到 `data/tdata-backup/`。
+- **Telegram Desktop tdata**：把 Telegram Desktop 的 `tdata` 内容复制到 `<exe>/tdata` 后启动，`gotd/td/session/tdesktop` 会读取授权 key，自动导入为 `data/tgdesk`；已有 tgdesk session 会先备份为 `data/tgdesk.bak`。导入按授权身份（user id + DC + key id）判断，Telegram Desktop 每次启动重写 key_data 不会造成重复导入。带本地 passcode 的 tdata 暂不支持。
 - 处理 Telegram 的 `AUTH_LOGIN_TOKEN_MIGRATE_TO`：扫描后要求迁移到 DC 5 时，自动 `MigrateTo` 并导入已扫描 token，不要求二次扫码；如果是刷新 token 时要求迁移（还没有扫描），迁移后在新 DC 生成新二维码。
-- 登录后进入主界面；主界面菜单 / 设置里的 “Log out” 删除 tgdesk 的 tdl session 和用户缓存，回到登录页。
+- 登录后进入主界面；主界面菜单 / 设置里的 “Log out” 删除 tgdesk 的 tdl session 和用户缓存，回到登录页。tdata 文件保留。
 - 账号名、头像首字母来自 `client.Self()`，并缓存在 tdl KV，重启后仍显示。
 
 ## 5. 设置页

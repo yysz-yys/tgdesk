@@ -13,6 +13,7 @@ test with a real Telegram Desktop account safely.
     tgdesk                    tgdesk's tdl bbolt session (+ cached AuthUser)
     tgdesk.bak                previous session after a tdata import
     tdata-backup/             previous official auth files after an export
+    tdata-export.json         last tdata export (user/DC/key id/path)
     .telegram-desktop-import  source fingerprint for one-time import
     .legacy-session-migrated  migration marker
     .legacy-webview-migrated  migration marker
@@ -20,9 +21,9 @@ test with a real Telegram Desktop account safely.
     thumbs/                   downloaded Telegram thumbnails
     webview/                  WebView2 user data (settings/theme/drafts)
   tdata/                      official Telegram Desktop files only
-    key_data0/1/s
-    data0/1/s
-    D877F783D5D3EF8C/maps
+    key_datas
+    D877F783D5D3EF8Cs         MTP authorization (account index 0)
+    D877F783D5D3EF8C/maps     account map
   downloads/                  default media destination
 ```
 
@@ -45,8 +46,14 @@ On startup, if `key_data*` exists and the fingerprint marker is absent:
 3. It backs up an existing tgdesk session to `data/tgdesk.bak`.
 4. It writes the source fingerprint to `data/.telegram-desktop-import`.
 
-The source tdata is only read. **Passcode-protected tdata is unsupported**; the
-login screen reports the import error and QR login remains available.
+The source tdata is only read. An unchanged tdata is normally imported only
+once. The check compares the authorization identity (user id, main DC and key
+id), not file timestamps, because Telegram Desktop rewrites `key_data` with a
+new salt on every start. If a later start finds the marker while the stored
+session is an abandoned QR attempt without a completed-login record, the tdata
+is imported again so a dropped-in tdata still logs in. A missing session
+(logout) is left alone. **Passcode-protected tdata is unsupported**; the login
+screen reports the import error and QR login remains available.
 
 For a safe manual import:
 
@@ -66,14 +73,22 @@ Prefer a **copy** even though the importer reads only.
 After a successful QR/phone login, tgdesk writes a no-passcode official-format
 tdata:
 
-- `key_data0`, `key_data1`, `key_datas`
-- hashed account data files
-- `D877F783D5D3EF8C/maps`
+- `key_datas` (local key wrapped with an empty passcode + account index)
+- `D877F783D5D3EF8Cs` (the MTP authorization block, official wide-id layout)
+- `D877F783D5D3EF8C/maps` (empty account map)
+- `data/tdata-export.json` (non-Telegram bookkeeping; user/DC/key id/path)
 
-Before writing, existing official auth files are moved/copied to
-`data/tdata-backup/`. The generated tdata has been validated with official
-portable Telegram Desktop 7.4.1; only the main DC key is written and Telegram
-Desktop fills in the rest while connecting.
+Modern Telegram Desktop only keeps the `s` suffix, so tgdesk writes `s` files
+and removes stale `0`/`1` variants. The TDF$ container hashes, the encrypted
+descriptors and the MTP authorization payload use the same layout as
+`storage_account.cpp` / `mtp_authorization.cpp`. Existing official auth files
+are copied to `data/tdata-backup/` first. The generated tdata has been validated
+with official portable Telegram Desktop 7.2.5 (build 7002005): the client reads
+the accounts info, map, MTP authorization and key, then connects. Only the main
+DC key is written and Telegram Desktop fills in the rest while connecting.
+
+`data/tdata-export.json` lets the UI show the last export and lets the importer
+avoid re-importing the tdata tgdesk itself wrote.
 
 ## tgdesk session
 

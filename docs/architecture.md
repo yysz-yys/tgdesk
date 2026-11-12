@@ -85,14 +85,19 @@ tasks) and run in goroutines.
 `internal/kernel/auth.go`:
 
 - Starts QR or phone login through tdl/gotd.
-- Emits `AuthEvent` callbacks (`starting`, `qr`, `code`, `password`, `success`,
-  `error`, etc.) that `internal/app` forwards as Wails `auth:event`.
+- Emits structured `AuthEvent` callbacks (`starting`, `qr`, `code`, `password`,
+  `success`, `error`) that `internal/app` forwards as Wails `auth:event`.
+  Events carry QR expiry, code type/length/timeout, resend state, 2FA hint,
+  flood-wait seconds and the exported tdata path.
+- Phone login is implemented directly (sendCode → signIn → checkPassword)
+  instead of `auth.Flow`, so the UI can offer resend, show the delivery method
+  and retry an invalid code without restarting the flow.
 - Keeps QR/phone/2FA channels for the React steps.
 - Verifies a session only when both the tdl session and the completed-login
   marker exist; an abandoned QR attempt is not "logged in".
 - Stores the cached `AuthUser` in the session namespace.
-- On success, calls `exportTelegramDesktopTData` (best effort; failure is logged,
-  not fatal).
+- On success, calls `exportTelegramDesktopTData` and reports the result to the
+  UI (best effort: a failed export does not fail the login).
 
 Phone login supports Telegram's login-token DC migration. Proxy credentials are
 kept in memory and intentionally excluded from `localStorage`.
@@ -112,7 +117,13 @@ shared session.
 - Imports into `<root>/data/tgdesk`.
 - Backs up the existing tgdesk session to `data/tgdesk.bak`.
 - Records a source fingerprint in `data/.telegram-desktop-import` so the same
-  tdata is imported only once.
+  tdata is imported only once. A matching marker is trusted only while the
+  stored session still has its completed-login user record: an abandoned QR
+  session is replaced by the tdata session on the next start, while a missing
+  session (logout) stays logged out. Import also compares the authorization
+  identity (user id + main DC + key id), so Telegram Desktop rewriting its files
+  does not re-import the same login and does not replace the cached display
+  name with the import placeholder.
 - Only reads the official files.
 
 Passcode-protected tdata is unsupported; import reports an error and QR login
@@ -122,14 +133,17 @@ remains available.
 
 `tdesktop_export.go` writes a no-passcode Telegram Desktop-compatible tdata:
 
-- `key_data0`, `key_data1`, `key_datas`
-- hashed account data files
-- `D877F783D5D3EF8C/maps` account map
+- `key_datas` (local key wrapped by the empty-passcode key)
+- `D877F783D5D3EF8Cs` (MTP authorization, official wide-id serialization)
+- `D877F783D5D3EF8C/maps` (account map)
+- `data/tdata-export.json` (non-Telegram bookkeeping)
 
-It backs up existing official auth files to `data/tdata-backup/` first. The
-generated tdata was validated with official portable Telegram Desktop 7.4.1.
-Only the main DC key is exported; Telegram Desktop fills the rest while
-connecting.
+Modern clients only keep the `s` suffix, so only `s` files are written and
+legacy `0`/`1` variants are removed. Existing official auth files are copied to
+`data/tdata-backup/` first. The generated tdata was validated with official
+portable Telegram Desktop 7.2.5: it reads the accounts info, map and MTP
+authorization, and starts the account. Only the main DC key is exported;
+Telegram Desktop fills the rest while connecting.
 
 `tdata/` is reserved for official files. tgdesk session state always lives in
 `data/`.
@@ -183,32 +197,34 @@ memory per chat/message, and never downloads full media.
 
 - auth gate and login/main switch;
 - chat list, selected chat and message loading;
-- settings/theme/language/scale effects;
+- language, proxy and download settings effects;
 - Wails event subscriptions;
-- toasts, dialogs and download state.
+- toasts, download state and the settings sheet.
 
 State split:
 
 - Backend data arrives through generated bindings and is mapped to UI models.
-- Theme and local preferences are in `localStorage`.
+- Language, proxy (without the password in plain text), download and composer
+  preferences are in `localStorage`.
 - Composer drafts use `tgdesk.draft.<chatId>`.
 - No Telegram credential is stored in React state beyond the in-memory auth flow.
 
 Component layers:
 
 - `components/auth` — one component per login step; `LoginShell` owns the page
-  surface and titlebar spacing.
+  surface.
 - `components/chat` — conversation is split into header, search, list, bubble,
   media thumb, composer, channel bar and selection bar.
-- `components/layout` — caption bar, sidebar, folder shell and right info panel.
-- `components/settings` — settings sheet, list and subpages.
+- `components/layout` — caption bar and sidebar.
+- `components/settings` — the minimal settings sheet for language, chat,
+  downloads and network.
 - `components/ui` — generic atoms (`Button`, `TextField`, `Menu`, `Tooltip`,
   `Avatar`, …). UI-specific CSS is namespaced with `tg-`.
 
 Styling:
 
-- `app.css` holds design tokens (Telegram light/dark palette), global shell,
-  message list and legacy layout rules.
+- `app.css` holds design tokens (fixed dark palette), global shell, message list
+  and layout rules.
 - Component CSS is imported by its owning component.
 - Telegram Desktop geometry constants are documented in
   `docs/frontend-rebuild.md` and should be measured, not guessed.
@@ -231,7 +247,7 @@ name changes, update both Go and the frontend subscription and regenerate.
 | Import fingerprint | `data/.telegram-desktop-import` | prevents re-import loops |
 | Download metadata | `data/downloads.json` | portable task store |
 | Thumbnail cache | `data/thumbs/` | small JPEGs, safe to delete |
-| WebView state | `data/webview/` | theme/language/settings/drafts |
+| WebView state | `data/webview/` | language/settings/drafts |
 | Official tdata | `tdata/` | never tgdesk session files |
 | Download output | `downloads/` | configurable in settings |
 

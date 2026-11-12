@@ -4,10 +4,11 @@ Windows-first desktop shell for [tdl](https://github.com/iyear/tdl), built with
 Wails v3, React 19 and TypeScript. tdl and gotd are consumed as Go modules; the
 upstream projects are **not forked or patched**.
 
-The UI is a componentized reconstruction of Telegram Desktop: the welcome and
-QR flows, chat list, conversation surface, right info panel and settings are
-separate `tg-*` components, calibrated against official Telegram Desktop 7.4.1
-screenshots at a 1107×725 client area.
+The UI keeps two working surfaces: the chat list/conversation and the download
+queue. Login (welcome, QR/phone, 2FA) is the entry point. A small settings sheet
+only exposes options those two features use: language, send-on-Enter, download
+folder/threads/file-name template, proxy and NTP. Telegram Desktop 7.4.1
+screenshots at a 1107×725 client area were used as a reference.
 
 ![tgdesk login](docs/assets/ui-login-current.png)
 
@@ -16,7 +17,9 @@ screenshots at a 1107×725 client area.
 Working end to end against real Telegram data:
 
 - Welcome → QR / phone → code → 2FA login, import from official Telegram Desktop
-  `tdata`, and export a compatible no-passcode `tdata` after login.
+  `tdata`, and export a compatible no-passcode `tdata` after login. The login
+  screen uses a Google Material 3 styled surface with a searchable country-code
+  picker, resendable codes and QR expiry feedback.
 - Real dialog list and recent history (latest 50 messages per open).
 - Plain-text message sending.
 - Byte-resumable media downloads with pause, resume and cancel.
@@ -24,8 +27,8 @@ Working end to end against real Telegram data:
 - Forwarded messages, video cards, service messages, polls/results, locations
   and contacts.
 - In-chat search over loaded messages, per-chat drafts, message grouping.
-- Telegram Desktop-style settings sheet, custom chat background presets/image,
-  and interface scale.
+- A minimal settings sheet for language, send-on-Enter, download options,
+  proxy and NTP only.
 
 Local-only UI actions: pin, mute and mark-read. They reset on restart. Message
 pagination, live updates, reactions, forwarding and server-side search are not
@@ -68,12 +71,15 @@ data/
   tgdesk              tgdesk's tdl bbolt session + cached user
   tgdesk.bak          previous session, if tdata import replaced one
   tdata-backup/       previous official tdata files, if tgdesk exported
+  tdata-export.json   last tdata export (user/DC/key id/path)
   downloads.json      persisted download metadata
   thumbs/             cached Telegram thumbnails (base64 source files)
-  webview/            WebView2 state: theme, language, settings, drafts
+  webview/            WebView2 state: language, settings, drafts
 tdata/                official Telegram Desktop files only
-  key_data*           Telegram Desktop local key
-  data* / maps        account authorization and account map
+  key_datas           Telegram Desktop local key + account index
+  D877F783D5D3EF8Cs   MTP authorization (official wide-id format)
+  D877F783D5D3EF8C/   account folder
+    maps              account map
 downloads/            default download destination
 ```
 
@@ -126,12 +132,12 @@ frontend/src/
   App.tsx                   app shell, state, effects, event handlers
   components/auth/          welcome, QR, phone, code, 2FA, success
   components/chat/          chat view, rows, header, composer, search, media
-  components/layout/        title bar, sidebar, right panel, folder shell
-  components/settings/      Telegram-style settings sheet and subpages
+  components/layout/        title bar and sidebar
+  components/settings/      minimal settings sheet (language/chat/downloads/network)
   components/downloads/     download manager
   components/ui/            Button, TextField, Menu, Avatar, Tooltip, …
   data/telegram.ts          DTO → UI model mapping and date formatting
-  hooks/                    theme and settings persistence
+  hooks/                    settings persistence
   locales/                  en / zh / ja
 frontend/bindings/          generated Wails bindings; do not edit by hand
 docs/                       architecture, development, privacy, design history
@@ -185,14 +191,10 @@ belong in git. A detailed checklist is in
 
 ## Known limitations
 
-- Official account-specific chat wallpaper cannot be exported automatically; use
-  **Chat settings → Custom background image** to select a local image.
 - The welcome illustration is a rebuilt approximation, not the official bitmap.
 - Map tiles require network; the card falls back to a schematic surface.
 - tdata protected by a Telegram Desktop local passcode is unsupported.
 - Pin/mute/mark-read are local UI state.
-- Some settings sections backed by unavailable Telegram APIs are explicit
-  placeholders rather than fake controls.
 - Message pagination, live updates, reactions and server-side search remain
   future work.
 

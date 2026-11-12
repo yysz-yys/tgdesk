@@ -21,7 +21,7 @@ cross-checked with Windows UI Automation, not guessed.
 |---|---|
 | Controls | `Button`, `IconButton`, `TextField`, `SelectField`, `Callout`, `Spinner`, `Menu`, `Tooltip`, `Avatar` |
 | Shell | `TitleBar`, `Sidebar`, `RightPanel`, `SettingsDialog` |
-| Login | `LoginShell`, `LoginHero`, `LoginWelcomeStep`, `LoginQrStep`, `LoginPhoneStep`, `LoginCodeStep`, `LoginPasswordStep`, `LoginSuccessStep`, `LoginNetworkSettings`, `BrandMark` |
+| Login | `LoginShell`, `LoginWelcomeStep`, `LoginQrStep`, `LoginPhoneStep`, `LoginCodeStep`, `LoginPasswordStep`, `LoginSuccessStep`, `LoginNetworkSettings`, `CountryPicker`, `BrandMark` |
 | Conversation | `ChatView`, `ChatHeader`, `ChatRow`, `ChatSearchBar`, `ChatComposer`, `ChannelBar`, `SelectionBar`, `MessageList`, `MessageBubble`, `MediaThumb`, `LocationPreview` |
 
 The old monolithic login markup, fabricated media artwork and the always-on
