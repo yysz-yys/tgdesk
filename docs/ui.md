@@ -113,6 +113,10 @@ original low-opacity Material outline pattern, not Telegram artwork.
 
 ![New message picker](assets/ui-new-message.png)
 
+![Inline chat search](assets/ui-chat-search.png)
+
+![Earlier message pagination](assets/ui-chat-history.png)
+
 ## 3. Shared component layer
 
 Everything under `frontend/src/components/ui` is the base layer. Feature
@@ -222,8 +226,10 @@ Automatic tdata lifecycle:
 ### Chat
 
 - App bar: 38px avatar, 18px conversation name, 12px presence/member line,
-  40px search/menu actions. It is transparent over the wallpaper; clicking the
-  avatar/title opens the chat-info dialog.
+  40px search/menu actions. It is a floating rounded surface bubble over the
+  wallpaper; clicking the avatar/title opens the chat-info dialog.
+- Clicking search replaces the bubble contents with an inline search field
+  (auto-focus, result count, clear and close); there is no separate search row.
 - The chat pane is full-bleed, with an original low-opacity Material outline
   wallpaper; there is no outer rounded card.
 - Incoming bubbles are white with a subtle M3 shadow in light mode and
@@ -231,7 +237,7 @@ Automatic tdata lifecycle:
   `primary-container`. Date labels are compact tonal pills, not full-width rules.
 - Private chats show no message avatars or sender names. Groups and channels
   show the sender avatar on every message; photos load lazily and fall back to
-  deterministic initials. Grouped messages align under the first avatar.
+  deterministic initials. Grouped messages align under the avatar.
 - The header opens a chat-info dialog with the peer/chat photo, title, type,
   username, member count and last message.
 - Message media support covers text, photo, video, GIF, sticker, voice, video
@@ -239,12 +245,15 @@ Automatic tdata lifecycle:
   game, invoice, story, giveaway, paid media, checklist and an explicit
   unsupported fallback. Reply quotes and forwarded headers sit inside the
   bubble. See [messages.md](messages.md) for the mapping table.
-- Comfortable density: 32px avatars on the first message of a group, sender name
-  above the bubble, 18px bubbles, opposite alignment for outgoing messages.
-- Incoming bubble `surface-container`; outgoing `primary-container`. The last
-  bubble in a group gets a 4px corner on the message side.
-- Timestamp and read state sit inside the bubble at bottom-right. Grouped
-  messages indent under the bubble; avatars repeat only on sender/date changes.
+- Clicking a video/video-note card caches the file and opens the native HTML5
+  player with a preparation spinner; a full-screen video is never embedded in
+  the timeline.
+- The top of the timeline offers “加载更早的消息” when more history exists; the
+  button uses `GetOlderMessages(OffsetID)` and keeps the previous first message
+  anchored.
+- Comfortable density: 32px avatars, sender name above the first bubble, 18px
+  bubbles, opposite alignment for outgoing messages.
+- Timestamp and read state sit inside the bubble at bottom-right.
 - Hover reveals a 22px selection control and a quiet row state layer; the
   context menu exposes download/select/copy.
 - Media cards use 12px radius; photo/video captions sit on a scrim. File cards
@@ -254,8 +263,8 @@ Automatic tdata lifecycle:
   ring; the textarea suppresses the global outline. A “jump to latest” tonal icon
   button floats above the composer when the reader is more than 180px away from
   the bottom.
-- In-chat search closes on Escape and only searches loaded messages, with an
-  explicit hint.
+- In-chat search filters loaded messages inline in the header and closes on
+  Escape; the result count replaces the search icon area.
 
 ### Downloads
 

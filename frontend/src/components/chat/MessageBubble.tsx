@@ -30,6 +30,7 @@ interface MessageBubbleProps {
   grouped?: boolean;
   lastInGroup?: boolean;
   onLoadAvatar: ChatAvatarLoader;
+  onPlayVideo?: (message: Message) => void;
   onToggleSelect: (id: number) => void;
   onDownloadMessage?: (id: number) => void;
   onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
@@ -46,6 +47,7 @@ export function MessageBubble({
   grouped = false,
   lastInGroup = true,
   onLoadAvatar,
+  onPlayVideo,
   onToggleSelect,
   onDownloadMessage,
   onLoadThumbnail,
@@ -321,8 +323,13 @@ export function MessageBubble({
                   <span className="g-dice-emoji">{media.emoji || "🎲"}</span>
                   <span className="g-dice-value">{media.value || "—"}</span>
                 </div>
-              ) : media?.kind === "video" ? (
-                <div className="g-video-card">
+              ) : media?.kind === "video" || media?.kind === "video_note" ? (
+                <button
+                  type="button"
+                  className="g-video-card g-video-card--playable"
+                  aria-label={t("chat.playVideo")}
+                  onClick={() => onPlayVideo?.(message)}
+                >
                   <MediaThumb
                     chatID={message.chatId}
                     messageID={message.id}
@@ -335,7 +342,7 @@ export function MessageBubble({
                   <span className="g-video-meta">
                     {media.duration ? formatDuration(media.duration) : media.size}
                   </span>
-                </div>
+                </button>
               ) : media?.kind === "photo" ? (
                 <div className="g-photo-card">
                   <MediaThumb
@@ -358,10 +365,8 @@ export function MessageBubble({
                           ? "audio_file"
                           : media.kind === "voice"
                             ? "mic"
-                            : media.kind === "video_note"
-                              ? "videocam"
-                              : media.kind === "game"
-                                ? "sports_esports"
+                            : media.kind === "game"
+                              ? "sports_esports"
                                 : media.kind === "invoice"
                                   ? "receipt_long"
                                   : media.kind === "story"

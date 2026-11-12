@@ -27,11 +27,11 @@ turning it into an empty bubble.
 | --- | --- | --- |
 | Text | `Message.message` | Bubble text |
 | Photo | `MessageMediaPhoto` | 360×220 thumbnail card |
-| Video | `DocumentAttributeVideo` | Thumbnail with play badge and duration |
+| Video | `DocumentAttributeVideo` | Thumbnail card; click caches the file and opens the native video player |
 | GIF / animation | `DocumentAttributeAnimated` | Thumbnail with a GIF badge |
 | Sticker | `DocumentAttributeSticker` | 140px contained thumbnail plus emoji |
 | Voice | `DocumentAttributeAudio.Voice` | Mic file card with duration |
-| Video note | `DocumentAttributeVideo.RoundMessage` | Round-video file card |
+| Video note | `DocumentAttributeVideo.RoundMessage` | Round-video card with the same player as video |
 | Audio | `DocumentAttributeAudio` | Audio file card; uses title/performer when available |
 | File | any other document | File card with extension, size and download icon |
 | Poll / quiz | `MessageMediaPoll` | Question, options, vote bars, quiz badge |
@@ -68,14 +68,19 @@ and sent/read ticks sit inside the same bubble.
 
 ## Known boundaries
 
-- Media playback and upload are not part of this iteration; photo/video/sticker/
-  GIF items use Telegram thumbnails, and voice/audio/file items are metadata
-  cards.
+- Media playback: video/video-note are playable via the cached loopback player;
+  photo/video/sticker/GIF thumbnails are shown inline, and voice/audio/file items
+  remain metadata cards. There is no upload flow yet.
 - Paid media, story bodies, giveaway details and live-location updates are
   represented but not expanded into their dedicated viewers.
 - Rich text entities (bold, links, code, custom emoji) are currently shown as
   their underlying text. Reactions, edits and album grouping are not rendered.
-- A history call returns the latest 50 messages; pagination is not implemented.
+- A history call returns the latest 50 messages. The user can load earlier pages
+  from the top of the timeline (`GetOlderMessages` with `OffsetID`); the UI keeps
+  the previous first message anchored while prepending the older page.
+- Videos are cached under `data/media/` and served to the WebView through a
+  random loopback-only HTTP token with Range support. The video dialog shows a
+  preparation spinner while the first download runs.
 
 ## Research references
 

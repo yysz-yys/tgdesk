@@ -46,6 +46,15 @@ func (s *Service) GetMessages(chatID, proxy, ntp string, limit int) ([]kernel.Me
 	return s.kernel.GetMessages(chatID, proxy, ntp, limit)
 }
 
+func (s *Service) GetOlderMessages(
+	chatID string,
+	beforeID int,
+	proxy, ntp string,
+	limit int,
+) ([]kernel.MessageDTO, error) {
+	return s.kernel.GetOlderMessages(chatID, beforeID, proxy, ntp, limit)
+}
+
 func (s *Service) SendMessage(chatID, text, proxy, ntp string) error {
 	return s.kernel.SendMessage(chatID, text, proxy, ntp)
 }
@@ -65,6 +74,14 @@ func (s *Service) GetMessageThumb(chatID string, messageID int, proxy, ntp strin
 
 func (s *Service) GetChatAvatar(chatID, proxy, ntp string) (string, error) {
 	return s.kernel.GetChatAvatar(chatID, proxy, ntp)
+}
+
+func (s *Service) GetMessageMedia(
+	chatID string,
+	messageID int,
+	proxy, ntp string,
+) (string, error) {
+	return s.kernel.GetMessageMedia(chatID, messageID, proxy, ntp)
 }
 
 func (s *Service) GetDownloads() []kernel.DownloadTaskDTO {

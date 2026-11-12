@@ -161,6 +161,29 @@ func (s *Service) SendMessage(chatID, text, proxy, ntp string) error {
 // GetMessages loads the latest messages for an opaque chat ID. Telegram returns
 // newest first; the UI wants oldest-to-newest, so the slice is reversed.
 func (s *Service) GetMessages(chatID, proxy, ntp string, limit int) ([]MessageDTO, error) {
+	return s.getMessages(chatID, 0, proxy, ntp, limit)
+}
+
+// GetOlderMessages loads the page immediately before beforeID. The frontend
+// uses this to paginate beyond the latest screen instead of only showing today.
+func (s *Service) GetOlderMessages(
+	chatID string,
+	beforeID int,
+	proxy, ntp string,
+	limit int,
+) ([]MessageDTO, error) {
+	if beforeID <= 0 {
+		return s.GetMessages(chatID, proxy, ntp, limit)
+	}
+	return s.getMessages(chatID, beforeID, proxy, ntp, limit)
+}
+
+func (s *Service) getMessages(
+	chatID string,
+	beforeID int,
+	proxy, ntp string,
+	limit int,
+) ([]MessageDTO, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
@@ -179,8 +202,9 @@ func (s *Service) GetMessages(chatID, proxy, ntp string, limit int) ([]MessageDT
 	var result []MessageDTO
 	err = s.withChatClient(ctx, proxy, ntp, func(ctx context.Context, client *telegram.Client) error {
 		resp, err := client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
-			Peer:  peer,
-			Limit: limit,
+			Peer:     peer,
+			Limit:    limit,
+			OffsetID: beforeID,
 		})
 		if err != nil {
 			return fmt.Errorf("get history: %w", err)

@@ -41,6 +41,9 @@ type Service struct {
 	sessionMu sync.Mutex
 	session   *telegramSession
 
+	mediaServerMu sync.Mutex
+	mediaBaseURL  string
+
 	downloadMu      sync.Mutex
 	downloadTasks   map[string]*downloadTask
 	downloadOrder   []string

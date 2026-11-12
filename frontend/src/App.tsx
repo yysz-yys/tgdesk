@@ -79,6 +79,8 @@ export default function App() {
   const [selectedChatId, setSelectedChatId] = useState("");
   const [chatsLoading, setChatsLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [olderMessagesLoading, setOlderMessagesLoading] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [chatsFailed, setChatsFailed] = useState(false);
   const [messagesFailed, setMessagesFailed] = useState(false);
   const [portableRoot, setPortableRoot] = useState("");
@@ -308,11 +310,14 @@ export default function App() {
     let alive = true;
     setMessagesLoading(true);
     setMessagesFailed(false);
+    setOlderMessagesLoading(false);
+    setHasMoreMessages(true);
     setMessageDTOs([]);
     AppService.GetMessages(selectedChatId, proxyUrl, settings.ntp, 50)
       .then((list) => {
         if (alive) {
           setMessageDTOs(list ?? []);
+          setHasMoreMessages((list ?? []).length >= 50);
         }
       })
       .catch(() => {
@@ -551,6 +556,12 @@ export default function App() {
     [proxyUrl, settings.ntp],
   );
 
+  const loadMessageVideo = useCallback(
+    (chatID: string, messageID: number) =>
+      AppService.GetMessageMedia(chatID, messageID, proxyUrl, settings.ntp),
+    [proxyUrl, settings.ntp],
+  );
+
   const sendMessage = async (text: string) => {
     if (!selectedChatId) {
       throw new Error("No chat selected");
@@ -558,7 +569,44 @@ export default function App() {
     await AppService.SendMessage(selectedChatId, text, proxyUrl, settings.ntp);
     const next = await AppService.GetMessages(selectedChatId, proxyUrl, settings.ntp, 50);
     setMessageDTOs(next ?? []);
+    setHasMoreMessages((next ?? []).length >= 50);
   };
+
+  const loadOlderMessages = useCallback(async () => {
+    const oldestID = messageDTOs[0]?.id;
+    if (!selectedChatId || !oldestID || olderMessagesLoading || !hasMoreMessages) {
+      return;
+    }
+    setOlderMessagesLoading(true);
+    try {
+      const older =
+        (await AppService.GetOlderMessages(
+          selectedChatId,
+          oldestID,
+          proxyUrl,
+          settings.ntp,
+          50,
+        )) ?? [];
+      setMessageDTOs((current) => {
+        const known = new Set(current.map((message) => message.id));
+        return [...older.filter((message) => !known.has(message.id)), ...current];
+      });
+      setHasMoreMessages(older.length >= 50);
+    } catch {
+      showToast(t("chat.loadMessagesFailed"));
+    } finally {
+      setOlderMessagesLoading(false);
+    }
+  }, [
+    hasMoreMessages,
+    messageDTOs,
+    olderMessagesLoading,
+    proxyUrl,
+    selectedChatId,
+    settings.ntp,
+    showToast,
+    t,
+  ]);
 
   const handleAuthenticated = useCallback((user: AuthUser) => {
     setAuthUser(user);
@@ -660,6 +708,7 @@ export default function App() {
                 }}
                 onLoadThumbnail={loadThumbnail}
                 onLoadAvatar={loadChatAvatar}
+                onLoadVideo={loadMessageVideo}
                 onClearSelection={() => setSelectedIds(new Set())}
                 onSelectAll={selectAll}
                 onDownloadSelected={downloadSelected}
@@ -669,6 +718,9 @@ export default function App() {
                 enterToSend={settings.enterToSend}
                 loading={messagesLoading}
                 failed={messagesFailed}
+                hasMoreMessages={hasMoreMessages}
+                olderMessagesLoading={olderMessagesLoading}
+                onLoadOlder={loadOlderMessages}
                 selfName={authUser?.displayName ?? t("chat.you")}
                 selfInitials={authUser?.initials ?? "Y"}
                 selfColor={authUser?.color ?? "#7cacf8"}

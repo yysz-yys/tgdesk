@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message } from "../../types";
 import { chatColor, chatInitials } from "../../data/telegram";
-import { IconButton } from "../ui/IconButton";
+import { Icon } from "../ui/Icon";
+import { Spinner } from "../ui/Spinner";
 import { MessageBubble, type MessageAuthor } from "./MessageBubble";
 import type { ChatAvatarLoader } from "./ChatAvatar";
 
@@ -18,7 +19,11 @@ interface MessageListProps {
   selectedIds: Set<number>;
   showSender?: boolean;
   showAvatars?: boolean;
+  hasMoreMessages: boolean;
+  olderMessagesLoading: boolean;
+  onLoadOlder: () => void;
   onLoadAvatar: ChatAvatarLoader;
+  onPlayVideo?: (message: Message) => void;
   onToggleSelect: (id: number) => void;
   onDownloadMessage?: (id: number) => void;
   onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
@@ -37,7 +42,11 @@ export function MessageList({
   selectedIds,
   showSender,
   showAvatars = false,
+  hasMoreMessages,
+  olderMessagesLoading,
+  onLoadOlder,
   onLoadAvatar,
+  onPlayVideo,
   onToggleSelect,
   onDownloadMessage,
   onLoadThumbnail,
@@ -98,11 +107,41 @@ export function MessageList({
   };
 
   const byId = new Map(messages.map((message) => [message.id, message]));
+  const previousFirstId = useRef<number | undefined>(messages[0]?.id);
+
+  useEffect(() => {
+    const first = messages[0]?.id;
+    const previous = previousFirstId.current;
+    if (first !== undefined && previous !== undefined && first !== previous) {
+      const anchor = scrollRef.current?.querySelector(
+        `[data-message-id="${previous}"]`,
+      );
+      anchor?.scrollIntoView({ block: "start" });
+    }
+    previousFirstId.current = first;
+  }, [messages]);
 
   return (
     <div className="g-message-layer">
       <div className="g-message-scroll" ref={scrollRef} onScroll={onScroll}>
         <div className="g-message-list">
+        {hasMoreMessages ? (
+          <div className="g-load-older">
+            <button
+              type="button"
+              className="g-load-older-button"
+              disabled={olderMessagesLoading}
+              onClick={onLoadOlder}
+            >
+              {olderMessagesLoading ? (
+                <Spinner size={16} />
+              ) : (
+                <Icon name="history" size={17} />
+              )}
+              {olderMessagesLoading ? t("chat.loadingOlder") : t("chat.loadOlder")}
+            </button>
+          </div>
+        ) : null}
         {messages.map((message, index) => {
           const previous = messages[index - 1];
           const next = messages[index + 1];
@@ -118,7 +157,7 @@ export function MessageList({
 
           if (message.service) {
             return (
-              <div key={message.id} className="g-message-block">
+              <div key={message.id} className="g-message-block" data-message-id={message.id}>
                 {showDate ? <div className="g-date-chip">{message.date}</div> : null}
                 <div className="g-service-message">
                   <span>{message.service}</span>
@@ -137,7 +176,7 @@ export function MessageList({
               };
 
           return (
-            <div key={message.id} className="g-message-block">
+            <div key={message.id} className="g-message-block" data-message-id={message.id}>
               {showDate ? <div className="g-date-chip">{message.date}</div> : null}
               <MessageBubble
                 message={message}
@@ -149,6 +188,7 @@ export function MessageList({
                 grouped={sameSenderAsPrevious}
                 lastInGroup={!sameSenderAsNext}
                 onLoadAvatar={onLoadAvatar}
+                onPlayVideo={onPlayVideo}
                 onToggleSelect={onToggleSelect}
                 onDownloadMessage={onDownloadMessage}
                 onLoadThumbnail={onLoadThumbnail}
@@ -162,12 +202,15 @@ export function MessageList({
 
       {showJump ? (
         <div className="g-jump-latest">
-          <IconButton
-            variant="tonal"
-            icon="arrow_downward"
-            label={t("chat.jumpLatest")}
+          <button
+            type="button"
+            className="g-jump-button"
+            aria-label={t("chat.jumpLatest")}
+            title={t("chat.jumpLatest")}
             onClick={jumpToBottom}
-          />
+          >
+            <Icon name="arrow_downward" size={22} />
+          </button>
         </div>
       ) : null}
     </div>

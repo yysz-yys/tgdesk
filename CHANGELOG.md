@@ -61,7 +61,17 @@
 - Downloads are individual floating task cards with no separator lines; the
   hamburger from the downloads header opens the same navigation drawer.
 - A tonal “jump to latest” button floats above the composer and replaces the old
-  sticky FAB.
+  sticky FAB. The button is now a true circular control rather than a Material
+  host square.
+- Chat header is a floating bubble; search opens inline in the same bubble
+  instead of inserting a second toolbar row.
+- Video and video-note cards now open a native HTML5 player. Full files are
+  cached under `data/media/` and served from a random loopback-only HTTP token
+  with Range support, so seeking works without embedding a full-screen player in
+  the timeline.
+- Earlier history is paginated with `GetOlderMessages` (`messages.getHistory`
+  `OffsetID`) and a top-of-timeline “加载更早的消息” action; the previous first
+  message stays anchored when older pages are prepended.
 
 ### Project hygiene
 

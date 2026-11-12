@@ -20,6 +20,7 @@ test with a real Telegram Desktop account safely.
     downloads.json            persisted download tasks
     thumbs/                   downloaded Telegram thumbnails
     avatars/                  cached chat/sender profile-photo thumbnails
+    media/                    cached playable videos served over loopback HTTP
     webview/                  WebView2 user data (settings/drafts)
   tdata/                      official Telegram Desktop files only
     key_datas
@@ -120,6 +121,9 @@ Do not commit or share it; it may contain private draft text.
 - `data/avatars/` contains cached profile-photo thumbnails for chats and message
   senders. It is also safe to delete; the UI falls back to initials until the
   next lazy fetch.
+- `data/media/` contains complete video files requested for playback. A random
+  loopback-only HTTP token is used for Range playback; deleting the folder is
+  safe and the next play re-downloads the file.
 - `downloads/` is the default output directory and may contain private media.
 
 ## Legacy migration

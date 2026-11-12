@@ -21,8 +21,36 @@
   flex: 0 0 64px;
   align-items: center;
   gap: var(--app-space-1);
-  background: transparent;
-  padding: 0 var(--app-space-3) 0 var(--app-space-4);
+  margin: var(--app-space-2) var(--app-space-2) 0;
+  border-radius: 20px;
+  background: var(--app-surface);
+  padding: 0 var(--app-space-2) 0 var(--app-space-2);
+  box-shadow: var(--app-elevation-2);
+}
+
+[data-theme="dark"] .g-chat-header {
+  background: var(--app-surface-container);
+}
+
+.g-chat-search-inline {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+
+.g-chat-search-inline .g-search {
+  flex: 1;
+  background: var(--app-surface-container-low);
+}
+
+.g-chat-search-inline .g-chat-search-count {
+  padding-right: var(--app-space-2);
+  color: var(--app-primary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .g-chat-avatar {
@@ -347,6 +375,37 @@
   text-align: center;
 }
 
+.g-load-older {
+  display: flex;
+  justify-content: center;
+  padding: var(--app-space-2) 0 var(--app-space-4);
+}
+
+.g-load-older-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-surface-container);
+  padding: 0 14px;
+  color: var(--app-on-surface-variant);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.g-load-older-button:hover {
+  background: var(--app-surface-container-high);
+  color: var(--app-on-surface);
+}
+
+.g-load-older-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .g-message-layer {
   position: relative;
   display: flex;
@@ -363,9 +422,25 @@
   animation: g-jump-in var(--app-motion);
 }
 
-.g-jump-latest .g-icon-button {
-  --md-filled-tonal-icon-button-container-shape: var(--app-radius-pill);
-  box-shadow: var(--app-elevation-1);
+.g-jump-button {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+  box-shadow: var(--app-elevation-2);
+  cursor: pointer;
+  transition:
+    background-color var(--app-motion-fast),
+    box-shadow var(--app-motion-fast);
+}
+
+.g-jump-button:hover {
+  background: color-mix(in srgb, var(--app-primary-container) 88%, var(--app-on-primary-container));
+  box-shadow: var(--app-elevation-3);
 }
 
 @keyframes g-jump-in {
@@ -788,6 +863,45 @@
   letter-spacing: 0.3px;
   vertical-align: 1px;
   text-transform: uppercase;
+}
+
+.g-video-player {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #000;
+}
+
+.g-video-player-media {
+  display: block;
+  width: 100%;
+  max-height: 68vh;
+  background: #000;
+}
+
+.g-video-player-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--app-space-2);
+  padding: var(--app-space-8);
+  color: #d8dee9;
+  font-size: 12px;
+}
+
+.g-video-card--playable {
+  border: 0;
+  padding: 0;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.g-video-card--playable:hover .g-video-play {
+  background: rgba(0, 0, 0, 0.72);
 }
 
 .g-photo-card,

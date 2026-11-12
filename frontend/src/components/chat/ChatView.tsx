@@ -5,11 +5,11 @@ import { EmptyState } from "../ui/EmptyState";
 import { Spinner } from "../ui/Spinner";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
-import { ChatSearchBar } from "./ChatSearchBar";
 import { ChannelBar } from "./ChannelBar";
 import { MessageList } from "./MessageList";
 import { SelectionBar } from "./SelectionBar";
 import { ChatInfoDialog } from "./ChatInfoDialog";
+import { VideoPlayerDialog } from "./VideoPlayerDialog";
 import type { ChatAvatarLoader } from "./ChatAvatar";
 
 interface ChatViewProps {
@@ -20,6 +20,7 @@ interface ChatViewProps {
   onDownloadMessage: (id: number) => void;
   onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
   onLoadAvatar: ChatAvatarLoader;
+  onLoadVideo: (chatID: string, messageID: number) => Promise<string>;
   onClearSelection: () => void;
   onSelectAll: () => void;
   onDownloadSelected: () => void;
@@ -29,6 +30,9 @@ interface ChatViewProps {
   enterToSend: boolean;
   loading?: boolean;
   failed?: boolean;
+  hasMoreMessages: boolean;
+  olderMessagesLoading: boolean;
+  onLoadOlder: () => void;
   selfName: string;
   selfInitials: string;
   selfColor: string;
@@ -42,6 +46,7 @@ export function ChatView({
   onDownloadMessage,
   onLoadThumbnail,
   onLoadAvatar,
+  onLoadVideo,
   onClearSelection,
   onSelectAll,
   onDownloadSelected,
@@ -51,6 +56,9 @@ export function ChatView({
   enterToSend,
   loading,
   failed,
+  hasMoreMessages,
+  olderMessagesLoading,
+  onLoadOlder,
   selfName,
   selfInitials,
   selfColor,
@@ -60,11 +68,13 @@ export function ChatView({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [infoOpen, setInfoOpen] = useState(false);
+  const [playingVideo, setPlayingVideo] = useState<Message | null>(null);
 
   useEffect(() => {
     setSearchOpen(false);
     setSearchQuery("");
     setInfoOpen(false);
+    setPlayingVideo(null);
   }, [chat.id]);
 
   const query = searchQuery.trim().toLowerCase();
@@ -84,6 +94,13 @@ export function ChatView({
       <ChatHeader
         chat={chat}
         searchOpen={searchOpen}
+        searchQuery={searchQuery}
+        searchResultCount={filteredMessages.length}
+        onSearchQueryChange={setSearchQuery}
+        onCloseSearch={() => {
+          setSearchOpen(false);
+          setSearchQuery("");
+        }}
         onSearch={() => {
           setSearchOpen((open) => !open);
           if (searchOpen) {
@@ -95,18 +112,6 @@ export function ChatView({
         onInfo={() => setInfoOpen(true)}
         onLoadAvatar={onLoadAvatar}
       />
-
-      {searchOpen ? (
-        <ChatSearchBar
-          query={searchQuery}
-          resultCount={filteredMessages.length}
-          onQueryChange={setSearchQuery}
-          onClose={() => {
-            setSearchOpen(false);
-            setSearchQuery("");
-          }}
-        />
-      ) : null}
 
       <div className="g-chat-canvas">
         {loading ? (
@@ -135,7 +140,11 @@ export function ChatView({
             selectedIds={selectedIds}
             showSender={chat.kind === "group"}
             showAvatars={chat.kind !== "private"}
+            hasMoreMessages={hasMoreMessages}
+            olderMessagesLoading={olderMessagesLoading}
+            onLoadOlder={onLoadOlder}
             onLoadAvatar={onLoadAvatar}
+            onPlayVideo={setPlayingVideo}
             onToggleSelect={onToggleSelect}
             onDownloadMessage={onDownloadMessage}
             onLoadThumbnail={onLoadThumbnail}
@@ -167,6 +176,21 @@ export function ChatView({
         open={infoOpen}
         onOpenChange={setInfoOpen}
         onLoadAvatar={onLoadAvatar}
+      />
+
+      <VideoPlayerDialog
+        open={Boolean(playingVideo)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPlayingVideo(null);
+          }
+        }}
+        title={playingVideo?.media?.name ?? t("media.video")}
+        onLoad={() =>
+          playingVideo
+            ? onLoadVideo(playingVideo.chatId, playingVideo.id)
+            : Promise.resolve("")
+        }
       />
     </main>
   );
