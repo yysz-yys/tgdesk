@@ -1,10 +1,18 @@
-import { IconBrandTelegram } from "@tabler/icons-react";
 import { cn } from "../../lib/cn";
 
+/**
+ * Brand mark: the tgdesk app logo. Renders the squircle logo image at the
+ * requested size; sizing is driven by the caller, rounding comes from CSS.
+ */
 export function BrandMark({ size = 48, className }: { size?: number; className?: string }) {
   return (
-    <span className={cn("tg-brand-mark", className)} style={{ width: size, height: size }}>
-      <IconBrandTelegram size={Math.round(size * 0.58)} stroke={1.8} aria-hidden="true" />
-    </span>
+    <img
+      className={cn("tg-brand-mark", className)}
+      src="/brand-192.png"
+      width={size}
+      height={size}
+      alt="tgdesk"
+      draggable={false}
+    />
   );
 }

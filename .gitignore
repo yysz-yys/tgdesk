@@ -8,6 +8,7 @@ frontend/node_modules
 
 # Private Telegram Desktop session copied for testing
 tdata/
+/Telegram/
 /tdataTest/
 /tdataNomal/
 /dataNomal/
