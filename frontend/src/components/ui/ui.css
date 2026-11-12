@@ -545,6 +545,19 @@ md-primary-tab[aria-selected="true"] .g-tab-count {
   filter: saturate(0.88) brightness(0.9);
 }
 
+[data-theme="dark"] .g-avatar[data-photo] {
+  filter: none;
+}
+
+.g-avatar-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .g-avatar-initials {
   transform: translateY(0.5px);
 }

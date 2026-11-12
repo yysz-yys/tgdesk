@@ -63,6 +63,10 @@ func (s *Service) GetMessageThumb(chatID string, messageID int, proxy, ntp strin
 	return s.kernel.GetMessageThumb(chatID, messageID, proxy, ntp)
 }
 
+func (s *Service) GetChatAvatar(chatID, proxy, ntp string) (string, error) {
+	return s.kernel.GetChatAvatar(chatID, proxy, ntp)
+}
+
 func (s *Service) GetDownloads() []kernel.DownloadTaskDTO {
 	return s.kernel.GetDownloads()
 }

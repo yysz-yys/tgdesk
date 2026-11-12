@@ -16,12 +16,14 @@ Chinese “current state / where things are / what to verify” guide.
    import/export, backups, test-account handling, git hygiene.
 5. [ui.md](ui.md) — unified Material 3 / Google Workspace design system,
    layout, components and interaction rules.
-6. [assets/](assets/) — current screenshots and brand source files.
-7. [../CONTRIBUTING.md](../CONTRIBUTING.md) — contribution rules and review
+6. [messages.md](messages.md) — Telegram message/media parsing support and
+   chat-specific avatar rules.
+7. [assets/](assets/) — current screenshots and brand source files.
+8. [../CONTRIBUTING.md](../CONTRIBUTING.md) — contribution rules and review
    checklist.
-8. [../THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) — bundled fonts and
+9. [../THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) — bundled fonts and
    third-party licenses.
-9. [../CHANGELOG.md](../CHANGELOG.md) — milestone summary.
+10. [../CHANGELOG.md](../CHANGELOG.md) — milestone summary.
 
 ## Source-of-truth rules
 

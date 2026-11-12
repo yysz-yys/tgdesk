@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../../hooks/useSettings";
+import type { ThemePreference } from "../../hooks/useTheme";
 import { Icon } from "../ui/Icon";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "../ui/Menu";
 import { BrandMark } from "./BrandMark";
@@ -13,18 +14,32 @@ const LANGUAGE_NAMES: Record<"en" | "zh" | "ja", string> = {
   ja: "日本語",
 };
 
+const THEME_ICONS: Record<ThemePreference, string> = {
+  system: "routine",
+  light: "light_mode",
+  dark: "dark_mode",
+};
+
 interface LoginShellProps {
   children: ReactNode;
   language: LoginLanguage;
   onLanguageChange: (language: LoginLanguage) => void;
+  theme: ThemePreference;
+  onThemeChange: (theme: ThemePreference) => void;
 }
 
 /**
  * Minimal sign-in surface: one brand lockup, one card, one footer. The language
- * menu is the only chrome outside the card. It offers "follow system" plus all
- * three supported locales, and changes are persisted through AppSettings.
+ * and theme menus are the only chrome outside the card. Both offer "follow
+ * system" and persist through AppSettings.
  */
-export function LoginShell({ children, language, onLanguageChange }: LoginShellProps) {
+export function LoginShell({
+  children,
+  language,
+  onLanguageChange,
+  theme,
+  onThemeChange,
+}: LoginShellProps) {
   const { t, i18n } = useTranslation();
   const resolved = (i18n.resolvedLanguage ?? "en") as keyof typeof LANGUAGE_NAMES;
   const currentName = LANGUAGE_NAMES[resolved] ?? LANGUAGE_NAMES.en;
@@ -32,6 +47,7 @@ export function LoginShell({ children, language, onLanguageChange }: LoginShellP
     language === "system"
       ? `${t("common.systemDefault")} · ${currentName}`
       : currentName;
+  const themeLabel = t(`settings.appearance.${theme}`);
 
   return (
     <div className="g-login">
@@ -78,6 +94,34 @@ export function LoginShell({ children, language, onLanguageChange }: LoginShellP
               ))}
             </MenuContent>
           </Menu>
+          <span className="g-login-footer-dot" />
+
+          <Menu>
+            <MenuTrigger asChild>
+              <button
+                type="button"
+                className="g-login-theme"
+                aria-label={`${t("settings.appearance.theme")}: ${themeLabel}`}
+                title={themeLabel}
+              >
+                <Icon name={THEME_ICONS[theme]} size={17} />
+              </button>
+            </MenuTrigger>
+            <MenuContent align="start" side="top">
+              <MenuLabel>{t("settings.appearance.theme")}</MenuLabel>
+              {(["system", "light", "dark"] as const).map((value) => (
+                <MenuItem
+                  key={value}
+                  icon={<Icon name={THEME_ICONS[value]} size={18} />}
+                  selected={theme === value}
+                  onSelect={() => onThemeChange(value)}
+                >
+                  {t(`settings.appearance.${value}`)}
+                </MenuItem>
+              ))}
+            </MenuContent>
+          </Menu>
+
           <span className="g-login-footer-dot" />
           <span>{t("login.footerReal")}</span>
         </div>

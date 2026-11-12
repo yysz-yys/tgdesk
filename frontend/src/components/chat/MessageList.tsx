@@ -4,6 +4,7 @@ import type { Message } from "../../types";
 import { chatColor, chatInitials } from "../../data/telegram";
 import { IconButton } from "../ui/IconButton";
 import { MessageBubble, type MessageAuthor } from "./MessageBubble";
+import type { ChatAvatarLoader } from "./ChatAvatar";
 
 interface MessageListProps {
   chatId: string;
@@ -16,6 +17,8 @@ interface MessageListProps {
   messages: Message[];
   selectedIds: Set<number>;
   showSender?: boolean;
+  showAvatars?: boolean;
+  onLoadAvatar: ChatAvatarLoader;
   onToggleSelect: (id: number) => void;
   onDownloadMessage?: (id: number) => void;
   onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
@@ -33,6 +36,8 @@ export function MessageList({
   messages,
   selectedIds,
   showSender,
+  showAvatars = false,
+  onLoadAvatar,
   onToggleSelect,
   onDownloadMessage,
   onLoadThumbnail,
@@ -92,6 +97,8 @@ export function MessageList({
     node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
   };
 
+  const byId = new Map(messages.map((message) => [message.id, message]));
+
   return (
     <div className="g-message-layer">
       <div className="g-message-scroll" ref={scrollRef} onScroll={onScroll}>
@@ -135,10 +142,13 @@ export function MessageList({
               <MessageBubble
                 message={message}
                 author={author}
+                replyTo={message.replyToId ? byId.get(message.replyToId) : undefined}
                 selected={selectedIds.has(message.id)}
                 showSender={Boolean(showSender && !sameSenderAsPrevious)}
+                showAvatar={showAvatars}
                 grouped={sameSenderAsPrevious}
                 lastInGroup={!sameSenderAsNext}
+                onLoadAvatar={onLoadAvatar}
                 onToggleSelect={onToggleSelect}
                 onDownloadMessage={onDownloadMessage}
                 onLoadThumbnail={onLoadThumbnail}

@@ -31,10 +31,18 @@ export interface KernelMessageMedia {
   chosen?: boolean[] | null;
   totalVoters?: number;
   pollClosed?: boolean;
+  quiz?: boolean;
   latitude?: number;
   longitude?: number;
+  live?: boolean;
   phone?: string;
   contactName?: string;
+  url?: string;
+  siteName?: string;
+  title?: string;
+  description?: string;
+  emoji?: string;
+  value?: number;
 }
 
 export interface KernelMessage {
@@ -42,12 +50,15 @@ export interface KernelMessage {
   chatId: string;
   out: boolean;
   sender?: string;
+  senderId?: string;
   text?: string;
   date: number;
   checks?: string;
   forwarded?: boolean;
   forwardedFrom?: string;
   forwardedDate?: number;
+  replyToId?: number;
+  replyToText?: string;
   service?: string;
   serviceKind?: string;
   serviceActor?: string;
@@ -128,10 +139,35 @@ function localizedPreview(preview: string, t: TFunction) {
       return t("media.file");
     case "Location":
       return t("media.location");
+    case "Live location":
+      return t("media.liveLocation");
     case "Contact":
       return t("media.contact");
     case "Poll":
       return t("media.poll");
+    case "Sticker":
+      return t("media.sticker");
+    case "GIF":
+      return t("media.gif");
+    case "Voice message":
+      return t("media.voice");
+    case "Video message":
+      return t("media.videoNote");
+    case "Audio":
+      return t("media.audio");
+    case "Video":
+      return t("media.video");
+    case "Story":
+      return t("media.story");
+    case "Giveaway":
+    case "Giveaway results":
+      return t("media.giveaway");
+    case "Paid media":
+      return t("media.paid");
+    case "Checklist":
+      return t("media.checklist");
+    case "Unsupported message":
+      return t("media.unsupported");
     case "Service message":
       return t("media.service");
     default:
@@ -155,6 +191,7 @@ export function mapChat(chat: KernelChat, language: string, t: TFunction): Chat 
     muted: chat.muted,
     verified: chat.verified,
     members: chat.members ? t("chat.members", { count: chat.members }) : undefined,
+    memberCount: chat.members || undefined,
     online: false,
     color: chatColor(chat.id),
     initials: chatInitials(chat.title),
@@ -194,13 +231,27 @@ function normalizedMediaKind(kind: string): MediaKind {
   switch (kind) {
     case "photo":
     case "video":
+    case "file":
     case "audio":
+    case "voice":
+    case "video_note":
+    case "sticker":
+    case "animation":
     case "poll":
     case "location":
+    case "venue":
     case "contact":
+    case "webpage":
+    case "dice":
+    case "game":
+    case "invoice":
+    case "story":
+    case "giveaway":
+    case "paid":
+    case "checklist":
       return kind;
     default:
-      return "file";
+      return "unsupported";
   }
 }
 
@@ -270,10 +321,18 @@ function mapMedia(
     chosen: media.chosen || undefined,
     totalVoters: media.totalVoters || undefined,
     pollClosed: media.pollClosed || undefined,
+    quiz: media.quiz || undefined,
     latitude: media.latitude || undefined,
     longitude: media.longitude || undefined,
+    live: media.live || undefined,
     phone: media.phone || undefined,
     contactName: media.contactName || undefined,
+    url: media.url || undefined,
+    siteName: media.siteName || undefined,
+    title: media.title || undefined,
+    description: media.description || undefined,
+    emoji: media.emoji || undefined,
+    value: media.value || undefined,
     color: media.color || undefined,
   };
 }
@@ -290,6 +349,7 @@ export function mapMessage(
     chatId: message.chatId,
     out: message.out,
     sender: message.sender || undefined,
+    senderId: message.senderId || undefined,
     text: message.text || undefined,
     time: formatMessageTime(date, language),
     date: formatMessageDate(date, language, t, now),
@@ -298,6 +358,8 @@ export function mapMessage(
     forwarded: Boolean(message.forwarded),
     forwardedFrom: message.forwardedFrom || undefined,
     forwardedDate: message.forwardedDate || undefined,
+    replyToId: message.replyToId || undefined,
+    replyToText: message.replyToText || undefined,
     service: localizedService(message, t),
     serviceKind: message.serviceKind || undefined,
     serviceActor: message.serviceActor || undefined,

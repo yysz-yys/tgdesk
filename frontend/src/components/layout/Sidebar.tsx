@@ -1,9 +1,9 @@
 import { useTranslation } from "react-i18next";
 import type { Chat } from "../../types";
 import { Icon } from "../ui/Icon";
-import { PaneHeader } from "../ui/PaneHeader";
 import { SearchField } from "../ui/SearchField";
 import { ChatRow } from "../chat/ChatRow";
+import type { ChatAvatarLoader } from "../chat/ChatAvatar";
 
 interface SidebarProps {
   chats: Chat[];
@@ -16,6 +16,7 @@ interface SidebarProps {
   onMarkRead: (id: string) => void;
   onDownloadAll: (chat: Chat) => void;
   onToast: (message: string) => void;
+  onLoadAvatar: ChatAvatarLoader;
   accountRestricted?: boolean;
   accountRestriction?: string;
   loading?: boolean;
@@ -33,6 +34,7 @@ export function Sidebar({
   onMarkRead,
   onDownloadAll,
   onToast,
+  onLoadAvatar,
   accountRestricted,
   accountRestriction,
   loading,
@@ -47,8 +49,6 @@ export function Sidebar({
 
   return (
     <aside className="g-sidebar" aria-label={t("sidebar.chats")}>
-      <PaneHeader className="g-sidebar-header" title={t("sidebar.chats")} />
-
       <div className="g-sidebar-search">
         <SearchField
           value={query}
@@ -99,6 +99,7 @@ export function Sidebar({
                 onMarkRead={onMarkRead}
                 onDownloadAll={onDownloadAll}
                 onToast={onToast}
+                onLoadAvatar={onLoadAvatar}
               />
             ))}
           </div>

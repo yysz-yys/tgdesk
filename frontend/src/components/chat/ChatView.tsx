@@ -9,6 +9,8 @@ import { ChatSearchBar } from "./ChatSearchBar";
 import { ChannelBar } from "./ChannelBar";
 import { MessageList } from "./MessageList";
 import { SelectionBar } from "./SelectionBar";
+import { ChatInfoDialog } from "./ChatInfoDialog";
+import type { ChatAvatarLoader } from "./ChatAvatar";
 
 interface ChatViewProps {
   chat: Chat;
@@ -17,6 +19,7 @@ interface ChatViewProps {
   onToggleSelect: (id: number) => void;
   onDownloadMessage: (id: number) => void;
   onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
+  onLoadAvatar: ChatAvatarLoader;
   onClearSelection: () => void;
   onSelectAll: () => void;
   onDownloadSelected: () => void;
@@ -38,6 +41,7 @@ export function ChatView({
   onToggleSelect,
   onDownloadMessage,
   onLoadThumbnail,
+  onLoadAvatar,
   onClearSelection,
   onSelectAll,
   onDownloadSelected,
@@ -55,10 +59,12 @@ export function ChatView({
   const selectedCount = selectedIds.size;
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
     setSearchOpen(false);
     setSearchQuery("");
+    setInfoOpen(false);
   }, [chat.id]);
 
   const query = searchQuery.trim().toLowerCase();
@@ -86,6 +92,8 @@ export function ChatView({
         }}
         onSelectAll={onSelectAll}
         onDownloadAll={onDownloadAll}
+        onInfo={() => setInfoOpen(true)}
+        onLoadAvatar={onLoadAvatar}
       />
 
       {searchOpen ? (
@@ -126,6 +134,8 @@ export function ChatView({
             messages={filteredMessages}
             selectedIds={selectedIds}
             showSender={chat.kind === "group"}
+            showAvatars={chat.kind !== "private"}
+            onLoadAvatar={onLoadAvatar}
             onToggleSelect={onToggleSelect}
             onDownloadMessage={onDownloadMessage}
             onLoadThumbnail={onLoadThumbnail}
@@ -151,6 +161,13 @@ export function ChatView({
           enterToSend={enterToSend}
         />
       )}
+
+      <ChatInfoDialog
+        chat={chat}
+        open={infoOpen}
+        onOpenChange={setInfoOpen}
+        onLoadAvatar={onLoadAvatar}
+      />
     </main>
   );
 }

@@ -46,10 +46,18 @@ type MessageMediaDTO struct {
 	Chosen      []bool   `json:"chosen,omitempty"`
 	TotalVoters int      `json:"totalVoters,omitempty"`
 	PollClosed  bool     `json:"pollClosed,omitempty"`
+	Quiz        bool     `json:"quiz,omitempty"`
 	Latitude    float64  `json:"latitude,omitempty"`
 	Longitude   float64  `json:"longitude,omitempty"`
+	Live        bool     `json:"live,omitempty"`
 	Phone       string   `json:"phone,omitempty"`
 	ContactName string   `json:"contactName,omitempty"`
+	URL         string   `json:"url,omitempty"`
+	SiteName    string   `json:"siteName,omitempty"`
+	Title       string   `json:"title,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Emoji       string   `json:"emoji,omitempty"`
+	Value       int      `json:"value,omitempty"`
 }
 
 type MessageDTO struct {
@@ -57,12 +65,15 @@ type MessageDTO struct {
 	ChatID        string           `json:"chatId"`
 	Out           bool             `json:"out"`
 	Sender        string           `json:"sender,omitempty"`
+	SenderID      string           `json:"senderId,omitempty"`
 	Text          string           `json:"text,omitempty"`
 	Date          int64            `json:"date"`
 	Checks        string           `json:"checks,omitempty"`
 	Forwarded     bool             `json:"forwarded,omitempty"`
 	ForwardedFrom string           `json:"forwardedFrom,omitempty"`
 	ForwardedDate int64            `json:"forwardedDate,omitempty"`
+	ReplyToID     int              `json:"replyToId,omitempty"`
+	ReplyToText   string           `json:"replyToText,omitempty"`
 	Service       string           `json:"service,omitempty"`
 	ServiceKind   string           `json:"serviceKind,omitempty"`
 	ServiceActor  string           `json:"serviceActor,omitempty"`
@@ -194,6 +205,7 @@ func (s *Service) GetMessages(chatID, proxy, ntp string, limit int) ([]MessageDT
 		}
 
 		senders := make(map[int64]string, len(users)+len(chats))
+		senderPeers := make(map[int64]string, len(users)+len(chats))
 		for _, user := range users {
 			if value, ok := user.(*tg.User); ok {
 				name := displayName(value.FirstName, value.LastName)
@@ -201,21 +213,24 @@ func (s *Service) GetMessages(chatID, proxy, ntp string, limit int) ([]MessageDT
 					name = value.Username
 				}
 				senders[value.ID] = name
+				senderPeers[value.ID] = encodePeerID("user", value.ID, value.AccessHash)
 			}
 		}
 		for _, chat := range chats {
 			switch value := chat.(type) {
 			case *tg.Chat:
 				senders[value.ID] = value.Title
+				senderPeers[value.ID] = encodePeerID("chat", value.ID, 0)
 			case *tg.Channel:
 				senders[value.ID] = value.Title
+				senderPeers[value.ID] = encodePeerID("channel", value.ID, value.AccessHash)
 			}
 		}
 
 		for _, raw := range messages {
 			switch msg := raw.(type) {
 			case *tg.Message:
-				result = append(result, mapMessage(chatID, msg, senders))
+				result = append(result, mapMessage(chatID, msg, senders, senderPeers))
 			case *tg.MessageService:
 				result = append(result, mapService(chatID, msg, senders))
 			}
@@ -324,14 +339,15 @@ func mapDialog(elem dialogs.Elem, dialog *tg.Dialog) (ChatDTO, bool) {
 	}, true
 }
 
-func mapMessage(chatID string, msg *tg.Message, senders map[int64]string) MessageDTO {
+func mapMessage(chatID string, msg *tg.Message, senders, senderPeers map[int64]string) MessageDTO {
 	item := MessageDTO{
-		ID:     msg.ID,
-		ChatID: chatID,
-		Out:    msg.Out,
-		Sender: senderName(msg.FromID, senders),
-		Text:   msg.Message,
-		Date:   int64(msg.Date),
+		ID:       msg.ID,
+		ChatID:   chatID,
+		Out:      msg.Out,
+		Sender:   senderName(msg.FromID, senders),
+		SenderID: senderPeer(msg.FromID, senderPeers),
+		Text:     msg.Message,
+		Date:     int64(msg.Date),
 	}
 	if msg.Out {
 		item.Checks = "sent"
@@ -345,6 +361,16 @@ func mapMessage(chatID string, msg *tg.Message, senders map[int64]string) Messag
 		}
 		if item.ForwardedFrom == "" {
 			item.ForwardedFrom = fwd.PostAuthor
+		}
+	}
+	if reply, ok := msg.GetReplyTo(); ok {
+		if header, ok := reply.(*tg.MessageReplyHeader); ok {
+			if id, ok := header.GetReplyToMsgID(); ok {
+				item.ReplyToID = id
+			}
+			if quote, ok := header.GetQuoteText(); ok {
+				item.ReplyToText = quote
+			}
 		}
 	}
 	item.Media = mapMedia(msg.Media)
@@ -435,6 +461,19 @@ func senderName(from tg.PeerClass, senders map[int64]string) string {
 	}
 }
 
+func senderPeer(from tg.PeerClass, peers map[int64]string) string {
+	switch peer := from.(type) {
+	case *tg.PeerUser:
+		return peers[peer.UserID]
+	case *tg.PeerChat:
+		return peers[peer.ChatID]
+	case *tg.PeerChannel:
+		return peers[peer.ChannelID]
+	default:
+		return ""
+	}
+}
+
 func mapMedia(media tg.MessageMediaClass) *MessageMediaDTO {
 	switch m := media.(type) {
 	case *tg.MessageMediaPhoto:
@@ -454,44 +493,20 @@ func mapMedia(media tg.MessageMediaClass) *MessageMediaDTO {
 			Mime:      "image/jpeg",
 		}
 	case *tg.MessageMediaDocument:
-		doc, ok := m.Document.(*tg.Document)
-		if !ok {
-			return nil
-		}
-		name := "File"
-		for _, attr := range doc.Attributes {
-			if filename, ok := attr.(*tg.DocumentAttributeFilename); ok && filename.FileName != "" {
-				name = filename.FileName
-				break
-			}
-		}
-		kind, ext, color := classifyDocument(doc)
-		item := &MessageMediaDTO{
-			Kind:      kind,
-			Name:      name,
-			Size:      humanSize(doc.Size),
-			Ext:       ext,
-			Color:     color,
-			SizeBytes: doc.Size,
-			Mime:      doc.MimeType,
-		}
-		for _, attr := range doc.Attributes {
-			switch value := attr.(type) {
-			case *tg.DocumentAttributeVideo:
-				item.Duration = int(value.Duration)
-				item.Width = value.W
-				item.Height = value.H
-			case *tg.DocumentAttributeAudio:
-				item.Duration = value.Duration
-			}
-		}
-		return item
+		return mapDocumentMedia(m)
 	case *tg.MessageMediaGeo:
-		item := &MessageMediaDTO{Kind: "location", Name: "Location", Color: "#5fb3a1"}
-		if point, ok := m.Geo.(*tg.GeoPoint); ok {
-			item.Latitude = point.Lat
-			item.Longitude = point.Long
+		return mapGeo(m.Geo, false)
+	case *tg.MessageMediaGeoLive:
+		return mapGeo(m.Geo, true)
+	case *tg.MessageMediaVenue:
+		item := mapGeo(m.Geo, false)
+		if item == nil {
+			item = &MessageMediaDTO{Color: "#5fb3a1"}
 		}
+		item.Kind = "venue"
+		item.Name = m.Title
+		item.Description = m.Address
+		item.Title = m.Title
 		return item
 	case *tg.MessageMediaContact:
 		return &MessageMediaDTO{
@@ -512,6 +527,7 @@ func mapMedia(media tg.MessageMediaClass) *MessageMediaDTO {
 			Color:      "#f08a3c",
 			Options:    options,
 			PollClosed: m.Poll.Closed,
+			Quiz:       m.Poll.Quiz,
 			VoteCounts: make([]int, len(options)),
 			Chosen:     make([]bool, len(options)),
 		}
@@ -526,8 +542,177 @@ func mapMedia(media tg.MessageMediaClass) *MessageMediaDTO {
 		}
 		item.TotalVoters = m.Results.TotalVoters
 		return item
-	default:
+	case *tg.MessageMediaWebPage:
+		return mapWebPageMedia(m.Webpage)
+	case *tg.MessageMediaDice:
+		return &MessageMediaDTO{
+			Kind:  "dice",
+			Name:  m.Emoticon,
+			Emoji: m.Emoticon,
+			Value: m.Value,
+			Color: "#f2a54a",
+		}
+	case *tg.MessageMediaGame:
+		return &MessageMediaDTO{
+			Kind:        "game",
+			Name:        m.Game.Title,
+			Title:       m.Game.Title,
+			Description: m.Game.Description,
+			Color:       "#7cacf8",
+		}
+	case *tg.MessageMediaInvoice:
+		return &MessageMediaDTO{
+			Kind:        "invoice",
+			Name:        m.Title,
+			Title:       m.Title,
+			Description: m.Description,
+			Color:       "#7bc862",
+		}
+	case *tg.MessageMediaStory:
+		return &MessageMediaDTO{Kind: "story", Name: "Story", Color: "#d18ee2"}
+	case *tg.MessageMediaGiveaway:
+		return &MessageMediaDTO{Kind: "giveaway", Name: "Giveaway", Color: "#f2a54a"}
+	case *tg.MessageMediaGiveawayResults:
+		return &MessageMediaDTO{Kind: "giveaway", Name: "Giveaway results", Color: "#f2a54a"}
+	case *tg.MessageMediaPaidMedia:
+		return &MessageMediaDTO{Kind: "paid", Name: "Paid media", Color: "#d18ee2"}
+	case *tg.MessageMediaToDo:
+		return &MessageMediaDTO{Kind: "checklist", Name: "Checklist", Color: "#7bc862"}
+	case *tg.MessageMediaVideoStream:
+		return &MessageMediaDTO{Kind: "video", Name: "Video", Color: "#e05a8a"}
+	case *tg.MessageMediaUnsupported:
+		return &MessageMediaDTO{Kind: "unsupported", Name: "Unsupported message", Color: "#9aa0a6"}
+	case *tg.MessageMediaEmpty:
 		return nil
+	default:
+		if media == nil {
+			return nil
+		}
+		return &MessageMediaDTO{Kind: "unsupported", Name: "Unsupported message", Color: "#9aa0a6"}
+	}
+}
+
+func mapDocumentMedia(m *tg.MessageMediaDocument) *MessageMediaDTO {
+	doc, ok := m.Document.(*tg.Document)
+	if !ok {
+		return nil
+	}
+
+	kind, ext, color := classifyDocument(doc)
+	name := fileNameOf(doc)
+	title, performer := "", ""
+	item := &MessageMediaDTO{
+		Kind:      kind,
+		Size:      humanSize(doc.Size),
+		Ext:       ext,
+		Color:     color,
+		SizeBytes: doc.Size,
+		Mime:      doc.MimeType,
+	}
+
+	for _, attr := range doc.Attributes {
+		switch value := attr.(type) {
+		case *tg.DocumentAttributeVideo:
+			item.Duration = int(value.Duration)
+			item.Width = value.W
+			item.Height = value.H
+			if value.RoundMessage {
+				item.Kind = "video_note"
+				item.Ext = "MP4"
+				item.Color = "#e05a8a"
+			}
+		case *tg.DocumentAttributeAudio:
+			item.Duration = value.Duration
+			if value.Voice {
+				item.Kind = "voice"
+				item.Ext = "OGG"
+				item.Color = "#7bc862"
+			}
+			title, performer = value.Title, value.Performer
+		case *tg.DocumentAttributeSticker:
+			item.Kind = "sticker"
+			item.Name = "Sticker"
+			item.Emoji = value.Alt
+			item.Ext = strings.ToUpper(strings.TrimPrefix(filepath.Ext(fileNameOf(doc)), "."))
+			if item.Ext == "" {
+				item.Ext = "WEBP"
+			}
+			item.Color = "#d18ee2"
+		case *tg.DocumentAttributeAnimated:
+			item.Kind = "animation"
+			item.Name = "GIF"
+			item.Ext = "GIF"
+			item.Color = "#e58e26"
+		}
+	}
+
+	switch item.Kind {
+	case "sticker", "animation":
+		// Use a localizable generic label; the emoji is shown separately.
+	case "voice":
+		item.Name = "Voice message"
+	case "video_note":
+		item.Name = "Video message"
+	case "audio":
+		if title != "" || performer != "" {
+			item.Name = strings.TrimSpace(strings.TrimSpace(performer) + " - " + strings.TrimSpace(title))
+		} else if name == "" {
+			item.Name = "Audio"
+		}
+	case "video":
+		if name == "" {
+			item.Name = "Video"
+		}
+	default:
+		if name == "" {
+			item.Name = "File"
+		}
+	}
+	if item.Name == "" {
+		item.Name = name
+	}
+	if item.Name == "" {
+		item.Name = "File"
+	}
+	return item
+}
+
+func mapGeo(geo tg.GeoPointClass, live bool) *MessageMediaDTO {
+	name := "Location"
+	if live {
+		name = "Live location"
+	}
+	item := &MessageMediaDTO{Kind: "location", Name: name, Color: "#5fb3a1", Live: live}
+	if point, ok := geo.(*tg.GeoPoint); ok {
+		item.Latitude = point.Lat
+		item.Longitude = point.Long
+	}
+	return item
+}
+
+func mapWebPageMedia(page tg.WebPageClass) *MessageMediaDTO {
+	value, ok := page.(*tg.WebPage)
+	if !ok || (value.URL == "" && value.DisplayURL == "") {
+		return nil
+	}
+	title, _ := value.GetTitle()
+	siteName, _ := value.GetSiteName()
+	description, _ := value.GetDescription()
+	name := title
+	if name == "" {
+		name = siteName
+	}
+	if name == "" {
+		name = value.DisplayURL
+	}
+	return &MessageMediaDTO{
+		Kind:        "webpage",
+		Name:        name,
+		Title:       title,
+		Description: description,
+		URL:         value.DisplayURL,
+		SiteName:    siteName,
+		Color:       "#5f9ea0",
 	}
 }
 

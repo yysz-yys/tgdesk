@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
 import type { Chat } from "../../types";
-import { Avatar } from "../ui/Avatar";
 import { Badge } from "../ui/Badge";
 import { Icon } from "../ui/Icon";
+import { ChatAvatar, type ChatAvatarLoader } from "./ChatAvatar";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -20,6 +20,7 @@ interface ChatRowProps {
   onMarkRead: (id: string) => void;
   onDownloadAll: (chat: Chat) => void;
   onToast: (message: string) => void;
+  onLoadAvatar: ChatAvatarLoader;
 }
 
 export function ChatRow({
@@ -31,6 +32,7 @@ export function ChatRow({
   onMarkRead,
   onDownloadAll,
   onToast,
+  onLoadAvatar,
 }: ChatRowProps) {
   const { t } = useTranslation();
 
@@ -57,13 +59,7 @@ export function ChatRow({
           aria-current={active ? "page" : undefined}
           onClick={() => onSelect(chat.id)}
         >
-          <Avatar
-            title={chat.title}
-            initials={chat.initials}
-            color={chat.color}
-            size={42}
-            online={chat.online}
-          />
+          <ChatAvatar chat={chat} size={42} loader={onLoadAvatar} />
 
           <span className="g-chat-body">
             <span className="g-chat-topline">

@@ -35,6 +35,10 @@ export function GetAuthStatus(): $CancellablePromise<kernel$0.AuthStatus> {
     return $Call.ByID(846342628);
 }
 
+export function GetChatAvatar(chatID: string, proxy: string, ntp: string): $CancellablePromise<string> {
+    return $Call.ByID(3942644491, chatID, proxy, ntp);
+}
+
 export function GetChats(proxy: string, ntp: string, limit: number): $CancellablePromise<kernel$0.ChatDTO[] | null> {
     return $Call.ByID(393713803, proxy, ntp, limit);
 }

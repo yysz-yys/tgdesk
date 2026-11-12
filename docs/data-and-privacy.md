@@ -19,6 +19,7 @@ test with a real Telegram Desktop account safely.
     .legacy-webview-migrated  migration marker
     downloads.json            persisted download tasks
     thumbs/                   downloaded Telegram thumbnails
+    avatars/                  cached chat/sender profile-photo thumbnails
     webview/                  WebView2 user data (settings/drafts)
   tdata/                      official Telegram Desktop files only
     key_datas
@@ -116,6 +117,9 @@ Do not commit or share it; it may contain private draft text.
 - Partial downloads are written as `<name>.tmp`; completed files are renamed.
 - `data/thumbs/` contains small JPEG thumbnails fetched from Telegram. It is safe
   to delete; they are re-fetched on demand.
+- `data/avatars/` contains cached profile-photo thumbnails for chats and message
+  senders. It is also safe to delete; the UI falls back to initials until the
+  next lazy fetch.
 - `downloads/` is the default output directory and may contain private media.
 
 ## Legacy migration

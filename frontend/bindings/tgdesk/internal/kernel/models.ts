@@ -145,12 +145,15 @@ export interface MessageDTO {
     "chatId": string;
     "out": boolean;
     "sender"?: string;
+    "senderId"?: string;
     "text"?: string;
     "date": number;
     "checks"?: string;
     "forwarded"?: boolean;
     "forwardedFrom"?: string;
     "forwardedDate"?: number;
+    "replyToId"?: number;
+    "replyToText"?: string;
     "service"?: string;
     "serviceKind"?: string;
     "serviceActor"?: string;
@@ -174,10 +177,18 @@ export interface MessageMediaDTO {
     "chosen"?: boolean[] | null;
     "totalVoters"?: number;
     "pollClosed"?: boolean;
+    "quiz"?: boolean;
     "latitude"?: number;
     "longitude"?: number;
+    "live"?: boolean;
     "phone"?: string;
     "contactName"?: string;
+    "url"?: string;
+    "siteName"?: string;
+    "title"?: string;
+    "description"?: string;
+    "emoji"?: string;
+    "value"?: number;
 }
 
 /**

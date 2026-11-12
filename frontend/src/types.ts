@@ -58,11 +58,33 @@ export interface Chat {
   online?: boolean;
   verified?: boolean;
   members?: string;
+  memberCount?: number;
   color: string;
   initials: string;
 }
 
-export type MediaKind = "photo" | "video" | "file" | "audio" | "poll" | "location" | "contact";
+export type MediaKind =
+  | "photo"
+  | "video"
+  | "file"
+  | "audio"
+  | "voice"
+  | "video_note"
+  | "sticker"
+  | "animation"
+  | "poll"
+  | "location"
+  | "venue"
+  | "contact"
+  | "webpage"
+  | "dice"
+  | "game"
+  | "invoice"
+  | "story"
+  | "giveaway"
+  | "paid"
+  | "checklist"
+  | "unsupported";
 
 export interface MessageMedia {
   kind: MediaKind;
@@ -79,10 +101,18 @@ export interface MessageMedia {
   chosen?: boolean[];
   totalVoters?: number;
   pollClosed?: boolean;
+  quiz?: boolean;
   latitude?: number;
   longitude?: number;
+  live?: boolean;
   phone?: string;
   contactName?: string;
+  url?: string;
+  siteName?: string;
+  title?: string;
+  description?: string;
+  emoji?: string;
+  value?: number;
   color?: string;
 }
 
@@ -91,6 +121,7 @@ export interface Message {
   chatId: string;
   out: boolean;
   sender?: string;
+  senderId?: string;
   text?: string;
   time: string;
   date: string;
@@ -98,6 +129,8 @@ export interface Message {
   forwarded?: boolean;
   forwardedFrom?: string;
   forwardedDate?: number;
+  replyToId?: number;
+  replyToText?: string;
   service?: string;
   serviceKind?: string;
   serviceActor?: string;

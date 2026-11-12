@@ -1,10 +1,9 @@
 import { useTranslation } from "react-i18next";
 import type { Chat } from "../../types";
-import { Avatar } from "../ui/Avatar";
 import { Icon } from "../ui/Icon";
 import { IconButton } from "../ui/IconButton";
-import { PaneHeader } from "../ui/PaneHeader";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "../ui/Menu";
+import { ChatAvatar, type ChatAvatarLoader } from "./ChatAvatar";
 
 interface ChatHeaderProps {
   chat: Chat;
@@ -12,6 +11,8 @@ interface ChatHeaderProps {
   onSearch: () => void;
   onSelectAll: () => void;
   onDownloadAll: () => void;
+  onInfo: () => void;
+  onLoadAvatar: ChatAvatarLoader;
 }
 
 export function ChatHeader({
@@ -20,6 +21,8 @@ export function ChatHeader({
   onSearch,
   onSelectAll,
   onDownloadAll,
+  onInfo,
+  onLoadAvatar,
 }: ChatHeaderProps) {
   const { t } = useTranslation();
   const subtitle =
@@ -30,65 +33,61 @@ export function ChatHeader({
       : (chat.members ?? t(chat.kind === "channel" ? "chat.channel" : "chat.group"));
 
   return (
-    <PaneHeader
-      className="g-chat-header"
-      dense
-      leading={
-        <Avatar
-          title={chat.title}
-          initials={chat.initials}
-          color={chat.color}
-          size={38}
-          online={chat.online}
-        />
-      }
-      title={chat.title}
-      titleAdornment={
-        chat.verified ? (
-          <Icon
-            name="verified"
-            size={16}
-            filled
-            className="g-chat-verified"
-            label={t("chat.verified")}
-          />
-        ) : null
-      }
-      subtitle={
-        <span className={chat.online ? "g-chat-online" : undefined}>
-          {chat.online ? <span className="g-online-dot" /> : null}
-          {subtitle}
-        </span>
-      }
-      actions={
-        <>
-          <IconButton
-            label={t("chat.searchInChat")}
-            icon="search"
-            variant={searchOpen ? "tonal" : "standard"}
-            active={searchOpen}
-            onClick={onSearch}
-          />
-          <Menu>
-            <MenuTrigger asChild>
-              <IconButton
-                label={t("chat.chatMenu")}
-                icon="more_vert"
-                tooltip={false}
+    <header className="g-chat-header">
+      <button
+        type="button"
+        className="g-chat-heading"
+        onClick={onInfo}
+        aria-label={`${chat.title}: ${t("rightPanel.chatInfo")}`}
+      >
+        <ChatAvatar chat={chat} size={38} loader={onLoadAvatar} />
+        <span className="g-chat-heading-copy">
+          <span className="g-chat-heading-title-row">
+            <span className="g-chat-heading-title">{chat.title}</span>
+            {chat.verified ? (
+              <Icon
+                name="verified"
+                size={16}
+                filled
+                className="g-chat-verified"
+                label={t("chat.verified")}
               />
-            </MenuTrigger>
-            <MenuContent align="end">
-              <MenuItem icon={<Icon name="select_all" size={18} />} onSelect={onSelectAll}>
-                {t("chat.selectAll")}
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem icon={<Icon name="download" size={18} />} onSelect={onDownloadAll}>
-                {t("chat.downloadAll")}
-              </MenuItem>
-            </MenuContent>
-          </Menu>
-        </>
-      }
-    />
+            ) : null}
+          </span>
+          <span className={chat.online ? "g-chat-heading-subtitle g-chat-online" : "g-chat-heading-subtitle"}>
+            {chat.online ? <span className="g-online-dot" /> : null}
+            {subtitle}
+          </span>
+        </span>
+      </button>
+
+      <div className="g-chat-header-actions">
+        <IconButton
+          label={t("chat.searchInChat")}
+          icon="search"
+          variant={searchOpen ? "tonal" : "standard"}
+          active={searchOpen}
+          onClick={onSearch}
+        />
+        <Menu>
+          <MenuTrigger asChild>
+            <IconButton
+              label={t("chat.chatMenu")}
+              icon="more_vert"
+              tooltip={false}
+            />
+          </MenuTrigger>
+          <MenuContent align="end">
+            <MenuItem icon={<Icon name="select_all" size={18} />} onSelect={onSelectAll}>
+              {t("chat.selectAll")}
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem icon={<Icon name="download" size={18} />} onSelect={onDownloadAll}>
+              {t("chat.downloadAll")}
+            </MenuItem>
+          </MenuContent>
+        </Menu>
+      </div>
+    </header>
   );
 }

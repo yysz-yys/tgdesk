@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/tg"
 	"github.com/iyear/tdl/core/dcpool"
 	coretclient "github.com/iyear/tdl/core/tclient"
@@ -50,7 +51,53 @@ func (s *Service) GetMessageThumb(chatID string, messageID int, proxy, ntp strin
 		return "", err
 	}
 	cacheName := fmt.Sprintf("%s_%d_%s.jpg", safeFilePart(chatID), msg.ID, safeFilePart(thumbType(thumb)))
-	cachePath := filepath.Join(cacheDir, cacheName)
+	return downloadThumb(ctx, client, thumb, filepath.Join(cacheDir, cacheName))
+}
+
+// GetChatAvatar returns the current profile photo of a user, group or channel
+// as a small JPEG base64 payload. Photos are cached per photo ID so changing an
+// avatar invalidates the previous file without any extra metadata call.
+func (s *Service) GetChatAvatar(chatID, proxy, ntp string) (string, error) {
+	if strings.TrimSpace(chatID) == "" {
+		return "", fmt.Errorf("invalid chat")
+	}
+
+	peer, err := parsePeerID(chatID)
+	if err != nil {
+		return "", err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	client, err := s.ensureSession(ctx, proxy, ntp)
+	if err != nil {
+		return "", err
+	}
+
+	photo, err := chatPhoto(ctx, client, peer)
+	if err != nil || photo == nil {
+		return "", err
+	}
+	thumb, ok := photoThumb(photo)
+	if !ok {
+		return "", nil
+	}
+
+	cacheDir := filepath.Join(paths.Data(), "avatars")
+	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
+		return "", err
+	}
+	cacheName := fmt.Sprintf("%s_%d.jpg", safeFilePart(chatID), photo.ID)
+	return downloadThumb(ctx, client, thumb, filepath.Join(cacheDir, cacheName))
+}
+
+func downloadThumb(
+	ctx context.Context,
+	client *telegram.Client,
+	thumb *tmedia.Media,
+	cachePath string,
+) (string, error) {
 	if data, readErr := os.ReadFile(cachePath); readErr == nil && len(data) > 0 {
 		return base64.StdEncoding.EncodeToString(data), nil
 	}
@@ -82,6 +129,67 @@ func (s *Service) GetMessageThumb(chatID string, messageID int, proxy, ntp strin
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(file.Bytes), nil
+}
+
+func chatPhoto(ctx context.Context, client *telegram.Client, peer tg.InputPeerClass) (*tg.Photo, error) {
+	var class tg.PhotoClass
+	switch value := peer.(type) {
+	case *tg.InputPeerUser:
+		full, err := client.API().UsersGetFullUser(ctx, &tg.InputUser{
+			UserID:     value.UserID,
+			AccessHash: value.AccessHash,
+		})
+		if err != nil {
+			return nil, err
+		}
+		photo, ok := full.FullUser.GetProfilePhoto()
+		if !ok {
+			photo, ok = full.FullUser.GetFallbackPhoto()
+		}
+		if !ok {
+			return nil, nil
+		}
+		class = photo
+	case *tg.InputPeerChat:
+		full, err := client.API().MessagesGetFullChat(ctx, value.ChatID)
+		if err != nil {
+			return nil, err
+		}
+		chat, ok := full.FullChat.(*tg.ChatFull)
+		if !ok {
+			return nil, nil
+		}
+		photo, ok := chat.GetChatPhoto()
+		if !ok {
+			return nil, nil
+		}
+		class = photo
+	case *tg.InputPeerChannel:
+		full, err := client.API().ChannelsGetFullChannel(ctx, &tg.InputChannel{
+			ChannelID:  value.ChannelID,
+			AccessHash: value.AccessHash,
+		})
+		if err != nil {
+			return nil, err
+		}
+		channel, ok := full.FullChat.(*tg.ChannelFull)
+		if !ok {
+			return nil, nil
+		}
+		photo := channel.GetChatPhoto()
+		if photo == nil {
+			return nil, nil
+		}
+		class = photo
+	default:
+		return nil, nil
+	}
+
+	photo, ok := class.(*tg.Photo)
+	if !ok || photo == nil {
+		return nil, nil
+	}
+	return photo, nil
 }
 
 func messageThumbMedia(msg *tg.Message) (*tmedia.Media, bool) {

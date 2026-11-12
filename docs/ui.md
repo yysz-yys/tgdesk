@@ -59,7 +59,7 @@ the Windows UI font so Chinese and Japanese keep native metrics.
 
 | Level | Size / line | Weight | Use |
 |---|---|---|---|
-| pane title | 22 / 28 | 400 | pane headers ("Chats", "Downloads") |
+| pane title | 22 / 28 | 400 | pane headers (downloads) |
 | conversation title | 18 / 24 | 500 | chat app bar |
 | headline | 24 / 32 | 400 | login card titles |
 | title | 16 / 24 | 500 | empty states |
@@ -144,6 +144,8 @@ Rules:
 
 ![Proxy settings](assets/ui-login-proxy.png)
 
+![Successful login](assets/ui-login-success.png)
+
 The login screen is intentionally QR-first and almost copy-free: tdata is
 checked before it is mounted, so it only has to answer "QR or phone?".
 
@@ -168,12 +170,16 @@ checked before it is mounted, so it only has to answer "QR or phone?".
   The default is `system`; the choice is written to `AppSettings` immediately
   and restored on the next launch. The footer shows `Follow system · <resolved>`
   while following the OS.
+- A footer theme button opens System / Light / Dark. The default follows the OS,
+  explicit choices persist, and the theme change applies to the login surface
+  immediately.
 - Language changes never restart an in-flight QR token or cancel the auth flow.
 - QR code sits on a white tile even in dark mode (scan contrast) and expires with
   an explicit refresh state.
 - Code, 2FA and success reuse the same card, typography and toolbar. Success
-  shows only the check, account name, a compact "tdata updated" confirmation
-  and the opening spinner.
+  shows only the check, “登录成功 / 正在加载页面…” and the opening spinner.
+  The tdata success chip is intentionally absent; only a tdata export failure
+  adds a tonal error callout.
 - Import errors are tonal `Callout`s; passcode-protected tdata is reported but
   QR login stays available.
 
@@ -184,31 +190,46 @@ Automatic tdata lifecycle:
 2. If the import yields a completed login, `App` goes straight to the chat
    shell; no login UI is shown.
 3. On a successful QR/phone/2FA login the kernel writes an official-compatible
-   no-passcode `tdata` and returns a `TDataExport`; the card reports
-   "tdata updated". A failed export is surfaced without invalidating the login.
+   no-passcode `tdata` and returns a `TDataExport`; the success card does not
+   mention the write. Only a failed export is surfaced, without invalidating the
+   login.
 
 ### Conversation list
 
-- 64px rows, 40px avatars, 12px radius, 8px inset; selected row uses
-  `primary-container`.
+- 64px floating rows with 42px avatars, 16px radius and a 6px gap; selected row
+  uses `primary-container`. Real photos load lazily and fall back to initials.
 - Unread: preview weight 500, unread badge only on non-selected rows.
 - Pin/mute are quiet 13px icons before the preview, not inline with the title.
-- Search is a 48px pill directly below the pane header, with a clear button.
-- Loading uses skeleton rows with the same geometry as real rows.
-- No footer count; the pane header is the only title. Its overflow menu is gone:
-  downloads/settings/logout are reached from the rail account menu.
+- Search is a 48px pill at the top of the list. There is no “聊天” heading and
+  no list overflow menu; the rail account menu owns settings and logout.
+- Chat rows are floating rounded surface bubbles with real peer photos loaded
+  lazily; there is no vertical divider between the list and the chat pane.
+- Loading uses skeleton cards with the same geometry as real rows.
+- No footer count.
 - The navigation rail ends with the account avatar only. Settings lives inside
   the account menu, so there is no duplicate gear button above the avatar.
 
 ### Chat
 
 - App bar: 38px avatar, 18px conversation name, 12px presence/member line,
-  40px search/menu actions. It stays on `surface`; there is no grey band.
-- Message canvas uses a quiet tinted surface. Header and composer stay white, so
-  the chat reads as a wallpaper plus bubbles rather than stacked grey bars.
+  40px search/menu actions. It is a floating rounded surface; clicking the
+  avatar/title opens the chat-info dialog.
+- Message canvas uses a quiet tinted surface inside a rounded pane. Header and
+  composer are floating white surfaces, so the chat reads as a wallpaper plus
+  bubbles rather than stacked grey bars.
 - Incoming bubbles are white with a subtle M3 shadow in light mode and
   `#1f1f1f` on the darker canvas in dark mode; outgoing bubbles remain
   `primary-container`. Date labels are compact tonal pills, not full-width rules.
+- Private chats show no message avatars or sender names. Groups and channels
+  show the sender avatar on every message; photos load lazily and fall back to
+  deterministic initials. Grouped messages align under the first avatar.
+- The header opens a chat-info dialog with the peer/chat photo, title, type,
+  username, member count and last message.
+- Message media support covers text, photo, video, GIF, sticker, voice, video
+  note, audio, file, poll/quiz, location/live/venue, contact, web page, dice,
+  game, invoice, story, giveaway, paid media, checklist and an explicit
+  unsupported fallback. Reply quotes and forwarded headers sit inside the
+  bubble. See [messages.md](messages.md) for the mapping table.
 - Comfortable density: 32px avatars on the first message of a group, sender name
   above the bubble, 18px bubbles, opposite alignment for outgoing messages.
 - Incoming bubble `surface-container`; outgoing `primary-container`. The last
@@ -231,8 +252,8 @@ Automatic tdata lifecycle:
 - Same `PaneHeader` as chat: 22px title, 12px live summary, pause-all and menu.
 - 48px primary tabs with counts; content aligned to the same 32px gutter as the
   header.
-- Tasks are one grouped card with no per-row dividers; hover and padding carry
-  the row rhythm.
+- Tasks are individual floating cards with no separators; hover raises the
+  card and failed downloads keep an error-container tint.
 - Each row: 40px tonal file tile, 14px name, 12px `chat · size · status`, 4px
   progress indicator, hover-revealed 40px actions.
 - Empty tabs use a shared 56px tonal icon, title, explanation and a text action

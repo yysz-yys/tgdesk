@@ -1,8 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { Browser } from "@wailsio/runtime";
 import type { Message } from "../../types";
-import { Avatar } from "../ui/Avatar";
 import { Icon } from "../ui/Icon";
+import { PeerAvatar } from "./PeerAvatar";
+import type { ChatAvatarLoader } from "./ChatAvatar";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -22,10 +23,13 @@ export interface MessageAuthor {
 interface MessageBubbleProps {
   message: Message;
   author: MessageAuthor;
+  replyTo?: Message;
   selected: boolean;
   showSender?: boolean;
+  showAvatar?: boolean;
   grouped?: boolean;
   lastInGroup?: boolean;
+  onLoadAvatar: ChatAvatarLoader;
   onToggleSelect: (id: number) => void;
   onDownloadMessage?: (id: number) => void;
   onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
@@ -35,10 +39,13 @@ interface MessageBubbleProps {
 export function MessageBubble({
   message,
   author,
+  replyTo,
   selected,
   showSender,
+  showAvatar = false,
   grouped = false,
   lastInGroup = true,
+  onLoadAvatar,
   onToggleSelect,
   onDownloadMessage,
   onLoadThumbnail,
@@ -91,6 +98,7 @@ export function MessageBubble({
           data-selected={selected || undefined}
           data-grouped={grouped || undefined}
           data-last={lastInGroup || undefined}
+          data-avatars={showAvatar || undefined}
         >
           <button
             type="button"
@@ -102,13 +110,15 @@ export function MessageBubble({
             {selected ? <Icon name="check" size={13} /> : null}
           </button>
 
-          {!grouped ? (
-            <Avatar
+          {showAvatar ? (
+            <PeerAvatar
               className="g-message-avatar"
+              peerID={message.senderId}
               title={author.name}
               initials={author.initials}
               color={author.color}
               size={32}
+              loader={onLoadAvatar}
             />
           ) : null}
 
@@ -127,9 +137,35 @@ export function MessageBubble({
                 </span>
               ) : null}
 
+              {message.replyToId ? (
+                <div className="g-reply-quote">
+                  <span className="g-reply-bar" aria-hidden="true" />
+                  <span className="g-reply-copy">
+                    <span className="g-reply-author">
+                      {replyTo
+                        ? replyTo.out
+                          ? t("chat.you")
+                          : replyTo.sender || t("chat.sender")
+                        : t("chat.replyToMessage")}
+                    </span>
+                    <span className="g-reply-text">
+                      {message.replyToText ||
+                        replyTo?.text ||
+                        replyTo?.media?.name ||
+                        t("chat.replyToMessage")}
+                    </span>
+                  </span>
+                </div>
+              ) : null}
+
               {media?.kind === "poll" ? (
                 <div className="g-poll">
-                  <div className="g-poll-question">{media.name}</div>
+                  <div className="g-poll-question">
+                    {media.name}
+                    {media.quiz ? (
+                      <span className="g-poll-quiz">{t("media.quiz")}</span>
+                    ) : null}
+                  </div>
                   <div className="g-poll-options">
                     {(media.options ?? []).map((option, index) => {
                       const voters = media.voteCounts?.[index] ?? 0;
@@ -183,10 +219,31 @@ export function MessageBubble({
                   <span className="g-location-copy">
                     <span className="g-location-title">
                       <Icon name="location_on" size={15} />
-                      {t("media.location")}
+                      {media.live ? t("media.liveLocation") : t("media.location")}
                     </span>
                     <span className="g-location-coords">
                       {media.latitude?.toFixed(4)}, {media.longitude?.toFixed(4)}
+                    </span>
+                  </span>
+                </button>
+              ) : media?.kind === "venue" ? (
+                <button
+                  type="button"
+                  className="g-location-card"
+                  onClick={openLocation}
+                  title={t("chat.openMap")}
+                >
+                  <LocationPreview
+                    latitude={media.latitude ?? 0}
+                    longitude={media.longitude ?? 0}
+                  />
+                  <span className="g-location-copy">
+                    <span className="g-location-title">
+                      <Icon name="place" size={15} />
+                      {media.title || media.name || t("media.location")}
+                    </span>
+                    <span className="g-location-coords">
+                      {media.description || t("media.venue")}
                     </span>
                   </span>
                 </button>
@@ -210,6 +267,60 @@ export function MessageBubble({
                     </span>
                   </span>
                 </button>
+              ) : media?.kind === "sticker" ? (
+                <div className="g-sticker-card">
+                  <MediaThumb
+                    chatID={message.chatId}
+                    messageID={message.id}
+                    alt={media.name}
+                    onLoad={onLoadThumbnail}
+                  />
+                  {media.emoji ? (
+                    <span className="g-sticker-emoji">{media.emoji}</span>
+                  ) : null}
+                </div>
+              ) : media?.kind === "animation" ? (
+                <div className="g-video-card g-animation-card">
+                  <MediaThumb
+                    chatID={message.chatId}
+                    messageID={message.id}
+                    alt={media.name}
+                    onLoad={onLoadThumbnail}
+                  />
+                  <span className="g-animation-badge">GIF</span>
+                  <span className="g-video-meta">{media.size}</span>
+                </div>
+              ) : media?.kind === "webpage" ? (
+                <button
+                  type="button"
+                  className="g-webpage-card"
+                  onClick={() => {
+                    if (media.url) {
+                      void Browser.OpenURL(media.url);
+                    }
+                  }}
+                >
+                  <span className="g-webpage-icon">
+                    <Icon name="link" size={20} />
+                  </span>
+                  <span className="g-webpage-copy">
+                    <span className="g-webpage-site">
+                      {media.siteName || media.url || t("media.webpage")}
+                    </span>
+                    <span className="g-webpage-title">
+                      {media.title || media.name || t("media.webpage")}
+                    </span>
+                    {media.description ? (
+                      <span className="g-webpage-description">{media.description}</span>
+                    ) : null}
+                  </span>
+                  <Icon name="open_in_new" size={16} className="g-webpage-open" />
+                </button>
+              ) : media?.kind === "dice" ? (
+                <div className="g-dice-card">
+                  <span className="g-dice-emoji">{media.emoji || "🎲"}</span>
+                  <span className="g-dice-value">{media.value || "—"}</span>
+                </div>
               ) : media?.kind === "video" ? (
                 <div className="g-video-card">
                   <MediaThumb
@@ -245,9 +356,25 @@ export function MessageBubble({
                       name={
                         media.kind === "audio"
                           ? "audio_file"
-                          : media.kind === "file"
-                            ? "description"
-                            : "draft"
+                          : media.kind === "voice"
+                            ? "mic"
+                            : media.kind === "video_note"
+                              ? "videocam"
+                              : media.kind === "game"
+                                ? "sports_esports"
+                                : media.kind === "invoice"
+                                  ? "receipt_long"
+                                  : media.kind === "story"
+                                    ? "auto_awesome"
+                                    : media.kind === "giveaway"
+                                      ? "redeem"
+                                      : media.kind === "paid"
+                                        ? "paid"
+                                        : media.kind === "checklist"
+                                          ? "checklist"
+                                          : media.kind === "unsupported"
+                                            ? "help"
+                                            : "description"
                       }
                       size={22}
                     />

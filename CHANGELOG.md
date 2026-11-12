@@ -35,22 +35,32 @@
 - Language menu with **Follow system**, English, 简体中文 and 日本語. The default
   follows the OS and the choice is persisted. Switching language no longer
   restarts an in-flight QR token.
+- Login footer theme menu (System / Light / Dark), defaulting to the system
+  theme and persisted with the rest of `AppSettings`.
+- Success is now only a check, “登录成功 / 正在加载页面…” and a spinner. The
+  tdata success chip is gone; only a tdata export failure is surfaced.
 - Phone login starts with **no country prefix**; the user must choose a country
   before the continue action enables.
 - QR countdown keeps its deadline when the same token event is replayed; the
   toolbar has an explicit Refresh button and a connecting state for the MTProto
   handshake.
 - Proxy settings use compact 48px fields in an overflow-free modal.
-- Reworked chat list, Google Chat-style message timeline, composer, download
-  manager and settings sheet. Removed most structural divider lines in favour
-  of tonal bands, grouped cards and spacing; settings is reached from the
-  account menu instead of a duplicate rail button or list overflow menu.
-- Chat background is a quiet tinted canvas with white incoming bubbles (dark
-  grey in dark mode) and primary-container outgoing bubbles; header and composer
-  no longer use grey bands. A tonal “jump to latest” button replaces the old
-  sticky FAB.
-- Success screen confirms the official-format tdata write without showing a
-  filesystem path.
+- Conversation list is now floating rounded rows with the real peer photo loaded
+  lazily. The “聊天” heading and its duplicate overflow menu are gone; there is
+  no divider between the list and the chat pane.
+- Chat header, message canvas and composer are independent floating surfaces.
+  Private chats show no message avatars; groups and channels show the sender
+  avatar on every message, with real sender photos and initials fallback.
+- Clicking the chat header opens a chat-info dialog with the peer photo, type,
+  username, member count and latest message.
+- Telegram message parsing expanded to text, photo, video, GIF, sticker, voice,
+  video note, audio, file, poll/quiz, location/live/venue, contact, web page,
+  dice, game, invoice, story, giveaway, paid media, checklist and an explicit
+  unsupported fallback. Replies render a quoted block.
+- Downloads are individual floating task cards with no separator lines.
+- The chat canvas keeps its quiet tinted wallpaper/bubble contrast; a tonal
+  “jump to latest” button floats above the composer and replaces the old sticky
+  FAB.
 
 ### Project hygiene
 
@@ -58,8 +68,8 @@
   package license and the bundled Material Symbols OFL text.
 - Replaced the old login/theme CSS (`login-settings.css`, `atoms.css`,
   `settings-*.css`) with tokenised shared styles.
-- Updated UI, architecture, development and handover docs, plus new login and
-  proxy screenshots.
+- Updated UI, architecture, development and handover docs, plus the new
+  [message-support matrix](docs/messages.md), login, proxy and chat screenshots.
 - Minor kernel cleanup: single `TDataExport` DTO, no duplicate export record
   type, simplified tdata identity check.
 
@@ -68,8 +78,9 @@
 - `go test ./internal/...`
 - `npm run build` / `wails3 build`
 - Playwright checks for QR/phone language switching and persistence, no-prefix
-  phone state, the proxy modal at 1107×725 and 640×480, tdata-authorized startup,
-  light/dark chat, settings and downloads.
+  phone state, the proxy modal at 1107×725 and 640×480, login theme persistence,
+  tdata-authorized startup, floating chat layout, real chat/sender avatars,
+  private/group avatar rules, chat info, rich media, downloads and login success.
 - `TestTelegramDesktopImport` verifies the official tdata import/export path.
 
 ## v0.1.0 — 2026-11-11

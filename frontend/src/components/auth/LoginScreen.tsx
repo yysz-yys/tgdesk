@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Events } from "@wailsio/runtime";
 import { Service as AppService } from "../../../bindings/tgdesk/internal/app";
-import type { TDataExport } from "../../../bindings/tgdesk/internal/kernel/models";
 import type { AppSettings } from "../../hooks/useSettings";
 import type { AuthEvent, AuthUser } from "../../types";
 import { findCountry } from "../../data/countries";
@@ -73,7 +72,6 @@ export function LoginScreen({
   const [retryIn, setRetryIn] = useState(0);
   const [passwordHint, setPasswordHint] = useState("");
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [tdata, setTdata] = useState<TDataExport | null>(null);
   const [tdataError, setTdataError] = useState("");
   const proxyRef = useRef(proxy);
   const ntpRef = useRef(ntp);
@@ -275,7 +273,6 @@ export function LoginScreen({
           if (payload.user) {
             setUser(payload.user);
           }
-          setTdata(payload.tData ?? null);
           setTdataError(payload.tDataError ?? "");
           setBusy(false);
           setError("");
@@ -483,6 +480,8 @@ export function LoginScreen({
     <LoginShell
       language={settings.language}
       onLanguageChange={(value) => onUpdate("language", value)}
+      theme={settings.theme}
+      onThemeChange={(value) => onUpdate("theme", value)}
     >
       {mode === "qr" ? (
         <LoginQrStep
@@ -562,7 +561,7 @@ export function LoginScreen({
       ) : null}
 
       {mode === "success" ? (
-        <LoginSuccessStep user={user} tdata={tdata} tdataError={tdataError} />
+        <LoginSuccessStep tdataError={tdataError} />
       ) : null}
     </LoginShell>
   );

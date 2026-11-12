@@ -543,6 +543,11 @@ export default function App() {
     [proxyUrl, settings.ntp],
   );
 
+  const loadChatAvatar = useCallback(
+    (chatID: string) => AppService.GetChatAvatar(chatID, proxyUrl, settings.ntp),
+    [proxyUrl, settings.ntp],
+  );
+
   const sendMessage = async (text: string) => {
     if (!selectedChatId) {
       throw new Error("No chat selected");
@@ -642,6 +647,7 @@ export default function App() {
               onMarkRead={markRead}
               onDownloadAll={downloadAll}
               onToast={showToast}
+              onLoadAvatar={loadChatAvatar}
               accountRestricted={authUser?.restricted}
               accountRestriction={authUser?.restriction}
               loading={chatsLoading}
@@ -660,6 +666,7 @@ export default function App() {
                   }
                 }}
                 onLoadThumbnail={loadThumbnail}
+                onLoadAvatar={loadChatAvatar}
                 onClearSelection={() => setSelectedIds(new Set())}
                 onSelectAll={selectAll}
                 onDownloadSelected={downloadSelected}

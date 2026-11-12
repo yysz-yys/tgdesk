@@ -119,6 +119,23 @@
   color: var(--app-on-surface);
 }
 
+.g-login-theme {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--app-surface-container-low);
+  color: var(--app-on-surface-variant);
+  cursor: pointer;
+}
+
+.g-login-theme:hover {
+  background: var(--app-surface-container);
+  color: var(--app-on-surface);
+}
+
 /* ── Steps ───────────────────────────────────────────────────────────────── */
 
 .g-login-step {
@@ -617,18 +634,6 @@
   color: var(--app-on-surface-variant);
   font-size: 13px;
   line-height: 20px;
-}
-
-.g-login-tdata {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: var(--app-radius-pill);
-  background: var(--md-sys-color-tertiary-container);
-  padding: 6px 12px;
-  color: var(--md-sys-color-on-tertiary-container);
-  font-size: var(--app-font-size-label);
-  font-weight: 500;
 }
 
 .g-login-success-loading {

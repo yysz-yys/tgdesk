@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { cn } from "../../lib/cn";
 
 interface AvatarProps {
@@ -7,18 +7,28 @@ interface AvatarProps {
   color: string;
   size?: number;
   online?: boolean;
+  photo?: string;
   className?: string;
 }
 
-/** Google-style account/chat avatar with deterministic tonal colour. */
+/** Google-style account/chat avatar with a real photo fallback to initials. */
 export function Avatar({
   title,
   initials,
   color,
   size = 40,
   online = false,
+  photo,
   className,
 }: AvatarProps) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [photo]);
+
+  const showPhoto = Boolean(photo) && !failed;
+
   return (
     <span
       className={cn("g-avatar", className)}
@@ -31,8 +41,19 @@ export function Avatar({
       }
       title={title}
       aria-hidden="true"
+      data-photo={showPhoto || undefined}
     >
-      <span className="g-avatar-initials">{initials}</span>
+      {showPhoto ? (
+        <img
+          className="g-avatar-photo"
+          src={photo}
+          alt=""
+          draggable={false}
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="g-avatar-initials">{initials}</span>
+      )}
       {online ? <span className="g-avatar-online" /> : null}
     </span>
   );
