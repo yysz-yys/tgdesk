@@ -293,6 +293,8 @@ export default {
     methodLabel: "登录方式",
     qrTitle: "tgdesk Telegram 登录二维码",
     checkingSession: "正在读取本地 tdata…",
+    connecting: "正在连接 Telegram…",
+    refresh: "刷新",
     generatingQr: "正在生成二维码…",
     subtitle: "你的 Telegram 媒体桌面端。",
     qrTab: "二维码",

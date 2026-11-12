@@ -77,6 +77,7 @@ export function LoginScreen({
   const [tdataError, setTdataError] = useState("");
   const proxyRef = useRef(proxy);
   const ntpRef = useRef(ntp);
+  const qrUrlRef = useRef("");
   const phoneRef = useRef("");
   const modeRef = useRef<Mode>("qr");
   const autoCodeRef = useRef("");
@@ -229,8 +230,13 @@ export function LoginScreen({
           setTdataError("");
           break;
         case "qr":
-          setQrUrl(payload.qrUrl ?? "");
-          setQrExpiresAt(Date.now() + (payload.qrExpiresIn ?? 30) * 1000);
+          // Some transports can replay the same token event. Keeping the
+          // existing deadline avoids the countdown visually freezing at 30s.
+          if ((payload.qrUrl ?? "") !== qrUrlRef.current) {
+            qrUrlRef.current = payload.qrUrl ?? "";
+            setQrUrl(payload.qrUrl ?? "");
+            setQrExpiresAt(Date.now() + (payload.qrExpiresIn ?? 30) * 1000);
+          }
           setBusy(false);
           setError("");
           setRetryIn(0);
@@ -320,6 +326,7 @@ export function LoginScreen({
     setBusy(true);
     setError("");
     setNotice("");
+    qrUrlRef.current = "";
     setQrUrl("");
     setQrExpiresAt(0);
     setRetryIn(0);
@@ -481,6 +488,7 @@ export function LoginScreen({
         <LoginQrStep
           qrUrl={qrUrl}
           secondsLeft={qrSecondsLeft}
+          busy={busy}
           error={error}
           notice={notice}
           importError={importError ? localizeError(undefined, importError) : ""}

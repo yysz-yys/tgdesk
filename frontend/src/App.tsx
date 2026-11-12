@@ -637,13 +637,10 @@ export default function App() {
               query={query}
               onQueryChange={setQuery}
               onSelectChat={openChat}
-              onSelectDownloads={openDownloads}
               onTogglePin={togglePin}
               onToggleMute={toggleMute}
               onMarkRead={markRead}
               onDownloadAll={downloadAll}
-              onSettings={() => setSettingsOpen(true)}
-              onLogout={handleLogout}
               onToast={showToast}
               accountRestricted={authUser?.restricted}
               accountRestriction={authUser?.restriction}

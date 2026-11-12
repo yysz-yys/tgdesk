@@ -293,6 +293,8 @@ export default {
     methodLabel: "ログイン方法",
     qrTitle: "tgdesk Telegram ログイン QR コード",
     checkingSession: "ローカルの tdata を読み込み中…",
+    connecting: "Telegram に接続中…",
+    refresh: "更新",
     generatingQr: "QR コードを生成中…",
     subtitle: "Telegram メディアのデスクトップシェル。",
     qrTab: "QR コード",

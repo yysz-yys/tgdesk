@@ -293,6 +293,8 @@ export default {
     methodLabel: "Login method",
     qrTitle: "tgdesk Telegram login QR code",
     checkingSession: "Reading local tdata…",
+    connecting: "Connecting to Telegram…",
+    refresh: "Refresh",
     generatingQr: "Generating QR code…",
     subtitle: "A desktop shell for your Telegram media.",
     qrTab: "QR Code",

@@ -1,15 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { Chat } from "../../types";
 import { Icon } from "../ui/Icon";
-import { IconButton } from "../ui/IconButton";
 import { PaneHeader } from "../ui/PaneHeader";
-import {
-  Menu,
-  MenuContent,
-  MenuItem,
-  MenuSeparator,
-  MenuTrigger,
-} from "../ui/Menu";
 import { SearchField } from "../ui/SearchField";
 import { ChatRow } from "../chat/ChatRow";
 
@@ -19,13 +11,10 @@ interface SidebarProps {
   query: string;
   onQueryChange: (value: string) => void;
   onSelectChat: (id: string) => void;
-  onSelectDownloads: () => void;
   onTogglePin: (id: string) => void;
   onToggleMute: (id: string) => void;
   onMarkRead: (id: string) => void;
   onDownloadAll: (chat: Chat) => void;
-  onSettings: () => void;
-  onLogout: () => void;
   onToast: (message: string) => void;
   accountRestricted?: boolean;
   accountRestriction?: string;
@@ -39,13 +28,10 @@ export function Sidebar({
   query,
   onQueryChange,
   onSelectChat,
-  onSelectDownloads,
   onTogglePin,
   onToggleMute,
   onMarkRead,
   onDownloadAll,
-  onSettings,
-  onLogout,
   onToast,
   accountRestricted,
   accountRestriction,
@@ -61,33 +47,7 @@ export function Sidebar({
 
   return (
     <aside className="g-sidebar" aria-label={t("sidebar.chats")}>
-      <PaneHeader
-        className="g-sidebar-header"
-        title={t("sidebar.chats")}
-        actions={
-          <Menu>
-            <MenuTrigger asChild>
-              <IconButton
-                label={t("sidebar.menu")}
-                icon="more_vert"
-                tooltip={false}
-              />
-            </MenuTrigger>
-            <MenuContent align="end">
-              <MenuItem icon={<Icon name="download" size={18} />} onSelect={onSelectDownloads}>
-                {t("sidebar.downloads")}
-              </MenuItem>
-              <MenuItem icon={<Icon name="settings" size={18} />} onSelect={onSettings}>
-                {t("common.settings")}
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem icon={<Icon name="logout" size={18} />} onSelect={onLogout} danger>
-                {t("common.logOut")}
-              </MenuItem>
-            </MenuContent>
-          </Menu>
-        }
-      />
+      <PaneHeader className="g-sidebar-header" title={t("sidebar.chats")} />
 
       <div className="g-sidebar-search">
         <SearchField

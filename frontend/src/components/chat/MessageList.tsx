@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message } from "../../types";
 import { chatColor, chatInitials } from "../../data/telegram";
-import { Fab } from "../ui/Fab";
+import { IconButton } from "../ui/IconButton";
 import { MessageBubble, type MessageAuthor } from "./MessageBubble";
 
 interface MessageListProps {
@@ -87,12 +87,15 @@ export function MessageList({
     if (!node) {
       return;
     }
+    stickToBottom.current = true;
+    setShowJump(false);
     node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
   };
 
   return (
-    <div className="g-message-scroll" ref={scrollRef} onScroll={onScroll}>
-      <div className="g-message-list">
+    <div className="g-message-layer">
+      <div className="g-message-scroll" ref={scrollRef} onScroll={onScroll}>
+        <div className="g-message-list">
         {messages.map((message, index) => {
           const previous = messages[index - 1];
           const next = messages[index + 1];
@@ -144,17 +147,18 @@ export function MessageList({
             </div>
           );
         })}
+        </div>
       </div>
 
       {showJump ? (
-        <Fab
-          className="g-scroll-fab"
-          icon="arrow_downward"
-          label={t("chat.jumpLatest")}
-          variant="surface"
-          size="small"
-          onClick={jumpToBottom}
-        />
+        <div className="g-jump-latest">
+          <IconButton
+            variant="tonal"
+            icon="arrow_downward"
+            label={t("chat.jumpLatest")}
+            onClick={jumpToBottom}
+          />
+        </div>
       ) : null}
     </div>
   );

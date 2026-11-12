@@ -1,4 +1,4 @@
-﻿/* Download manager surface. */
+/* Download manager surface. */
 
 .g-downloads {
   display: flex;
@@ -23,7 +23,7 @@
 
 .g-downloads-tabs {
   flex: 0 0 auto;
-  background: var(--app-surface-container);
+  background: var(--app-surface);
   padding: 0 var(--app-space-6) 0 var(--app-space-4);
 }
 

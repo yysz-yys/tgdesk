@@ -12,6 +12,7 @@ import { LoginNetworkSettings } from "./LoginNetworkSettings";
 interface LoginQrStepProps {
   qrUrl: string;
   secondsLeft: number;
+  busy?: boolean;
   error: string;
   notice?: string;
   importError?: string;
@@ -25,6 +26,7 @@ interface LoginQrStepProps {
 export function LoginQrStep({
   qrUrl,
   secondsLeft,
+  busy = false,
   error,
   notice,
   importError,
@@ -41,6 +43,15 @@ export function LoginQrStep({
   return (
     <div className="g-login-step g-login-qr">
       <div className="g-login-toolbar g-login-toolbar--end">
+        <button
+          type="button"
+          className="g-login-toolbar-action"
+          onClick={onRefresh}
+          disabled={busy}
+        >
+          <Icon name="refresh" size={17} />
+          {t("login.refresh")}
+        </button>
         <button
           type="button"
           className="g-login-toolbar-action"
@@ -100,13 +111,14 @@ export function LoginQrStep({
           <Icon name={expired ? "timer_off" : "schedule"} size={17} />
           {expired ? (
             <span>{t("login.qrExpired")}</span>
-          ) : qrUrl && secondsLeft > 0 ? (
+          ) : !qrUrl ? (
+            <span>{t("login.connecting")}</span>
+          ) : secondsLeft > 0 ? (
             <span>{t("login.qrExpiresIn", { seconds: secondsLeft })}</span>
           ) : (
             <span>{t("login.qrRefreshHint")}</span>
           )}
         </div>
-
         {importError ? <Callout tone="error">{importError}</Callout> : null}
         {error ? <Callout tone="error">{error}</Callout> : null}
         {notice ? <Callout tone="info">{notice}</Callout> : null}

@@ -150,16 +150,20 @@ checked before it is mounted, so it only has to answer "QR or phone?".
 - Single centred 420px card on the app background; the only chrome is a 36px
   brand lockup above the card and a language/legal footer below it.
 - No marketing panel, feature list, welcome step or duplicate card brand.
-- QR login starts automatically. One heading, one hint, the QR tile, countdown
-  and a text link to phone login are the entire QR surface.
+- QR login starts automatically. One heading, one hint, the QR tile, countdown,
+  a visible **Refresh** action and a text link to phone login. While the MTProto
+  handshake runs the card says "Connecting to Telegram…"; the countdown keeps a
+  stable deadline when the same token event is replayed.
+- The QR toolbar can force a new token after a proxy/network warning; the
+  countdown then restarts with the new token.
 - Phone login is one outlined 56px field (country trigger, divider, number),
   one hint, one primary action. No redundant eyebrow or fine-print block. The
   country prefix is **empty by default**; the user must pick a country, then the
   +code appears and the continue action enables.
 - Proxy settings open as a centred Material dialog, not an inline expanding
-  panel, so the login card never changes height or clips the QR code. Proxy
-  edits are local until Save; saving on the QR step restarts the token with the
-  new proxy.
+  panel, so the login card never changes height or clips the QR code. The dialog
+  uses compact 48px fields and hides its scrollbar; proxy edits are local until
+  Save; saving on the QR step restarts the token with the new proxy.
 - Language is a footer menu with **Follow system**, English, 简体中文 and 日本語.
   The default is `system`; the choice is written to `AppSettings` immediately
   and restored on the next launch. The footer shows `Follow system · <resolved>`
@@ -191,16 +195,20 @@ Automatic tdata lifecycle:
 - Pin/mute are quiet 13px icons before the preview, not inline with the title.
 - Search is a 48px pill directly below the pane header, with a clear button.
 - Loading uses skeleton rows with the same geometry as real rows.
-- No footer count; the pane header is the only title.
+- No footer count; the pane header is the only title. Its overflow menu is gone:
+  downloads/settings/logout are reached from the rail account menu.
 - The navigation rail ends with the account avatar only. Settings lives inside
   the account menu, so there is no duplicate gear button above the avatar.
 
 ### Chat
 
 - App bar: 38px avatar, 18px conversation name, 12px presence/member line,
-  40px search/menu actions. It uses a tonal surface instead of a divider.
-- Message canvas is flat `surface`; date labels are compact tonal pills, not
-  full-width rules.
+  40px search/menu actions. It stays on `surface`; there is no grey band.
+- Message canvas uses a quiet tinted surface. Header and composer stay white, so
+  the chat reads as a wallpaper plus bubbles rather than stacked grey bars.
+- Incoming bubbles are white with a subtle M3 shadow in light mode and
+  `#1f1f1f` on the darker canvas in dark mode; outgoing bubbles remain
+  `primary-container`. Date labels are compact tonal pills, not full-width rules.
 - Comfortable density: 32px avatars on the first message of a group, sender name
   above the bubble, 18px bubbles, opposite alignment for outgoing messages.
 - Incoming bubble `surface-container`; outgoing `primary-container`. The last
@@ -213,7 +221,8 @@ Automatic tdata lifecycle:
   use a tonal icon tile based on the extension.
 - Composer: one 48px outlined pill containing attach, textarea, emoji and
   send/mic. Focus is a single 1px primary ring; the textarea suppresses the
-  global outline.
+  global outline. A “jump to latest” tonal icon button floats above the composer
+  when the reader is more than 180px away from the bottom.
 - In-chat search closes on Escape and only searches loaded messages, with an
   explicit hint.
 

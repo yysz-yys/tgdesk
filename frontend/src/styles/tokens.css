@@ -76,8 +76,10 @@
   --app-hover: rgba(31, 31, 31, 0.08);
   --app-active: rgba(31, 31, 31, 0.12);
   --app-scrim: rgba(0, 0, 0, 0.32);
-  --app-chat-canvas: #ffffff;
+  --app-chat-canvas: #f3f6fc;
   --app-chat-pattern: transparent;
+  --app-incoming: #ffffff;
+  --app-outgoing: #d3e3fd;
   --app-success: #146c2e;
 }
 
@@ -127,8 +129,10 @@
   --app-hover: rgba(227, 227, 227, 0.08);
   --app-active: rgba(227, 227, 227, 0.12);
   --app-scrim: rgba(0, 0, 0, 0.55);
-  --app-chat-canvas: #1b1b1b;
+  --app-chat-canvas: #0e0e0e;
   --app-chat-pattern: transparent;
+  --app-incoming: #1f1f1f;
+  --app-outgoing: #0842a0;
   --app-success: #6dd58c;
 }
 
@@ -181,8 +185,6 @@
   --app-on-error-container: var(--md-sys-color-on-error-container);
   --app-selected: var(--md-sys-color-primary-container);
   --app-selected-text: var(--md-sys-color-on-primary-container);
-  --app-incoming: var(--md-sys-color-surface-container);
-  --app-outgoing: var(--md-sys-color-primary-container);
   --app-outgoing-text: var(--md-sys-color-on-primary-container);
   --app-danger: var(--md-sys-color-error);
 

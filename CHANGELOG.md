@@ -37,10 +37,18 @@
   restarts an in-flight QR token.
 - Phone login starts with **no country prefix**; the user must choose a country
   before the continue action enables.
+- QR countdown keeps its deadline when the same token event is replayed; the
+  toolbar has an explicit Refresh button and a connecting state for the MTProto
+  handshake.
+- Proxy settings use compact 48px fields in an overflow-free modal.
 - Reworked chat list, Google Chat-style message timeline, composer, download
   manager and settings sheet. Removed most structural divider lines in favour
   of tonal bands, grouped cards and spacing; settings is reached from the
-  account menu instead of a duplicate rail button.
+  account menu instead of a duplicate rail button or list overflow menu.
+- Chat background is a quiet tinted canvas with white incoming bubbles (dark
+  grey in dark mode) and primary-container outgoing bubbles; header and composer
+  no longer use grey bands. A tonal “jump to latest” button replaces the old
+  sticky FAB.
 - Success screen confirms the official-format tdata write without showing a
   filesystem path.
 

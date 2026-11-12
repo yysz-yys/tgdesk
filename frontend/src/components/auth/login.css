@@ -183,6 +183,16 @@
   background: var(--app-hover);
 }
 
+.g-login-toolbar-action:disabled {
+  color: var(--app-on-surface-variant);
+  cursor: default;
+  opacity: 0.45;
+}
+
+.g-login-toolbar-action:disabled:hover {
+  background: transparent;
+}
+
 .g-login-text-link {
   align-self: center;
   border: 0;
@@ -643,6 +653,16 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--app-space-2);
+}
+
+.g-login-network .g-text-field,
+.g-login-network .g-select-field {
+  --md-outlined-text-field-container-height: 48px;
+  --md-outlined-select-text-field-container-height: 48px;
+  --md-outlined-text-field-label-text-size: 12px;
+  --md-outlined-select-text-field-label-text-size: 12px;
+  --md-outlined-text-field-input-text-size: 13.5px;
+  --md-outlined-select-text-field-input-text-size: 13.5px;
 }
 
 /* ── Startup check ───────────────────────────────────────────────────────── */
