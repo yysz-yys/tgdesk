@@ -45,11 +45,12 @@
   toolbar has an explicit Refresh button and a connecting state for the MTProto
   handshake.
 - Proxy settings use compact 48px fields in an overflow-free modal.
-- Conversation list is now floating rounded rows with the real peer photo loaded
-  lazily. The “聊天” heading and its duplicate overflow menu are gone; there is
-  no divider between the list and the chat pane.
-- Chat header, message canvas and composer are independent floating surfaces.
-  Private chats show no message avatars; groups and channels show the sender
+- Main page follows Telegram Web's two-column layout with a permanent-list /
+  full-bleed-chat split: hamburger + search, All/Unread filters, flat rows,
+  floating compose FAB, transparent chat header over an original Material
+  wallpaper, and a floating composer. The navigation rail became a left M3
+  drawer with Chats/Downloads/Settings/Logout and account details.
+- Private chats show no message avatars; groups and channels show the sender
   avatar on every message, with real sender photos and initials fallback.
 - Clicking the chat header opens a chat-info dialog with the peer photo, type,
   username, member count and latest message.
@@ -57,10 +58,10 @@
   video note, audio, file, poll/quiz, location/live/venue, contact, web page,
   dice, game, invoice, story, giveaway, paid media, checklist and an explicit
   unsupported fallback. Replies render a quoted block.
-- Downloads are individual floating task cards with no separator lines.
-- The chat canvas keeps its quiet tinted wallpaper/bubble contrast; a tonal
-  “jump to latest” button floats above the composer and replaces the old sticky
-  FAB.
+- Downloads are individual floating task cards with no separator lines; the
+  hamburger from the downloads header opens the same navigation drawer.
+- A tonal “jump to latest” button floats above the composer and replaces the old
+  sticky FAB.
 
 ### Project hygiene
 

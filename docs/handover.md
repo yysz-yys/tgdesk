@@ -1,4 +1,4 @@
-# 交接说明（Handover）
+﻿# 交接说明（Handover）
 
 本文给接手者一份“现在能做什么、代码在哪、怎么验证、哪些坑不能踩”的快速说明。
 英文的架构/开发/数据文档在 [`README.md`](README.md) 索引中。
@@ -75,7 +75,7 @@ frontend/src/
   components/auth/              登录页（Material 3）各步骤 + 国家选择器
   components/chat/              会话视图、消息、媒体、输入框
   components/downloads/         下载管理器
-  components/layout/            TitleBar、NavigationRail、Sidebar
+  components/layout/            TitleBar、NavDrawer、Sidebar
   components/settings/          设置 Sheet
   components/ui/                通用 Material 3 组件（PaneHeader、Button、Menu 等）
   styles/                       设计 token 与基础样式
@@ -195,3 +195,4 @@ $env:TGDESK_WEBVIEW_DEBUG = "1"
 - 测试 tdata 只用一次性副本；不要在唯一一份账号数据上做导入/导出实验。
 
 更细的数据布局与 git 规则见 [`data-and-privacy.md`](data-and-privacy.md)。
+

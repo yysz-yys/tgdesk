@@ -34,7 +34,7 @@ Material 3 roles are defined for `:root[data-theme="light"]` and
 |---|---|---|
 | primary | `#0b57d0` | primary actions, links, focus, active indicators |
 | on-primary | `#ffffff` | text/icons on primary |
-| primary-container | `#d3e3fd` | selected rows, outgoing bubbles, rail indicator |
+| primary-container | `#d3e3fd` | selected rows, outgoing bubbles, active drawer item |
 | on-primary-container | `#041e49` | content on primary-container |
 | secondary-container | `#cee5ff` | tonal selection in controls and menus |
 | surface | `#ffffff` | panes, cards, menus |
@@ -90,18 +90,28 @@ shadows on top of tonal containers.
 | Region | Size |
 |---|---|
 | frameless caption bar | 30px, app background, localized window controls |
-| navigation rail | 76px (72 at ≤1120, 64 at ≤760) |
+| navigation drawer | 300px, left inset, M3 modal surface |
 | conversation list | 360px (336 / 304 / 264 at the same breakpoints) |
-| app bar | 64px, one `PaneHeader` per pane |
+| app bar | 64px, transparent over the chat wallpaper |
 | chat message column | max 840px, 24px gutters |
 | downloads content | max 960px, 32px gutters |
-| composer | 72px minimum, 24px radius, max 132px textarea |
+| composer | 64px bar, floating 48px field, max 132px textarea |
 | login card | 420px, 24px radius, QR tile 220px |
 | settings sheet | 480px, 24px radius, 8px inset from title bar and window edge |
 
-Panes are flat and full-height: rail on `surface-container-low`, list and main
-pane on `surface`, separated by 1px `outline-variant`. There are no decorative
-gradients, dot patterns, or glass panels in the working shell.
+The shell is a Telegram-style two-column workspace: the conversation list sits
+on `surface-container-low` and the chat pane is a full-bleed wallpaper with a
+transparent app bar. There is no permanent navigation rail and no vertical
+divider; the hamburger opens the M3 navigation drawer. The chat wallpaper is an
+original low-opacity Material outline pattern, not Telegram artwork.
+
+![Telegram-style chat shell](assets/ui-chat-home.png)
+
+![Telegram-style chat shell, light](assets/ui-chat-home-light.png)
+
+![Navigation drawer](assets/ui-nav-drawer.png)
+
+![New message picker](assets/ui-new-message.png)
 
 ## 3. Shared component layer
 
@@ -117,7 +127,8 @@ state layers.
 | `Switch`, `Slider`, `Tabs`, `LinearProgress`, `Spinner` | `@material/web` | tokens themed once in `ui.css` |
 | `SegmentedControl` | native buttons | M3 segmented button, `aria-pressed` |
 | `SearchField` | native input | 48px pill, 40px compact, real `type="search"` |
-| `PaneHeader` | layout | identical 64px app bars for list/chat/downloads |
+| `PaneHeader` | layout | 64px app bar for downloads and contained panes |
+| `NavDrawer` | Radix Dialog | left modal navigation, account and destinations |
 | `Menu`, `ContextMenu` | Radix primitives | M3 menu surface, 40px items, keyboard managed |
 | `Sheet` | Radix Dialog | focus trap, Escape, inset side sheet |
 | `Dialog` | Radix Dialog | portalled centred modal for contained tasks such as proxy setup |
@@ -196,27 +207,25 @@ Automatic tdata lifecycle:
 
 ### Conversation list
 
-- 64px floating rows with 42px avatars, 16px radius and a 6px gap; selected row
-  uses `primary-container`. Real photos load lazily and fall back to initials.
+- 66px flat rows with 42px avatars; hover uses the 8% state layer and the
+  selected row uses `primary-container`. Real photos load lazily and fall back to
+  initials.
 - Unread: preview weight 500, unread badge only on non-selected rows.
 - Pin/mute are quiet 13px icons before the preview, not inline with the title.
-- Search is a 48px pill at the top of the list. There is no “聊天” heading and
-  no list overflow menu; the rail account menu owns settings and logout.
-- Chat rows are floating rounded surface bubbles with real peer photos loaded
-  lazily; there is no vertical divider between the list and the chat pane.
-- Loading uses skeleton cards with the same geometry as real rows.
-- No footer count.
-- The navigation rail ends with the account avatar only. Settings lives inside
-  the account menu, so there is no duplicate gear button above the avatar.
+- A hamburger + search pill form the top row; the hamburger opens the navigation
+  drawer with Chats, Downloads, Settings and Log out.
+- “全部 / 未读” filter chips show counts; there is no “聊天” heading.
+- A floating pencil FAB opens the new-message picker.
+- Loading uses skeleton rows with the same geometry as real rows.
+- No footer count and no permanent rail.
 
 ### Chat
 
 - App bar: 38px avatar, 18px conversation name, 12px presence/member line,
-  40px search/menu actions. It is a floating rounded surface; clicking the
+  40px search/menu actions. It is transparent over the wallpaper; clicking the
   avatar/title opens the chat-info dialog.
-- Message canvas uses a quiet tinted surface inside a rounded pane. Header and
-  composer are floating white surfaces, so the chat reads as a wallpaper plus
-  bubbles rather than stacked grey bars.
+- The chat pane is full-bleed, with an original low-opacity Material outline
+  wallpaper; there is no outer rounded card.
 - Incoming bubbles are white with a subtle M3 shadow in light mode and
   `#1f1f1f` on the darker canvas in dark mode; outgoing bubbles remain
   `primary-container`. Date labels are compact tonal pills, not full-width rules.
@@ -240,10 +249,11 @@ Automatic tdata lifecycle:
   context menu exposes download/select/copy.
 - Media cards use 12px radius; photo/video captions sit on a scrim. File cards
   use a tonal icon tile based on the extension.
-- Composer: one 48px outlined pill containing attach, textarea, emoji and
-  send/mic. Focus is a single 1px primary ring; the textarea suppresses the
-  global outline. A “jump to latest” tonal icon button floats above the composer
-  when the reader is more than 180px away from the bottom.
+- Composer: a transparent bottom area with one floating 48px outlined pill
+  containing attach, textarea, emoji and send/mic. Focus is a single 1px primary
+  ring; the textarea suppresses the global outline. A “jump to latest” tonal icon
+  button floats above the composer when the reader is more than 180px away from
+  the bottom.
 - In-chat search closes on Escape and only searches loaded messages, with an
   explicit hint.
 
@@ -293,10 +303,10 @@ Automatic tdata lifecycle:
 
 | Breakpoint | Change |
 |---|---|
-| ≤1120px | rail 72, list 336 |
+| ≤1120px | list 336 |
 | ≤980px | message column 76%, media cards narrower |
 | ≤900px | list 304 |
-| ≤760px | rail 64, list 264, download gutters tighten |
+| ≤760px | list 264, download gutters tighten |
 | ≤560px | sheets go full-bleed; settings rows stack |
 | ≤520px | login card loses outline/shadow and runs nearly full-width |
 | ≤620px height (login) | compact card, 160px QR tile, hint hidden |

@@ -220,7 +220,7 @@ Component layers:
   page surface; `LoginScreen` owns the state machine and `auth:event` handling.
 - `components/chat` — conversation is split into header, search, list, bubble,
   media thumb, composer, channel bar and selection bar.
-- `components/layout` — caption bar, navigation rail and conversation list.
+- `components/layout` — caption bar, navigation drawer and conversation list.
 - `components/settings` — settings sheet; it uses the shared `Sheet`,
   `SegmentedControl`, select, switch, slider and field primitives.
 - `components/ui` — the Material 3 base layer (`PaneHeader`, `Button`,

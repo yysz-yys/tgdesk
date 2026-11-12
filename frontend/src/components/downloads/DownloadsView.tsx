@@ -22,6 +22,7 @@ interface DownloadsViewProps {
   onPauseAll: () => void;
   onClearCompleted: () => void;
   onOpenDownloadFolder: () => void;
+  onMenu: () => void;
 }
 
 function EmptyTab({
@@ -75,6 +76,7 @@ export function DownloadsView({
   onPauseAll,
   onClearCompleted,
   onOpenDownloadFolder,
+  onMenu,
 }: DownloadsViewProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState("active");
@@ -102,6 +104,13 @@ export function DownloadsView({
         className="g-downloads-header"
         title={t("downloads.title")}
         subtitle={summary}
+        leading={
+          <IconButton
+            label={t("common.mainNavigation")}
+            icon="menu"
+            onClick={onMenu}
+          />
+        }
         actions={
           <>
             <IconButton

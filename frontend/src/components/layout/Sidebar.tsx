@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Chat } from "../../types";
 import { Icon } from "../ui/Icon";
+import { IconButton } from "../ui/IconButton";
 import { SearchField } from "../ui/SearchField";
 import { ChatRow } from "../chat/ChatRow";
 import type { ChatAvatarLoader } from "../chat/ChatAvatar";
@@ -17,6 +19,8 @@ interface SidebarProps {
   onDownloadAll: (chat: Chat) => void;
   onToast: (message: string) => void;
   onLoadAvatar: ChatAvatarLoader;
+  onMenu: () => void;
+  onCompose: () => void;
   accountRestricted?: boolean;
   accountRestriction?: string;
   loading?: boolean;
@@ -35,21 +39,33 @@ export function Sidebar({
   onDownloadAll,
   onToast,
   onLoadAvatar,
+  onMenu,
+  onCompose,
   accountRestricted,
   accountRestriction,
   loading,
   failed,
 }: SidebarProps) {
   const { t } = useTranslation();
+  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const unreadCount = chats.filter((chat) => Boolean(chat.unread)).length;
+  const visibleChats = filter === "unread" ? chats.filter((chat) => Boolean(chat.unread)) : chats;
   const emptyText = failed
     ? t("chat.loadChatsFailed")
     : query
       ? t("sidebar.noMatches", { query })
-      : t("chat.noChats");
+      : filter === "unread"
+        ? t("sidebar.noUnread")
+        : t("chat.noChats");
 
   return (
     <aside className="g-sidebar" aria-label={t("sidebar.chats")}>
-      <div className="g-sidebar-search">
+      <div className="g-list-head">
+        <IconButton
+          label={t("common.mainNavigation")}
+          icon="menu"
+          onClick={onMenu}
+        />
         <SearchField
           value={query}
           onValueChange={onQueryChange}
@@ -57,6 +73,29 @@ export function Sidebar({
           label={t("sidebar.searchChats")}
           clearLabel={t("sidebar.clearSearch")}
         />
+      </div>
+
+      <div className="g-list-filters" role="tablist" aria-label={t("sidebar.chats")}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={filter === "all"}
+          data-active={filter === "all" || undefined}
+          onClick={() => setFilter("all")}
+        >
+          {t("sidebar.all")}
+          <span>{chats.length}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={filter === "unread"}
+          data-active={filter === "unread" || undefined}
+          onClick={() => setFilter("unread")}
+        >
+          {t("sidebar.unread")}
+          <span>{unreadCount}</span>
+        </button>
       </div>
 
       {accountRestricted ? (
@@ -86,9 +125,9 @@ export function Sidebar({
               </div>
             ))}
           </div>
-        ) : chats.length > 0 ? (
+        ) : visibleChats.length > 0 ? (
           <div className="g-chat-list">
-            {chats.map((chat) => (
+            {visibleChats.map((chat) => (
               <ChatRow
                 key={chat.id}
                 chat={chat}
@@ -105,11 +144,23 @@ export function Sidebar({
           </div>
         ) : (
           <div className="g-sidebar-empty">
-            <Icon name={query ? "search_off" : failed ? "cloud_off" : "forum"} size={28} />
+            <Icon
+              name={query ? "search_off" : filter === "unread" ? "mark_email_read" : failed ? "cloud_off" : "forum"}
+              size={28}
+            />
             <p>{emptyText}</p>
           </div>
         )}
       </div>
+
+      <button
+        type="button"
+        className="g-compose-fab"
+        aria-label={t("chat.newMessage")}
+        onClick={onCompose}
+      >
+        <Icon name="edit" size={23} />
+      </button>
     </aside>
   );
 }

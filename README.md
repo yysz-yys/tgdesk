@@ -7,7 +7,7 @@ upstream projects are **not forked or patched**.
 The UI uses one Google Material 3 / Google Workspace visual language across
 login, conversations, downloads and settings: Roboto, Google's Material Web
 components, Material Symbols Rounded, the Workspace colour roles, a navigation
-rail and 64px app bars. Light and dark themes share the same tokens. The
+drawer and 64px app bars. Light and dark themes share the same tokens. The
 reference client area is 1107×725. A settings sheet only exposes options those
 features use: language, theme, send-on-Enter, download folder/threads/file-name
 template, proxy and NTP.
@@ -140,7 +140,7 @@ frontend/src/
   App.tsx                   app shell, state, effects, event handlers
   components/auth/          Material 3 login steps, country picker, logo
   components/chat/          chat view, rows, header, composer, search, media
-  components/layout/        window title bar, navigation rail, conversation list
+  components/layout/        window title bar, navigation drawer, conversation list
   components/settings/      settings sheet
   components/downloads/     download manager
   components/ui/            shared Material 3 primitives; feature code imports these

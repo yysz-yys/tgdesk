@@ -66,10 +66,8 @@
   display: flex;
   height: 100%;
   min-height: 0;
-  gap: var(--app-space-2);
   overflow: hidden;
-  background: var(--app-bg);
-  padding: var(--app-space-2) var(--app-space-2) var(--app-space-2) 0;
+  background: var(--app-surface);
 }
 
 .g-app-main {
@@ -78,9 +76,7 @@
   flex: 1;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 22px;
   background: var(--app-surface);
-  box-shadow: var(--app-elevation-1);
 }
 
 .g-online-dot {
@@ -90,6 +86,174 @@
   flex: 0 0 auto;
   border-radius: 50%;
   background: var(--app-success);
+}
+
+/* ── Navigation drawer ─────────────────────────────────────────────────────── */
+
+.g-drawer-scrim {
+  position: fixed;
+  inset: var(--app-titlebar-height) 0 0;
+  z-index: 80;
+  background: var(--app-scrim);
+  animation: g-fade-in var(--app-motion);
+}
+
+.g-drawer {
+  position: fixed;
+  top: var(--app-titlebar-height);
+  bottom: 0;
+  left: 0;
+  z-index: 81;
+  display: flex;
+  width: min(300px, calc(100vw - 56px));
+  flex-direction: column;
+  border-radius: 0 24px 24px 0;
+  background: var(--app-surface-container-low);
+  padding: var(--app-space-4);
+  box-shadow: var(--app-elevation-3);
+  outline: 0;
+  animation: g-drawer-in var(--app-motion-slow);
+}
+
+@keyframes g-drawer-in {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.g-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-2);
+  padding: var(--app-space-1) var(--app-space-1) var(--app-space-5);
+}
+
+.g-drawer-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.g-drawer-title {
+  margin: 0;
+  color: var(--app-on-surface);
+  font-family: var(--app-font-display);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.g-drawer-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-on-surface-variant);
+  cursor: pointer;
+}
+
+.g-drawer-close:hover {
+  background: var(--app-hover);
+  color: var(--app-on-surface);
+}
+
+.g-drawer-account {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  margin: 0 var(--app-space-1) var(--app-space-5);
+  border-radius: 16px;
+  background: var(--app-surface-container);
+  padding: var(--app-space-3);
+  color: var(--app-on-surface);
+}
+
+.g-drawer-account-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.g-drawer-account-copy span {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.g-drawer-account-copy small {
+  color: var(--app-primary);
+  font-size: 11px;
+}
+
+.g-drawer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.g-drawer-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: auto;
+  padding-top: var(--app-space-4);
+}
+
+.g-drawer-item {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: var(--app-space-3);
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  padding: 0 var(--app-space-3);
+  color: var(--app-on-surface-variant);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.g-drawer-item:hover {
+  background: var(--app-hover);
+  color: var(--app-on-surface);
+}
+
+.g-drawer-item[data-active] {
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+}
+
+.g-drawer-item[data-danger] {
+  color: var(--app-danger);
+}
+
+.g-drawer-count {
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  margin-left: auto;
+  place-items: center;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-primary);
+  padding: 0 5px;
+  color: var(--app-on-primary);
+  font-size: 10px;
+  font-weight: 600;
 }
 
 /* ── Navigation rail ─────────────────────────────────────────────────────── */
@@ -274,21 +438,95 @@
 /* ── Conversation list ───────────────────────────────────────────────────── */
 
 .g-sidebar {
+  position: relative;
   display: flex;
   width: var(--app-list-width);
   min-width: 0;
   flex: 0 0 var(--app-list-width);
   flex-direction: column;
-  background: transparent;
+  background: var(--app-surface-container-low);
 }
 
-.g-sidebar-search {
-  padding: var(--app-space-1) var(--app-space-2) var(--app-space-2);
+.g-compose-fab {
+  position: absolute;
+  right: var(--app-space-5);
+  bottom: var(--app-space-5);
+  z-index: 2;
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 0;
+  border-radius: 18px;
+  background: var(--app-primary);
+  color: var(--app-on-primary);
+  box-shadow: var(--app-elevation-2);
+  cursor: pointer;
+  transition:
+    background-color var(--app-motion-fast),
+    box-shadow var(--app-motion-fast);
 }
 
-.g-sidebar-search .g-search {
+.g-compose-fab:hover {
+  background: color-mix(in srgb, var(--app-primary) 90%, var(--app-on-primary));
+  box-shadow: var(--app-elevation-3);
+}
+
+.g-list-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--app-space-2);
+  padding: var(--app-space-2) var(--app-space-3) var(--app-space-2)
+    var(--app-space-2);
+}
+
+.g-list-head .g-search {
   background: var(--app-surface);
-  box-shadow: var(--app-elevation-1);
+}
+
+.g-list-filters {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--app-space-1);
+  padding: 0 var(--app-space-3) var(--app-space-2);
+}
+
+.g-list-filters button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: transparent;
+  padding: 0 10px;
+  color: var(--app-on-surface-variant);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.g-list-filters button:hover {
+  background: var(--app-hover);
+  color: var(--app-on-surface);
+}
+
+.g-list-filters button[data-active] {
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+}
+
+.g-list-filters button > span {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: var(--app-radius-pill);
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  padding: 0 5px;
+  font-size: 10px;
 }
 
 .g-sidebar-scroll {
@@ -297,38 +535,34 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-bottom: var(--app-space-2);
+  padding-bottom: 76px;
 }
 
 .g-chat-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
   padding: 0 var(--app-space-2) var(--app-space-2);
 }
 
 .g-chat-row {
   display: flex;
   width: 100%;
-  min-height: 64px;
+  min-height: 66px;
   align-items: center;
   gap: var(--app-space-3);
   border: 0;
-  border-radius: 16px;
-  background: var(--app-surface);
+  border-radius: 12px;
+  background: transparent;
   padding: var(--app-space-2) var(--app-space-3);
   color: var(--app-on-surface);
   text-align: left;
   cursor: pointer;
-  box-shadow: var(--app-elevation-1);
-  transition:
-    background-color var(--app-motion-fast),
-    box-shadow var(--app-motion-fast);
+  transition: background-color var(--app-motion-fast);
 }
 
 .g-chat-row:hover {
-  background: var(--app-surface-container-low);
-  box-shadow: var(--app-elevation-2);
+  background: var(--app-hover);
 }
 
 .g-chat-row:active {
@@ -447,13 +681,11 @@
 
 .g-chat-skeleton {
   display: flex;
-  min-height: 64px;
+  min-height: 66px;
   align-items: center;
   gap: var(--app-space-3);
-  border-radius: 16px;
-  background: var(--app-surface);
+  border-radius: 12px;
   padding: var(--app-space-2) var(--app-space-3);
-  box-shadow: var(--app-elevation-1);
 }
 
 .g-chat-skeleton-avatar,
@@ -585,22 +817,15 @@
   }
 }
 
-/* Dark floating hierarchy: the app background is #1b1b1b, so cards lift above
-   it instead of receding into it. */
-[data-theme="dark"] .g-sidebar-search .g-search,
-[data-theme="dark"] .g-chat-row,
+/* Dark list hierarchy: flat rows on the list surface, with only the selected
+   conversation lifted by the primary container. */
+[data-theme="dark"] .g-list-head .g-search,
 [data-theme="dark"] .g-task-row {
   background: var(--app-surface-container-high);
 }
 
-[data-theme="dark"] .g-chat-row:hover,
 [data-theme="dark"] .g-task-row:hover {
   background: var(--app-surface-container-highest);
-}
-
-[data-theme="dark"] .g-chat-row[data-active],
-[data-theme="dark"] .g-chat-row[data-active]:hover {
-  background: var(--app-primary-container);
 }
 
 [data-theme="dark"] .g-task-row[data-status="failed"] {
@@ -609,17 +834,4 @@
     var(--md-sys-color-error-container) 28%,
     var(--app-surface-container-high)
   );
-}
-
-[data-theme="dark"] .g-chat-pane,
-[data-theme="dark"] .g-app-main,
-[data-theme="dark"] .g-downloads,
-[data-theme="dark"] .g-chat-header,
-[data-theme="dark"] .g-chat-search,
-[data-theme="dark"] .g-composer,
-[data-theme="dark"] .g-selection-bar,
-[data-theme="dark"] .g-channel-bar,
-[data-theme="dark"] .g-downloads-tabs,
-[data-theme="dark"] .g-downloads-header {
-  background: var(--app-surface-container);
 }

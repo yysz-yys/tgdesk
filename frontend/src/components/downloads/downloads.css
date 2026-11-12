@@ -7,14 +7,11 @@
   flex: 1;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 22px;
   background: var(--app-surface);
-  box-shadow: var(--app-elevation-1);
 }
 
 .g-downloads-header {
   border-bottom: 0;
-  padding-left: var(--app-space-8);
 }
 
 .g-downloads-body {

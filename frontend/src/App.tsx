@@ -18,8 +18,9 @@ import { TooltipProvider } from "./components/ui/Tooltip";
 import { Toast } from "./components/ui/Toast";
 import { EmptyState } from "./components/ui/EmptyState";
 import { Sidebar } from "./components/layout/Sidebar";
-import { NavigationRail } from "./components/layout/NavigationRail";
+import { NavDrawer } from "./components/layout/NavDrawer";
 import { ChatView } from "./components/chat/ChatView";
+import { NewMessageDialog } from "./components/chat/NewMessageDialog";
 import { DownloadsView } from "./components/downloads/DownloadsView";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { LoginLoading } from "./components/auth/LoginLoading";
@@ -71,6 +72,8 @@ export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authImportError, setAuthImportError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [newMessageOpen, setNewMessageOpen] = useState(false);
   const [chatDTOs, setChatDTOs] = useState<KernelChat[]>([]);
   const [messageDTOs, setMessageDTOs] = useState<KernelMessage[]>([]);
   const [selectedChatId, setSelectedChatId] = useState("");
@@ -607,19 +610,6 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={350}>
       <div className="g-app-shell">
-        <NavigationRail
-          view={view}
-          activeDownloads={active.length}
-          onChats={() => setView("chats")}
-          onDownloads={openDownloads}
-          onSettings={() => setSettingsOpen(true)}
-          onLogout={handleLogout}
-          accountName={authUser?.displayName ?? t("settings.general.telegramAccount")}
-          accountInitials={authUser?.initials ?? "T"}
-          accountColor={authUser?.color ?? "#65aadd"}
-          accountRestricted={authUser?.restricted}
-        />
-
         {view === "downloads" ? (
           <DownloadsView
             active={active}
@@ -633,6 +623,7 @@ export default function App() {
             onPauseAll={pauseAll}
             onClearCompleted={clearCompleted}
             onOpenDownloadFolder={openDownloadFolder}
+            onMenu={() => setDrawerOpen(true)}
           />
         ) : (
           <>
@@ -648,6 +639,8 @@ export default function App() {
               onDownloadAll={downloadAll}
               onToast={showToast}
               onLoadAvatar={loadChatAvatar}
+              onMenu={() => setDrawerOpen(true)}
+              onCompose={() => setNewMessageOpen(true)}
               accountRestricted={authUser?.restricted}
               accountRestriction={authUser?.restriction}
               loading={chatsLoading}
@@ -700,6 +693,44 @@ export default function App() {
           </>
         )}
       </div>
+
+      <NavDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        view={view}
+        activeDownloads={active.length}
+        onChats={() => {
+          setView("chats");
+          setDrawerOpen(false);
+        }}
+        onDownloads={() => {
+          openDownloads();
+          setDrawerOpen(false);
+        }}
+        onSettings={() => {
+          setDrawerOpen(false);
+          setSettingsOpen(true);
+        }}
+        onLogout={() => {
+          setDrawerOpen(false);
+          handleLogout();
+        }}
+        accountName={authUser?.displayName ?? t("settings.general.telegramAccount")}
+        accountInitials={authUser?.initials ?? "T"}
+        accountColor={authUser?.color ?? "#65aadd"}
+        accountRestricted={authUser?.restricted}
+      />
+
+      <NewMessageDialog
+        open={newMessageOpen}
+        onOpenChange={setNewMessageOpen}
+        chats={chatState}
+        onSelect={(id) => {
+          openChat(id);
+          setNewMessageOpen(false);
+        }}
+        onLoadAvatar={loadChatAvatar}
+      />
 
       <SettingsDialog
         open={settingsOpen}
