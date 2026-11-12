@@ -47,21 +47,6 @@
   color: var(--tg-text);
 }
 
-.sidebar-download-indicator {
-  position: relative;
-}
-
-.sidebar-download-dot {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 6px;
-  height: 6px;
-  border: 1.5px solid var(--tg-sidebar);
-  border-radius: 50%;
-  background: var(--tg-accent);
-}
-
 .sidebar-warning {
   display: flex;
   width: 100%;

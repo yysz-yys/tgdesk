@@ -78,7 +78,7 @@ func importDesktopTData(ns storage.Storage, passcode []byte) error {
 	// the import placeholder).
 	if existingUser != nil {
 		if loaded, err := (&session.Loader{Storage: sessionStorage}).Load(context.Background()); err == nil &&
-			tdataMatchesSession(ns, loaded, existingUser.ID) {
+			tdataMatchesSession(loaded, existingUser.ID) {
 			writeImportMarker(marker, fingerprint)
 			return nil
 		}
@@ -109,7 +109,7 @@ func importDesktopTData(ns storage.Storage, passcode []byte) error {
 			continue
 		}
 		if existingUser != nil && int64(account.Authorization.UserID) == existingUser.ID &&
-			tdataMatchesSession(ns, data, existingUser.ID) {
+			tdataMatchesSession(data, existingUser.ID) {
 			writeImportMarker(marker, fingerprint)
 			return nil
 		}

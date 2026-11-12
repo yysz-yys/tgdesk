@@ -38,6 +38,18 @@
   ICNS/DMG icon, iOS icon and Android mipmaps; caption bar follows the light
   login surface.
 
+### Project hygiene
+
+- Removed the legacy login/theme CSS (`login-settings.css`): surviving settings
+  form controls now live in `components/settings/settings-controls.css`.
+- Removed the unused Inter font license, stale historical screenshots, duplicate
+  logo previews and the pre-handoff planning documents.
+- Reorganized documentation around a single handover guide
+  (`docs/handover.md`), with current architecture, development, data, UI and
+  asset indexes.
+- Minor kernel cleanup: single `TDataExport` DTO, no duplicate export record
+  type, simplified tdata identity check.
+
 ### Verification
 
 - `go test ./internal/...`

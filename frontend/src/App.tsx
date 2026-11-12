@@ -616,7 +616,6 @@ export default function App() {
             onPauseAll={pauseAll}
             onClearCompleted={clearCompleted}
             onOpenDownloadFolder={openDownloadFolder}
-            onToast={showToast}
           />
         ) : selectedChat ? (
           <ChatView

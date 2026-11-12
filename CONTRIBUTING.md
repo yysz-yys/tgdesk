@@ -52,16 +52,21 @@ git status --short
 git diff --stat
 ```
 
-All four commands must pass. Do not include `bin/`, `temp/`, test tdata or
-screenshots in the staged set.
+All checks must pass; on Windows treat `wails3 build` as successful when the
+executable timestamp updated (the CLI may exit 1 after the build). Do not include
+`bin/`, `temp/`, test tdata or screenshots in the staged set.
 
 If you changed a kernel DTO or service method:
 
 ```powershell
-wails3 generate bindings -ts
+wails3 generate bindings -ts ./...
 ```
 
 Commit the generated files under `frontend/bindings` together with the Go change.
+
+On Windows, `wails3 build` can exit 1 after a successful build because of the
+Wails `uname/tail` probe. Verify `bin/tgdesk.exe` was updated before treating it
+as a failure.
 
 ## Commit style
 
@@ -78,14 +83,18 @@ message when it is relevant.
 
 ## UI contribution rules
 
-- Use Telegram Desktop as the visual reference; capture and measure, don't guess.
-- Record geometry changes in [docs/frontend-rebuild.md](docs/frontend-rebuild.md).
+- Login uses **Google Material 3** (Roboto, light surface, pill actions, tonal
+  containers); the chat shell keeps a **Telegram Desktop-style dark** palette.
+  Match the area you are changing instead of mixing the two languages.
+- Prefer measured layout values; record them in [docs/ui.md](docs/ui.md).
 - Icons: Tabler Icons or inline SVG only; do not import unrelated icon packs.
 - Strings: add `en`, `zh`, and `ja` keys together.
 - Settings: add the field to `AppSettings`, default it, apply its effect in
-  `App.tsx`, and expose it in the correct settings subpage.
+  `App.tsx`, and expose it in the settings sheet.
 - Accessibility: buttons need labels; decorative art should be `aria-hidden`.
 - Keep real screenshots of private chats out of commits.
+- Bundled fonts live in `frontend/public/fonts` with their license; do not add
+  remote font CDN dependencies to the desktop build.
 
 ## Review checklist
 
@@ -93,7 +102,9 @@ message when it is relevant.
 - [ ] DTO/binding changes regenerated and committed.
 - [ ] `go test ./internal/...` passes.
 - [ ] `npm run build` passes (`tsc` included).
-- [ ] `wails3 build` passes.
+- [ ] `wails3 build` leaves an updated `bin/tgdesk.exe` (Windows may exit 1).
+- [ ] tdata import/export changes were tested against a disposable account copy
+      and, when the format changes, with official Telegram Desktop.
 - [ ] No `tdata`, sessions, downloads, thumbnails, WebView state or private
       screenshots staged.
 - [ ] Locale keys added for all three languages.

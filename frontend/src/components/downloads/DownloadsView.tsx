@@ -24,7 +24,6 @@ interface DownloadsViewProps {
   onPauseAll: () => void;
   onClearCompleted: () => void;
   onOpenDownloadFolder: () => void;
-  onToast: (message: string) => void;
 }
 
 function EmptyTab({
@@ -67,7 +66,6 @@ export function DownloadsView({
   onPauseAll,
   onClearCompleted,
   onOpenDownloadFolder,
-  onToast,
 }: DownloadsViewProps) {
   const { t } = useTranslation();
   const running = active.filter((task) => task.status === "active").length;

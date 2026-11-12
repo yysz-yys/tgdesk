@@ -65,14 +65,6 @@ type TDataExport struct {
 	CreatedAt string `json:"createdAt"`
 }
 
-type tdataExportRecord struct {
-	Path      string `json:"path"`
-	UserID    int64  `json:"userId"`
-	DC        int    `json:"dc"`
-	KeyID     string `json:"keyId"`
-	CreatedAt string `json:"createdAt"`
-}
-
 // exportTelegramDesktopTData writes a no-passcode Telegram Desktop tdata next
 // to tgdesk.exe from the authorized tdl session. It is best-effort from the
 // login flow's point of view: a failed export must not invalidate a login,
@@ -177,7 +169,7 @@ func exportTelegramDesktopTData(ns storage.Storage, user AuthUser) (*TDataExport
 		KeyID:     keyID,
 		CreatedAt: created,
 	}
-	record := tdataExportRecord(*export)
+	record := *export
 	if encoded, err := json.MarshalIndent(record, "", "  "); err == nil {
 		_ = os.WriteFile(filepath.Join(paths.Data(), "tdata-export.json"), encoded, 0o600)
 	}
@@ -425,7 +417,7 @@ func tdataSessionIdentity() (string, error) {
 
 // tdataMatchesSession reports whether tdata already contains exactly the
 // authorization held by the tdl session.
-func tdataMatchesSession(ns storage.Storage, data *session.Data, userID int64) bool {
+func tdataMatchesSession(data *session.Data, userID int64) bool {
 	if data == nil || userID == 0 {
 		return false
 	}

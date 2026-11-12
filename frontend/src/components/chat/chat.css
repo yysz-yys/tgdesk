@@ -1,5 +1,9 @@
 /* Conversation surface: header, messages, composer. */
 
+.message-bubble {
+  font-size: 14px;
+}
+
 .tg-chat-pane {
   min-height: 0;
 }
@@ -295,10 +299,6 @@
 @media (max-width: 720px) {
   .tg-chat-header {
     padding-left: 8px;
-  }
-
-  .tg-chat-header-actions .tg-chat-call {
-    display: none;
   }
 
   .tg-composer {

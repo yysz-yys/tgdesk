@@ -851,7 +851,7 @@ func (s *Service) currentTData(user *AuthUser) *TDataExport {
 	if err != nil {
 		return nil
 	}
-	var record tdataExportRecord
+	var record TDataExport
 	if json.Unmarshal(data, &record) != nil {
 		return nil
 	}
@@ -1140,7 +1140,7 @@ func (s *Service) ensureTData(ns storage.Storage, user AuthUser) {
 	if err != nil {
 		return
 	}
-	if telegramDesktopTDataPresent() && tdataMatchesSession(ns, loaded, user.ID) {
+	if telegramDesktopTDataPresent() && tdataMatchesSession(loaded, user.ID) {
 		s.authMu.Lock()
 		s.tdataEnsured = true
 		s.authMu.Unlock()

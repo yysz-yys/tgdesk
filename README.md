@@ -5,10 +5,11 @@ Wails v3, React 19 and TypeScript. tdl and gotd are consumed as Go modules; the
 upstream projects are **not forked or patched**.
 
 The UI keeps two working surfaces: the chat list/conversation and the download
-queue. Login (welcome, QR/phone, 2FA) is the entry point. A small settings sheet
-only exposes options those two features use: language, send-on-Enter, download
-folder/threads/file-name template, proxy and NTP. Telegram Desktop 7.4.1
-screenshots at a 1107×725 client area were used as a reference.
+queue. Login (welcome, QR/phone, 2FA) is the entry point and uses a Google
+Material 3 surface; the working chat shell keeps a Telegram Desktop-style dark
+palette at a 1107×725 reference client area. A small settings sheet only exposes
+options those features use: language, send-on-Enter, download
+folder/threads/file-name template, proxy and NTP.
 
 ![tgdesk login](docs/assets/ui-login-current.png)
 
@@ -47,7 +48,7 @@ Requirements:
 ```powershell
 # 1. frontend dependencies (first run)
 cd frontend
-npm install
+npm ci
 
 # 2. development app (hot reload)
 cd ..
@@ -62,6 +63,10 @@ data stays in `bin/data`, `bin/tdata`, `bin/downloads`; nothing is written to th
 repository root. To make a portable distribution, copy the executable together
 with its runtime folders (or start with an empty folder and let the app create
 them).
+
+On Windows, Wails 3.1.0 may print `uname/tail not found` and exit 1 **after**
+writing the executable; check the `bin/tgdesk.exe` timestamp. See
+[docs/development.md](docs/development.md#windows-build-exit-code-gotcha).
 
 ## Portable data layout
 
@@ -119,8 +124,9 @@ Read [docs/architecture.md](docs/architecture.md) for the full flow.
 main.go                     Wails entry point, window, service registration
 internal/app/               Wails bindings and event bridge
 internal/kernel/
-  auth.go                   QR / phone / 2FA state machine and AuthUser
+  auth.go                   QR / phone / 2FA state machine, AuthEvent, AuthUser
   session.go                shared authorized Telegram client
+  session_user.go           RefreshUser + tdata ensure
   chats.go                  dialogs, messages, media/service DTO mapping
   downloads.go              download pipeline, resume, progress
   download_store.go         portable task persistence
@@ -130,31 +136,32 @@ internal/kernel/
 internal/paths/             portable path resolution
 frontend/src/
   App.tsx                   app shell, state, effects, event handlers
-  components/auth/          welcome, QR, phone, code, 2FA, success
+  components/auth/          Material 3 login steps, country picker, logo
   components/chat/          chat view, rows, header, composer, search, media
   components/layout/        title bar and sidebar
-  components/settings/      minimal settings sheet (language/chat/downloads/network)
+  components/settings/      settings sheet + form controls
   components/downloads/     download manager
   components/ui/            Button, TextField, Menu, Avatar, Tooltip, …
+  data/countries.ts          ISO/dial-code table for phone login
   data/telegram.ts          DTO → UI model mapping and date formatting
   hooks/                    settings persistence
   locales/                  en / zh / ja
+frontend/public/            favicon/PWA icons + bundled Roboto fonts
 frontend/bindings/          generated Wails bindings; do not edit by hand
-docs/                       architecture, development, privacy, design history
+docs/                       handover, architecture, development, privacy, UI
 build/                      Wails build assets (Windows metadata/icon)
 ```
 
 ## Documentation
 
 - [docs/README.md](docs/README.md) — documentation index and reading order
+- [docs/handover.md](docs/handover.md) — 交接说明：状态、代码地图、tdata 坑、验证清单
 - [docs/architecture.md](docs/architecture.md) — layers, data flows, extension points
 - [docs/development.md](docs/development.md) — setup, builds, tests, debugging, UI workflow
 - [docs/data-and-privacy.md](docs/data-and-privacy.md) — portable files, tdata safety, git hygiene
-- [docs/frontend-rebuild.md](docs/frontend-rebuild.md) — measured Telegram Desktop rebuild notes
+- [docs/ui.md](docs/ui.md) — Material 3 login and Telegram chat design
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contribution and review checklist
 - [CHANGELOG.md](CHANGELOG.md) — milestone summary
-
-Historical, pre-handoff documents are listed separately in the docs index.
 
 ## Verification
 
@@ -170,12 +177,15 @@ wails3 build
 
 Useful runtime checks without a real account:
 
-- `TGDESK_HOME=<empty-folder>` starts the app in a clean, login-only home.
-- `TGDESK_WEBVIEW_DEBUG=1` exposes WebView2 DevTools on `127.0.0.1:9222`.
+- `$env:TGDESK_HOME="<empty-folder>"; .\bin\tgdesk.exe` starts in a clean,
+  login-only home. Create `.legacy-session-migrated` and
+  `.legacy-webview-migrated` to prevent importing old profile state.
+- `$env:TGDESK_WEBVIEW_DEBUG="1"; .\bin\tgdesk.exe` exposes WebView2 DevTools on
+  `127.0.0.1:9222`.
 - Do not enable the debug endpoint in a distributed build.
 
-See [docs/development.md](docs/development.md) for the screenshot/metrics
-workflow and troubleshooting.
+See [docs/development.md](docs/development.md) for the screenshot/CDP workflow
+and troubleshooting.
 
 ## Private data and tdata
 
@@ -191,12 +201,15 @@ belong in git. A detailed checklist is in
 
 ## Known limitations
 
-- The welcome illustration is a rebuilt approximation, not the official bitmap.
 - Map tiles require network; the card falls back to a schematic surface.
 - tdata protected by a Telegram Desktop local passcode is unsupported.
+- Only the main-DC auth key is exported to tdata; Telegram Desktop fills the
+  remaining DC keys when it connects.
 - Pin/mute/mark-read are local UI state.
-- Message pagination, live updates, reactions and server-side search remain
-  future work.
+- Message pagination, live updates, reactions, forwarding and server-side search
+  remain future work.
+- Windows is the only release-tested platform. The macOS/Linux/Android/iOS build
+  scaffolding under `build/` is inherited from Wails and not validated.
 
 ## License
 

@@ -341,7 +341,7 @@ func TestTelegramDesktopImport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !tdataMatchesSession(ns, loadedSession, user.ID) {
+	if !tdataMatchesSession(loadedSession, user.ID) {
 		t.Fatal("exported tdata does not match the session")
 	}
 

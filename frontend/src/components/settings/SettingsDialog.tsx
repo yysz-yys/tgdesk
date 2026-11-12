@@ -7,6 +7,7 @@ import { IconCheck, IconChevronDown, IconX } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import type { AppSettings } from "../../hooks/useSettings";
 import "./settings-panel.css";
+import "./settings-controls.css";
 
 interface SettingsDialogProps {
   open: boolean;

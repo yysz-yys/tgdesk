@@ -19,7 +19,7 @@ test with a real Telegram Desktop account safely.
     .legacy-webview-migrated  migration marker
     downloads.json            persisted download tasks
     thumbs/                   downloaded Telegram thumbnails
-    webview/                  WebView2 user data (settings/theme/drafts)
+    webview/                  WebView2 user data (settings/drafts)
   tdata/                      official Telegram Desktop files only
     key_datas
     D877F783D5D3EF8Cs         MTP authorization (account index 0)
@@ -103,8 +103,8 @@ marker; an abandoned QR attempt alone is not sufficient.
 
 `data/webview` is the WebView2 user-data directory. It contains:
 
-- `localStorage`: theme, locale, app settings, composer drafts.
-- localStorage keys currently used: `tgdesk.theme`, `tgdesk.settings`,
+- `localStorage`: language, app settings, composer drafts.
+- localStorage keys currently used: `tgdesk.settings`,
   `tgdesk.draft.<chatId>`.
 
 Deleting `data/webview` resets local UI preferences but not the Telegram session.
@@ -184,4 +184,4 @@ source only.
 
 Windows product metadata is defined in `build/config.yml` and
 `build/windows/info.json`. Keep the version aligned with
-`internal/kernel.Version` and `frontend/package.json`.
+`frontend/package.json` and the release tag.

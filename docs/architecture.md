@@ -50,10 +50,11 @@ Ownership rules:
 
 `main.go`:
 
-1. Ensures portable directories exist (`paths.Ensure`).
-2. Migrates the old profile-backed WebView state once.
-3. Creates the kernel (`kernel.New`) and Wails adapter (`app.New`).
-4. Creates a **frameless** window with a 24px in-webview caption bar.
+1. Registers the `auth:event` / `download:event` payload types and creates
+   `kernel.Service` + `app.Service`.
+2. Ensures portable directories exist (`paths.Ensure`).
+3. Migrates the old profile-backed WebView state once.
+4. Creates the Wails application with a frameless window.
 5. Starts with a 1107×725 client area unless the primary work area is smaller.
 6. Sets the WebView2 user-data directory to `<root>/data/webview`.
 7. Enables `--remote-debugging-port=9222` only when `TGDESK_WEBVIEW_DEBUG=1`.
@@ -211,23 +212,29 @@ State split:
 
 Component layers:
 
-- `components/auth` — one component per login step; `LoginShell` owns the page
-  surface.
+- `components/auth` — one component per login step plus `CountryPicker`,
+  `LoginLoading`, `BrandMark` and the proxy sub-panel. `LoginShell` owns the
+  page surface; `LoginScreen` owns the state machine and `auth:event` handling.
+  This surface uses Google Material 3 tokens, Roboto and a light palette.
 - `components/chat` — conversation is split into header, search, list, bubble,
   media thumb, composer, channel bar and selection bar.
 - `components/layout` — caption bar and sidebar.
-- `components/settings` — the minimal settings sheet for language, chat,
-  downloads and network.
+- `components/settings` — settings sheet plus its form-control CSS
+  (`settings-panel.css`, `settings-controls.css`).
 - `components/ui` — generic atoms (`Button`, `TextField`, `Menu`, `Tooltip`,
-  `Avatar`, …). UI-specific CSS is namespaced with `tg-`.
+  `Avatar`, …). UI-specific CSS is namespaced with `tg-` or a component prefix.
 
 Styling:
 
-- `app.css` holds design tokens (fixed dark palette), global shell, message list
-  and layout rules.
+- `app.css` holds the shell/design tokens, including dark and light Telegram
+  palettes; the chat shell defaults to dark.
+- `components/auth/login.css` is the self-contained Material 3 login theme
+  (tokens, Roboto faces, card/inputs/QR/country picker).
 - Component CSS is imported by its owning component.
-- Telegram Desktop geometry constants are documented in
-  `docs/frontend-rebuild.md` and should be measured, not guessed.
+- `frontend/src/data/countries.ts` holds the ISO/dial-code table; display names
+  are localized at runtime with `Intl.DisplayNames`.
+- Layout is designed for the 1107×725 reference window and verified with CDP
+  screenshots.
 
 ## Wails events
 
@@ -244,6 +251,7 @@ name changes, update both Go and the frontend subscription and regenerate.
 | tdl session + cached user | `data/tgdesk` | bbolt, tgdesk namespace |
 | Legacy session backup | `data/tgdesk.bak` | after tdata import |
 | Official tdata backup | `data/tdata-backup/` | after export |
+| Last tdata export | `data/tdata-export.json` | user/DC/key id/path for the UI |
 | Import fingerprint | `data/.telegram-desktop-import` | prevents re-import loops |
 | Download metadata | `data/downloads.json` | portable task store |
 | Thumbnail cache | `data/thumbs/` | small JPEGs, safe to delete |
@@ -268,8 +276,11 @@ name changes, update both Go and the frontend subscription and regenerate.
 
 - Chat pin/mute/mark-read are local UI state.
 - History is a fixed latest-50 snapshot; no pagination or live update loop.
-- Some advanced Telegram settings pages are explicit placeholders.
+- Only the main-DC auth key is exported to tdata; Telegram Desktop fills the
+  remaining DC keys when it connects.
+- Passcode-protected tdata is unsupported.
+- Login is Material 3 light while the chat shell is Telegram dark; a unified
+  theme is a future design decision.
 - Reference screenshots of a private account must never be committed; use the
   isolated-home workflow for visual checks.
-- Legacy CSS in `app.css` and `login-settings.css` still carries old screen rules
-  that are not all used by the current atomic components.
+- Non-Windows build scaffolding exists but is not release-tested.
