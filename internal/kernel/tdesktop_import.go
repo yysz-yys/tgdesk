@@ -63,12 +63,27 @@ func importDesktopTData(ns storage.Storage, passcode []byte) error {
 	}
 	fingerprint := tdataFingerprint()
 	marker := filepath.Join(paths.Data(), ".telegram-desktop-import")
-	if data, err := os.ReadFile(marker); err == nil && string(data) == fingerprint {
+	if data, err := os.ReadFile(marker); err == nil && string(data) == fingerprint &&
+		tdataImportIntact(ns) {
 		return nil
 	}
 
 	sessionStorage := storage.NewSession(ns, false)
 	current, _ := sessionStorage.LoadSession(context.Background())
+	existingUser := loadAuthUser(ns)
+
+	// Telegram Desktop rewrites key_data, maps and configs on every start.
+	// Compare the authorization itself, not file timestamps, so an unchanged
+	// login is not re-imported (and its cached display name is not replaced by
+	// the import placeholder).
+	if existingUser != nil {
+		if loaded, err := (&session.Loader{Storage: sessionStorage}).Load(context.Background()); err == nil &&
+			tdataMatchesSession(ns, loaded, existingUser.ID) {
+			writeImportMarker(marker, fingerprint)
+			return nil
+		}
+	}
+
 	if len(current) > 0 {
 		// The user copied a new Telegram Desktop tdata over an existing
 		// portable login. Keep a rollback copy before replacing it.
@@ -93,6 +108,11 @@ func importDesktopTData(ns storage.Storage, passcode []byte) error {
 			lastErr = err
 			continue
 		}
+		if existingUser != nil && int64(account.Authorization.UserID) == existingUser.ID &&
+			tdataMatchesSession(ns, data, existingUser.ID) {
+			writeImportMarker(marker, fingerprint)
+			return nil
+		}
 		loader := session.Loader{Storage: sessionStorage}
 		if err := loader.Save(context.Background(), data); err != nil {
 			return fmt.Errorf("store imported Telegram Desktop session: %w", err)
@@ -102,17 +122,45 @@ func importDesktopTData(ns storage.Storage, passcode []byte) error {
 			ID:        int64(account.Authorization.UserID),
 			FirstName: "Telegram Desktop",
 		})
+		if existingUser != nil && existingUser.ID == user.ID {
+			// Keep the real name/username/phone that this session already
+			// cached instead of replacing it with the import placeholder.
+			user = *existingUser
+		}
 		if err := saveAuthUser(context.Background(), ns, user); err != nil {
 			return fmt.Errorf("store imported Telegram Desktop user: %w", err)
 		}
-		_ = os.MkdirAll(paths.Data(), 0o700)
-		_ = os.WriteFile(marker, []byte(fingerprint), 0o600)
+		writeImportMarker(marker, fingerprint)
 		return nil
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("Telegram Desktop tdata has no usable account")
 	}
 	return fmt.Errorf("import Telegram Desktop tdata: %w", lastErr)
+}
+
+func writeImportMarker(marker, fingerprint string) {
+	_ = os.MkdirAll(paths.Data(), 0o700)
+	_ = os.WriteFile(marker, []byte(fingerprint), 0o600)
+}
+
+// tdataImportIntact reports whether the state produced by an earlier import is
+// still usable, so the fingerprint marker can skip reading tdata again.
+//
+// The fingerprint alone is not enough to decide. A failed or abandoned QR
+// attempt leaves an unauthorized session without the completed-login user
+// record; with only the marker as a guard, the app would keep showing the login
+// screen forever even though a valid tdata sits next to tgdesk.exe. Treating
+// that half-built session as stale makes the next startup import tdata again.
+//
+// A missing session is different: it means the user logged out, so the tdata
+// was already consumed and must not silently log them back in.
+func tdataImportIntact(ns storage.Storage) bool {
+	current, err := storage.NewSession(ns, false).LoadSession(context.Background())
+	if err != nil || len(current) == 0 {
+		return true
+	}
+	return loadAuthUser(ns) != nil
 }
 
 func tdataFingerprint() string {

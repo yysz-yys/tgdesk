@@ -4,200 +4,264 @@ import (
 	"bytes"
 	"context"
 	"crypto/aes"
-	"crypto/md5"
+	"crypto/md5" // #nosec G401 - Telegram Desktop file checksum/naming
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G401 - Telegram Desktop local encryption
 	"crypto/sha512"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gotd/ige"
 	"github.com/gotd/td/crypto"
 	"github.com/gotd/td/session"
+	"github.com/gotd/td/session/tdesktop"
 	"github.com/iyear/tdl/core/storage"
 	"golang.org/x/crypto/pbkdf2"
 
 	"tgdesk/internal/paths"
 )
 
-// This is the Telegram Desktop storage format version used by recent
-// portable builds. A real tdata keeps its own version and we preserve it.
-const defaultTDesktopVersion = uint32(0x005bb0ab)
+// This writer produces the same on-disk layout as Telegram Desktop itself.
+//
+// Every tdata file is a "TDF$" container: magic, a little-endian version, the
+// payload and an md5 trailer over payload+length+version+magic. Modern
+// Telegram Desktop (WriteManager::writeNow) only keeps the "s" suffix variant
+// of a file, so that is what we write. The auth layout mirrors
+// Main::Account::serializeMtpAuthorization and Storage::Account::writeMtpData:
+//
+//	tdata/key_datas                    local key + account index, empty passcode
+//	tdata/<dataKey>s                   MTP authorization (user, DC, auth key)
+//	tdata/<dataKey>/maps               empty account map
+//
+// <dataKey> is Telegram's nibble-swapped md5("data") and matches the folder
+// name official clients create. Only the current session's main-DC key is
+// exported; Telegram Desktop creates the remaining DC keys on demand.
+const (
+	// Telegram Desktop rejects a file whose version is newer than its own.
+	// A very old version is accepted by every 5.x-7.x client (the file
+	// payloads below are version independent), so keep this conservative.
+	// Official clients rewrite the files with their own AppVersion on start.
+	tdesktopExportVersion = uint32(1)
 
-// exportTelegramDesktopTData writes a no-passcode Telegram Desktop tdata from
-// the authorized tdl session. It is intentionally best-effort: a successful
-// login must not fail just because the optional export could not be written.
-func exportTelegramDesktopTData(ns storage.Storage, user AuthUser) error {
+	tdesktopAuthKeyLen   = 256
+	tdesktopFileMagic    = "TDF$"
+	tdesktopAESBlockSize = aes.BlockSize
+)
+
+// TDataExport describes the official Telegram Desktop files written after a
+// successful login. It is exposed to the UI so the user can see where the
+// portable tdata folder lives.
+type TDataExport struct {
+	Path      string `json:"path"`
+	UserID    int64  `json:"userId"`
+	DC        int    `json:"dc"`
+	KeyID     string `json:"keyId"`
+	CreatedAt string `json:"createdAt"`
+}
+
+type tdataExportRecord struct {
+	Path      string `json:"path"`
+	UserID    int64  `json:"userId"`
+	DC        int    `json:"dc"`
+	KeyID     string `json:"keyId"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// exportTelegramDesktopTData writes a no-passcode Telegram Desktop tdata next
+// to tgdesk.exe from the authorized tdl session. It is best-effort from the
+// login flow's point of view: a failed export must not invalidate a login,
+// but the returned error is surfaced to the UI.
+func exportTelegramDesktopTData(ns storage.Storage, user AuthUser) (*TDataExport, error) {
+	if user.ID == 0 {
+		return nil, fmt.Errorf("session has no user id")
+	}
+
 	loader := session.Loader{Storage: storage.NewSession(ns, false)}
 	data, err := loader.Load(context.Background())
 	if err != nil {
-		return fmt.Errorf("load session for tdata export: %w", err)
+		return nil, fmt.Errorf("load session for tdata export: %w", err)
 	}
-	if data.DC <= 0 || len(data.AuthKey) != len(crypto.Key{}) {
-		return fmt.Errorf("session has no usable auth key")
+	if data.DC <= 0 {
+		return nil, fmt.Errorf("session has no data center")
 	}
-	if user.ID == 0 {
-		return fmt.Errorf("session has no user id")
+	if len(data.AuthKey) != tdesktopAuthKeyLen {
+		return nil, fmt.Errorf("session has no usable auth key")
+	}
+	authKey := make([]byte, tdesktopAuthKeyLen)
+	copy(authKey, data.AuthKey)
+	if bytes.Equal(authKey, make([]byte, tdesktopAuthKeyLen)) {
+		return nil, fmt.Errorf("session auth key is empty")
 	}
 
-	version := existingTDesktopVersion()
-	salt := make([]byte, 32)
-	if _, err := rand.Read(salt); err != nil {
-		return err
-	}
+	salt := randomBytes(32)
 	var localKey crypto.Key
-	if _, err := rand.Read(localKey[:]); err != nil {
-		return err
-	}
+	copy(localKey[:], randomBytes(len(localKey)))
 
-	// key_data: local encryption key is protected by an empty passcode.
-	// Telegram Desktop stores the full array length (4 + key bytes), not just
-	// the key length, in the little-endian prefix.
+	// key_data: the 256-byte local key is wrapped by a key derived from an
+	// empty passcode and a random salt (CreateLocalKey with no passcode).
 	passcodeKey := tdesktopLocalKey(nil, salt)
-	keyPlain := make([]byte, 4, 4+len(localKey))
-	binary.LittleEndian.PutUint32(keyPlain, uint32(4+len(localKey)))
-	keyPlain = append(keyPlain, localKey[:]...)
-	keyPlain = append(keyPlain, make([]byte, (aes.BlockSize-len(keyPlain)%aes.BlockSize)%aes.BlockSize)...)
-	keyEncrypted := tdesktopEncryptLocal(keyPlain, passcodeKey)
+	keyEncrypted := tdesktopEncryptDescriptor(localKey[:], passcodeKey)
 
-	infoPlain := make([]byte, 16)
-	binary.LittleEndian.PutUint32(infoPlain[0:], 16) // full part length
-	binary.BigEndian.PutUint32(infoPlain[4:], 1)     // one account
-	binary.BigEndian.PutUint32(infoPlain[8:], 0)     // account index 0
-	binary.BigEndian.PutUint32(infoPlain[12:], 0xffffffff)
-	infoEncrypted := tdesktopEncryptLocal(infoPlain, localKey)
+	// Accounts info: account count, account index, active index.
+	infoPayload := make([]byte, 12)
+	binary.BigEndian.PutUint32(infoPayload[0:], 1) // one account
+	binary.BigEndian.PutUint32(infoPayload[4:], 0) // account index 0
+	binary.BigEndian.PutUint32(infoPayload[8:], 0) // active account 0
+	infoEncrypted := tdesktopEncryptDescriptor(infoPayload, localKey)
 
 	keyData := append(tdesktopArray(salt, binary.BigEndian), tdesktopArray(keyEncrypted, binary.BigEndian)...)
 	keyData = append(keyData, tdesktopArray(infoEncrypted, binary.BigEndian)...)
 
-	authPlain := tdesktopAuthorization(user.ID, data.DC, data.AuthKey)
-	authEncrypted := tdesktopEncryptLocal(authPlain, localKey)
+	// MTP authorization block: qint32(dbiMtpAuthorization) + QByteArray.
+	authorization := tdesktopMTPAuthorization(user.ID, data.DC, authKey)
+	authPayload := make([]byte, 8, 8+len(authorization))
+	binary.BigEndian.PutUint32(authPayload[0:], 0x4b) // dbiMtpAuthorization
+	binary.BigEndian.PutUint32(authPayload[4:], uint32(len(authorization)))
+	authPayload = append(authPayload, authorization...)
+	authEncrypted := tdesktopEncryptDescriptor(authPayload, localKey)
 	dataFile := tdesktopArray(authEncrypted, binary.BigEndian)
+
+	// An empty account map is enough for Telegram Desktop to start: the
+	// authorization and the keys live in <dataKey>s. It is still written
+	// because the account directory is part of the official layout.
+	mapFile := tdesktopEmptyMap(localKey)
 
 	root := paths.TData()
 	if err := os.MkdirAll(root, 0o700); err != nil {
-		return err
+		return nil, fmt.Errorf("create tdata folder: %w", err)
 	}
 	if err := backupTDesktopAuthFiles(root); err != nil {
-		return fmt.Errorf("backup Telegram Desktop tdata: %w", err)
+		return nil, fmt.Errorf("backup Telegram Desktop tdata: %w", err)
 	}
 
-	// Telegram Desktop probes 0, 1 and s. Write all variants with the same
-	// content so a stale file cannot win over the newly generated one.
-	keyNames := []string{"key_data0", "key_data1", "key_datas"}
-	baseName := tdesktopFileKey("data")
-	dataNames := []string{baseName + "0", baseName + "1", baseName + "s"}
-	for _, name := range keyNames {
-		if err := writeTDesktopFile(filepath.Join(root, name), keyData, version); err != nil {
-			return err
-		}
-	}
-	for _, name := range dataNames {
-		if err := writeTDesktopFile(filepath.Join(root, name), dataFile, version); err != nil {
-			return err
-		}
-	}
-
-	// A map file is required by Telegram Desktop's account startup. An empty
-	// map is valid; the auth key and session are read from the data file.
-	mapPlain := make([]byte, 16)
-	binary.LittleEndian.PutUint32(mapPlain[0:], 4)
-	mapEncrypted := tdesktopEncryptLocal(mapPlain, localKey)
-	mapFile := append(tdesktopArray(nil, binary.BigEndian), tdesktopArray(nil, binary.BigEndian)...)
-	mapFile = append(mapFile, tdesktopArray(mapEncrypted, binary.BigEndian)...)
-	accountDir := filepath.Join(root, baseName)
+	dataKey := tdesktopFileKey("data")
+	accountDir := filepath.Join(root, dataKey)
 	if err := os.MkdirAll(accountDir, 0o700); err != nil {
-		return err
-	}
-	if err := writeTDesktopFile(filepath.Join(accountDir, "maps"), mapFile, version); err != nil {
-		return err
+		return nil, fmt.Errorf("create tdata account folder: %w", err)
 	}
 
+	// Write the "s" variant first, then remove the legacy 0/1 variants so
+	// Telegram Desktop cannot fall back to a stale copy.
+	files := map[string][]byte{
+		filepath.Join(root, "key_datas"):  keyData,
+		filepath.Join(root, dataKey+"s"):  dataFile,
+		filepath.Join(accountDir, "maps"): mapFile,
+	}
+	for path, payload := range files {
+		if err := writeTDesktopFile(path, payload, tdesktopExportVersion); err != nil {
+			return nil, err
+		}
+	}
+	for _, name := range []string{
+		"key_data0", "key_data1",
+		dataKey + "0", dataKey + "1",
+	} {
+		_ = os.Remove(filepath.Join(root, name))
+	}
+	// Official clients only keep the current map file.
+	_ = os.Remove(filepath.Join(accountDir, "map0"))
+	_ = os.Remove(filepath.Join(accountDir, "map1"))
+
+	keyID := tdesktopAuthKeyID(authKey)
+	created := time.Now().UTC().Format(time.RFC3339)
+	export := &TDataExport{
+		Path:      root,
+		UserID:    user.ID,
+		DC:        data.DC,
+		KeyID:     keyID,
+		CreatedAt: created,
+	}
+	record := tdataExportRecord(*export)
+	if encoded, err := json.MarshalIndent(record, "", "  "); err == nil {
+		_ = os.WriteFile(filepath.Join(paths.Data(), "tdata-export.json"), encoded, 0o600)
+	}
 	_ = os.WriteFile(
 		filepath.Join(paths.Data(), ".telegram-desktop-import"),
 		[]byte(tdataFingerprint()),
 		0o600,
 	)
-	return nil
+	return export, nil
 }
 
-func backupTDesktopAuthFiles(root string) error {
-	dest := filepath.Join(paths.Data(), "tdata-backup")
-	if err := os.MkdirAll(dest, 0o700); err != nil {
-		return err
-	}
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return err
-	}
-	for _, entry := range entries {
-		if entry.IsDir() || !isTDataAuthFile(entry.Name()) {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(root, entry.Name()))
-		if err != nil {
-			return err
-		}
-		if err := os.WriteFile(filepath.Join(dest, entry.Name()), data, 0o600); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func existingTDesktopVersion() uint32 {
-	for _, name := range []string{"key_data0", "key_data1", "key_datas"} {
-		data, err := os.ReadFile(filepath.Join(paths.TData(), name))
-		if err != nil || len(data) < 8 || !bytes.Equal(data[:4], []byte("TDF$")) {
-			continue
-		}
-		return binary.LittleEndian.Uint32(data[4:8])
-	}
-	return defaultTDesktopVersion
-}
-
-func tdesktopAuthorization(userID int64, dc int, authKey []byte) []byte {
-	body := make([]byte, 0, 8+8+4+4+len(authKey)+16)
+// tdesktopMTPAuthorization mirrors
+// Main::Account::serializeMtpAuthorization:
+//
+//	quint64 wideIdsTag, quint64 userId, qint32 mainDc,
+//	qint32 keysCount, (qint32 dcId, 256-byte key)*, qint32 keysToDestroyCount
+func tdesktopMTPAuthorization(userID int64, dc int, authKey []byte) []byte {
+	out := make([]byte, 0, 8+8+4+4+4+len(authKey)+4)
 	var u32 [4]byte
 	var u64 [8]byte
 
-	// Wide user id marker. Telegram's modern user ids no longer fit in uint32.
-	binary.BigEndian.PutUint32(u32[:], 0xffffffff)
-	body = append(body, u32[:]...)
-	body = append(body, u32[:]...)
+	binary.BigEndian.PutUint64(u64[:], ^uint64(0)) // kWideIdsTag
+	out = append(out, u64[:]...)
 	binary.BigEndian.PutUint64(u64[:], uint64(userID))
-	body = append(body, u64[:]...)
+	out = append(out, u64[:]...)
 	binary.BigEndian.PutUint32(u32[:], uint32(dc))
-	body = append(body, u32[:]...)
-
-	binary.BigEndian.PutUint32(u32[:], 1) // one DC key
-	body = append(body, u32[:]...)
+	out = append(out, u32[:]...)
+	binary.BigEndian.PutUint32(u32[:], 1) // keys count
+	out = append(out, u32[:]...)
 	binary.BigEndian.PutUint32(u32[:], uint32(dc))
-	body = append(body, u32[:]...)
-	body = append(body, authKey...)
-	// Empty "keys to destroy" list.
-	body = append(body, 0, 0, 0, 0)
+	out = append(out, u32[:]...)
+	out = append(out, authKey...)
+	out = append(out, 0, 0, 0, 0) // keysToDestroy count
+	return out
+}
 
-	// EncryptedDescriptor: first uint32 = unpadded descriptor length, then
-	// dbi, then QByteArray length + serialized authorization.
-	serializedLen := len(body)
-	dataLen := 12 + serializedLen
-	padded := make([]byte, (dataLen+aes.BlockSize-1)/aes.BlockSize*aes.BlockSize)
-	binary.LittleEndian.PutUint32(padded[0:], uint32(dataLen))
-	binary.BigEndian.PutUint32(padded[4:], 0x4b) // dbiMtpAuthorization
-	binary.BigEndian.PutUint32(padded[8:], uint32(serializedLen))
-	copy(padded[12:], body)
-	return padded
+func tdesktopEmptyMap(localKey crypto.Key) []byte {
+	// writeMap always starts with two empty legacy blobs (salt and wrapped
+	// local key) followed by the encrypted map. The map itself is empty.
+	encrypted := tdesktopEncryptDescriptor(nil, localKey)
+	out := append(tdesktopArray(nil, binary.BigEndian), tdesktopArray(nil, binary.BigEndian)...)
+	return append(out, tdesktopArray(encrypted, binary.BigEndian)...)
+}
+
+// tdesktopEncryptDescriptor builds Telegram Desktop's EncryptedDescriptor:
+// little-endian unpadded length (including the four length bytes), payload,
+// random padding to an AES block boundary, then the local-key IGE envelope.
+func tdesktopEncryptDescriptor(payload []byte, localKey crypto.Key) []byte {
+	total := 4 + len(payload)
+	full := (total + tdesktopAESBlockSize - 1) / tdesktopAESBlockSize * tdesktopAESBlockSize
+	plain := make([]byte, full)
+	binary.LittleEndian.PutUint32(plain[0:], uint32(total))
+	copy(plain[4:], payload)
+	if padding := full - total; padding > 0 {
+		copy(plain[total:], randomBytes(padding))
+	}
+	return tdesktopEncryptLocal(plain, localKey)
+}
+
+func tdesktopAuthKeyID(authKey []byte) string {
+	var key crypto.Key
+	copy(key[:], authKey)
+	id := key.ID()
+	return strings.ToUpper(hex.EncodeToString(id[:]))
 }
 
 func tdesktopArray(data []byte, order binary.ByteOrder) []byte {
 	out := make([]byte, 4, 4+len(data))
+	if data == nil {
+		// QDataStream serializes a null QByteArray as 0xffffffff; an empty
+		// one is length 0. The map header expects empty, not null.
+		order.PutUint32(out, 0)
+		return out
+	}
 	order.PutUint32(out, uint32(len(data)))
 	return append(out, data...)
+}
+
+func randomBytes(size int) []byte {
+	out := make([]byte, size)
+	if _, err := rand.Read(out); err != nil {
+		panic(fmt.Sprintf("read random bytes: %v", err))
+	}
+	return out
 }
 
 func tdesktopLocalKey(passcode, salt []byte) (out crypto.Key) {
@@ -215,8 +279,8 @@ func tdesktopLocalKey(passcode, salt []byte) (out crypto.Key) {
 }
 
 func tdesktopEncryptLocal(decrypted []byte, localKey crypto.Key) []byte {
-	if len(decrypted)%aes.BlockSize != 0 {
-		return nil
+	if len(decrypted)%tdesktopAESBlockSize != 0 {
+		panic("telegram desktop payload must be block aligned")
 	}
 	var msgKey [16]byte
 	sum := sha1.Sum(decrypted)
@@ -224,7 +288,7 @@ func tdesktopEncryptLocal(decrypted []byte, localKey crypto.Key) []byte {
 	aesKey, aesIV := crypto.OldKeys(localKey, msgKey, crypto.Server)
 	block, err := aes.NewCipher(aesKey[:])
 	if err != nil {
-		return nil
+		panic(fmt.Sprintf("create Telegram Desktop cipher: %v", err))
 	}
 	out := make([]byte, 16+len(decrypted))
 	copy(out, msgKey[:])
@@ -245,7 +309,7 @@ func writeTDesktopFile(path string, data []byte, version uint32) error {
 	binary.LittleEndian.PutUint32(versionBytes[:], version)
 
 	var out bytes.Buffer
-	out.WriteString("TDF$")
+	out.WriteString(tdesktopFileMagic)
 	out.Write(versionBytes[:])
 	out.Write(data)
 
@@ -255,7 +319,7 @@ func writeTDesktopFile(path string, data []byte, version uint32) error {
 	binary.LittleEndian.PutUint32(length[:], uint32(len(data)))
 	_, _ = hash.Write(length[:])
 	_, _ = hash.Write(versionBytes[:])
-	_, _ = hash.Write([]byte("TDF$"))
+	_, _ = hash.Write([]byte(tdesktopFileMagic))
 	out.Write(hash.Sum(nil))
 
 	tmp := path + ".tmp"
@@ -267,4 +331,126 @@ func writeTDesktopFile(path string, data []byte, version uint32) error {
 		return fmt.Errorf("replace %s: %w", filepath.Base(path), err)
 	}
 	return nil
+}
+
+// backupTDesktopAuthFiles keeps a rollback copy of the authorization files in
+// data/tdata-backup before tgdesk replaces them. Only small auth files are
+// copied; caches, emoji sets and downloads are intentionally left alone.
+func backupTDesktopAuthFiles(root string) error {
+	dest := filepath.Join(paths.Data(), "tdata-backup")
+	if err := os.RemoveAll(dest); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dest, 0o700); err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !isTDataAuthFile(entry.Name()) {
+			continue
+		}
+		if err := copyFile(filepath.Join(root, entry.Name()), filepath.Join(dest, entry.Name())); err != nil {
+			return err
+		}
+	}
+
+	// The account folder carries maps/configs next to the hashed data file.
+	for _, entry := range entries {
+		if !entry.IsDir() || !isTDataAccountDir(entry.Name()) {
+			continue
+		}
+		target := filepath.Join(dest, entry.Name())
+		if err := os.MkdirAll(target, 0o700); err != nil {
+			return err
+		}
+		for _, name := range []string{"maps", "map0", "map1", "configs", "config0", "config1"} {
+			source := filepath.Join(root, entry.Name(), name)
+			if _, err := os.Stat(source); err != nil {
+				continue
+			}
+			if err := copyFile(source, filepath.Join(target, name)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func copyFile(source, target string) error {
+	data, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(target, data, 0o600)
+}
+
+func isTDataAccountDir(name string) bool {
+	if len(name) != 16 {
+		return false
+	}
+	for i := 0; i < 16; i++ {
+		c := name[i]
+		if (c < '0' || c > '9') && (c < 'A' || c > 'F') {
+			return false
+		}
+	}
+	return true
+}
+
+// tdataSessionIdentity is a stable description of the authorization stored in
+// tdata, independent of file timestamps. Telegram Desktop rewrites key_data
+// (new salt) and its map on every start, so a mtime-based fingerprint would
+// wrongly re-import an unchanged login.
+func tdataSessionIdentity() (string, error) {
+	accounts, err := tdesktop.Read(paths.TData(), nil)
+	if err != nil {
+		return "", err
+	}
+	if len(accounts) == 0 {
+		return "", fmt.Errorf("no accounts")
+	}
+	account := accounts[0]
+	dc := account.Authorization.MainDC
+	key, ok := account.Authorization.Keys[dc]
+	if !ok {
+		return "", fmt.Errorf("no key for main DC %d", dc)
+	}
+	keyID := key.ID()
+	return fmt.Sprintf("%d:%d:%s", account.Authorization.UserID, dc, strings.ToUpper(hex.EncodeToString(keyID[:]))), nil
+}
+
+// tdataMatchesSession reports whether tdata already contains exactly the
+// authorization held by the tdl session.
+func tdataMatchesSession(ns storage.Storage, data *session.Data, userID int64) bool {
+	if data == nil || userID == 0 {
+		return false
+	}
+	expectedID := data.AuthKeyID
+	if len(expectedID) != 8 {
+		if len(data.AuthKey) != tdesktopAuthKeyLen {
+			return false
+		}
+		var key crypto.Key
+		copy(key[:], data.AuthKey)
+		id := key.ID()
+		expectedID = id[:]
+	}
+	accounts, err := tdesktop.Read(paths.TData(), nil)
+	if err != nil || len(accounts) != 1 {
+		return false
+	}
+	account := accounts[0]
+	if account.Authorization.UserID != uint64(userID) || account.Authorization.MainDC != data.DC {
+		return false
+	}
+	key, ok := account.Authorization.Keys[data.DC]
+	if !ok {
+		return false
+	}
+	id := key.ID()
+	return bytes.Equal(id[:], expectedID)
 }

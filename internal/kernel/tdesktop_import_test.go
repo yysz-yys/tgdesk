@@ -10,6 +10,7 @@ import (
 	"crypto/sha512"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/session/tdesktop"
 	"github.com/iyear/tdl/core/storage"
+	"github.com/iyear/tdl/core/storage/keygen"
 	"github.com/iyear/tdl/pkg/kv"
 	"golang.org/x/crypto/pbkdf2"
 
@@ -74,6 +76,64 @@ func testEncryptLocal(decrypted []byte, localKey gotdcrypto.Key) []byte {
 	copy(out, msgKey[:])
 	ige.EncryptBlocks(block, aesIV[:], out[16:], decrypted)
 	return out
+}
+
+func testReadArray(data []byte, order binary.ByteOrder) ([]byte, int) {
+	if len(data) < 4 {
+		return nil, 0
+	}
+	length := int(order.Uint32(data))
+	if length == -1 {
+		return nil, 4
+	}
+	if length > len(data)-4 {
+		return nil, 0
+	}
+	return data[4 : 4+length], 4 + length
+}
+
+func testDecryptLocal(encrypted []byte, localKey gotdcrypto.Key) ([]byte, error) {
+	if len(encrypted)%aes.BlockSize != 0 || len(encrypted) <= aes.BlockSize {
+		return nil, fmt.Errorf("bad encrypted length %d", len(encrypted))
+	}
+	var msgKey [16]byte
+	copy(msgKey[:], encrypted)
+	encrypted = encrypted[16:]
+
+	aesKey, aesIV := gotdcrypto.OldKeys(localKey, msgKey, gotdcrypto.Server)
+	block, err := aes.NewCipher(aesKey[:])
+	if err != nil {
+		return nil, err
+	}
+	decrypted := make([]byte, len(encrypted))
+	ige.DecryptBlocks(block, aesIV[:], decrypted, encrypted)
+	if sum := sha1.Sum(decrypted); !bytes.Equal(sum[:16], msgKey[:]) {
+		return nil, fmt.Errorf("msg key mismatch")
+	}
+	return decrypted, nil
+}
+
+// testExportLocalKey unwraps the local key from an exported key_datas file.
+func testExportLocalKey(t *testing.T, root string) gotdcrypto.Key {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(root, "key_datas"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := raw[8 : len(raw)-16]
+	salt, n := testReadArray(payload, binary.BigEndian)
+	keyEncrypted, _ := testReadArray(payload[n:], binary.BigEndian)
+	plain, err := testDecryptLocal(keyEncrypted, testLocalKey(nil, salt))
+	if err != nil {
+		t.Fatalf("decrypt local key: %v", err)
+	}
+	keyBytes, _ := testReadArray(plain, binary.LittleEndian)
+	if len(keyBytes) < len(gotdcrypto.Key{}) {
+		t.Fatalf("local key length = %d", len(keyBytes))
+	}
+	var key gotdcrypto.Key
+	copy(key[:], keyBytes[:len(key)])
+	return key
 }
 
 func testWriteTDESKTOPFile(t *testing.T, path string, data []byte) {
@@ -189,7 +249,7 @@ func TestTelegramDesktopImport(t *testing.T) {
 	}
 	t.Logf("imported user=%d dc=%d addr=%s", user.ID, loaded.DC, loaded.Addr)
 
-	if err := exportTelegramDesktopTData(ns, *user); err != nil {
+	if _, err := exportTelegramDesktopTData(ns, *user); err != nil {
 		t.Fatalf("export tdata: %v", err)
 	}
 	exported, err := tdesktop.Read(paths.TData(), nil)
@@ -201,13 +261,155 @@ func TestTelegramDesktopImport(t *testing.T) {
 	}
 	t.Logf("exported tdata account=%d mainDC=%d", exported[0].Authorization.UserID, exported[0].Authorization.MainDC)
 
+	// The exported folder must look like a modern Telegram Desktop tdata:
+	// key_datas, <dataKey>s and <dataKey>/maps, with no legacy 0/1 variants.
+	dataKey := testTDESKTOPFileKey("data")
+	for _, name := range []string{
+		"key_datas",
+		dataKey + "s",
+		filepath.Join(dataKey, "maps"),
+	} {
+		info, statErr := os.Stat(filepath.Join(paths.TData(), name))
+		if statErr != nil || !info.Mode().IsRegular() {
+			t.Fatalf("missing exported %s: %v", name, statErr)
+		}
+	}
+	for _, name := range []string{"key_data0", "key_data1", dataKey + "0", dataKey + "1"} {
+		if _, statErr := os.Stat(filepath.Join(paths.TData(), name)); !os.IsNotExist(statErr) {
+			t.Fatalf("legacy file %s should not exist", name)
+		}
+	}
+
+	// The MTP authorization payload must use Telegram's wide-id layout:
+	// wide tag, user id, main DC, one key, no keys to destroy.
+	raw, err := os.ReadFile(filepath.Join(paths.TData(), dataKey+"s"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw[:4]) != "TDF$" {
+		t.Fatalf("bad magic %q", raw[:4])
+	}
+	if version := binary.LittleEndian.Uint32(raw[4:8]); version != tdesktopExportVersion {
+		t.Fatalf("file version = %d, want %d", version, tdesktopExportVersion)
+	}
+	exportLocalKey := testExportLocalKey(t, paths.TData())
+	payload := raw[8 : len(raw)-16]
+	encrypted, _ := testReadArray(payload, binary.BigEndian)
+	plain, err := testDecryptLocal(encrypted, exportLocalKey)
+	if err != nil {
+		t.Fatalf("decrypt exported data file: %v", err)
+	}
+	declared := binary.LittleEndian.Uint32(plain)
+	if declared > uint32(len(plain)) {
+		t.Fatalf("auth descriptor length = %d, padded plain = %d", declared, len(plain))
+	}
+	body := plain[4:]
+	if got := binary.BigEndian.Uint32(body); got != 0x4b {
+		t.Fatalf("dbi = %#x", got)
+	}
+	serializedLen := binary.BigEndian.Uint32(body[4:])
+	if declared != 4+8+serializedLen {
+		t.Fatalf("auth descriptor length = %d, serialized = %d", declared, serializedLen)
+	}
+	serialized := body[8 : 8+serializedLen]
+	if tag := binary.BigEndian.Uint64(serialized); tag != ^uint64(0) {
+		t.Fatalf("wide tag = %#x", tag)
+	}
+	if id := binary.BigEndian.Uint64(serialized[8:]); id != 12345 {
+		t.Fatalf("user id = %d", id)
+	}
+	if dc := binary.BigEndian.Uint32(serialized[16:]); dc != 2 {
+		t.Fatalf("main dc = %d", dc)
+	}
+	if keys := binary.BigEndian.Uint32(serialized[20:]); keys != 1 {
+		t.Fatalf("keys = %d", keys)
+	}
+	if dc := binary.BigEndian.Uint32(serialized[24:]); dc != 2 {
+		t.Fatalf("key dc = %d", dc)
+	}
+	if !bytes.Equal(serialized[28:28+256], authKey[:]) {
+		t.Fatal("serialized auth key mismatch")
+	}
+	if destroy := binary.BigEndian.Uint32(serialized[28+256:]); destroy != 0 {
+		t.Fatalf("keys to destroy = %d", destroy)
+	}
+
+	if identity, err := tdataSessionIdentity(); err != nil || identity == "" {
+		t.Fatalf("tdata identity: %q %v", identity, err)
+	}
+	loadedSession, err := (&session.Loader{Storage: storage.NewSession(ns, false)}).Load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !tdataMatchesSession(ns, loadedSession, user.ID) {
+		t.Fatal("exported tdata does not match the session")
+	}
+
 	stg.Close()
-	service := New("")
+	service := New()
 	status := service.AuthStatus()
 	if !status.Authorized {
 		t.Fatalf("AuthStatus not authorized: %+v", status)
 	}
 	if status.User == nil || status.User.ID != 12345 {
 		t.Fatalf("AuthStatus user = %+v", status.User)
+	}
+
+	// A matching fingerprint marker must not hide a session whose
+	// completed-login user record was lost (for example after an abandoned QR
+	// login). AuthStatus has to import tdata again instead of leaving the app
+	// on the login screen.
+	reopened, err := kv.NewWithMap(map[string]string{
+		kv.DriverTypeKey: string(kv.DriverBolt),
+		"path":           paths.Data(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reopenedNS, err := reopened.Open("tgdesk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reopenedNS.Delete(context.Background(), keygen.New(authUserKey)); err != nil {
+		t.Fatal(err)
+	}
+	if err := reopened.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	repaired := New()
+	repairedStatus := repaired.AuthStatus()
+	if !repairedStatus.Authorized {
+		t.Fatalf("AuthStatus did not re-import tdata: %+v", repairedStatus)
+	}
+	if repairedStatus.User == nil || repairedStatus.User.ID != 12345 {
+		t.Fatalf("re-imported user = %+v", repairedStatus.User)
+	}
+
+	// Logging out removes the session and the user record but keeps the marker.
+	// A restart must stay logged out instead of resurrecting the consumed tdata.
+	loggedOut, err := kv.NewWithMap(map[string]string{
+		kv.DriverTypeKey: string(kv.DriverBolt),
+		"path":           paths.Data(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loggedOutNS, err := loggedOut.Open("tgdesk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"session", authUserKey} {
+		if err := loggedOutNS.Delete(context.Background(), keygen.New(key)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := loggedOut.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	afterLogout := New()
+	if status := afterLogout.AuthStatus(); status.Authorized {
+		t.Fatalf("AuthStatus re-imported tdata after logout: %+v", status)
 	}
 }

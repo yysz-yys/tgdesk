@@ -85,7 +85,7 @@ func main() {
 	application.RegisterEvent[kernel.AuthEvent]("auth:event")
 	application.RegisterEvent[kernel.DownloadEvent]("download:event")
 
-	k := kernel.New(kernel.Version)
+	k := kernel.New()
 	svc := app.New(k)
 
 	if err := paths.Ensure(); err != nil {

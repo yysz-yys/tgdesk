@@ -27,6 +27,10 @@ export function ClearCompletedDownloads(): $CancellablePromise<void> {
     return $Call.ByID(1141707211);
 }
 
+export function ExportTData(): $CancellablePromise<kernel$0.TDataExport | null> {
+    return $Call.ByID(1299955590);
+}
+
 export function GetAuthStatus(): $CancellablePromise<kernel$0.AuthStatus> {
     return $Call.ByID(846342628);
 }
@@ -51,14 +55,6 @@ export function GetPaths(): $CancellablePromise<kernel$0.PortablePaths> {
     return $Call.ByID(119407144);
 }
 
-export function GetSpikeChecklist(): $CancellablePromise<kernel$0.ChecklistItem[] | null> {
-    return $Call.ByID(2386834910);
-}
-
-export function GetStatus(): $CancellablePromise<kernel$0.Status> {
-    return $Call.ByID(1523219574);
-}
-
 export function Logout(): $CancellablePromise<void> {
     return $Call.ByID(2555236166);
 }
@@ -73,6 +69,10 @@ export function PauseDownload(id: string): $CancellablePromise<void> {
 
 export function RefreshUser(proxy: string, ntp: string): $CancellablePromise<kernel$0.AuthUser | null> {
     return $Call.ByID(3728149848, proxy, ntp);
+}
+
+export function ResendCode(): $CancellablePromise<void> {
+    return $Call.ByID(4150010114);
 }
 
 export function ResumeDownload(id: string, proxy: string, ntp: string): $CancellablePromise<void> {

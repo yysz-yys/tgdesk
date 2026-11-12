@@ -37,5 +37,8 @@ func (s *Service) RefreshUser(proxy, ntp string) (*AuthUser, error) {
 	s.authMu.Lock()
 	s.authUser = &user
 	s.authMu.Unlock()
+	// Keep the portable Telegram Desktop folder in sync for restored logins
+	// too, but never overwrite a tdata the user copied for a different account.
+	s.ensureTData(session.ns, user)
 	return &user, nil
 }

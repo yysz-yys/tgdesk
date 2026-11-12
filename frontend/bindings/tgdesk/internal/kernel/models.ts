@@ -9,16 +9,80 @@ export interface AuthEvent {
     "qrUrl"?: string;
     "user"?: AuthUser | null;
     "error"?: string;
+
+    /**
+     * QRExpiresIn is the remaining lifetime of QRURL in seconds. Telegram
+     * rotates the token automatically; the UI can show a countdown.
+     */
+    "qrExpiresIn"?: number;
+
+    /**
+     * Phone is the normalized international number ("+8613800138000").
+     */
+    "phone"?: string;
+
+    /**
+     * CodeType is one of app, sms, call, flash_call, missed_call, email,
+     * fragment_sms or unknown.
+     */
+    "codeType"?: string;
+
+    /**
+     * CodeLength is the number of digits Telegram expects (0 if unknown).
+     */
+    "codeLength"?: number;
+
+    /**
+     * CodeTimeout is the number of seconds Telegram asks the client to wait
+     * before requesting another code.
+     */
+    "codeTimeout"?: number;
+
+    /**
+     * Resent reports that this code event is the result of ResendCode.
+     */
+    "resent"?: boolean;
+
+    /**
+     * PasswordHint is the hint configured for the cloud password.
+     */
+    "passwordHint"?: string;
+
+    /**
+     * NextCodeType reports how Telegram will resend the code next.
+     */
+    "nextCodeType"?: string;
+
+    /**
+     * ErrorCode is the stable machine-readable Telegram error, for example
+     * PHONE_CODE_INVALID or FLOOD_WAIT.
+     */
+    "errorCode"?: string;
+
+    /**
+     * RetryAfter is set for FLOOD_WAIT errors (seconds).
+     */
+    "retryAfter"?: number;
+
+    /**
+     * TData describes the Telegram Desktop files written after login.
+     */
+    "tData"?: TDataExport | null;
+    "tDataError"?: string;
 }
 
 /**
  * AuthStatus is returned on app startup. It checks the tdl bolt session
- * without opening a Telegram connection.
+ * without opening a Telegram connection. TData points at the official
+ * Telegram Desktop folder written after the last login, when it still matches
+ * this session.
  */
 export interface AuthStatus {
     "authorized": boolean;
     "user"?: AuthUser | null;
     "importError"?: string;
+    "tData"?: TDataExport | null;
+    "tDataError"?: string;
 }
 
 /**
@@ -54,17 +118,6 @@ export interface ChatDTO {
     "muted"?: boolean;
     "verified"?: boolean;
     "members"?: number;
-}
-
-/**
- * ChecklistItem is a single item in the first technical spike. The UI renders
- * this list until the real screens are wired up.
- */
-export interface ChecklistItem {
-    "id": string;
-    "title": string;
-    "detail": string;
-    "done": boolean;
 }
 
 export interface DownloadEvent {
@@ -140,16 +193,14 @@ export interface PortablePaths {
 }
 
 /**
- * Status is the small, stable DTO the UI uses to show kernel health. Keep it
- * free of gotd/tg types: those must not leak outside internal/telegram.
+ * TDataExport describes the official Telegram Desktop files written after a
+ * successful login. It is exposed to the UI so the user can see where the
+ * portable tdata folder lives.
  */
-export interface Status {
-    "appName": string;
-    "appVersion": string;
-    "tdlVersion": string;
-    "tdlCoreVersion": string;
-    "tdlAppId": number;
-    "phase": string;
-    "ready": boolean;
-    "startedAt": string;
+export interface TDataExport {
+    "path": string;
+    "userId": number;
+    "dc": number;
+    "keyId": string;
+    "createdAt": string;
 }

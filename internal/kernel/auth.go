@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/gotd/td/session"
 	gotdtelegram "github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/telegram/auth/qrlogin"
@@ -41,6 +42,15 @@ const (
 const (
 	authUserKey  = "tgdesk.auth.user"
 	tdlNamespace = "tgdesk"
+
+	// loginCodeAttempts caps retries for a wrong SMS/app code before the user
+	// has to start the phone login again.
+	loginCodeAttempts = 4
+	// loginPasswordAttempts caps retries for a wrong 2FA password.
+	loginPasswordAttempts = 4
+	// connectionTimeout is how long the login screen waits for Telegram to
+	// respond before suggesting proxy settings.
+	connectionTimeout = 40 * time.Second
 )
 
 // AuthUser is the small identity DTO the UI needs. It intentionally does not
@@ -59,11 +69,15 @@ type AuthUser struct {
 }
 
 // AuthStatus is returned on app startup. It checks the tdl bolt session
-// without opening a Telegram connection.
+// without opening a Telegram connection. TData points at the official
+// Telegram Desktop folder written after the last login, when it still matches
+// this session.
 type AuthStatus struct {
-	Authorized  bool      `json:"authorized"`
-	User        *AuthUser `json:"user,omitempty"`
-	ImportError string    `json:"importError,omitempty"`
+	Authorized  bool         `json:"authorized"`
+	User        *AuthUser    `json:"user,omitempty"`
+	ImportError string       `json:"importError,omitempty"`
+	TData       *TDataExport `json:"tData,omitempty"`
+	TDataError  string       `json:"tDataError,omitempty"`
 }
 
 // AuthEvent is pushed to the WebView over the "auth:event" event.
@@ -72,6 +86,34 @@ type AuthEvent struct {
 	QRURL string    `json:"qrUrl,omitempty"`
 	User  *AuthUser `json:"user,omitempty"`
 	Error string    `json:"error,omitempty"`
+
+	// QRExpiresIn is the remaining lifetime of QRURL in seconds. Telegram
+	// rotates the token automatically; the UI can show a countdown.
+	QRExpiresIn int `json:"qrExpiresIn,omitempty"`
+	// Phone is the normalized international number ("+8613800138000").
+	Phone string `json:"phone,omitempty"`
+	// CodeType is one of app, sms, call, flash_call, missed_call, email,
+	// fragment_sms or unknown.
+	CodeType string `json:"codeType,omitempty"`
+	// CodeLength is the number of digits Telegram expects (0 if unknown).
+	CodeLength int `json:"codeLength,omitempty"`
+	// CodeTimeout is the number of seconds Telegram asks the client to wait
+	// before requesting another code.
+	CodeTimeout int `json:"codeTimeout,omitempty"`
+	// Resent reports that this code event is the result of ResendCode.
+	Resent bool `json:"resent,omitempty"`
+	// PasswordHint is the hint configured for the cloud password.
+	PasswordHint string `json:"passwordHint,omitempty"`
+	// NextCodeType reports how Telegram will resend the code next.
+	NextCodeType string `json:"nextCodeType,omitempty"`
+	// ErrorCode is the stable machine-readable Telegram error, for example
+	// PHONE_CODE_INVALID or FLOOD_WAIT.
+	ErrorCode string `json:"errorCode,omitempty"`
+	// RetryAfter is set for FLOOD_WAIT errors (seconds).
+	RetryAfter int `json:"retryAfter,omitempty"`
+	// TData describes the Telegram Desktop files written after login.
+	TData      *TDataExport `json:"tData,omitempty"`
+	TDataError string       `json:"tDataError,omitempty"`
 }
 
 func (s *Service) emitAuth(event AuthEvent) {
@@ -89,30 +131,30 @@ func (s *Service) setAuthState(state string) {
 	s.authMu.Unlock()
 }
 
-func (s *Service) authChannels() (string, chan string, chan string) {
+func (s *Service) authChannels() (string, chan string, chan string, chan struct{}) {
 	s.authMu.Lock()
 	defer s.authMu.Unlock()
-	return s.authState, s.codeCh, s.passCh
+	return s.authState, s.codeCh, s.passCh, s.resendCh
 }
 
 // StartQR begins a real Telegram QR login. It returns immediately; progress
 // arrives through AuthEvent.
 func (s *Service) StartQR(proxy, ntp string) error {
 	s.stopAuth()
-	s.authMu.Lock()
-	s.authUser = nil
-	s.authMu.Unlock()
+	s.resetAuthUser()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	codeCh := make(chan string, 1)
 	passCh := make(chan string, 1)
+	resendCh := make(chan struct{}, 1)
 
 	s.authMu.Lock()
 	s.authCancel = cancel
 	s.authDone = done
 	s.codeCh = codeCh
 	s.passCh = passCh
+	s.resendCh = resendCh
 	s.authState = authStateStarting
 	s.authMu.Unlock()
 
@@ -124,35 +166,45 @@ func (s *Service) StartQR(proxy, ntp string) error {
 // StartPhone begins the phone -> code -> optional 2FA flow.
 func (s *Service) StartPhone(phone, proxy, ntp string) error {
 	phone = normalizePhone(phone)
-	if len(phone) < 6 {
+	if len(phone) < 7 || len(phone) > 20 {
 		return errors.New("invalid phone number")
+	}
+	if !strings.HasPrefix(phone, "+") {
+		phone = "+" + phone
 	}
 
 	s.stopAuth()
-	s.authMu.Lock()
-	s.authUser = nil
-	s.authMu.Unlock()
+	s.resetAuthUser()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	codeCh := make(chan string, 1)
 	passCh := make(chan string, 1)
+	resendCh := make(chan struct{}, 1)
 
 	s.authMu.Lock()
 	s.authCancel = cancel
 	s.authDone = done
 	s.codeCh = codeCh
 	s.passCh = passCh
+	s.resendCh = resendCh
 	s.authState = authStateStarting
 	s.authMu.Unlock()
 
-	s.emitAuth(AuthEvent{State: authStateStarting})
-	go s.runPhone(ctx, cancel, done, codeCh, passCh, phone, proxy, ntp)
+	s.emitAuth(AuthEvent{State: authStateStarting, Phone: phone})
+	go s.runPhone(ctx, cancel, done, codeCh, passCh, resendCh, phone, proxy, ntp)
 	return nil
 }
 
+func (s *Service) resetAuthUser() {
+	s.authMu.Lock()
+	s.authUser = nil
+	s.authMu.Unlock()
+}
+
+// SubmitCode delivers the login code shown by Telegram.
 func (s *Service) SubmitCode(code string) error {
-	state, ch, _ := s.authChannels()
+	state, ch, _, _ := s.authChannels()
 	if state != authStateWaitingCode || ch == nil {
 		return errors.New("not waiting for a login code")
 	}
@@ -170,8 +222,24 @@ func (s *Service) SubmitCode(code string) error {
 	}
 }
 
+// ResendCode asks Telegram for a new login code. Only valid while waiting for
+// a phone code; the run goroutine performs the RPC and emits a fresh "code"
+// event.
+func (s *Service) ResendCode() error {
+	state, _, _, ch := s.authChannels()
+	if state != authStateWaitingCode || ch == nil {
+		return errors.New("not waiting for a login code")
+	}
+	select {
+	case ch <- struct{}{}:
+		return nil
+	default:
+		return errors.New("code resend already in progress")
+	}
+}
+
 func (s *Service) SubmitPassword(password string) error {
-	state, _, ch := s.authChannels()
+	state, _, ch, _ := s.authChannels()
 	if state != authStateWaitingPassword || ch == nil {
 		return errors.New("not waiting for a password")
 	}
@@ -203,6 +271,7 @@ func (s *Service) stopAuth() {
 	s.authState = authStateIdle
 	s.codeCh = nil
 	s.passCh = nil
+	s.resendCh = nil
 	s.authMu.Unlock()
 
 	if cancel != nil {
@@ -227,6 +296,7 @@ func (s *Service) finishAuth(done chan struct{}, cancel context.CancelFunc) {
 		s.authState = authStateIdle
 		s.codeCh = nil
 		s.passCh = nil
+		s.resendCh = nil
 	}
 	s.authMu.Unlock()
 }
@@ -266,7 +336,7 @@ func (s *Service) runQR(
 
 	qrReady := make(chan struct{})
 	var qrOnce sync.Once
-	watchdog := time.AfterFunc(30*time.Second, func() {
+	watchdog := time.AfterFunc(connectionTimeout, func() {
 		select {
 		case <-qrReady:
 			return
@@ -314,7 +384,11 @@ func (s *Service) qrAuth(
 			func(_ context.Context, token qrlogin.Token) error {
 				qrOnce.Do(func() { close(qrReady) })
 				s.setAuthState(authStateWaitingQR)
-				s.emitAuth(AuthEvent{State: "qr", QRURL: token.URL()})
+				s.emitAuth(AuthEvent{
+					State:       "qr",
+					QRURL:       token.URL(),
+					QRExpiresIn: qrExpiresIn(token),
+				})
 				return nil
 			},
 		)
@@ -360,19 +434,53 @@ func (s *Service) qrAuth(
 	return errors.New("Telegram requested too many data-center migrations")
 }
 
+func qrExpiresIn(token qrlogin.Token) int {
+	expires := token.Expires()
+	if expires.IsZero() {
+		return 0
+	}
+	seconds := int(time.Until(expires).Seconds())
+	if seconds < 0 {
+		return 0
+	}
+	return seconds
+}
+
 func (s *Service) askPassword(
 	ctx context.Context,
 	client *gotdtelegram.Client,
 	passCh chan string,
 ) error {
-	s.setAuthState(authStateWaitingPassword)
-	s.emitAuth(AuthEvent{State: "password"})
-	password, err := waitAuthValue(ctx, passCh)
-	if err != nil {
-		return err
+	hint := ""
+	if password, err := client.API().AccountGetPassword(ctx); err == nil {
+		if password.HasPassword {
+			hint = password.Hint
+		}
 	}
-	_, err = client.Auth().Password(ctx, password)
-	return err
+
+	for attempt := 0; attempt < loginPasswordAttempts; attempt++ {
+		s.setAuthState(authStateWaitingPassword)
+		s.emitAuth(AuthEvent{State: "password", PasswordHint: hint})
+		password, err := waitAuthValue(ctx, passCh)
+		if err != nil {
+			return err
+		}
+		s.setAuthState(authStateVerifying)
+		if _, err := client.Auth().Password(ctx, password); err == nil {
+			return nil
+		} else if errors.Is(err, auth.ErrPasswordInvalid) || tgerr.Is(err, "PASSWORD_HASH_INVALID") {
+			s.setAuthState(authStateWaitingPassword)
+			s.emitAuth(AuthEvent{
+				State:     authStateError,
+				ErrorCode: "PASSWORD_HASH_INVALID",
+				Error:     "The two-step verification password is incorrect.",
+			})
+			continue
+		} else {
+			return err
+		}
+	}
+	return errors.New("too many incorrect two-step verification passwords")
 }
 
 func (s *Service) runPhone(
@@ -380,6 +488,7 @@ func (s *Service) runPhone(
 	cancel context.CancelFunc,
 	done chan struct{},
 	codeCh, passCh chan string,
+	resendCh chan struct{},
 	phone, proxy, ntp string,
 ) {
 	defer s.finishAuth(done, cancel)
@@ -408,7 +517,7 @@ func (s *Service) runPhone(
 
 	codeReady := make(chan struct{})
 	var codeOnce sync.Once
-	watchdog := time.AfterFunc(30*time.Second, func() {
+	watchdog := time.AfterFunc(connectionTimeout, func() {
 		select {
 		case <-codeReady:
 			return
@@ -419,19 +528,13 @@ func (s *Service) runPhone(
 	})
 	defer watchdog.Stop()
 
-	flow := auth.NewFlow(&phoneAuthenticator{
-		phone:  phone,
-		codeCh: codeCh,
-		passCh: passCh,
-		state:  s,
-		ready:  func() { codeOnce.Do(func() { close(codeReady) }) },
-	}, auth.SendCodeOptions{})
-
 	runErr := client.Run(ctx, func(ctx context.Context) error {
 		if err := client.Ping(ctx); err != nil {
 			return err
 		}
-		if err := client.Auth().IfNecessary(ctx, flow); err != nil {
+		if err := s.phoneAuth(ctx, client, phone, codeCh, passCh, resendCh, func() {
+			codeOnce.Do(func() { close(codeReady) })
+		}); err != nil {
 			return err
 		}
 		user, err := client.Self(ctx)
@@ -446,39 +549,206 @@ func (s *Service) runPhone(
 	}
 }
 
-type phoneAuthenticator struct {
-	phone  string
-	codeCh chan string
-	passCh chan string
-	state  *Service
-	ready  func()
-}
-
-func (a *phoneAuthenticator) Phone(context.Context) (string, error) {
-	return a.phone, nil
-}
-
-func (a *phoneAuthenticator) Code(ctx context.Context, _ *tg.AuthSentCode) (string, error) {
-	if a.ready != nil {
-		a.ready()
+// phoneAuth drives auth.sendCode -> auth.signIn -> auth.checkPassword itself
+// instead of auth.Flow, because the login UI needs the code type/length,
+// resend support and the cloud-password hint.
+func (s *Service) phoneAuth(
+	ctx context.Context,
+	client *gotdtelegram.Client,
+	phone string,
+	codeCh, passCh chan string,
+	resendCh chan struct{},
+	ready func(),
+) error {
+	sent, err := client.Auth().SendCode(ctx, phone, auth.SendCodeOptions{})
+	if err != nil {
+		return fmt.Errorf("send login code: %w", err)
 	}
-	a.state.setAuthState(authStateWaitingCode)
-	a.state.emitAuth(AuthEvent{State: "code"})
-	return waitAuthValue(ctx, a.codeCh)
+	if ready != nil {
+		ready()
+	}
+
+	authSent, ok := sent.(*tg.AuthSentCode)
+	if !ok {
+		if _, success := sent.(*tg.AuthSentCodeSuccess); success {
+			// The session is already authorized.
+			return nil
+		}
+		return fmt.Errorf("unexpected send-code result %T", sent)
+	}
+
+	hash := authSent.PhoneCodeHash
+	s.emitSentCode(authSent, phone, false)
+	s.setAuthState(authStateWaitingCode)
+
+	for attempt := 0; attempt < loginCodeAttempts; attempt++ {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-resendCh:
+			resent, err := client.Auth().ResendCode(ctx, phone, hash)
+			if err != nil {
+				s.emitAuthError(err)
+				continue
+			}
+			if next, ok := resent.(*tg.AuthSentCode); ok {
+				hash = next.PhoneCodeHash
+				s.emitSentCode(next, phone, true)
+				continue
+			}
+			if _, ok := resent.(*tg.AuthSentCodeSuccess); ok {
+				return nil
+			}
+			s.emitAuth(AuthEvent{
+				State:     authStateError,
+				ErrorCode: "RESEND_FAILED",
+				Error:     "Telegram did not return a new login code.",
+			})
+		case code := <-codeCh:
+			s.setAuthState(authStateVerifying)
+			_, err := client.Auth().SignIn(ctx, phone, code, hash)
+			if err == nil {
+				return nil
+			}
+			if errors.Is(err, auth.ErrPasswordAuthNeeded) || tgerr.Is(err, "SESSION_PASSWORD_NEEDED") {
+				return s.askPassword(ctx, client, passCh)
+			}
+			if isLoginCodeError(err) {
+				s.setAuthState(authStateWaitingCode)
+				s.emitAuth(AuthEvent{
+					State:     authStateError,
+					ErrorCode: "PHONE_CODE_INVALID",
+					Error:     "The login code is invalid or expired.",
+				})
+				continue
+			}
+			return err
+		}
+	}
+	return errors.New("too many incorrect login codes")
 }
 
-func (a *phoneAuthenticator) Password(ctx context.Context) (string, error) {
-	a.state.setAuthState(authStateWaitingPassword)
-	a.state.emitAuth(AuthEvent{State: "password"})
-	return waitAuthValue(ctx, a.passCh)
+func (s *Service) emitSentCode(sent *tg.AuthSentCode, phone string, resent bool) {
+	codeType, length := tdesktopCodeInfo(sent)
+	s.emitAuth(AuthEvent{
+		State:        "code",
+		Phone:        phone,
+		CodeType:     codeType,
+		CodeLength:   length,
+		CodeTimeout:  sent.Timeout,
+		NextCodeType: tdesktopNextCodeType(sent.NextType),
+		Resent:       resent,
+	})
 }
 
-func (a *phoneAuthenticator) AcceptTermsOfService(_ context.Context, tos tg.HelpTermsOfService) error {
-	return &auth.SignUpRequired{TermsOfService: tos}
+func (s *Service) emitAuthError(err error) {
+	code, retryAfter, message := classifyAuthError(err)
+	s.emitAuth(AuthEvent{
+		State:      authStateError,
+		ErrorCode:  code,
+		RetryAfter: retryAfter,
+		Error:      message,
+	})
 }
 
-func (a *phoneAuthenticator) SignUp(context.Context) (auth.UserInfo, error) {
-	return auth.UserInfo{}, errors.New("sign up is not supported by tgdesk")
+// classifyAuthError turns a Telegram/gotd error into a stable code the UI can
+// localize, plus a short English fallback and an optional flood-wait delay.
+func classifyAuthError(err error) (code string, retryAfter int, message string) {
+	if err == nil {
+		return "", 0, ""
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return "CANCELLED", 0, "Login was cancelled."
+	}
+	if delay, ok := tgerr.AsFloodWait(err); ok {
+		seconds := int(delay.Seconds())
+		if seconds < 1 {
+			seconds = 1
+		}
+		return "FLOOD_WAIT", seconds, fmt.Sprintf("Too many attempts. Try again in %d seconds.", seconds)
+	}
+	if apiErr, ok := tgerr.As(err); ok {
+		code = apiErr.Type
+		message = apiErr.Error()
+		if code == "" {
+			code = "TELEGRAM_ERROR"
+		}
+		return code, 0, message
+	}
+	message = err.Error()
+	lower := strings.ToLower(message)
+	switch {
+	case strings.Contains(lower, "timed out"),
+		strings.Contains(lower, "timeout"),
+		strings.Contains(lower, "deadline exceeded"),
+		strings.Contains(lower, "connection refused"),
+		strings.Contains(lower, "no such host"),
+		strings.Contains(lower, "connect:"):
+		return "NETWORK", 0, "Could not reach Telegram. Check the network or proxy settings."
+	case strings.Contains(lower, "database"), strings.Contains(lower, "bbolt"),
+		strings.Contains(lower, "bolt"), strings.Contains(lower, "namespace"):
+		return "STORAGE", 0, "The local session database is busy."
+	case strings.Contains(lower, "tdata"), strings.Contains(lower, "Telegram Desktop"):
+		return "TDATA", 0, message
+	}
+	return "UNKNOWN", 0, message
+}
+
+func (s *Service) failAuth(err error) {
+	if err == nil {
+		return
+	}
+	code, retryAfter, message := classifyAuthError(err)
+	s.setAuthState(authStateError)
+	s.emitAuth(AuthEvent{
+		State:      authStateError,
+		ErrorCode:  code,
+		RetryAfter: retryAfter,
+		Error:      message,
+	})
+}
+
+func isLoginCodeError(err error) bool {
+	return tgerr.Is(err, "PHONE_CODE_INVALID", "PHONE_CODE_EXPIRED", "PHONE_CODE_EMPTY",
+		"PHONE_CODE_HASH_EMPTY", "PHONE_CODE_HASH_EXPIRED")
+}
+
+func tdesktopCodeInfo(sent *tg.AuthSentCode) (string, int) {
+	switch value := sent.Type.(type) {
+	case *tg.AuthSentCodeTypeApp:
+		return "app", value.Length
+	case *tg.AuthSentCodeTypeSMS:
+		return "sms", value.Length
+	case *tg.AuthSentCodeTypeCall:
+		return "call", value.Length
+	case *tg.AuthSentCodeTypeFlashCall:
+		return "flash_call", 0
+	case *tg.AuthSentCodeTypeMissedCall:
+		return "missed_call", value.Length
+	case *tg.AuthSentCodeTypeEmailCode:
+		return "email", value.Length
+	case *tg.AuthSentCodeTypeFragmentSMS:
+		return "fragment_sms", value.Length
+	default:
+		return "unknown", 0
+	}
+}
+
+func tdesktopNextCodeType(next tg.AuthCodeTypeClass) string {
+	switch next.(type) {
+	case *tg.AuthCodeTypeSMS:
+		return "sms"
+	case *tg.AuthCodeTypeCall:
+		return "call"
+	case *tg.AuthCodeTypeFlashCall:
+		return "flash_call"
+	case *tg.AuthCodeTypeMissedCall:
+		return "missed_call"
+	case *tg.AuthCodeTypeFragmentSMS:
+		return "fragment_sms"
+	default:
+		return ""
+	}
 }
 
 func waitAuthValue(ctx context.Context, ch chan string) (string, error) {
@@ -501,23 +771,27 @@ func (s *Service) completeAuth(
 		s.failAuth(err)
 		return
 	}
+
+	export, exportErr := exportTelegramDesktopTData(ns, dto)
+	exportError := ""
+	if exportErr != nil {
+		exportError = exportErr.Error()
+		log.Printf("export Telegram Desktop tdata: %v", exportErr)
+	}
+
 	s.authMu.Lock()
 	s.authUser = &dto
+	s.tdataEnsured = exportErr == nil
 	s.authMu.Unlock()
-	if err := exportTelegramDesktopTData(ns, dto); err != nil {
-		log.Printf("export Telegram Desktop tdata: %v", err)
-	}
-	s.setAuthState(authStateSuccess)
-	s.emitAuth(AuthEvent{State: authStateSuccess, User: &dto})
-	cancel()
-}
 
-func (s *Service) failAuth(err error) {
-	if err == nil {
-		return
-	}
-	s.setAuthState(authStateError)
-	s.emitAuth(AuthEvent{State: authStateError, Error: err.Error()})
+	s.setAuthState(authStateSuccess)
+	s.emitAuth(AuthEvent{
+		State:      authStateSuccess,
+		User:       &dto,
+		TData:      export,
+		TDataError: exportError,
+	})
+	cancel()
 }
 
 func isCancelled(err error) bool {
@@ -530,7 +804,7 @@ func (s *Service) AuthStatus() AuthStatus {
 	cached := s.authUser
 	s.authMu.Unlock()
 	if cached != nil {
-		return AuthStatus{Authorized: true, User: cached}
+		return AuthStatus{Authorized: true, User: cached, TData: s.currentTData(cached)}
 	}
 
 	stg, ns, err := openTDStorage()
@@ -564,10 +838,35 @@ func (s *Service) AuthStatus() AuthStatus {
 		Authorized:  true,
 		User:        user,
 		ImportError: importError,
+		TData:       s.currentTData(user),
 	}
 }
 
-// Logout removes the tdl session and cached identity.
+// currentTData returns the recorded export when it still describes this user.
+func (s *Service) currentTData(user *AuthUser) *TDataExport {
+	if user == nil {
+		return nil
+	}
+	data, err := os.ReadFile(filepath.Join(paths.Data(), "tdata-export.json"))
+	if err != nil {
+		return nil
+	}
+	var record tdataExportRecord
+	if json.Unmarshal(data, &record) != nil {
+		return nil
+	}
+	if record.UserID != user.ID {
+		return nil
+	}
+	if _, err := os.Stat(filepath.Join(paths.TData(), "key_datas")); err != nil {
+		return nil
+	}
+	export := TDataExport(record)
+	return &export
+}
+
+// Logout removes the tdl session and cached identity. Telegram Desktop files
+// are kept: they are a portable artifact the user may still want.
 func (s *Service) Logout() error {
 	s.stopAuth()
 	s.cancelAllDownloads()
@@ -576,6 +875,7 @@ func (s *Service) Logout() error {
 	s.authUser = nil
 	s.tdataImportAttempted = false
 	s.tdataImportErr = nil
+	s.tdataEnsured = false
 	s.authMu.Unlock()
 
 	stg, ns, err := openTDStorage()
@@ -628,8 +928,8 @@ func resolveAuthProxy(value string) string {
 	if value == "" {
 		for _, name := range []string{
 			"HTTPS_PROXY", "https_proxy",
-			"ALL_PROXY", "all_proxy",
 			"HTTP_PROXY", "http_proxy",
+			"ALL_PROXY", "all_proxy",
 		} {
 			if env := strings.TrimSpace(os.Getenv(name)); env != "" {
 				value = env
@@ -647,7 +947,7 @@ func resolveAuthProxy(value string) string {
 }
 
 // migrateLegacySession copies the old profile-backed tgdesk session into the
-// portable tdata directory once. The old file is only read, never rewritten.
+// portable data directory once. The old file is only read, never rewritten.
 func migrateLegacySession() {
 	target := filepath.Join(paths.Data(), tdlNamespace)
 	if _, err := os.Stat(target); err == nil {
@@ -778,12 +1078,80 @@ func firstRune(value string) string {
 	return ""
 }
 
+// normalizePhone keeps an optional leading "+" and digits, dropping spaces,
+// dashes, parentheses and other separators. The login screen submits
+// "+<country> <national number>", so "+86 13800138000" becomes
+// "+8613800138000" before it reaches Telegram.
 func normalizePhone(value string) string {
 	var b strings.Builder
 	for _, r := range value {
-		if r == '+' || unicode.IsDigit(r) {
+		if unicode.IsDigit(r) {
 			b.WriteRune(r)
+			continue
+		}
+		if r == '+' && b.Len() == 0 {
+			b.WriteRune('+')
 		}
 	}
 	return b.String()
+}
+
+// ExportTData rewrites the portable tdata folder from the current authorized
+// session. The UI exposes it as a recovery action when the automatic export
+// failed or the folder was deleted.
+func (s *Service) ExportTData() (*TDataExport, error) {
+	s.authMu.Lock()
+	user := s.authUser
+	s.authMu.Unlock()
+
+	stg, ns, err := openTDStorage()
+	if err != nil {
+		return nil, err
+	}
+	defer stg.Close()
+	if user == nil {
+		user = loadAuthUser(ns)
+	}
+	if user == nil {
+		return nil, errors.New("not signed in")
+	}
+	export, err := exportTelegramDesktopTData(ns, *user)
+	if err != nil {
+		return nil, err
+	}
+	s.authMu.Lock()
+	s.tdataEnsured = true
+	s.authMu.Unlock()
+	return export, nil
+}
+
+// EnsureTData exports the current session to tdata when it is missing or when
+// the recorded export belongs to a different account. Foreign tdata copied by
+// the user is left untouched.
+func (s *Service) ensureTData(ns storage.Storage, user AuthUser) {
+	s.authMu.Lock()
+	if s.tdataEnsured {
+		s.authMu.Unlock()
+		return
+	}
+	s.authMu.Unlock()
+
+	loaded, err := (&session.Loader{Storage: storage.NewSession(ns, false)}).Load(context.Background())
+	if err != nil {
+		return
+	}
+	if telegramDesktopTDataPresent() && tdataMatchesSession(ns, loaded, user.ID) {
+		s.authMu.Lock()
+		s.tdataEnsured = true
+		s.authMu.Unlock()
+		return
+	}
+
+	if _, err := exportTelegramDesktopTData(ns, user); err != nil {
+		log.Printf("ensure Telegram Desktop tdata: %v", err)
+		return
+	}
+	s.authMu.Lock()
+	s.tdataEnsured = true
+	s.authMu.Unlock()
 }

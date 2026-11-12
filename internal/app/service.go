@@ -30,20 +30,12 @@ func New(k *kernel.Service) *Service {
 	return &Service{kernel: k}
 }
 
-func (s *Service) GetStatus() kernel.Status {
-	return s.kernel.Status()
-}
-
 func (s *Service) GetPaths() kernel.PortablePaths {
 	return s.kernel.Paths()
 }
 
 func (s *Service) RefreshUser(proxy, ntp string) (*kernel.AuthUser, error) {
 	return s.kernel.RefreshUser(proxy, ntp)
-}
-
-func (s *Service) GetSpikeChecklist() []kernel.ChecklistItem {
-	return s.kernel.Checklist()
 }
 
 func (s *Service) GetChats(proxy, ntp string, limit int) ([]kernel.ChatDTO, error) {
@@ -111,8 +103,16 @@ func (s *Service) SubmitCode(code string) error {
 	return s.kernel.SubmitCode(code)
 }
 
+func (s *Service) ResendCode() error {
+	return s.kernel.ResendCode()
+}
+
 func (s *Service) SubmitPassword(password string) error {
 	return s.kernel.SubmitPassword(password)
+}
+
+func (s *Service) ExportTData() (*kernel.TDataExport, error) {
+	return s.kernel.ExportTData()
 }
 
 func (s *Service) CancelLogin() error {
