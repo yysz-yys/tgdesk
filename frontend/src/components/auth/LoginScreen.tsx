@@ -246,6 +246,7 @@ export function LoginScreen({
           setError("");
           setRetryIn(0);
           setMode("code");
+          autoCodeRef.current = "";
           if (next.resent) {
             setCode("");
             setNotice(t("login.codeResent"));
@@ -284,6 +285,7 @@ export function LoginScreen({
             setRetryIn(payload.retryAfter);
           }
           if (payload.errorCode === "PHONE_CODE_INVALID") {
+            autoCodeRef.current = "";
             setCode("");
             setMode("code");
           }
