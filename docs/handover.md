@@ -27,7 +27,9 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 - 会话列表、最近消息、历史自动分页（滚动到顶部即加载更早页面，不点按钮）、纯文本发送。
 - 聊天信息面板与 Telegram Web 对齐：先 `messages.getSearchCounters`（内核缓存 60 秒）
   决定显示哪些分类（成员/媒体/文件/链接/音乐/语音/动图），每个分类各自用
-  `messages.search` 过滤并无限滚动分页；成员走 `channels.getParticipants` 分页。
+  `messages.search` 过滤并无限滚动分页；媒体支持 Telegram Web 的照片/视频勾选过滤
+  与 "N 张照片，M 个视频" 副标题；右键菜单按类别显示 转发/复制媒体/下载/在聊天中显示/
+  选择/删除，支持多选操作；成员走 `channels.getParticipants` 分页（成员管理类菜单暂未实现）。
 - Telegram Web 风格的消息操作：右键/悬停菜单、回复、复制、转发、编辑自己的文本消息、
   为自己/所有人删除、链接自动识别、照片大图查看。
 - 实时消息推送：gotd `UpdateDispatcher` 处理新消息/编辑/删除/reaction/已读，通过

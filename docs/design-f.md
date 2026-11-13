@@ -145,8 +145,18 @@ without a rewrite.
     Voice use Telegram Web's 48 px leading slot + two-line row anatomy. Every
     list loads its own `messages.search` page on scroll, including while the tab
     is merely hovered, and a short page keeps filling until the pane is covered.
+  - The Media tab carries Telegram Web's Photos/Videos filter: the header kebab
+    opens a two-checkbox menu (at least one stays checked) and the profile
+    subtitle becomes the matching "N photos, M videos" line.
+  - Right-click on a shared item opens Telegram Web's context menu: Forward,
+    Copy Media (images only), Download, Show in chat, Select/Clear selection,
+    Delete. Copy and Download are hidden where Telegram hides them (outgoing or
+    protected messages, non-media link rows), so each category gets its own
+    item set. Select switches the list into multi-select with a
+    count/forward/download/delete bar.
   - Members pages through `channels.getParticipants` (50 first, then offset
-    pages) rather than filtering the dialog list.
+    pages) rather than filtering the dialog list. Member admin/tag actions are
+    not exposed yet because those management features are not built.
   Clicking the title again or the close button dismisses the pane; changing
   chats closes it. Open panes merge the newest page when new messages arrive.
 - Message column max 760 px: Telegram Web K bubble geometry (15 px radius,

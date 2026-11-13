@@ -9,6 +9,8 @@ import (
 func TestSharedMediaFiltersRoundTrip(t *testing.T) {
 	sections := []string{
 		SectionMedia,
+		SectionPhotos,
+		SectionVideos,
 		SectionFiles,
 		SectionLinks,
 		SectionMusic,
@@ -45,6 +47,10 @@ func TestMatchesSharedMediaSection(t *testing.T) {
 		{SectionMedia, "photo", true},
 		{SectionMedia, "video", true},
 		{SectionMedia, "animation", false},
+		{SectionPhotos, "photo", true},
+		{SectionPhotos, "video", false},
+		{SectionVideos, "video", true},
+		{SectionVideos, "photo", false},
 		{SectionFiles, "file", true},
 		{SectionFiles, "audio", false},
 		{SectionFiles, "voice", false},

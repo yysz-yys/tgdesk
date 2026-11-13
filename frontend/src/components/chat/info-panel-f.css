@@ -472,6 +472,69 @@
   margin: 0;
 }
 
+.f-info-title {
+  flex: 1;
+}
+
+/* Selection mode shared by the grid and the row lists. */
+.f-info-select-check {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1.5px solid var(--f-line-strong, var(--f-muted));
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  color: #ffffff;
+}
+
+.f-info-media-cell > .f-info-select-check {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+}
+
+.f-info-media-cell[data-selected] > .f-info-select-check,
+.f-info-row[data-selected] .f-info-select-check {
+  border-color: transparent;
+  background: var(--accent-9);
+}
+
+.f-info-media-cell[data-selected]::after {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--accent-9);
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+}
+
+.f-info-row[data-selected] {
+  border-radius: 8px;
+  background: var(--accent-a3);
+}
+
+.f-info-selection-bar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  border-top: 1px solid var(--f-line);
+  padding: 6px 10px;
+  background: var(--f-surface);
+}
+
+.f-info-selection-count {
+  flex: 1;
+  overflow: hidden;
+  color: var(--f-muted);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 
 @keyframes f-info-in {
   from {

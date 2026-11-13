@@ -19,6 +19,8 @@ import (
 const (
 	SectionMembers = "members"
 	SectionMedia   = "media"
+	SectionPhotos  = "photos"
+	SectionVideos  = "videos"
 	SectionFiles   = "files"
 	SectionLinks   = "links"
 	SectionMusic   = "music"
@@ -134,6 +136,8 @@ func searchSectionCounts(
 ) ([]ChatInfoSectionCountDTO, error) {
 	sections := []string{
 		SectionMedia,
+		SectionPhotos,
+		SectionVideos,
 		SectionFiles,
 		SectionLinks,
 		SectionMusic,
@@ -166,6 +170,15 @@ func searchSectionCounts(
 				count = 0
 			}
 			bySection[section] = count
+		}
+	}
+	// Some peers omit the combined photo+video counter; the tab still exists
+	// whenever either half has content (Telegram Web asks for both halves too).
+	if _, ok := bySection[SectionMedia]; !ok {
+		photos, hasPhotos := bySection[SectionPhotos]
+		videos, hasVideos := bySection[SectionVideos]
+		if hasPhotos || hasVideos {
+			bySection[SectionMedia] = photos + videos
 		}
 	}
 
@@ -384,6 +397,10 @@ func sharedMediaFilter(section string) (tg.MessagesFilterClass, bool) {
 	switch section {
 	case SectionMedia:
 		return &tg.InputMessagesFilterPhotoVideo{}, true
+	case SectionPhotos:
+		return &tg.InputMessagesFilterPhotos{}, true
+	case SectionVideos:
+		return &tg.InputMessagesFilterVideo{}, true
 	case SectionFiles:
 		return &tg.InputMessagesFilterDocument{}, true
 	case SectionLinks:
@@ -403,6 +420,10 @@ func sectionForFilter(filter tg.MessagesFilterClass) (string, bool) {
 	switch filter.(type) {
 	case *tg.InputMessagesFilterPhotoVideo:
 		return SectionMedia, true
+	case *tg.InputMessagesFilterPhotos:
+		return SectionPhotos, true
+	case *tg.InputMessagesFilterVideo:
+		return SectionVideos, true
 	case *tg.InputMessagesFilterDocument:
 		return SectionFiles, true
 	case *tg.InputMessagesFilterURL:
@@ -432,6 +453,10 @@ func matchesSharedMediaSection(section string, message *MessageDTO) bool {
 	switch section {
 	case SectionMedia:
 		return kind == "photo" || kind == "video"
+	case SectionPhotos:
+		return kind == "photo"
+	case SectionVideos:
+		return kind == "video"
 	case SectionFiles:
 		return kind == "file"
 	case SectionLinks:

@@ -95,6 +95,8 @@ export interface ChatMember {
 /** Tabs of a chat-info shared media list, mirroring Telegram Web. */
 export type SharedMediaSection =
   | "media"
+  | "photos"
+  | "videos"
   | "files"
   | "links"
   | "music"

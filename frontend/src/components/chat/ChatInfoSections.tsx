@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Browser } from "@wailsio/runtime";
 import { useTranslation } from "react-i18next";
-import type { Message } from "../../types";
-import { Icon, IconButton } from "../../ui";
+import type { Message, MessageMedia } from "../../types";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  Icon,
+  IconButton,
+} from "../../ui";
 import { MediaThumb } from "./MediaThumb";
 
 /** mm:ss for the duration pills and audio rows, like Telegram Web. */
@@ -21,34 +29,267 @@ export function InfoEmpty({ text }: { text: string }) {
   return <p className="f-info-empty">{text}</p>;
 }
 
+/** Actions the chat-info lists can trigger from rows and context menus. */
+export interface SectionActions {
+  onDownload?: (ids: number[]) => void;
+  onForward?: (message: Message) => void;
+  onDelete?: (message: Message) => void;
+  onJumpToMessage?: (messageID: number) => void;
+  onToast?: (message: string) => void;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (message: Message) => void;
+}
+
+const DOWNLOADABLE_KINDS = new Set([
+  "photo",
+  "video",
+  "video_note",
+  "animation",
+  "file",
+  "audio",
+  "voice",
+  "sticker",
+]);
+
+/** Same capability checks Telegram Web uses for its shared-media menu. */
+function canDownloadMedia(media?: MessageMedia) {
+  return Boolean(media && DOWNLOADABLE_KINDS.has(media.kind));
+}
+
+function canCopyMedia(media?: MessageMedia) {
+  return Boolean(media?.kind === "photo" && (media.photoUrl || media.thumbUrl));
+}
+
+/**
+ * tweb's canSaveMessageMedia: outgoing messages and protected chats hide the
+ * save/copy actions; inside a no-forwards chat only plain files, music and
+ * voice messages survive.
+ */
+function canSaveMessage(message: Message) {
+  if (message.out) {
+    return false;
+  }
+  if (message.noForwards) {
+    const kind = message.media?.kind;
+    return kind === "file" || kind === "audio" || kind === "voice";
+  }
+  return true;
+}
+
+async function copyImageToClipboard(
+  url: string,
+  t: (key: string) => string,
+  onToast?: (message: string) => void,
+  fallback?: string,
+) {
+  try {
+    if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
+      throw new Error("clipboard image unsupported");
+    }
+    const response = await fetch(url);
+    const blob = await response.blob();
+    let png = blob;
+    if (blob.type !== "image/png") {
+      const bitmap = await createImageBitmap(blob);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+      const converted = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/png"),
+      );
+      if (converted) {
+        png = converted;
+      }
+    }
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
+    onToast?.(t("rightPanel.copiedMedia"));
+  } catch {
+    if (fallback) {
+      try {
+        await navigator.clipboard.writeText(fallback);
+        onToast?.(t("chatMenu.copied"));
+        return;
+      } catch {
+        // fall through to the error toast
+      }
+    }
+    onToast?.(t("rightPanel.copyMediaFailed"));
+  }
+}
+
+/**
+ * The shared-media item menu, matching Telegram Web's order and conditions:
+ * Forward, Copy Media (images only), Download, Show in chat, Select/Clear
+ * selection, Delete. Links therefore get four items, photos all six, and
+ * video/music/voice/GIF five.
+ */
+function InfoContextMenu({
+  message,
+  actions,
+}: {
+  message: Message;
+  actions: SectionActions;
+}) {
+  const { t } = useTranslation();
+  const media = message.media;
+  const selected = Boolean(actions.selectedIds?.has(message.id));
+  const items: ReactNode[] = [];
+
+  if (actions.onForward) {
+    items.push(
+      <ContextMenuItem
+        key="forward"
+        icon={<Icon name="forward" size={18} />}
+        onSelect={() => actions.onForward?.(message)}
+      >
+        {t("chat.forward")}
+      </ContextMenuItem>,
+    );
+  }
+  if (canCopyMedia(media) && canSaveMessage(message)) {
+    items.push(
+      <ContextMenuItem
+        key="copy"
+        icon={<Icon name="content_copy" size={18} />}
+        onSelect={() =>
+          void copyImageToClipboard(
+            media?.photoUrl || media?.thumbUrl || "",
+            t,
+            actions.onToast,
+          )
+        }
+      >
+        {t("rightPanel.copyMedia")}
+      </ContextMenuItem>,
+    );
+  }
+  if (canDownloadMedia(media) && canSaveMessage(message) && actions.onDownload) {
+    items.push(
+      <ContextMenuItem
+        key="download"
+        icon={<Icon name="download" size={18} />}
+        onSelect={() => actions.onDownload?.([message.id])}
+      >
+        {t("common.download")}
+      </ContextMenuItem>,
+    );
+  }
+  if (actions.onJumpToMessage) {
+    items.push(
+      <ContextMenuItem
+        key="goto"
+        icon={<Icon name="chat_bubble" size={18} />}
+        onSelect={() => actions.onJumpToMessage?.(message.id)}
+      >
+        {t("rightPanel.showInChat")}
+      </ContextMenuItem>,
+    );
+  }
+  if (actions.onToggleSelect) {
+    items.push(
+      <ContextMenuItem
+        key="select"
+        icon={<Icon name="select_all" size={18} />}
+        onSelect={() => actions.onToggleSelect?.(message)}
+      >
+        {selected ? t("rightPanel.clearSelection") : t("rightPanel.select")}
+      </ContextMenuItem>,
+    );
+  }
+  if (actions.onDelete) {
+    items.push(
+      <ContextMenuItem
+        key="delete"
+        icon={<Icon name="delete" size={18} />}
+        danger
+        onSelect={() => actions.onDelete?.(message)}
+      >
+        {t("chat.delete")}
+      </ContextMenuItem>,
+    );
+  }
+
+  if (items.length === 0) {
+    return null;
+  }
+  return <ContextMenuContent>{items}</ContextMenuContent>;
+}
+
+function withContextMenu(
+  message: Message,
+  actions: SectionActions,
+  element: ReactNode,
+  key?: string | number,
+) {
+  return (
+    <ContextMenu key={key}>
+      <ContextMenuTrigger asChild>{element}</ContextMenuTrigger>
+      <InfoContextMenu message={message} actions={actions} />
+    </ContextMenu>
+  );
+}
+
+function selectionActive(actions: SectionActions) {
+  return Boolean(actions.selectedIds && actions.selectedIds.size > 0);
+}
+
 /** Telegram Web renders shared photos, videos and GIFs in a 3-column grid. */
 export function MediaGrid({
   items,
   gifs,
   onOpenPhoto,
   onPlayVideo,
+  onDownload,
+  onForward,
+  onDelete,
+  onJumpToMessage,
+  onToast,
+  selectedIds,
+  onToggleSelect,
 }: {
   items: Message[];
   gifs?: boolean;
   onOpenPhoto?: (message: Message) => void;
   onPlayVideo?: (message: Message) => void;
-}) {
+} & SectionActions) {
   const { t } = useTranslation();
+  const actions: SectionActions = {
+    onDownload,
+    onForward,
+    onDelete,
+    onJumpToMessage,
+    onToast,
+    selectedIds,
+    onToggleSelect,
+  };
+  const selecting = selectionActive(actions);
   return (
-    <div className="f-info-media-grid">
+    <div className="f-info-media-grid" data-selecting={selecting || undefined}>
       {items.map((message) => {
         const media = message.media;
         const kind = media?.kind;
-        const playable = kind === "video" || kind === "video_note" || kind === "animation";
+        const playable =
+          kind === "video" || kind === "video_note" || kind === "animation";
+        const selected = Boolean(selectedIds?.has(message.id));
         const open = () => {
+          if (selecting) {
+            onToggleSelect?.(message);
+            return;
+          }
           if (playable) {
             onPlayVideo?.(message);
           } else {
             onOpenPhoto?.(message);
           }
         };
-        return (
-          <span className="f-info-media-cell" key={message.id}>
+        return withContextMenu(
+          message,
+          actions,
+          <span
+            className="f-info-media-cell"
+            data-selected={selected || undefined}
+          >
             <button
               type="button"
               className="f-info-media-open"
@@ -83,7 +324,13 @@ export function MediaGrid({
                 </span>
               ) : null
             ) : null}
-          </span>
+            {selecting ? (
+              <span className="f-info-select-check" aria-hidden>
+                {selected ? <Icon name="check" size={14} /> : null}
+              </span>
+            ) : null}
+          </span>,
+          message.id,
         );
       })}
     </div>
@@ -94,21 +341,44 @@ export function MediaGrid({
 export function FileList({
   items,
   onDownload,
+  onForward,
+  onDelete,
+  onJumpToMessage,
+  onToast,
+  selectedIds,
+  onToggleSelect,
 }: {
   items: Message[];
-  onDownload?: (ids: number[]) => void;
-}) {
+} & SectionActions) {
+  const actions: SectionActions = {
+    onDownload,
+    onForward,
+    onDelete,
+    onJumpToMessage,
+    onToast,
+    selectedIds,
+    onToggleSelect,
+  };
+  const selecting = selectionActive(actions);
   return (
-    <div className="f-info-rows">
+    <div className="f-info-rows" data-selecting={selecting || undefined}>
       {items.map((message) => {
         const media = message.media;
         const ext = (media?.ext || "FILE").slice(0, 5).toUpperCase();
-        return (
+        return withContextMenu(
+          message,
+          actions,
           <button
             type="button"
             className="f-info-row f-info-file-row"
-            key={message.id}
-            onClick={() => onDownload?.([message.id])}
+            data-selected={selectedIds?.has(message.id) || undefined}
+            onClick={() => {
+              if (selecting) {
+                onToggleSelect?.(message);
+              } else {
+                onDownload?.([message.id]);
+              }
+            }}
           >
             <span
               className="f-info-file-icon"
@@ -124,10 +394,19 @@ export function FileList({
                 {message.date}
               </small>
             </span>
-            <span className="f-info-row-action" aria-hidden>
-              <Icon name="download" size={16} />
-            </span>
-          </button>
+            {selecting ? (
+              <span className="f-info-select-check" aria-hidden>
+                {selectedIds?.has(message.id) ? (
+                  <Icon name="check" size={14} />
+                ) : null}
+              </span>
+            ) : (
+              <span className="f-info-row-action" aria-hidden>
+                <Icon name="download" size={16} />
+              </span>
+            )}
+          </button>,
+          message.id,
         );
       })}
     </div>
@@ -172,7 +451,7 @@ function hostOf(url: string) {
 function linkRow(message: Message): LinkRow | null {
   const media = message.media;
   if (media?.kind === "webpage" && media.url) {
-    const url = absoluteURL(media.url || media.title || "");
+    const url = absoluteURL(media.url || "");
     return {
       url,
       title: media.title || media.siteName || hostOf(url),
@@ -220,12 +499,27 @@ function linkRow(message: Message): LinkRow | null {
 /** Links tab: preview tile, title, description and the URL itself. */
 export function LinkList({
   items,
+  onDownload,
+  onForward,
+  onDelete,
+  onJumpToMessage,
   onToast,
+  selectedIds,
+  onToggleSelect,
 }: {
   items: Message[];
-  onToast?: (message: string) => void;
-}) {
+} & SectionActions) {
   const { t } = useTranslation();
+  const actions: SectionActions = {
+    onDownload,
+    onForward,
+    onDelete,
+    onJumpToMessage,
+    onToast,
+    selectedIds,
+    onToggleSelect,
+  };
+  const selecting = selectionActive(actions);
   const rows = useMemo(
     () =>
       items
@@ -246,43 +540,65 @@ export function LinkList({
   };
 
   return (
-    <div className="f-info-rows">
-      {rows.map(({ message, link }) => (
-        <div className="f-info-row f-info-link-row" key={message.id}>
-          <button
-            type="button"
-            className="f-info-row-main"
-            onClick={() => void Browser.OpenURL(link.url)}
+    <div className="f-info-rows" data-selecting={selecting || undefined}>
+      {rows.map(({ message, link }) =>
+        withContextMenu(
+          message,
+          actions,
+          <div
+            className="f-info-row f-info-link-row"
+            data-selected={selectedIds?.has(message.id) || undefined}
           >
-            {link.thumb ? (
-              <MediaThumb
-                src={link.thumb}
-                alt=""
-                className="f-info-link-thumb"
-              />
-            ) : (
-              <span
-                className="f-info-link-thumb f-info-link-thumb-fallback"
-                style={{ background: link.color }}
-                aria-hidden
-              >
-                {(link.title || hostOf(link.url)).slice(0, 1).toUpperCase()}
+            <button
+              type="button"
+              className="f-info-row-main"
+              onClick={() => {
+                if (selecting) {
+                  onToggleSelect?.(message);
+                } else {
+                  void Browser.OpenURL(link.url);
+                }
+              }}
+            >
+              {link.thumb ? (
+                <MediaThumb
+                  src={link.thumb}
+                  alt=""
+                  className="f-info-link-thumb"
+                />
+              ) : (
+                <span
+                  className="f-info-link-thumb f-info-link-thumb-fallback"
+                  style={{ background: link.color }}
+                  aria-hidden
+                >
+                  {(link.title || hostOf(link.url)).slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              <span className="f-info-row-copy">
+                <b>{link.title}</b>
+                {link.description ? <small>{link.description}</small> : null}
+                <small className="f-info-link-url">{link.url}</small>
               </span>
+            </button>
+            {selecting ? (
+              <span className="f-info-select-check" aria-hidden>
+                {selectedIds?.has(message.id) ? (
+                  <Icon name="check" size={14} />
+                ) : null}
+              </span>
+            ) : (
+              <IconButton
+                label={t("chatMenu.copyLink")}
+                icon="content_copy"
+                size="1"
+                onClick={() => void copy(link.url)}
+              />
             )}
-            <span className="f-info-row-copy">
-              <b>{link.title}</b>
-              {link.description ? <small>{link.description}</small> : null}
-              <small className="f-info-link-url">{link.url}</small>
-            </span>
-          </button>
-          <IconButton
-            label={t("chatMenu.copyLink")}
-            icon="content_copy"
-            size="1"
-            onClick={() => void copy(link.url)}
-          />
-        </div>
-      ))}
+          </div>,
+          message.id,
+        ),
+      )}
     </div>
   );
 }
@@ -294,14 +610,31 @@ export function LinkList({
 export function AudioList({
   items,
   voice,
+  onDownload,
+  onForward,
+  onDelete,
+  onJumpToMessage,
+  onToast,
+  selectedIds,
+  onToggleSelect,
 }: {
   items: Message[];
   voice?: boolean;
-}) {
+} & SectionActions) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [activeID, setActiveID] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const actions: SectionActions = {
+    onDownload,
+    onForward,
+    onDelete,
+    onJumpToMessage,
+    onToast,
+    selectedIds,
+    onToggleSelect,
+  };
+  const selecting = selectionActive(actions);
 
   useEffect(
     () => () => {
@@ -311,6 +644,10 @@ export function AudioList({
   );
 
   const toggle = (message: Message) => {
+    if (selecting) {
+      onToggleSelect?.(message);
+      return;
+    }
     const audio = audioRef.current;
     const url = message.media?.streamUrl;
     if (!audio || !url) {
@@ -331,7 +668,7 @@ export function AudioList({
   };
 
   return (
-    <div className="f-info-rows">
+    <div className="f-info-rows" data-selecting={selecting || undefined}>
       {items.map((message) => {
         const media = message.media;
         const active = activeID === message.id;
@@ -341,14 +678,18 @@ export function AudioList({
         const meta = voice
           ? `${formatMediaDuration(media?.duration)}${message.date ? ` · ${message.date}` : ""}`
           : `${media?.performer || ""}${
-              media?.duration ? `${media.performer ? " · " : ""}${formatMediaDuration(media.duration)}` : ""
+              media?.duration
+                ? `${media.performer ? " · " : ""}${formatMediaDuration(media.duration)}`
+                : ""
             }`;
-        return (
+        return withContextMenu(
+          message,
+          actions,
           <button
             type="button"
             className="f-info-row f-info-audio-row"
             data-playing={active || undefined}
-            key={message.id}
+            data-selected={selectedIds?.has(message.id) || undefined}
             onClick={() => toggle(message)}
           >
             <span className="f-info-audio-play" aria-hidden>
@@ -367,10 +708,19 @@ export function AudioList({
                 </span>
               ) : null}
             </span>
-            <span className="f-info-row-action" aria-hidden>
-              {media?.duration ? formatMediaDuration(media.duration) : ""}
-            </span>
-          </button>
+            {selecting ? (
+              <span className="f-info-select-check" aria-hidden>
+                {selectedIds?.has(message.id) ? (
+                  <Icon name="check" size={14} />
+                ) : null}
+              </span>
+            ) : (
+              <span className="f-info-row-action" aria-hidden>
+                {media?.duration ? formatMediaDuration(media.duration) : ""}
+              </span>
+            )}
+          </button>,
+          message.id,
         );
       })}
       <audio

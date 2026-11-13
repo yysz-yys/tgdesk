@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DropdownMenu } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import type {
   Chat,
@@ -42,11 +43,19 @@ interface ChatInfoPanelProps {
   onOpenPhoto?: (message: Message) => void;
   onPlayVideo?: (message: Message) => void;
   onDownloadMessage?: (ids: number[]) => void;
+  onForwardMessage?: (message: Message) => void;
+  onDeleteMessage?: (message: Message) => void;
+  onForwardMessages?: (messages: Message[]) => void;
+  onDeleteMessages?: (messages: Message[]) => void;
+  onJumpToMessage?: (messageID: number) => void;
   liveVersion?: number;
   onToast: (message: string) => void;
 }
 
 type InfoTab = "members" | SharedMediaSection;
+
+/** Telegram Web's Media tab can list photos and videos together or alone. */
+type MediaFilter = "all" | "photos" | "videos";
 
 interface SectionState {
   items: Message[];
@@ -78,6 +87,8 @@ const SECTION_ORDER: SharedMediaSection[] = [
 
 const SECTION_LABELS: Record<SharedMediaSection, string> = {
   media: "rightPanel.media",
+  photos: "rightPanel.photos",
+  videos: "rightPanel.videos",
   files: "rightPanel.files",
   links: "rightPanel.links",
   music: "rightPanel.music",
@@ -87,6 +98,8 @@ const SECTION_LABELS: Record<SharedMediaSection, string> = {
 
 const SECTION_EMPTY: Record<SharedMediaSection, string> = {
   media: "rightPanel.mediaEmpty",
+  photos: "rightPanel.mediaEmpty",
+  videos: "rightPanel.mediaEmpty",
   files: "rightPanel.filesEmpty",
   links: "rightPanel.linksEmpty",
   music: "rightPanel.musicEmpty",
@@ -94,12 +107,19 @@ const SECTION_EMPTY: Record<SharedMediaSection, string> = {
   gifs: "rightPanel.gifsEmpty",
 };
 
+/** The concrete server filter behind the Media tab for the current selection. */
+function mediaSectionKey(filter: MediaFilter): SharedMediaSection {
+  return filter === "all" ? "media" : filter;
+}
+
 /** Distance from the bottom that starts the next page, like Telegram Web's 300px. */
 const LOAD_MORE_THRESHOLD = 280;
 
 function createSections(): Record<SharedMediaSection, SectionState> {
   return {
     media: emptySection(),
+    photos: emptySection(),
+    videos: emptySection(),
     files: emptySection(),
     links: emptySection(),
     music: emptySection(),
@@ -174,6 +194,11 @@ export function ChatInfoPanel({
   onOpenPhoto,
   onPlayVideo,
   onDownloadMessage,
+  onForwardMessage,
+  onDeleteMessage,
+  onForwardMessages,
+  onDeleteMessages,
+  onJumpToMessage,
   liveVersion,
   onToast,
 }: ChatInfoPanelProps) {
@@ -182,6 +207,8 @@ export function ChatInfoPanel({
   const [infoLoading, setInfoLoading] = useState(true);
   const [infoFailed, setInfoFailed] = useState(false);
   const [active, setActive] = useState<InfoTab | null>(null);
+  const [mediaFilter, setMediaFilter] = useState<MediaFilter>("all");
+  const [selection, setSelection] = useState<Map<number, Message>>(new Map());
   const [sections, setSections] =
     useState<Record<SharedMediaSection, SectionState>>(createSections);
   const [members, setMembers] = useState<MembersState>(createMembers);
@@ -190,6 +217,7 @@ export function ChatInfoPanel({
   const sectionsRef = useRef(sections);
   const membersRef = useRef(members);
   const activeRef = useRef<InfoTab | null>(active);
+  const mediaFilterRef = useRef<MediaFilter>(mediaFilter);
   const sectionLoadingRef = useRef<Partial<Record<SharedMediaSection, boolean>>>({});
   const membersLoadingRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -206,6 +234,43 @@ export function ChatInfoPanel({
     activeRef.current = active;
   }, [active]);
 
+  useEffect(() => {
+    mediaFilterRef.current = mediaFilter;
+  }, [mediaFilter]);
+
+  // The Media tab swaps between the combined photo+video filter and each half,
+  // exactly like Telegram Web's tickable Photos/Videos menu.
+  const activeSection = useMemo<SharedMediaSection | null>(() => {
+    if (!active || active === "members") {
+      return null;
+    }
+    if (active === "media") {
+      return mediaSectionKey(mediaFilter);
+    }
+    return active;
+  }, [active, mediaFilter]);
+
+  const selectedIds = useMemo(() => new Set(selection.keys()), [selection]);
+  const toggleSelect = useCallback((message: Message) => {
+    setSelection((current) => {
+      const next = new Map(current);
+      if (next.has(message.id)) {
+        next.delete(message.id);
+      } else {
+        next.set(message.id, message);
+      }
+      return next;
+    });
+  }, []);
+  const clearSelection = useCallback(() => {
+    setSelection(new Map());
+  }, []);
+
+  // Switching tabs or filters starts a fresh selection, like the web client.
+  useEffect(() => {
+    setSelection(new Map());
+  }, [active, mediaFilter, chat.id]);
+
   const handleType = t(
     chat.kind === "private"
       ? "rightPanel.privateChat"
@@ -213,12 +278,42 @@ export function ChatInfoPanel({
         ? "rightPanel.channel"
         : "rightPanel.group",
   );
+  const counts = useMemo(() => {
+    const map = new Map<SharedMediaSection, number>();
+    for (const count of info?.counts ?? []) {
+      map.set(count.section, count.count);
+    }
+    return map;
+  }, [info]);
+  const photosCount = counts.get("photos") ?? 0;
+  const videosCount = counts.get("videos") ?? 0;
+  // Telegram Web lists only the enabled, non-empty halves ("N photos, M
+  // videos"), but never leaves the subtitle empty.
+  const mediaSubtitle = useMemo(() => {
+    const enabled: Array<"photos" | "videos"> =
+      mediaFilter === "all" ? ["photos", "videos"] : [mediaFilter];
+    const values = { photos: photosCount, videos: videosCount };
+    const nonEmpty = enabled.filter((key) => values[key] > 0);
+    const shown = nonEmpty.length > 0 ? nonEmpty : enabled.slice(0, 1);
+    return shown
+      .map((key) =>
+        t(
+          key === "photos"
+            ? "rightPanel.photosCount"
+            : "rightPanel.videosCount",
+          { count: values[key] },
+        ),
+      )
+      .join(", ");
+  }, [mediaFilter, photosCount, t, videosCount]);
   const subtitle =
-    chat.kind === "private"
-      ? chat.online
-        ? t("chat.online")
-        : t("chat.lastSeen")
-      : (chat.members ?? handleType);
+    active === "media" && mediaSubtitle
+      ? mediaSubtitle
+      : chat.kind === "private"
+        ? chat.online
+          ? t("chat.online")
+          : t("chat.lastSeen")
+        : (chat.members ?? handleType);
 
   // One counters request per chat decides which tabs exist; each tab then loads
   // its own pages on demand instead of filtering the messages already in view.
@@ -251,6 +346,7 @@ export function ChatInfoPanel({
   useEffect(() => {
     setInfo(null);
     setActive(null);
+    setMediaFilter("all");
     setSections(createSections());
     setMembers(createMembers());
     setInfoFailed(false);
@@ -399,15 +495,17 @@ export function ChatInfoPanel({
     if (!current || current === "members") {
       return;
     }
-    if (!sectionsRef.current[current].loaded) {
+    const section =
+      current === "media" ? mediaSectionKey(mediaFilterRef.current) : current;
+    if (!sectionsRef.current[section].loaded) {
       return;
     }
     try {
-      const page = await onLoadSharedMedia(chat.id, current, 0);
+      const page = await onLoadSharedMedia(chat.id, section, 0);
       setSections((prev) => {
-        const section = prev[current];
+        const state = prev[section];
         const byID = new Map(
-          section.items.map((message) => [message.id, message]),
+          state.items.map((message) => [message.id, message]),
         );
         for (const message of page.items) {
           byID.set(message.id, message);
@@ -415,12 +513,12 @@ export function ChatInfoPanel({
         const items = [...byID.values()].sort((left, right) => right.id - left.id);
         return {
           ...prev,
-          [current]: {
-            ...section,
+          [section]: {
+            ...state,
             items,
             loaded: true,
             failed: false,
-            nextBefore: section.nextBefore || page.nextBeforeId,
+            nextBefore: state.nextBefore || page.nextBeforeId,
           },
         };
       });
@@ -448,10 +546,10 @@ export function ChatInfoPanel({
     }
     if (active === "members") {
       void loadMembersPage("first");
-    } else {
-      void loadSectionPage(active, "first");
+    } else if (activeSection) {
+      void loadSectionPage(activeSection, "first");
     }
-  }, [active, loadMembersPage, loadSectionPage]);
+  }, [active, activeSection, loadMembersPage, loadSectionPage]);
 
   const loadMore = useCallback(() => {
     if (!active) {
@@ -459,10 +557,10 @@ export function ChatInfoPanel({
     }
     if (active === "members") {
       void loadMembersPage("more");
-    } else {
-      void loadSectionPage(active, "more");
+    } else if (activeSection) {
+      void loadSectionPage(activeSection, "more");
     }
-  }, [active, loadMembersPage, loadSectionPage]);
+  }, [active, activeSection, loadMembersPage, loadSectionPage]);
 
   const checkScroll = useCallback(() => {
     const element = scrollRef.current;
@@ -486,9 +584,33 @@ export function ChatInfoPanel({
   const prefetch = (tab: InfoTab) => {
     if (tab === "members") {
       void loadMembersPage("first");
+    } else if (tab === "media") {
+      void loadSectionPage(mediaSectionKey(mediaFilter), "first");
     } else {
       void loadSectionPage(tab, "first");
     }
+  };
+
+  const changeMediaFilter = (which: "photos" | "videos", checked: boolean) => {
+    // Mirrors tweb's checkbox group: at least one half always stays enabled;
+    // unchecking the last one switches to the other kind.
+    let photos = mediaFilter !== "videos";
+    let videos = mediaFilter !== "photos";
+    if (which === "photos") {
+      photos = checked;
+    } else {
+      videos = checked;
+    }
+    if (!photos && !videos) {
+      if (which === "photos") {
+        videos = true;
+      } else {
+        photos = true;
+      }
+    }
+    setMediaFilter(
+      photos && videos ? "all" : photos ? "photos" : "videos",
+    );
   };
 
   const renderMembers = () => {
@@ -548,6 +670,16 @@ export function ChatInfoPanel({
     );
   };
 
+  const sectionActions = {
+    onDownload: onDownloadMessage,
+    onForward: onForwardMessage,
+    onDelete: onDeleteMessage,
+    onJumpToMessage,
+    onToast,
+    selectedIds,
+    onToggleSelect: toggleSelect,
+  };
+
   const renderSection = (section: SharedMediaSection) => {
     const state = sections[section];
     if (state.failed && state.items.length === 0) {
@@ -576,11 +708,14 @@ export function ChatInfoPanel({
     let list;
     switch (section) {
       case "media":
+      case "photos":
+      case "videos":
         list = (
           <MediaGrid
             items={state.items}
             onOpenPhoto={onOpenPhoto}
             onPlayVideo={onPlayVideo}
+            {...sectionActions}
           />
         );
         break;
@@ -591,22 +726,21 @@ export function ChatInfoPanel({
             items={state.items}
             onOpenPhoto={onOpenPhoto}
             onPlayVideo={onPlayVideo}
+            {...sectionActions}
           />
         );
         break;
       case "files":
-        list = (
-          <FileList items={state.items} onDownload={onDownloadMessage} />
-        );
+        list = <FileList items={state.items} {...sectionActions} />;
         break;
       case "links":
-        list = <LinkList items={state.items} onToast={onToast} />;
+        list = <LinkList items={state.items} {...sectionActions} />;
         break;
       case "music":
-        list = <AudioList items={state.items} />;
+        list = <AudioList items={state.items} {...sectionActions} />;
         break;
       case "voice":
-        list = <AudioList voice items={state.items} />;
+        list = <AudioList voice items={state.items} {...sectionActions} />;
         break;
       default:
         list = null;
@@ -630,7 +764,9 @@ export function ChatInfoPanel({
         <InfoEmpty text={t("rightPanel.sharedMediaEmpty")} />
       );
     }
-    return active === "members" ? renderMembers() : renderSection(active);
+    return active === "members"
+      ? renderMembers()
+      : renderSection(activeSection ?? "media");
   };
 
   return (
@@ -644,6 +780,45 @@ export function ChatInfoPanel({
           onClick={onClose}
         />
         <span className="f-info-title">{t("rightPanel.chatInfo")}</span>
+        {active === "media" ? (
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+              <IconButton
+                label={t("rightPanel.mediaFilter")}
+                icon="more_vert"
+                size="1"
+                iconSize={17}
+                tooltip={false}
+              />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content
+              align="end"
+              sideOffset={6}
+              className="f-menu-content"
+            >
+              <DropdownMenu.CheckboxItem
+                className="f-menu-row"
+                checked={mediaFilter !== "videos"}
+                onSelect={(event) => event.preventDefault()}
+                onCheckedChange={(checked) =>
+                  changeMediaFilter("photos", Boolean(checked))
+                }
+              >
+                {t("rightPanel.photos")}
+              </DropdownMenu.CheckboxItem>
+              <DropdownMenu.CheckboxItem
+                className="f-menu-row"
+                checked={mediaFilter !== "photos"}
+                onSelect={(event) => event.preventDefault()}
+                onCheckedChange={(checked) =>
+                  changeMediaFilter("videos", Boolean(checked))
+                }
+              >
+                {t("rightPanel.videos")}
+              </DropdownMenu.CheckboxItem>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
+        ) : null}
       </header>
 
       <div
@@ -737,6 +912,44 @@ export function ChatInfoPanel({
           </div>
         )}
       </div>
+
+      {selection.size > 0 ? (
+        <div className="f-info-selection-bar">
+          <span className="f-info-selection-count">
+            {t("rightPanel.selectedCount", { count: selection.size })}
+          </span>
+          <IconButton
+            label={t("chat.forward")}
+            icon="forward"
+            size="1"
+            iconSize={17}
+            onClick={() =>
+              onForwardMessages?.(Array.from(selection.values()))
+            }
+          />
+          <IconButton
+            label={t("common.download")}
+            icon="download"
+            size="1"
+            iconSize={17}
+            onClick={() => onDownloadMessage?.(Array.from(selection.keys()))}
+          />
+          <IconButton
+            label={t("chat.delete")}
+            icon="delete"
+            size="1"
+            iconSize={17}
+            onClick={() => onDeleteMessages?.(Array.from(selection.values()))}
+          />
+          <IconButton
+            label={t("rightPanel.clearSelection")}
+            icon="close"
+            size="1"
+            iconSize={17}
+            onClick={clearSelection}
+          />
+        </div>
+      ) : null}
     </aside>
   );
 }

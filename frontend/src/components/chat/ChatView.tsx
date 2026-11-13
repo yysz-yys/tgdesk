@@ -214,6 +214,25 @@ export function ChatView({
     window.setTimeout(() => node.classList.remove("g-message-flash"), 1400);
   };
 
+  // Chat-info multi-selection reuses the same forward/delete flows as bubbles.
+  const forwardSharedMedia = (selected: Message[]) => {
+    if (selected.length === 0) {
+      return;
+    }
+    setForwarding({ message: selected[0], ids: selected.map((item) => item.id) });
+  };
+
+  const deleteSharedMedia = (selected: Message[]) => {
+    if (selected.length === 0) {
+      return;
+    }
+    setDeleteRequest({
+      message: selected[0],
+      revoke: selected.every((item) => item.out),
+      ids: selected.map((item) => item.id),
+    });
+  };
+
   return (
     <>
       <main className="g-chat-pane" aria-label={chat.title}>
@@ -441,6 +460,13 @@ export function ChatView({
           onOpenPhoto={setViewingPhoto}
           onPlayVideo={setPlayingVideo}
           onDownloadMessage={onDownloadMessage}
+          onForwardMessage={(message) =>
+            setForwarding({ message, ids: [message.id] })
+          }
+          onDeleteMessage={(message) => requestDelete(message, message.out)}
+          onForwardMessages={forwardSharedMedia}
+          onDeleteMessages={deleteSharedMedia}
+          onJumpToMessage={jumpToMessage}
           onToast={onToast}
         />
       ) : null}

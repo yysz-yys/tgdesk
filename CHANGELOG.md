@@ -14,6 +14,15 @@
   scroll instead of filtering the 50 messages already painted in the chat;
   Members pages through `channels.getParticipants` with the same 50-first-page
   behaviour as Telegram Web.
+- The Media tab has Telegram Web's Photos/Videos filter menu (checkmarks in the
+  header kebab, at least one half always enabled) and shows the matching
+  "N photos, M videos" subtitle, switching between the combined photo+video
+  filter and each half without leaving the tab.
+- Shared-media items answer right-click with Telegram Web's per-category menu:
+  Forward, Copy Media (images), Download, Show in chat, Select/Clear selection
+  and Delete, with Copy/Download hidden for protected chats or non-media rows,
+  so links, videos, music, voice, files and photos each get their own item set.
+  Select starts a multi-select mode with a count/forward/download/delete bar.
 - Chat-info lists follow the same rows as the web profile: a three-column media
   and GIF grid with duration/GIF badges, file rows with extension icon and size,
   link rows with preview and copy action, and music/voice rows sharing one
