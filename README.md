@@ -4,13 +4,14 @@ Windows-first desktop shell for [tdl](https://github.com/iyear/tdl), built with
 Wails v3, React 19 and TypeScript. tdl and gotd are consumed as Go modules; the
 upstream projects are **not forked or patched**.
 
-The UI uses one Google Material 3 / Google Workspace visual language across
-login, conversations, downloads and settings: Roboto, Google's Material Web
-components, Material Symbols Rounded, the Workspace colour roles, a navigation
-drawer and 64px app bars. Light and dark themes share the same tokens. The
-reference client area is 1107×725. A settings sheet only exposes options those
-features use: language, theme, send-on-Enter, download folder/threads/file-name
-template, proxy and NTP.
+The UI uses the **F** design language across login, conversations, downloads and
+settings: a cool grey canvas, floating cards with hairline borders, one indigo
+accent, Radix Themes components, Lucide icons and bundled Inter for Latin (CJK
+falls back to the Windows UI font). Light and dark themes share the same tokens.
+The default client area is 1107×725; the layouts are verified at 1280×800 and
+down to 640×480. A settings dialog only exposes options those features use:
+language, theme, send-on-Enter, download folder/threads/file-name template,
+proxy and NTP.
 
 ![tgdesk login](docs/assets/ui-login-current.png)
 
@@ -23,19 +24,55 @@ Working end to end against real Telegram data:
   the chat shell directly; after a successful login tgdesk writes an
   official-compatible no-passcode `tdata`. The login card also offers a
   searchable country-code picker, resendable codes and QR expiry feedback.
-- Real dialog list and recent history (latest 50 messages per open).
-- Plain-text message sending.
+- Telegram-Web folder selector: "所有" plus the user-created folders only, a
+  plain label when no custom folders exist, and no synthetic Unread tab.
+- The archived-chats row uses the normal chat-row geometry and appears only
+  under "所有"; archived peers are excluded from custom folders. New messages
+  update the archived row in place instead of pulling the chat into the main
+  list. The archive header menu has Search, Hide/Show in Chat List and Mark all
+  as read (server-side `readHistory`); its archive view is also reachable from
+  the app menu when hidden.
+- Real dialog list and recent history (latest 50 messages per open, older pages
+  on demand), with live updates for new, edited, deleted and read messages plus a
+  two-second `min_id` delta poll for the open chat, so replies stay current even
+  across update-stream gaps.
+- A local snapshot cache (`data/cache/`) paints the last dialog list and message
+  history before the network answers, then refreshes in place like the official
+  clients.
+- Telegram Web-style bubbles: 15 px radius, grouped corners, a 480 px text
+  column, inline time/checks, a fixed avatar gutter, sender name inside the
+  bubble with premium emoji status, sender avatars only at the end of a group
+  and a doodle wallpaper canvas.
+- Message actions: reply, copy, forward, edit own text, delete for me/for
+  everyone, link detection and a full photo viewer.
+- Rich text entities: bold, italic, underline, strike, inline code, code blocks,
+  blockquotes, spoilers, links, mentions and custom-emoji placeholders.
+- Every Telegram media kind gets a dedicated card: photos (natural aspect ratio;
+  captioned portraits use a blurred side fill), videos, round video notes, GIFs,
+  static/animated stickers (including TGS via Lottie, rounded with an overlay
+  timestamp), voice messages with
+  waveform playback, audio, files, web previews, polls/quizzes,
+  locations/venues, contacts, dice, games, invoices, stories, giveaways, paid
+  media and checklists.
+- Inline keyboard buttons under bot messages; URL buttons open externally.
+- Emoji reactions with live counts, a reaction picker, custom Telegram emoji
+  reactions and a footer integrated into the bubble.
+- Multi-photo/video albums rendered as a Telegram-style mosaic.
+- File attachments picked from the native dialog and uploaded with progress in
+  the composer.
 - Byte-resumable media downloads with pause, resume and cancel.
-- Real Telegram photo/video thumbnails, cached beside the app.
+- Real Telegram photo/video thumbnails and avatars loaded on demand through a
+  loopback HTTP server; the WebView caches them, so no image files pile up next
+  to the executable.
 - Forwarded messages, video cards, service messages, polls/results, locations
   and contacts.
 - In-chat search over loaded messages, per-chat drafts, message grouping.
-- A minimal settings sheet for language, send-on-Enter, download options,
+- A minimal settings dialog for language, send-on-Enter, download options,
   proxy and NTP only.
 
-Local-only UI actions: pin, mute and mark-read. They reset on restart. Message
-pagination, live updates, reactions, forwarding and server-side search are not
-implemented because the current kernel does not expose them.
+Local-only UI actions: pin, mute and mark-read. They reset on restart.
+Server-side message search, live typing indicators and scheduled messages are
+not implemented yet.
 
 ## Quick start
 
@@ -80,8 +117,8 @@ data/
   tdata-backup/       previous official tdata files, if tgdesk exported
   tdata-export.json   last tdata export (user/DC/key id/path)
   downloads.json      persisted download metadata
-  thumbs/             cached Telegram thumbnails (base64 source files)
-  webview/            WebView2 state: language, settings, drafts
+  media/              opt-in video stream cache (safe to delete)
+  webview/            WebView2 state: language, settings, drafts, image HTTP cache
 tdata/                official Telegram Desktop files only
   key_datas           Telegram Desktop local key + account index
   D877F783D5D3EF8Cs   MTP authorization (official wide-id format)
@@ -129,27 +166,32 @@ internal/kernel/
   auth.go                   QR / phone / 2FA state machine, AuthEvent, AuthUser
   session.go                shared authorized Telegram client
   session_user.go           RefreshUser + tdata ensure
-  chats.go                  dialogs, messages, media/service DTO mapping
+  chats.go                  dialogs, messages, actions, entities, media mapping
+  cache.go                  local dialog/message snapshots for instant paint
+  live.go                   Telegram update dispatcher → chat:event stream
+  reactions.go              emoji reactions
+  attachments.go            native-file uploads with progress
+  images.go                 loopback thumbnail/avatar/photo server + memory cache
+  thumbs.go                 thumbnail size and profile-photo selection helpers
   downloads.go              download pipeline, resume, progress
   download_store.go         portable task persistence
-  thumbs.go                 thumbnail selection/download/cache
   tdesktop_import.go        official tdata → tgdesk session
   tdesktop_export.go        tgdesk session → official tdata
 internal/paths/             portable path resolution
 frontend/src/
   App.tsx                   app shell, state, effects, event handlers
-  components/auth/          Material 3 login steps, country picker, logo
+  components/auth/          F login steps, country picker, logo
   components/chat/          chat view, rows, header, composer, search, media
-  components/layout/        window title bar, navigation drawer, conversation list
-  components/settings/      settings sheet
+  components/layout/        window title bar, app dropdown, conversation list
+  components/settings/      settings dialog
   components/downloads/     download manager
-  components/ui/            shared Material 3 primitives; feature code imports these
-  styles/                   design tokens and base element styles
+  ui/                       F atom layer (Radix Themes backed); feature code imports these
+  styles/                   legacy F aliases and base element styles
   data/countries.ts          ISO/dial-code table for phone login
   data/telegram.ts          DTO → UI model mapping and date formatting
   hooks/                    settings persistence
   locales/                  en / zh / ja
-frontend/public/            favicon/PWA icons + bundled Roboto fonts
+frontend/public/            favicon/PWA icons + bundled Inter Latin subset
 frontend/bindings/          generated Wails bindings; do not edit by hand
 docs/                       handover, architecture, development, privacy, UI
 build/                      Wails build assets (Windows metadata/icon)
@@ -162,7 +204,7 @@ build/                      Wails build assets (Windows metadata/icon)
 - [docs/architecture.md](docs/architecture.md) — layers, data flows, extension points
 - [docs/development.md](docs/development.md) — setup, builds, tests, debugging, UI workflow
 - [docs/data-and-privacy.md](docs/data-and-privacy.md) — portable files, tdata safety, git hygiene
-- [docs/ui.md](docs/ui.md) — Material 3 design system, layout and component rules
+- [docs/ui.md](docs/ui.md) — archived Material 3 notes; current design system is [docs/design-f.md](docs/design-f.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contribution and review checklist
 - [CHANGELOG.md](CHANGELOG.md) — milestone summary
 
@@ -195,7 +237,7 @@ and troubleshooting.
 Never commit:
 
 - `tdata/`, `tdataTest/`, `tdataNomal/`, `dataNomal/`
-- `bin/`, including `bin/data`, `bin/tdata`, thumbnails and downloads
+- `bin/`, including `bin/data`, `bin/tdata`, cached images and downloads
 - runtime WebView state, logs or downloaded media
 
 They are covered by `.gitignore`. Only source, docs and generated bindings

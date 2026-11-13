@@ -1,32 +1,36 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { Message } from "../../types";
+import type { Message, Reaction } from "../../types";
 import { chatColor, chatInitials } from "../../data/telegram";
-import { Icon } from "../ui/Icon";
-import { Spinner } from "../ui/Spinner";
+import { Icon, Spinner } from "../../ui";
 import { MessageBubble, type MessageAuthor } from "./MessageBubble";
-import type { ChatAvatarLoader } from "./ChatAvatar";
 
 interface MessageListProps {
   chatId: string;
   chatTitle: string;
   chatInitials: string;
   chatColor: string;
+  chatAvatarUrl?: string;
   selfName: string;
   selfInitials: string;
   selfColor: string;
+  selfAvatarUrl?: string;
   messages: Message[];
-  selectedIds: Set<number>;
   showSender?: boolean;
   showAvatars?: boolean;
   hasMoreMessages: boolean;
   olderMessagesLoading: boolean;
   onLoadOlder: () => void;
-  onLoadAvatar: ChatAvatarLoader;
   onPlayVideo?: (message: Message) => void;
-  onToggleSelect: (id: number) => void;
-  onDownloadMessage?: (id: number) => void;
-  onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
+  onOpenPhoto?: (message: Message) => void;
+  onReply?: (message: Message) => void;
+  onEdit?: (message: Message) => void;
+  onForward?: (message: Message, group?: Message[]) => void;
+  onDelete?: (message: Message, revoke: boolean, group?: Message[]) => void;
+  onJumpToMessage?: (id: number) => void;
+  onDownloadMessage?: (ids: number[]) => void;
+  onReact?: (message: Message, reaction: Reaction | null) => void;
+  onOpenReactions?: (message: Message) => void;
   onToast: (message: string) => void;
 }
 
@@ -35,28 +39,52 @@ export function MessageList({
   chatTitle,
   chatInitials: peerInitials,
   chatColor: peerColor,
+  chatAvatarUrl,
   selfName,
   selfInitials,
   selfColor,
+  selfAvatarUrl,
   messages,
-  selectedIds,
   showSender,
   showAvatars = false,
   hasMoreMessages,
   olderMessagesLoading,
   onLoadOlder,
-  onLoadAvatar,
   onPlayVideo,
-  onToggleSelect,
+  onOpenPhoto,
+  onReply,
+  onEdit,
+  onForward,
+  onDelete,
+  onJumpToMessage,
   onDownloadMessage,
-  onLoadThumbnail,
+  onReact,
+  onOpenReactions,
   onToast,
 }: MessageListProps) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const messageCount = useRef(messages.length);
   const stickToBottom = useRef(true);
   const [showJump, setShowJump] = useState(false);
+
+  // Thumbnails and avatars arrive after the history render. Keep the newest
+  // message anchored while images above the viewport grow, like Telegram Web.
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    const content = contentRef.current;
+    if (!scroller || !content || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      if (stickToBottom.current) {
+        scroller.scrollTop = scroller.scrollHeight;
+      }
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [chatId]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -121,10 +149,107 @@ export function MessageList({
     previousFirstId.current = first;
   }, [messages]);
 
+  const renderedMessages: ReactNode[] = [];
+  for (let index = 0; index < messages.length; ) {
+    const message = messages[index];
+    const previous = messages[index - 1];
+    const showDate = !previous || previous.date !== message.date;
+
+    if (message.service) {
+      renderedMessages.push(
+        <div key={message.id} className="g-message-block" data-message-id={message.id}>
+          {showDate ? <div className="g-date-chip">{message.date}</div> : null}
+          <div className="g-service-message">
+            <span>{message.service}</span>
+            <span className="g-service-time">{message.time}</span>
+          </div>
+        </div>,
+      );
+      index += 1;
+      continue;
+    }
+
+    let album: Message[] | undefined;
+    if (message.groupedId) {
+      const group = [message];
+      let cursor = index + 1;
+      while (
+        cursor < messages.length &&
+        !messages[cursor].service &&
+        messages[cursor].groupedId === message.groupedId
+      ) {
+        group.push(messages[cursor]);
+        cursor += 1;
+      }
+      if (group.length > 1) {
+        album = group;
+      }
+    }
+
+    const lastIndex = album ? index + album.length - 1 : index;
+    const next = messages[lastIndex + 1];
+    const sameSenderAsPrevious =
+      !showDate &&
+      previous?.sender === message.sender &&
+      previous?.out === message.out;
+    const sameSenderAsNext =
+      next?.date === message.date &&
+      next?.sender === message.sender &&
+      next?.out === message.out;
+
+    const author: MessageAuthor = message.out
+      ? {
+          name: selfName,
+          initials: selfInitials,
+          color: selfColor,
+          avatarUrl: selfAvatarUrl,
+        }
+      : {
+          name: message.sender || chatTitle,
+          initials: message.sender ? chatInitials(message.sender) : peerInitials,
+          color: message.sender ? chatColor(message.sender) : peerColor,
+          avatarUrl: message.senderAvatarUrl || chatAvatarUrl,
+        };
+
+    renderedMessages.push(
+      <div
+        key={message.id}
+        className="g-message-block"
+        data-message-id={message.id}
+        data-album-ids={album?.map((item) => item.id).join(" ") || undefined}
+      >
+        {showDate ? <div className="g-date-chip">{message.date}</div> : null}
+        <MessageBubble
+          message={message}
+          author={author}
+          replyTo={message.replyToId ? byId.get(message.replyToId) : undefined}
+          album={album}
+          showSender={Boolean(showSender && !sameSenderAsPrevious)}
+          showAvatar={Boolean(showAvatars && !sameSenderAsNext)}
+          showAvatarSpace={Boolean(showAvatars)}
+          grouped={sameSenderAsPrevious}
+          lastInGroup={!sameSenderAsNext}
+          onPlayVideo={onPlayVideo}
+          onOpenPhoto={onOpenPhoto}
+          onReply={onReply}
+          onEdit={onEdit}
+          onForward={onForward}
+          onDelete={onDelete}
+          onJumpToMessage={onJumpToMessage}
+          onDownloadMessage={onDownloadMessage}
+          onReact={onReact}
+          onOpenReactions={onOpenReactions}
+          onToast={onToast}
+        />
+      </div>,
+    );
+    index = lastIndex + 1;
+  }
+
   return (
     <div className="g-message-layer">
       <div className="g-message-scroll" ref={scrollRef} onScroll={onScroll}>
-        <div className="g-message-list">
+        <div className="g-message-list" ref={contentRef}>
         {hasMoreMessages ? (
           <div className="g-load-older">
             <button
@@ -142,61 +267,7 @@ export function MessageList({
             </button>
           </div>
         ) : null}
-        {messages.map((message, index) => {
-          const previous = messages[index - 1];
-          const next = messages[index + 1];
-          const showDate = !previous || previous.date !== message.date;
-          const sameSenderAsPrevious =
-            !showDate &&
-            previous?.sender === message.sender &&
-            previous?.out === message.out;
-          const sameSenderAsNext =
-            next?.date === message.date &&
-            next?.sender === message.sender &&
-            next?.out === message.out;
-
-          if (message.service) {
-            return (
-              <div key={message.id} className="g-message-block" data-message-id={message.id}>
-                {showDate ? <div className="g-date-chip">{message.date}</div> : null}
-                <div className="g-service-message">
-                  <span>{message.service}</span>
-                  <span className="g-service-time">{message.time}</span>
-                </div>
-              </div>
-            );
-          }
-
-          const author: MessageAuthor = message.out
-            ? { name: selfName, initials: selfInitials, color: selfColor }
-            : {
-                name: message.sender || chatTitle,
-                initials: message.sender ? chatInitials(message.sender) : peerInitials,
-                color: message.sender ? chatColor(message.sender) : peerColor,
-              };
-
-          return (
-            <div key={message.id} className="g-message-block" data-message-id={message.id}>
-              {showDate ? <div className="g-date-chip">{message.date}</div> : null}
-              <MessageBubble
-                message={message}
-                author={author}
-                replyTo={message.replyToId ? byId.get(message.replyToId) : undefined}
-                selected={selectedIds.has(message.id)}
-                showSender={Boolean(showSender && !sameSenderAsPrevious)}
-                showAvatar={showAvatars}
-                grouped={sameSenderAsPrevious}
-                lastInGroup={!sameSenderAsNext}
-                onLoadAvatar={onLoadAvatar}
-                onPlayVideo={onPlayVideo}
-                onToggleSelect={onToggleSelect}
-                onDownloadMessage={onDownloadMessage}
-                onLoadThumbnail={onLoadThumbnail}
-                onToast={onToast}
-              />
-            </div>
-          );
-        })}
+        {renderedMessages}
         </div>
       </div>
 
@@ -216,3 +287,4 @@ export function MessageList({
     </div>
   );
 }
+

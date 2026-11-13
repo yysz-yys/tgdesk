@@ -2,9 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { CSSProperties } from "react";
 import type { TFunction } from "i18next";
 import type { DownloadTask } from "../../types";
-import { Icon } from "../ui/Icon";
-import { IconButton } from "../ui/IconButton";
-import { LinearProgress } from "../ui/Progress";
+import { Icon, IconButton, Progress } from "../../ui";
 
 interface TaskRowProps {
   task: DownloadTask;
@@ -71,54 +69,70 @@ export function TaskRow({
     .join(" · ");
 
   return (
-    <article className="g-task-row" data-status={task.status}>
+    <article className="f-task" data-status={task.status}>
       <span
-        className="g-task-icon"
+        className="f-task-icon"
         style={{ "--task-color": task.color } as CSSProperties}
         aria-hidden="true"
       >
         <Icon
           name={isDone ? "check" : isFailed ? "error" : fileIcon(task.ext)}
-          size={21}
+          size={19}
         />
       </span>
 
-      <div className="g-task-main">
-        <div className="g-task-topline">
-          <span className="g-task-name" title={task.name}>
+      <div className="f-task-main">
+        <div className="f-task-topline">
+          <span className="f-task-name" title={task.name}>
             {task.name}
           </span>
-          {task.ext ? <span className="g-task-ext">{task.ext}</span> : null}
+          {task.ext ? <span className="f-task-ext">{task.ext}</span> : null}
         </div>
-        <div className="g-task-meta">{meta}</div>
+        <div className="f-task-meta">{meta}</div>
         {!isFinished ? (
-          <LinearProgress
-            className="g-task-progress"
+          <Progress
+            className="f-task-progress"
             value={task.progress / 100}
-            tone={isFailed ? "error" : "primary"}
             label={`${task.progress}%`}
           />
         ) : null}
       </div>
 
-      <div className="g-task-actions">
+      <div className="f-task-actions">
         {task.status === "active" ? (
-          <IconButton label={t("downloads.pause")} icon="pause" onClick={() => onPause(task.id)} />
+          <IconButton
+            label={t("downloads.pause")}
+            icon="pause"
+            size="1"
+            onClick={() => onPause(task.id)}
+          />
         ) : null}
         {task.status === "paused" || task.status === "queued" ? (
-          <IconButton label={t("downloads.resume")} icon="play_arrow" onClick={() => onResume(task.id)} />
+          <IconButton
+            label={t("downloads.resume")}
+            icon="play_arrow"
+            size="1"
+            onClick={() => onResume(task.id)}
+          />
         ) : null}
         {isFailed ? (
-          <IconButton label={t("downloads.retry")} icon="refresh" onClick={() => onRetry(task.id)} />
+          <IconButton
+            label={t("downloads.retry")}
+            icon="refresh"
+            size="1"
+            onClick={() => onRetry(task.id)}
+          />
         ) : null}
         <IconButton
           label={t("common.openFolder")}
           icon="folder_open"
+          size="1"
           onClick={() => onOpenFolder(task)}
         />
         <IconButton
           label={isDone ? t("downloads.remove") : t("downloads.cancel")}
           icon="close"
+          size="1"
           onClick={() => onRemove(task.id)}
         />
       </div>

@@ -1,37 +1,33 @@
+import { DropdownMenu } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import type { Chat } from "../../types";
-import { Icon } from "../ui/Icon";
-import { IconButton } from "../ui/IconButton";
-import { SearchField } from "../ui/SearchField";
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "../ui/Menu";
-import { ChatAvatar, type ChatAvatarLoader } from "./ChatAvatar";
+import { Icon, IconButton, TextField } from "../../ui";
+import { ChatAvatar } from "./ChatAvatar";
 
 interface ChatHeaderProps {
   chat: Chat;
+  infoOpen: boolean;
   searchOpen: boolean;
   searchQuery: string;
   searchResultCount: number;
   onSearchQueryChange: (value: string) => void;
   onCloseSearch: () => void;
   onSearch: () => void;
-  onSelectAll: () => void;
   onDownloadAll: () => void;
   onInfo: () => void;
-  onLoadAvatar: ChatAvatarLoader;
 }
 
 export function ChatHeader({
   chat,
+  infoOpen,
   searchOpen,
   searchQuery,
   searchResultCount,
   onSearchQueryChange,
   onCloseSearch,
   onSearch,
-  onSelectAll,
   onDownloadAll,
   onInfo,
-  onLoadAvatar,
 }: ChatHeaderProps) {
   const { t } = useTranslation();
   const subtitle =
@@ -42,34 +38,35 @@ export function ChatHeader({
       : (chat.members ?? t(chat.kind === "channel" ? "chat.channel" : "chat.group"));
 
   return (
-    <header className="g-chat-header" data-searching={searchOpen || undefined}>
+    <header className="f-chat-header" data-searching={searchOpen || undefined}>
       {searchOpen ? (
-        <div className="g-chat-search-inline">
-          <SearchField
+        <div className="f-chat-search">
+          <TextField
+            size="2"
             autoFocus
-            compact
             value={searchQuery}
             onValueChange={onSearchQueryChange}
             placeholder={t("chat.searchLoadedPlaceholder")}
-            label={t("chat.searchLoadedPlaceholder")}
-            clearLabel={t("common.clear")}
+            aria-label={t("chat.searchLoadedPlaceholder")}
+            leadingIcon="search"
+            trailing={
+              searchQuery.trim() ? (
+                <span className="f-search-count">
+                  {t("chat.searchResultCount", { count: searchResultCount })}
+                </span>
+              ) : undefined
+            }
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 event.preventDefault();
                 onCloseSearch();
               }
             }}
-            trailing={
-              searchQuery.trim() ? (
-                <span className="g-chat-search-count">
-                  {t("chat.searchResultCount", { count: searchResultCount })}
-                </span>
-              ) : null
-            }
           />
           <IconButton
             label={t("chat.searchClose")}
             icon="close"
+            size="1"
             onClick={onCloseSearch}
           />
         </div>
@@ -77,55 +74,57 @@ export function ChatHeader({
         <>
           <button
             type="button"
-            className="g-chat-heading"
+            className="f-peer"
+            data-active={infoOpen || undefined}
             onClick={onInfo}
+            aria-expanded={infoOpen}
             aria-label={`${chat.title}: ${t("rightPanel.chatInfo")}`}
           >
-            <ChatAvatar chat={chat} size={38} loader={onLoadAvatar} />
-            <span className="g-chat-heading-copy">
-              <span className="g-chat-heading-title-row">
-                <span className="g-chat-heading-title">{chat.title}</span>
+            <ChatAvatar chat={chat} size={36} />
+            <span className="f-peer-copy">
+              <span className="f-peer-name">
+                {chat.title}
                 {chat.verified ? (
                   <Icon
                     name="verified"
-                    size={16}
-                    filled
-                    className="g-chat-verified"
+                    size={14}
+                    className="f-peer-verified"
                     label={t("chat.verified")}
                   />
                 ) : null}
               </span>
-              <span className={chat.online ? "g-chat-heading-subtitle g-chat-online" : "g-chat-heading-subtitle"}>
-                {chat.online ? <span className="g-online-dot" /> : null}
+              <span className={chat.online ? "f-peer-sub f-peer-online" : "f-peer-sub"}>
+                {chat.online ? <span className="f-online-dot" /> : null}
                 {subtitle}
               </span>
             </span>
           </button>
 
-          <div className="g-chat-header-actions">
+          <div className="f-chat-actions">
             <IconButton
               label={t("chat.searchInChat")}
               icon="search"
+              size="2"
+              iconSize={18}
               onClick={onSearch}
             />
-            <Menu>
-              <MenuTrigger asChild>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
                 <IconButton
                   label={t("chat.chatMenu")}
                   icon="more_vert"
+                  size="2"
+                  iconSize={18}
                   tooltip={false}
                 />
-              </MenuTrigger>
-              <MenuContent align="end">
-                <MenuItem icon={<Icon name="select_all" size={18} />} onSelect={onSelectAll}>
-                  {t("chat.selectAll")}
-                </MenuItem>
-                <MenuSeparator />
-                <MenuItem icon={<Icon name="download" size={18} />} onSelect={onDownloadAll}>
-                  {t("chat.downloadAll")}
-                </MenuItem>
-              </MenuContent>
-            </Menu>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content align="end" sideOffset={6} className="f-menu-content">
+                <DropdownMenu.Item className="f-menu-row" onSelect={onDownloadAll}>
+                  <Icon name="download" size={15} />
+                  <span>{t("chat.downloadAll")}</span>
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
           </div>
         </>
       )}

@@ -1,4 +1,4 @@
-﻿# 交接说明（Handover）
+# 交接说明（Handover）
 
 本文给接手者一份“现在能做什么、代码在哪、怎么验证、哪些坑不能踩”的快速说明。
 英文的架构/开发/数据文档在 [`README.md`](README.md) 索引中。
@@ -24,17 +24,37 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 - 登录后生成官方格式 `tdata/`（`key_datas`、`D877F783D5D3EF8Cs`、
   `D877F783D5D3EF8C/maps`），并由官方 Telegram Desktop 7.2.5 读取验证。
 - 从官方 `tdata` 导入会话；按授权身份去重，避免官方客户端重写文件后重复导入。
-- 会话列表、最近 50 条消息、纯文本发送。
-- 媒体下载：断点续传、暂停/继续/取消、进度事件、任务持久化、缩略图缓存。
+- 会话列表、最近 50 条消息、历史分页、纯文本发送。
+- Telegram Web 风格的消息操作：右键/悬停菜单、回复、复制、转发、编辑自己的文本消息、
+  为自己/所有人删除、链接自动识别、照片大图查看。
+- 实时消息推送：gotd `UpdateDispatcher` 处理新消息/编辑/删除/reaction/已读，通过
+  `chat:event` 推给前端；短消息与 `updatesTooLong` 触发重载，重连后无需手动刷新。
+- Emoji reaction：消息下方显示计数/chosen 状态，右键菜单打开表情面板，调用
+  `messages.sendReaction`。
+- 相册分组：同一 `grouped_id` 的连续消息渲染为一张 mosaic 气泡；转发/删除/下载
+  使用相册内全部消息 id。
+- 附件上传：原生多文件选择，512 KiB 分片上传，输入框内显示进度；支持 caption/回复。
+- 消息界面按 Telegram Web K 重做：15/5px 圆角、无突出尾巴、4/9/5px 内边距、
+  480px 文本列、固定头像槽、内联时间/已读、组尾头像、涂鸦壁纸画布、浅色绿色/深色钢蓝 outgoing。
+- 富文本实体、语音波形、音频、TGS/WebM 贴纸、GIF、网页预览、投票/测验、
+  清单、账单、赠送、付费媒体、Story、游戏、骰子、联系人、位置和 inline keyboard。
+- 本地快照缓存 `data/cache/`：启动/重载先用 `GetCachedChats`、`GetCachedMessages`
+  立即绘制，再被网络结果替换；图像 URL 不写入缓存，避免过期 loopback 端口。
+- 图片按需加载：缩略图/头像/照片走 loopback HTTP（`/thumb`、`/avatar`、`/photo`），
+  不再在 exe 同目录写 `data/thumbs`、`data/avatars` 的一堆 JPEG；内核只保留有界内存缓存，
+  WebView 自己缓存 HTTP 图片。旧版缓存目录启动时自动删除。
+- 消息列表切换会话时先用内存快照渲染，再后台刷新；图片不再逐张走 Wails base64 RPC。
+  会话列表与 archived/folders 并行加载；内核有 20 秒 dialog 缓存，避免刷新/重载
+  时重复 `messages.getDialogs` 触发 flood wait。
+- 媒体下载：断点续传、暂停/继续/取消、进度事件、任务持久化。
 - 设置：语言、Enter 发送、下载目录/并发/线程/模板、代理、NTP。
 - 三语言：English / 简体中文 / 日本語。
-- 全前端统一 Google Material 3 / Workspace 视觉（Roboto、Material Web 组件、
-  Material Symbols、导航栏 + 双 pane、明暗主题同一套 token）；登录页与聊天
-  主界面共用设计系统和通用组件。
+- 全前端统一 F 视觉（Radix Themes 原子层、Lucide 图标、Inter + 系统中文字体、
+  画布浮层卡片、明暗主题同一套 token）；登录页与聊天主界面共用设计系统和通用组件。
 
 明确未实现：
 
-- 消息分页、实时更新、reaction、服务端搜索、转发、编辑/删除。
+- 服务端消息搜索、typing/在线状态、定时消息、多文件一次性发送为相册。
 - Pin/Mute/Read 仅本地 UI 状态，不写回 Telegram。
 - 带本地 passcode 的 tdata 导入不支持。
 - 只导出主 DC 的 auth key；其余 DC key 由官方客户端连接时补齐。
@@ -51,7 +71,7 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 | tdata 只写 `s` 后缀 | 现代 Telegram Desktop 只保留/优先读取 `s` |
 | 导入按 user id + main DC + key id 去重 | Telegram Desktop 每次启动会重写 `key_data`（新 salt），mtime 不可靠 |
 | 手机号登录自写 `sendCode → signIn → checkPassword` | `auth.Flow` 拿不到验证码类型/长度，也不能优雅重发/重试 |
-| 全前端统一 Material 3 | 登录页/聊天/下载/设置共用 token 与通用组件，避免拼贴感 |
+| 全前端统一 F（Radix Themes） | 登录页/聊天/下载/设置共用 token 与通用原子组件，避免拼贴感 |
 | 代理密码不落盘 | 减少凭据泄露面；后续可接 Windows Credential Manager |
 
 ## 4. 代码地图
@@ -63,21 +83,25 @@ internal/kernel/
   auth.go                       二维码/手机号/2FA 状态机、AuthEvent、tdata 导出触发
   session.go                    共享已授权 Telegram client
   session_user.go               RefreshUser + ensureTData
-  chats.go                      会话/消息/媒体 DTO 映射
+  chats.go                      会话/消息/操作/媒体 DTO 与 URL 映射
+  live.go                       Telegram updates → chat:event
+  reactions.go                  表情回应
+  attachments.go                原生文件选择、上传与进度事件
+  images.go                     loopback 缩略图/头像/照片服务与内存缓存
+  thumbs.go                     缩略图尺寸与头像照片选择
   downloads.go                  下载管线、断点续传、进度
   download_store.go             下载任务持久化
-  thumbs.go                     缩略图下载/缓存
   tdesktop_import.go            官方 tdata → tgdesk 会话
   tdesktop_export.go            tgdesk 会话 → 官方 tdata
 internal/paths/paths.go         便携路径解析
 frontend/src/
   App.tsx                       应用壳、会话/消息/下载状态、事件订阅
-  components/auth/              登录页（Material 3）各步骤 + 国家选择器
-  components/chat/              会话视图、消息、媒体、输入框
+  components/auth/              登录页（F）各步骤 + 国家选择器
+  components/chat/              会话视图、消息与操作、图片/视频查看、右侧信息面板
   components/downloads/         下载管理器
-  components/layout/            TitleBar、NavDrawer、Sidebar
-  components/settings/          设置 Sheet
-  components/ui/                通用 Material 3 组件（PaneHeader、Button、Menu 等）
+  components/layout/            TitleBar、AppMenu、Sidebar
+  components/settings/          设置 Dialog
+  ui/                           F 原子组件层（Radix Themes）
   styles/                       设计 token 与基础样式
   data/countries.ts             224 个国家/地区 + 呼叫前缀
   data/telegram.ts              DTO → UI 模型、日期/媒体格式化
@@ -128,7 +152,8 @@ wails3 build
 2. 扫码或手机号登录，完成验证码/2FA。
 3. 确认 exe 同目录生成 `tdata/`（3 类文件）和 `data/tdata-export.json`。
 4. 关闭后重新启动，应直接进入会话列表。
-5. 打开一个会话、发送一条纯文本、启动/暂停/恢复一个媒体下载。
+5. 打开一个会话、发送一条纯文本、回复一条消息、添加/移除一个 reaction、发送一个附件，
+   并启动/暂停/恢复一个媒体下载。
 
 干净的测试 home（避免复制本机旧会话）：
 
@@ -168,9 +193,9 @@ $env:TGDESK_WEBVIEW_DEBUG = "1"
 
 ## 8. 已知技术债 / 下一步
 
-1. 消息分页、虚拟列表、实时 update（`updates` 事件循环）。
+1. 持久化的 updates 序列/gap recovery 与虚拟列表；当前断线只靠 `updatesTooLong` 重载。
 2. 会话 pin/mute/read 写回服务端。
-3. reaction、转发、编辑/删除、服务端搜索。
+3. 服务端搜索、typing/在线状态、定时消息、多文件一次性发相册。
 4. 下载 CDN redirect 的完整续传。
 5. 代理密码迁移到 Windows Credential Manager。
 6. 设置面板继续补齐 Telegram 真实字段（目前只保留已接后端的项）。

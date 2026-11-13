@@ -1,8 +1,6 @@
+import { TextField as RadixTextField } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
-import { Button } from "../ui/Button";
-import { Callout } from "../ui/Callout";
-import { Icon } from "../ui/Icon";
-import { IconButton } from "../ui/IconButton";
+import { Button, Callout, Icon, IconButton } from "../../ui";
 
 interface CodeInfo {
   type: string;
@@ -65,51 +63,43 @@ export function LoginCodeStep({
 
   return (
     <form
-      className="g-login-step"
+      className="f-login-step"
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit();
       }}
     >
-      <div className="g-login-toolbar">
-        <IconButton label={t("login.back")} icon="arrow_back" onClick={onBack} />
+      <div className="f-login-toolbar">
+        <IconButton label={t("login.back")} icon="arrow_back" size="1" onClick={onBack} />
       </div>
 
-      <header className="g-login-heading">
+      <header className="f-login-heading">
         <h2>{t("login.codeTitle")}</h2>
         <p>{t("login.codeSent", { phone })}</p>
       </header>
 
-      <div className="g-login-code-hint">
-        <span className="g-login-code-hint-icon">
-          <Icon name={hintIcon} size={18} />
-        </span>
+      <div className="f-hint-row">
+        <Icon name={hintIcon} size={16} />
         <span>{t(hintKey)}</span>
       </div>
 
-      <input
-        className="g-login-code"
+      <RadixTextField.Root
+        className="f-otp"
         value={code}
         onChange={(event) => onCode(event.target.value)}
-        placeholder={"•".repeat(length).split("").join(" ")}
+        placeholder={"•".repeat(length)}
         inputMode="numeric"
         autoComplete="one-time-code"
         maxLength={length}
         autoFocus
         aria-label={t("login.codeTitle")}
+        size="3"
       />
 
       {error ? <Callout tone="error">{error}</Callout> : null}
       {notice ? <Callout tone="info">{notice}</Callout> : null}
 
-      <Button
-        type="submit"
-        variant="filled"
-        size="lg"
-        fullWidth
-        loading={busy}
-        disabled={retryIn > 0}
-      >
+      <Button type="submit" size="3" fullWidth loading={busy} disabled={retryIn > 0}>
         {busy
           ? t("login.signingIn")
           : retryIn > 0
@@ -117,21 +107,20 @@ export function LoginCodeStep({
             : t("login.continue")}
       </Button>
 
-      <div className="g-login-code-actions">
-        <button
+      <div className="f-login-links">
+        <Button
           type="button"
-          className="g-login-text-link"
+          variant="ghost"
+          size="1"
           onClick={onResend}
           disabled={resendIn > 0 || busy}
         >
-          {resendIn > 0
-            ? t("login.resendIn", { seconds: resendIn })
-            : t("login.resendCode")}
-        </button>
-        <span className="g-login-action-divider" />
-        <button type="button" className="g-login-text-link" onClick={onBack}>
+          {resendIn > 0 ? t("login.resendIn", { seconds: resendIn }) : t("login.resendCode")}
+        </Button>
+        <span className="f-footer-dot" />
+        <Button type="button" variant="ghost" size="1" onClick={onBack}>
           {t("login.startOver")}
-        </button>
+        </Button>
       </div>
     </form>
   );

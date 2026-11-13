@@ -112,6 +112,7 @@ export interface ChatDTO {
     "kind": string;
     "username"?: string;
     "preview": string;
+    "avatarUrl"?: string;
     "lastMessageDate"?: number;
     "unread"?: number;
     "pinned"?: boolean;
@@ -121,6 +122,22 @@ export interface ChatDTO {
     "bot"?: boolean;
     "contact"?: boolean;
     "members"?: number;
+}
+
+/**
+ * ChatEvent is the live-update stream the kernel pushes to the frontend. The
+ * frontend applies it to the loaded history and chat list; a "resync" event asks
+ * it to reload because the update could not be mapped to a known chat.
+ */
+export interface ChatEvent {
+    "kind": string;
+    "chatId"?: string;
+    "message"?: MessageDTO | null;
+    "messageIds"?: number[] | null;
+    "messageId"?: number;
+    "reactions"?: ReactionDTO[] | null;
+    "unread"?: number;
+    "maxId"?: number;
 }
 
 export interface ChatFolderDTO {
@@ -137,6 +154,23 @@ export interface ChatFolderDTO {
     "excludeMuted"?: boolean;
     "excludeRead"?: boolean;
     "excludeArchived"?: boolean;
+}
+
+/**
+ * ChatMemberDTO is a compact participant row for the chat-info pane.
+ */
+export interface ChatMemberDTO {
+    "id": string;
+    "name": string;
+    "username"?: string;
+    "avatarUrl"?: string;
+    "admin"?: boolean;
+    "bot"?: boolean;
+}
+
+export interface ChecklistItemDTO {
+    "text": string;
+    "done": boolean;
 }
 
 export interface DownloadEvent {
@@ -159,12 +193,21 @@ export interface DownloadTaskDTO {
     "path"?: string;
 }
 
+export interface MessageButtonDTO {
+    "text": string;
+    "url"?: string;
+    "data"?: string;
+    "kind"?: string;
+}
+
 export interface MessageDTO {
     "id": number;
     "chatId": string;
     "out": boolean;
     "sender"?: string;
     "senderId"?: string;
+    "senderAvatarUrl"?: string;
+    "senderEmojiStatusUrl"?: string;
     "text"?: string;
     "date": number;
     "checks"?: string;
@@ -177,12 +220,37 @@ export interface MessageDTO {
     "serviceKind"?: string;
     "serviceActor"?: string;
     "serviceValue"?: string;
+    "groupedId"?: string;
+    "reactions"?: ReactionDTO[] | null;
     "media"?: MessageMediaDTO | null;
+    "entities"?: MessageEntityDTO[] | null;
+    "buttons"?: MessageButtonDTO[] | null;
+    "pinned"?: boolean;
+    "postAuthor"?: string;
+    "views"?: number;
+    "forwards"?: number;
+    "editDate"?: number;
+    "ttl"?: number;
+    "noForwards"?: boolean;
+    "via"?: string;
+    "signature"?: string;
+}
+
+export interface MessageEntityDTO {
+    "type": string;
+    "offset": number;
+    "length": number;
+    "url"?: string;
+    "language"?: string;
+    "userId"?: string;
 }
 
 export interface MessageMediaDTO {
     "kind": string;
     "name": string;
+    "thumbUrl"?: string;
+    "photoUrl"?: string;
+    "streamUrl"?: string;
     "size"?: string;
     "ext"?: string;
     "color"?: string;
@@ -191,12 +259,19 @@ export interface MessageMediaDTO {
     "width"?: number;
     "height"?: number;
     "mime"?: string;
+    "title"?: string;
+    "performer"?: string;
+    "waveform"?: number[] | null;
     "options"?: string[] | null;
     "voteCounts"?: number[] | null;
     "chosen"?: boolean[] | null;
     "totalVoters"?: number;
     "pollClosed"?: boolean;
     "quiz"?: boolean;
+    "correctOption": number;
+    "explanation"?: string;
+    "multipleChoice"?: boolean;
+    "publicVoters"?: boolean;
     "latitude"?: number;
     "longitude"?: number;
     "live"?: boolean;
@@ -204,10 +279,24 @@ export interface MessageMediaDTO {
     "contactName"?: string;
     "url"?: string;
     "siteName"?: string;
-    "title"?: string;
     "description"?: string;
     "emoji"?: string;
     "value"?: number;
+
+    /**
+     * Rich attachment metadata.
+     */
+    "checklist"?: ChecklistItemDTO[] | null;
+    "amount"?: number;
+    "currency"?: string;
+    "quantity"?: number;
+    "months"?: number;
+    "untilDate"?: number;
+    "paidCount"?: number;
+    "storyId"?: number;
+    "spoiler"?: boolean;
+    "round"?: boolean;
+    "externalId"?: string;
 }
 
 /**
@@ -222,6 +311,14 @@ export interface PortablePaths {
     "downloadStore": string;
 }
 
+export interface ReactionDTO {
+    "emoji": string;
+    "count": number;
+    "chosen"?: boolean;
+    "customEmojiId"?: string;
+    "url"?: string;
+}
+
 /**
  * TDataExport describes the official Telegram Desktop files written after a
  * successful login. It is exposed to the UI so the user can see where the
@@ -233,4 +330,19 @@ export interface TDataExport {
     "dc": number;
     "keyId": string;
     "createdAt": string;
+}
+
+/**
+ * UploadEvent reports attachment upload progress to the composer.
+ */
+export interface UploadEvent {
+    "id": string;
+    "chatId": string;
+    "name": string;
+    "uploaded": number;
+    "total": number;
+    "progress": number;
+    "done"?: boolean;
+    "failed"?: boolean;
+    "error"?: string;
 }

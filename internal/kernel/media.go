@@ -135,6 +135,9 @@ func (s *Service) startMediaServerLocked() error {
 	}
 	mediaPrefix := "/media/" + token + "/"
 	streamPrefix := "/stream/" + token + "/"
+	thumbPrefix := "/thumb/" + token + "/"
+	avatarPrefix := "/avatar/" + token + "/"
+	photoPrefix := "/photo/" + token + "/"
 	mux := http.NewServeMux()
 	mux.HandleFunc(mediaPrefix, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -154,6 +157,33 @@ func (s *Service) startMediaServerLocked() error {
 		}
 		s.serveVideoStream(id, w, r)
 	})
+	mux.HandleFunc(thumbPrefix, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		id := strings.TrimPrefix(r.URL.Path, thumbPrefix)
+		if id == "" || strings.Contains(id, "/") || strings.Contains(id, "\\") {
+			http.NotFound(w, r)
+			return
+		}
+		s.serveThumb(id, w, r)
+	})
+	mux.HandleFunc(avatarPrefix, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		id := strings.TrimPrefix(r.URL.Path, avatarPrefix)
+		if id == "" || strings.Contains(id, "/") || strings.Contains(id, "\\") {
+			http.NotFound(w, r)
+			return
+		}
+		s.serveAvatar(id, w, r)
+	})
+	mux.HandleFunc(photoPrefix, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		id := strings.TrimPrefix(r.URL.Path, photoPrefix)
+		if id == "" || strings.Contains(id, "/") || strings.Contains(id, "\\") {
+			http.NotFound(w, r)
+			return
+		}
+		s.servePhoto(id, w, r)
+	})
 	server := &http.Server{
 		ReadHeaderTimeout: 10 * time.Second,
 		Handler:           mux,
@@ -164,6 +194,9 @@ func (s *Service) startMediaServerLocked() error {
 	origin := "http://" + listener.Addr().String()
 	s.mediaBaseURL = origin + mediaPrefix
 	s.mediaStreamBase = origin + streamPrefix
+	s.thumbBase = origin + thumbPrefix
+	s.avatarBase = origin + avatarPrefix
+	s.photoBase = origin + photoPrefix
 	if s.videoStreams == nil {
 		s.videoStreams = make(map[string]*videoStreamSession)
 	}

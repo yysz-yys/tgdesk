@@ -1,13 +1,8 @@
 import { useMemo, useState } from "react";
+import { DropdownMenu } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import type { DownloadTask, TaskStatus } from "../../types";
-import { Button } from "../ui/Button";
-import { EmptyState } from "../ui/EmptyState";
-import { Icon } from "../ui/Icon";
-import { IconButton } from "../ui/IconButton";
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "../ui/Menu";
-import { PaneHeader } from "../ui/PaneHeader";
-import { Tabs } from "../ui/Tabs";
+import { Button, Chip, EmptyState, Icon, IconButton } from "../../ui";
 import { TaskRow } from "./TaskRow";
 
 interface DownloadsViewProps {
@@ -22,7 +17,6 @@ interface DownloadsViewProps {
   onPauseAll: () => void;
   onClearCompleted: () => void;
   onOpenDownloadFolder: () => void;
-  onMenu: () => void;
 }
 
 function EmptyTab({
@@ -56,7 +50,7 @@ function EmptyTab({
       title={title}
       description={copy}
       action={
-        <Button variant="text" icon="folder_open" onClick={onOpenFolder}>
+        <Button variant="surface" size="2" icon="folder_open" onClick={onOpenFolder}>
           {t("downloads.openFolder")}
         </Button>
       }
@@ -76,7 +70,6 @@ export function DownloadsView({
   onPauseAll,
   onClearCompleted,
   onOpenDownloadFolder,
-  onMenu,
 }: DownloadsViewProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState("active");
@@ -99,63 +92,71 @@ export function DownloadsView({
   const status: TaskStatus = tab === "completed" ? "done" : tab === "failed" ? "failed" : "active";
 
   return (
-    <section className="g-downloads" aria-label={t("downloads.title")}>
-      <PaneHeader
-        className="g-downloads-header"
-        title={t("downloads.title")}
-        subtitle={summary}
-        leading={
-          <IconButton
-            label={t("common.mainNavigation")}
-            icon="menu"
-            onClick={onMenu}
-          />
-        }
-        actions={
-          <>
+    <section className="f-page f-downloads" aria-label={t("downloads.title")}>
+      <header className="f-page-head">
+        <div className="f-page-title">
+          <h1>{t("downloads.title")}</h1>
+          <p>{summary}</p>
+        </div>
+        <div className="f-page-actions">
             <IconButton
               label={t("downloads.pauseAll")}
               icon="pause_circle"
+              size="2"
+              iconSize={18}
               disabled={running === 0}
               onClick={onPauseAll}
             />
-            <Menu>
-              <MenuTrigger asChild>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
                 <IconButton
                   label={t("downloads.menu")}
                   icon="more_vert"
+                  size="2"
+                  iconSize={18}
                   tooltip={false}
                 />
-              </MenuTrigger>
-              <MenuContent align="end">
-                <MenuItem icon={<Icon name="folder_open" size={18} />} onSelect={onOpenDownloadFolder}>
-                  {t("downloads.openFolder")}
-                </MenuItem>
-                <MenuSeparator />
-                <MenuItem icon={<Icon name="delete_sweep" size={18} />} onSelect={onClearCompleted} danger>
-                  {t("downloads.clearCompleted")}
-                </MenuItem>
-              </MenuContent>
-            </Menu>
-          </>
-        }
-      />
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content align="end" sideOffset={6} className="f-menu-content">
+                <DropdownMenu.Item className="f-menu-row" onSelect={onOpenDownloadFolder}>
+                  <Icon name="folder_open" size={15} />
+                  <span>{t("downloads.openFolder")}</span>
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item className="f-menu-row" color="red" onSelect={onClearCompleted}>
+                  <Icon name="delete_sweep" size={15} />
+                  <span>{t("downloads.clearCompleted")}</span>
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+          </div>
+        </header>
 
-      <div className="g-downloads-body">
-        <div className="g-downloads-tabs">
-          <Tabs
-            value={tab}
-            onChange={setTab}
-            ariaLabel={t("downloads.title")}
-            items={[
-              { value: "active", label: t("downloads.tabActive"), count: active.length },
-              { value: "completed", label: t("downloads.tabCompleted"), count: completed.length },
-              { value: "failed", label: t("downloads.tabFailed"), count: failed.length },
-            ]}
-          />
+        <div className="f-download-tabs" role="tablist" aria-label={t("downloads.title")}>
+          <Chip
+            active={tab === "active"}
+            count={active.length}
+            onClick={() => setTab("active")}
+          >
+            {t("downloads.tabActive")}
+          </Chip>
+          <Chip
+            active={tab === "completed"}
+            count={completed.length}
+            onClick={() => setTab("completed")}
+          >
+            {t("downloads.tabCompleted")}
+          </Chip>
+          <Chip
+            active={tab === "failed"}
+            count={failed.length}
+            onClick={() => setTab("failed")}
+          >
+            {t("downloads.tabFailed")}
+          </Chip>
         </div>
 
-        <div className="g-downloads-scroll" role="tabpanel">
+        <div className="f-download-scroll" role="tabpanel">
           {tasks.length === 0 ? (
             <EmptyTab
               status={status}
@@ -163,7 +164,7 @@ export function DownloadsView({
               onOpenFolder={onOpenDownloadFolder}
             />
           ) : (
-            <div className="g-task-list">
+            <div className="f-task-list">
               {tasks.map((task) => (
                 <TaskRow
                   key={task.id}
@@ -178,7 +179,6 @@ export function DownloadsView({
             </div>
           )}
         </div>
-      </div>
-    </section>
+      </section>
   );
 }

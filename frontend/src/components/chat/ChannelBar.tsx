@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { Chat } from "../../types";
-import { Button } from "../ui/Button";
-import { IconButton } from "../ui/IconButton";
+import { Button, IconButton } from "../../ui";
 
 interface ChannelBarProps {
   chat: Chat;
@@ -15,8 +14,8 @@ export function ChannelBar({ chat, onToast }: ChannelBarProps) {
   return (
     <div className="g-channel-bar">
       <Button
-        variant="text"
-        size="sm"
+        variant="ghost"
+        size="1"
         icon={muted ? "notifications" : "notifications_off"}
         onClick={() => onToast(t("chat.channelNotificationsSoon"))}
       >
@@ -25,6 +24,7 @@ export function ChannelBar({ chat, onToast }: ChannelBarProps) {
       <IconButton
         label={t("chat.sendGift")}
         icon="redeem"
+        size="1"
         onClick={() => onToast(t("chat.giftSoon"))}
       />
     </div>

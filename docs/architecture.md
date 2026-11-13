@@ -69,13 +69,19 @@ Wails runtime `Window` API for minimise/maximise/close and CSS
 
 - auth state (`authMu`, auth channels, cached `AuthUser`);
 - one shared Telegram session (`sessionMu`, `session`);
-- chat request serialization (`chatMu`);
-- download tasks and their persistence (`downloadMu`, `downloadSem`).
+- write serialization (`chatMu`); reads (dialogs, history, members, folders)
+  run concurrently so a slow/retried auxiliary call cannot block the chat view;
+- a short-lived dialogs cache (20 s, invalidated on archive changes and session
+  reset) to keep chat-list re-renders cheap and avoid duplicate
+  `messages.getDialogs` flood waits. Dialog mapping reads `dialog.folder_id`;
+  folder 1 is marked archived even when it appears in the main dialog response;
+- download tasks and their persistence (`downloadMu`, `downloadSem`);
+- a bounded in-memory image cache and the loopback image server.
 
 The shared session is keyed by proxy + NTP. The first call creates a tdl client,
 opens the `tgdesk` namespace in the tdl bbolt DB and waits for ping. A call with
-a different proxy/NTP closes and recreates it. Downloads and chat/media requests
-reuse this client.
+a different proxy/NTP closes and recreates it. Downloads, image requests and chat
+requests reuse this client.
 
 Chat operations are serialized because they share the client and the kernel
 wants predictable ordering. Downloads use their own semaphore (two active
@@ -157,28 +163,95 @@ Telegram Desktop fills the rest while connecting.
 `internal/kernel/chats.go`:
 
 - `GetChats` uses `query.GetDialogs`, maps users/chats to `ChatDTO`, and encodes
-  peer IDs as opaque `kind:id:accessHash` strings.
+  peer IDs as opaque `kind:id:accessHash` strings. Avatar URLs are built from the
+  `userProfilePhoto`/`chatPhoto` embedded in the dialog response, so no extra
+  full-user call is required just to show an avatar.
 - `GetMessages` uses `MessagesGetHistory` (latest 50 by default), maps normal
   messages **and service messages** to `MessageDTO`, then reverses the list to
-  oldest-first.
-- `SendMessage` uses `MessagesSendMessage` with a nanosecond `RandomID`.
-- `GetMessageThumb` resolves one message, picks the small Telegram photo size or
-  document thumb, downloads only that small file, caches it in `data/thumbs` and
-  returns base64 JPEG.
+  oldest-first. Thumbnails (`media.thumbUrl`), full photos (`media.photoUrl`) and
+  sender avatars (`senderAvatarUrl`) are registered with the loopback image
+  server while mapping. Replies whose target is older than the page are resolved
+  in one batch so the quote shows the original text.
+- `SendMessage` uses `MessagesSendMessage` with a nanosecond `RandomID` and an
+  optional `InputReplyToMessage`.
+- `EditMessage`, `DeleteMessages` and `ForwardMessages` cover the Telegram Web
+  message actions; channel revokes go through `channels.deleteMessages`.
+- `GetChatMembers` includes `avatarUrl` from the participant users.
 
 DTO families:
 
 - `MessageDTO`: text, sender, time, outgoing/check state, forward header,
-  service action fields, media.
+  service action fields, media, sender avatar URL.
 - `MessageMediaDTO`: kind (`photo`, `video`, `audio`, `file`, `poll`,
   `location`, `contact`), name/size/ext/MIME, dimensions/duration, poll
-  options/votes, coordinates, contact phone.
+  options/votes, coordinates, contact phone, thumbnail/photo URLs.
 
 Frontend mapping is centralized in `frontend/src/data/telegram.ts`, including
 date/time formatting, media normalization and localized service-message text.
 
-Thumbnail loading is lazy (`MediaThumb.tsx` + IntersectionObserver), cached in
-memory per chat/message, and never downloads full media.
+Images are loaded natively through loopback URLs (`/thumb`, `/avatar`, `/photo`)
+and cached by the WebView; the kernel keeps only a bounded in-memory image cache.
+The old `data/thumbs` and `data/avatars` per-image files are no longer written and
+are removed on startup. Video/conversation scrolling stays lazy.
+
+## Local snapshots and fast paint
+
+`data/cache/chats.json` stores the last main dialog list and
+`data/cache/messages/<sha1>.json` stores the latest 50 messages for every chat
+the user has opened (capped at 300 files, oldest pruned). The snapshots are
+written asynchronously after a successful network call, with all process-local
+loopback image URLs stripped. `GetCachedChats` / `GetCachedMessages` never touch
+the network; the React app paints them first and replaces them in place when
+`GetChats` / `GetMessages` return. This is the local-database-first behaviour of
+official clients without adding a second database dependency. Logout removes
+`data/cache/`.
+
+## Live updates
+
+The shared session is created with a `telegram.UpdateHandler`
+(`internal/kernel/live.go`):
+
+- A `tg.UpdateDispatcher` handles new/edit/delete messages (normal + channel),
+  reaction changes, read receipts and channel-too-long updates.
+- Short updates (`updateShortMessage`, `updateShortChatMessage`,
+  `updateShortSentMessage`) bypass the dispatcher; short private messages are
+  mapped directly, while short group messages and `updatesTooLong` request a
+  frontend resync instead of rendering a sender-less bubble.
+- Each event becomes a `ChatEvent` (`message`, `edit`, `delete`, `reaction`,
+  `read`, `readOutbox`, `resync`) emitted as `chat:event`. The frontend merges it
+  into the open history and chat list, or reloads on a resync.
+- A peer index (`user:id`, `chat:id`, `channel:id` → opaque chat id) is populated
+  from dialogs/history so short updates can be routed without entities.
+
+Live updates are best-effort while connected. There is no persisted updates
+sequence/gap recovery; `UpdatesTooLong` and channel gaps trigger a reload. As a
+safety net the frontend polls `GetNewMessages(chatID, afterID)` every two seconds
+for the open chat only. That method asks Telegram for history newer than the
+newest rendered message id (`min_id`), so transient update-stream gaps cannot
+leave the conversation stale, and existing media URLs are not re-registered or
+re-downloaded by the poll. Focus/visibility changes trigger an immediate delta
+sync.
+
+## Attachments, reactions and albums
+
+- `SendAttachment` opens the file, detects its MIME type, uploads it with
+  gotd's uploader (512 KiB parts, four threads) and sends a photo, video, audio
+  or plain document with an optional caption/reply. Progress is emitted as
+  `upload:event`.
+- `SendReaction` toggles an emoji reaction through `messages.sendReaction`;
+  reactions are also mapped from history and live updates into `MessageDTO`.
+- `MessageDTO` carries Telegram text entities, inline-keyboard buttons, views,
+  signatures, edited/ttl flags, premium sender emoji-status URLs, and rich media
+  metadata (waveforms, poll solutions, checklist items, invoices, giveaways,
+  paid media).
+- The message surface follows Telegram Web K's 15 px/5 px bubble geometry, 480 px
+  text width, doodle wallpaper canvas, fixed avatar gutter, grouped avatars and
+  fully rounded bubbles. Media use intrinsic aspect ratio; voice/audio/TGS
+  stickers stream from the loopback range endpoint.
+- `MessageDTO.GroupedID` carries Telegram's album id as a string (int64-safe).
+  The frontend groups consecutive messages with the same id into one mosaic
+  bubble; forward/delete/download actions use all album message ids.
+- `ChooseFiles` wraps the native Wails multi-file picker.
 
 ## Downloads
 
@@ -203,7 +276,7 @@ memory per chat/message, and never downloads full media.
 - chat list, selected chat and message loading;
 - language, proxy and download settings effects;
 - Wails event subscriptions;
-- toasts, download state and the settings sheet.
+- toasts, download state and the settings dialog.
 
 State split:
 
@@ -218,23 +291,29 @@ Component layers:
 - `components/auth` — one component per login step plus `CountryPicker`,
   `LoginLoading`, `BrandMark` and the proxy sub-panel. `LoginShell` owns the
   page surface; `LoginScreen` owns the state machine and `auth:event` handling.
-- `components/chat` — conversation is split into header, search, list, bubble,
-  media thumb, composer, channel bar and selection bar.
-- `components/layout` — caption bar, navigation drawer and conversation list.
-- `components/settings` — settings sheet; it uses the shared `Sheet`,
-  `SegmentedControl`, select, switch, slider and field primitives.
-- `components/ui` — the Material 3 base layer (`PaneHeader`, `Button`,
-  `TextField`, `Menu`, `Sheet`, `SegmentedControl`, `Avatar`, …). Every feature
-  imports these instead of recreating controls.
+- `components/chat` — conversation is split into header, search, list, bubble
+  with hover/context actions, media thumbnail, photo/video viewers, forward
+  picker, composer with reply/edit banner, channel bar and the right info pane.
+- `components/layout` — caption bar, shared app menu and conversation list.
+- `components/settings` — the F settings dialog, composed from `src/ui` fields,
+  segmented control, switch, slider and select.
+- `src/ui` — the F atom layer (Radix Themes backed): buttons, fields, menu,
+  dialog, callout, badge, chip, empty state, avatar, progress, spinner, toast,
+  context menu and the Lucide icon map. Every feature imports these instead of
+  recreating controls.
+- `components/layout/shell-f.css`, `components/downloads/downloads-f.css`,
+  `components/settings/settings-f.css` and `components/chat/dialogs-f.css` —
+  feature layout that composes the atoms.
 
 Styling:
 
-- `styles/tokens.css` is the single source of colour, type, spacing, shape and
-  motion tokens. Light and dark Material 3 colour roles are defined together.
+- `styles/tokens.css` keeps the legacy `--app-*` aliases used by the chat media
+  and window CSS, defined directly from F values (no Material roles).
 - `styles/base.css` owns element defaults, focus-visible rings, scrollbars and
-  the Material Symbols Rounded helper.
-- `components/ui/ui.css` owns the shared primitive surfaces; feature CSS is
-  layout-only and must not restyle `@material/web` internals.
+  the reduced-motion guard. The Material Symbols helper is gone.
+- `src/ui/f.css` owns the F canvas/surface/typography tokens and the shared
+  field/dialog/menu patterns. Feature CSS is layout-only and must not invent
+  raw colours or one-off control styles.
 - `frontend/src/data/countries.ts` holds the ISO/dial-code table; display names
   are localized at runtime with `Intl.DisplayNames`.
 - Layout is designed for the 1107×725 reference window and verified with CDP
@@ -244,6 +323,8 @@ Styling:
 
 - `auth:event` — auth state transitions.
 - `download:event` — task updates/removal.
+- `chat:event` — live message/edit/delete/reaction/read/resync events.
+- `upload:event` — attachment upload progress/completion/failure.
 
 Generated event bindings live under `frontend/bindings`. If an event payload or
 name changes, update both Go and the frontend subscription and regenerate.
@@ -258,8 +339,8 @@ name changes, update both Go and the frontend subscription and regenerate.
 | Last tdata export | `data/tdata-export.json` | user/DC/key id/path for the UI |
 | Import fingerprint | `data/.telegram-desktop-import` | prevents re-import loops |
 | Download metadata | `data/downloads.json` | portable task store |
-| Thumbnail cache | `data/thumbs/` | small JPEGs, safe to delete |
-| WebView state | `data/webview/` | language/settings/drafts |
+| Image cache | memory + `data/webview/` | loopback URLs; no JPEGs beside the exe |
+| WebView state | `data/webview/` | language/settings/drafts/HTTP image cache |
 | Official tdata | `tdata/` | never tgdesk session files |
 | Download output | `downloads/` | configurable in settings |
 
@@ -268,7 +349,7 @@ name changes, update both Go and the frontend subscription and regenerate.
 - **New Telegram operation:** add a kernel method with DTOs, wrap it in
   `internal/app.Service`, regenerate bindings, call it from App/UI.
 - **New UI page:** create a `components/<area>` component and CSS, wire it in
-  `App.tsx` or the settings sheet, add locale keys, verify with a screenshot.
+  `App.tsx` or the settings dialog, add locale keys, verify with a screenshot.
 - **New settings field:** add it to `AppSettings` + `defaultSettings`, add a
   control, persist via `useSettings`, and apply any DOM effect in `App.tsx`.
 - **New event:** define a plain Go event struct, call the sink from the kernel,
@@ -279,12 +360,14 @@ name changes, update both Go and the frontend subscription and regenerate.
 ## Known technical debt
 
 - Chat pin/mute/mark-read are local UI state.
-- History is a fixed latest-50 snapshot; no pagination or live update loop.
+- History loads 50 messages at a time and paginates on demand; live updates are
+  delivered while the client is connected but there is no persisted updates
+  gap-recovery state.
 - Only the main-DC auth key is exported to tdata; Telegram Desktop fills the
   remaining DC keys when it connects.
 - Passcode-protected tdata is unsupported.
-- Login is Material 3 light while the chat shell is Telegram dark; a unified
-  theme is a future design decision.
+- `chat.css` still contains legacy structural class names for message media;
+  the palette is F, but individual media shapes can be refined opportunistically.
 - Reference screenshots of a private account must never be committed; use the
   isolated-home workflow for visual checks.
 - Non-Windows build scaffolding exists but is not release-tested.

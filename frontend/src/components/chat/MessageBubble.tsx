@@ -1,95 +1,205 @@
+import { Fragment, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Browser } from "@wailsio/runtime";
-import type { Message } from "../../types";
-import { Icon } from "../ui/Icon";
-import { PeerAvatar } from "./PeerAvatar";
-import type { ChatAvatarLoader } from "./ChatAvatar";
+import type { Message, Reaction } from "../../types";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "../ui/ContextMenu";
-import { MediaThumb } from "./MediaThumb";
-import { LocationPreview } from "./LocationPreview";
+  Icon,
+} from "../../ui";
+import { PeerAvatar } from "./PeerAvatar";
+import { MessageMediaView, isBleedMedia } from "./MessageMediaView";
 
 export interface MessageAuthor {
   name: string;
   initials: string;
   color: string;
+  avatarUrl?: string;
 }
 
 interface MessageBubbleProps {
   message: Message;
   author: MessageAuthor;
   replyTo?: Message;
-  selected: boolean;
+  album?: Message[];
   showSender?: boolean;
   showAvatar?: boolean;
+  showAvatarSpace?: boolean;
   grouped?: boolean;
   lastInGroup?: boolean;
-  onLoadAvatar: ChatAvatarLoader;
   onPlayVideo?: (message: Message) => void;
-  onToggleSelect: (id: number) => void;
-  onDownloadMessage?: (id: number) => void;
-  onLoadThumbnail: (chatID: string, messageID: number) => Promise<string>;
+  onOpenPhoto?: (message: Message) => void;
+  onReply?: (message: Message) => void;
+  onEdit?: (message: Message) => void;
+  onForward?: (message: Message, group?: Message[]) => void;
+  onDelete?: (message: Message, revoke: boolean, group?: Message[]) => void;
+  onJumpToMessage?: (id: number) => void;
+  onDownloadMessage?: (ids: number[]) => void;
+  onReact?: (message: Message, reaction: Reaction | null) => void;
+  onOpenReactions?: (message: Message) => void;
   onToast: (message: string) => void;
+}
+
+interface MessageAction {
+  key: string;
+  label: string;
+  icon: string;
+  danger?: boolean;
+  separatorBefore?: boolean;
+  run: () => void;
 }
 
 export function MessageBubble({
   message,
   author,
   replyTo,
-  selected,
+  album,
   showSender,
   showAvatar = false,
+  showAvatarSpace = false,
   grouped = false,
   lastInGroup = true,
-  onLoadAvatar,
   onPlayVideo,
-  onToggleSelect,
+  onOpenPhoto,
+  onReply,
+  onEdit,
+  onForward,
+  onDelete,
+  onJumpToMessage,
   onDownloadMessage,
-  onLoadThumbnail,
+  onReact,
+  onOpenReactions,
   onToast,
 }: MessageBubbleProps) {
   const { t } = useTranslation();
-  const hasText = Boolean(message.text?.trim());
+  const messageText =
+    message.text?.trim()
+      ? message.text
+      : (album?.find((item) => item.text?.trim())?.text ?? "");
+  const hasText = Boolean(messageText.trim());
+  const hasReactions = Boolean(message.reactions?.length);
   const media = message.media;
 
-  const openLocation = () => {
-    if (media?.latitude === undefined || media.longitude === undefined) {
-      return;
-    }
-    void Browser.OpenURL(
-      `https://www.openstreetmap.org/?mlat=${media.latitude}&mlon=${media.longitude}#map=15/${media.latitude}/${media.longitude}`,
-    );
-  };
-
-  const copyPhone = async () => {
-    if (!media?.phone) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(media.phone);
-      onToast(t("chat.phoneCopied"));
-    } catch {
-      onToast(t("chat.clipboardError"));
-    }
-  };
-
   const copyText = async () => {
-    if (!message.text) {
+    if (!messageText) {
       onToast(t("chat.noText"));
       return;
     }
     try {
-      await navigator.clipboard.writeText(message.text);
+      await navigator.clipboard.writeText(messageText);
       onToast(t("chat.copied"));
     } catch {
       onToast(t("chat.clipboardError"));
     }
   };
+
+  const jumpToReply = () => {
+    if (message.replyToId) {
+      onJumpToMessage?.(message.replyToId);
+    }
+  };
+
+  const canEdit =
+    !(album && album.length > 1) &&
+    message.out &&
+    hasText &&
+    !media &&
+    Boolean(onEdit);
+  const actions: MessageAction[] = [];
+  if (onOpenReactions) {
+    actions.push({
+      key: "react",
+      label: t("chat.react"),
+      icon: "mood",
+      run: () => onOpenReactions(message),
+    });
+  }
+  if (onReply) {
+    actions.push({
+      key: "reply",
+      label: t("chat.reply"),
+      icon: "reply",
+      run: () => onReply(message),
+    });
+  }
+  if (hasText) {
+    actions.push({
+      key: "copy",
+      label: t("chat.copyText"),
+      icon: "content_copy",
+      run: () => void copyText(),
+    });
+  }
+  if (onForward) {
+    actions.push({
+      key: "forward",
+      label: t("chat.forward"),
+      icon: "forward",
+      run: () => onForward(message, album),
+    });
+  }
+  if (canEdit && onEdit) {
+    actions.push({
+      key: "edit",
+      label: t("chat.edit"),
+      icon: "edit",
+      run: () => onEdit(message),
+    });
+  }
+  if (media && onDownloadMessage) {
+    actions.push({
+      key: "download",
+      label: t("common.download"),
+      icon: "download",
+      separatorBefore: actions.length > 0,
+      run: () => onDownloadMessage(album?.map((item) => item.id) ?? [message.id]),
+    });
+  }
+  if (onDelete) {
+    const deleteItems: MessageAction[] = [];
+    if (message.out) {
+      deleteItems.push({
+        key: "delete-all",
+        label: t("chat.deleteForEveryone"),
+        icon: "delete_forever",
+        danger: true,
+        run: () => onDelete(message, true, album),
+      });
+    }
+    deleteItems.push({
+      key: "delete-me",
+      label: message.out ? t("chat.deleteForMe") : t("chat.delete"),
+      icon: "delete",
+      danger: true,
+      run: () => onDelete(message, false, album),
+    });
+    deleteItems.forEach((item, index) => {
+      item.separatorBefore = index === 0;
+      actions.push(item);
+    });
+  }
+
+  const albumItems = album && album.length > 1 ? album : undefined;
+  const bleed = Boolean(media && isBleedMedia(media));
+  const sticker = media?.kind === "sticker";
+  const mediaAfterText = media?.kind === "webpage";
+  const bareMedia = Boolean(
+    media &&
+      !hasText &&
+      !hasReactions &&
+      !message.replyToId &&
+      !message.forwarded &&
+      !message.buttons?.length &&
+      !message.postAuthor &&
+      (media.kind === "photo" ||
+        media.kind === "video" ||
+        media.kind === "video_note" ||
+        media.kind === "animation"),
+  );
 
   return (
     <ContextMenu>
@@ -97,39 +207,55 @@ export function MessageBubble({
         <div
           className="g-message-row"
           data-out={message.out || undefined}
-          data-selected={selected || undefined}
           data-grouped={grouped || undefined}
           data-last={lastInGroup || undefined}
           data-avatars={showAvatar || undefined}
+          data-avatar-space={showAvatarSpace || undefined}
+          data-bleed={bleed || undefined}
+          data-sticker={sticker || undefined}
+          data-bare-media={bareMedia || undefined}
         >
-          <button
-            type="button"
-            className="g-message-select"
-            tabIndex={selected ? 0 : -1}
-            aria-label={selected ? t("chat.deselectMessage") : t("chat.selectMessage")}
-            onClick={() => onToggleSelect(message.id)}
-          >
-            {selected ? <Icon name="check" size={13} /> : null}
-          </button>
-
-          {showAvatar ? (
+          {showAvatar && !message.out ? (
             <PeerAvatar
               className="g-message-avatar"
               peerID={message.senderId}
               title={author.name}
               initials={author.initials}
               color={author.color}
+              photo={author.avatarUrl}
               size={32}
-              loader={onLoadAvatar}
             />
           ) : null}
 
           <div className="g-message-stack">
-            {showSender ? (
-              <span className="g-message-author">{author.name}</span>
-            ) : null}
-
-            <div className="g-message-bubble">
+            <div className="g-message-content">
+            <div
+              className="g-message-bubble"
+              data-bleed={bleed || undefined}
+              data-sticker={sticker || undefined}
+              data-media={media ? true : undefined}
+            >
+              {showSender ? (
+                <span
+                  className="g-message-author"
+                  style={{ "--peer-color": author.color } as CSSProperties}
+                >
+                  <span>{author.name}</span>
+                  {message.senderEmojiStatusUrl ? (
+                    <img
+                      className="g-message-emoji-status"
+                      src={message.senderEmojiStatusUrl}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      draggable={false}
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : null}
+                </span>
+              ) : null}
               {message.forwarded ? (
                 <span className="g-message-forwarded">
                   <Icon name="forward" size={14} />
@@ -140,7 +266,12 @@ export function MessageBubble({
               ) : null}
 
               {message.replyToId ? (
-                <div className="g-reply-quote">
+                <button
+                  type="button"
+                  className="g-reply-quote"
+                  onClick={jumpToReply}
+                  title={t("chat.jumpToReply")}
+                >
                   <span className="g-reply-bar" aria-hidden="true" />
                   <span className="g-reply-copy">
                     <span className="g-reply-author">
@@ -157,289 +288,341 @@ export function MessageBubble({
                         t("chat.replyToMessage")}
                     </span>
                   </span>
-                </div>
+                </button>
               ) : null}
 
-              {media?.kind === "poll" ? (
-                <div className="g-poll">
-                  <div className="g-poll-question">
-                    {media.name}
-                    {media.quiz ? (
-                      <span className="g-poll-quiz">{t("media.quiz")}</span>
-                    ) : null}
-                  </div>
-                  <div className="g-poll-options">
-                    {(media.options ?? []).map((option, index) => {
-                      const voters = media.voteCounts?.[index] ?? 0;
-                      const total = media.totalVoters ?? 0;
-                      const percent = total > 0 ? Math.round((voters / total) * 100) : 0;
-                      return (
-                        <div
-                          className="g-poll-option"
-                          data-chosen={media.chosen?.[index] === true || undefined}
-                          key={`${option}-${index}`}
-                        >
-                          <span className="g-poll-radio">
-                            {media.chosen?.[index] ? <Icon name="check" size={12} /> : null}
-                          </span>
-                          <span className="g-poll-option-copy">
-                            <span className="g-poll-option-text">{option}</span>
-                            {total > 0 ? (
-                              <span className="g-poll-option-percent">{percent}%</span>
-                            ) : null}
-                          </span>
-                          {total > 0 ? (
-                            <span className="g-poll-track" aria-hidden="true">
-                              <span
-                                className="g-poll-fill"
-                                style={{ width: `${percent}%` }}
-                              />
-                            </span>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="g-poll-footer">
-                    {media.totalVoters
-                      ? t("media.votes", { count: media.totalVoters })
-                      : t("media.poll")}
-                    {media.pollClosed ? ` · ${t("media.finalResults")}` : ""}
-                  </div>
-                </div>
-              ) : media?.kind === "location" ? (
-                <button
-                  type="button"
-                  className="g-location-card"
-                  onClick={openLocation}
-                  title={t("chat.openMap")}
-                >
-                  <LocationPreview
-                    latitude={media.latitude ?? 0}
-                    longitude={media.longitude ?? 0}
-                  />
-                  <span className="g-location-copy">
-                    <span className="g-location-title">
-                      <Icon name="location_on" size={15} />
-                      {media.live ? t("media.liveLocation") : t("media.location")}
-                    </span>
-                    <span className="g-location-coords">
-                      {media.latitude?.toFixed(4)}, {media.longitude?.toFixed(4)}
-                    </span>
-                  </span>
-                </button>
-              ) : media?.kind === "venue" ? (
-                <button
-                  type="button"
-                  className="g-location-card"
-                  onClick={openLocation}
-                  title={t("chat.openMap")}
-                >
-                  <LocationPreview
-                    latitude={media.latitude ?? 0}
-                    longitude={media.longitude ?? 0}
-                  />
-                  <span className="g-location-copy">
-                    <span className="g-location-title">
-                      <Icon name="place" size={15} />
-                      {media.title || media.name || t("media.location")}
-                    </span>
-                    <span className="g-location-coords">
-                      {media.description || t("media.venue")}
-                    </span>
-                  </span>
-                </button>
-              ) : media?.kind === "contact" ? (
-                <button
-                  type="button"
-                  className="g-contact-card"
-                  onClick={() => void copyPhone()}
-                  title={t("chat.copyPhone")}
-                >
-                  <span className="g-contact-avatar">
-                    {(media.contactName || media.name || "?").slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className="g-contact-copy">
-                    <span className="g-contact-name">
-                      {media.contactName || media.name || t("media.contact")}
-                    </span>
-                    <span className="g-contact-phone">
-                      <Icon name="call" size={13} />
-                      {media.phone}
-                    </span>
-                  </span>
-                </button>
-              ) : media?.kind === "sticker" ? (
-                <div className="g-sticker-card">
-                  <MediaThumb
-                    chatID={message.chatId}
-                    messageID={message.id}
-                    alt={media.name}
-                    onLoad={onLoadThumbnail}
-                  />
-                  {media.emoji ? (
-                    <span className="g-sticker-emoji">{media.emoji}</span>
+              {!mediaAfterText && media ? (
+                <MessageMediaView
+                  message={message}
+                  album={albumItems}
+                  onOpenPhoto={onOpenPhoto}
+                  onPlayVideo={onPlayVideo}
+                  onToast={onToast}
+                />
+              ) : null}
+
+              {hasText ? (
+                <div className="g-message-caption">
+                  <RichText text={messageText} entities={message.entities} />
+                  {!mediaAfterText && !hasReactions ? (
+                    <MessageMeta message={message} />
                   ) : null}
                 </div>
-              ) : media?.kind === "animation" ? (
-                <div className="g-video-card g-animation-card">
-                  <MediaThumb
-                    chatID={message.chatId}
-                    messageID={message.id}
-                    alt={media.name}
-                    onLoad={onLoadThumbnail}
-                  />
-                  <span className="g-animation-badge">GIF</span>
-                  <span className="g-video-meta">{media.size}</span>
-                </div>
-              ) : media?.kind === "webpage" ? (
-                <button
-                  type="button"
-                  className="g-webpage-card"
-                  onClick={() => {
-                    if (media.url) {
-                      void Browser.OpenURL(media.url);
-                    }
-                  }}
-                >
-                  <span className="g-webpage-icon">
-                    <Icon name="link" size={20} />
-                  </span>
-                  <span className="g-webpage-copy">
-                    <span className="g-webpage-site">
-                      {media.siteName || media.url || t("media.webpage")}
-                    </span>
-                    <span className="g-webpage-title">
-                      {media.title || media.name || t("media.webpage")}
-                    </span>
-                    {media.description ? (
-                      <span className="g-webpage-description">{media.description}</span>
-                    ) : null}
-                  </span>
-                  <Icon name="open_in_new" size={16} className="g-webpage-open" />
-                </button>
-              ) : media?.kind === "dice" ? (
-                <div className="g-dice-card">
-                  <span className="g-dice-emoji">{media.emoji || "🎲"}</span>
-                  <span className="g-dice-value">{media.value || "—"}</span>
-                </div>
-              ) : media?.kind === "video" || media?.kind === "video_note" ? (
-                <button
-                  type="button"
-                  className="g-video-card g-video-card--playable"
-                  aria-label={t("chat.playVideo")}
-                  onClick={() => onPlayVideo?.(message)}
-                >
-                  <MediaThumb
-                    chatID={message.chatId}
-                    messageID={message.id}
-                    alt={media.name}
-                    onLoad={onLoadThumbnail}
-                  />
-                  <span className="g-video-play" aria-hidden="true">
-                    <Icon name="play_arrow" size={26} filled />
-                  </span>
-                  <span className="g-video-meta">
-                    {media.duration ? formatDuration(media.duration) : media.size}
-                  </span>
-                </button>
-              ) : media?.kind === "photo" ? (
-                <div className="g-photo-card">
-                  <MediaThumb
-                    chatID={message.chatId}
-                    messageID={message.id}
-                    alt={media.name || t("media.photo")}
-                    onLoad={onLoadThumbnail}
-                  />
-                  <span className="g-photo-caption">{media.name || t("media.photo")}</span>
-                </div>
-              ) : media ? (
-                <div className="g-file-card">
-                  <span
-                    className="g-file-icon"
-                    style={{ background: media.color ?? "var(--app-primary)" }}
-                  >
-                    <Icon
-                      name={
-                        media.kind === "audio"
-                          ? "audio_file"
-                          : media.kind === "voice"
-                            ? "mic"
-                            : media.kind === "game"
-                              ? "sports_esports"
-                                : media.kind === "invoice"
-                                  ? "receipt_long"
-                                  : media.kind === "story"
-                                    ? "auto_awesome"
-                                    : media.kind === "giveaway"
-                                      ? "redeem"
-                                      : media.kind === "paid"
-                                        ? "paid"
-                                        : media.kind === "checklist"
-                                          ? "checklist"
-                                          : media.kind === "unsupported"
-                                            ? "help"
-                                            : "description"
-                      }
-                      size={22}
-                    />
-                  </span>
-                  <span className="g-file-copy">
-                    <span className="g-file-name">{media.name}</span>
-                    <span className="g-file-size">
-                      {media.size}
-                      {media.duration ? ` · ${formatDuration(media.duration)}` : ""}
-                      {media.width && media.height ? ` · ${media.width}×${media.height}` : ""}
-                      {media.ext ? ` · ${media.ext}` : ""}
-                    </span>
-                  </span>
-                  <Icon name="download" size={19} className="g-file-download" />
+              ) : null}
+
+              {mediaAfterText && media ? (
+                <MessageMediaView
+                  message={message}
+                  album={albumItems}
+                  onOpenPhoto={onOpenPhoto}
+                  onPlayVideo={onPlayVideo}
+                  onToast={onToast}
+                />
+              ) : null}
+
+              {!hasReactions && (mediaAfterText || !hasText) ? (
+                <MessageMeta message={message} />
+              ) : null}
+
+              {message.postAuthor ? (
+                <span className="g-message-signature">{message.postAuthor}</span>
+              ) : null}
+
+              {message.buttons && message.buttons.length > 0 ? (
+                <div className="g-message-buttons">
+                  {message.buttons.map((button, index) => (
+                    <button
+                      type="button"
+                      key={`${button.text}-${index}`}
+                      className="g-message-button"
+                      onClick={() => {
+                        if (button.url) {
+                          void Browser.OpenURL(button.url);
+                        } else {
+                          onToast(t("chat.buttonUnavailable"));
+                        }
+                      }}
+                    >
+                      {button.text}
+                    </button>
+                  ))}
                 </div>
               ) : null}
 
-              {hasText ? <span className="g-message-text">{message.text}</span> : null}
+              {hasReactions ? (
+                <div className="g-message-reactions">
+                  {message.reactions?.map((reaction) => (
+                    <button
+                      type="button"
+                      key={reaction.emoji}
+                      className="g-reaction"
+                      data-chosen={reaction.chosen || undefined}
+                      aria-pressed={reaction.chosen || false}
+                      title={t("chat.toggleReaction", { emoji: reaction.emoji })}
+                      onClick={() =>
+                        onReact?.(message, reaction.chosen ? null : reaction)
+                      }
+                    >
+                      {reaction.url ? (
+                        <img
+                          className="g-reaction-emoji g-reaction-custom"
+                          src={reaction.url}
+                          alt={reaction.emoji}
+                          loading="lazy"
+                          decoding="async"
+                          draggable={false}
+                        />
+                      ) : (
+                        <span className="g-reaction-emoji">{reaction.emoji}</span>
+                      )}
+                      <span className="g-reaction-count">{reaction.count}</span>
+                    </button>
+                  ))}
+                  <span className="g-message-reaction-meta">
+                    <MessageMeta message={message} />
+                  </span>
+                </div>
+              ) : null}
+            </div>
 
-              <span className="g-message-meta">
-                <span>{message.time}</span>
-                {message.out ? (
-                  message.checks === "read" ? (
-                    <Icon name="done_all" size={14} className="g-message-checks" />
-                  ) : (
-                    <Icon name="done" size={14} className="g-message-checks" />
-                  )
-                ) : null}
-              </span>
+
             </div>
           </div>
         </div>
       </ContextMenuTrigger>
 
       <ContextMenuContent>
-        {media && onDownloadMessage ? (
-          <ContextMenuItem
-            icon={<Icon name="download" size={18} />}
-            onSelect={() => onDownloadMessage(message.id)}
-          >
-            {t("common.download")}
-          </ContextMenuItem>
-        ) : null}
-        <ContextMenuItem
-          icon={<Icon name="select_all" size={18} />}
-          onSelect={() => onToggleSelect(message.id)}
-        >
-          {selected ? t("chat.deselect") : t("chat.select")}
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem icon={<Icon name="content_copy" size={18} />} onSelect={() => void copyText()}>
-          {t("chat.copyText")}
-        </ContextMenuItem>
+        {actions.map((action) => (
+          <MessageContextItem
+            key={action.key}
+            action={action}
+            separator={action.separatorBefore}
+          />
+        ))}
       </ContextMenuContent>
     </ContextMenu>
   );
 }
 
-function formatDuration(seconds: number): string {
-  const value = Math.max(0, Math.round(seconds));
-  const minutes = Math.floor(value / 60);
-  return `${minutes}:${String(value % 60).padStart(2, "0")}`;
+function MessageContextItem({
+  action,
+  separator,
+}: {
+  action: MessageAction;
+  separator?: boolean;
+}) {
+  return (
+    <>
+      {separator ? <ContextMenuSeparator /> : null}
+      <ContextMenuItem
+        icon={<Icon name={action.icon} size={18} />}
+        danger={action.danger}
+        onSelect={action.run}
+      >
+        {action.label}
+      </ContextMenuItem>
+    </>
+  );
 }
+
+const urlPattern = /https?:\/\/[^\s<>"']+/giu;
+
+function AutoLinked({ text }: { text: string }) {
+  const parts: Array<{ text: string; url?: string }> = [];
+  let cursor = 0;
+  for (const match of text.matchAll(urlPattern)) {
+    const start = match.index ?? 0;
+    let url = match[0];
+    let trailing = "";
+    while (url.length > 1 && /[).,;!?]$/u.test(url)) {
+      trailing = url.slice(-1) + trailing;
+      url = url.slice(0, -1);
+    }
+    if (start > cursor) {
+      parts.push({ text: text.slice(cursor, start) });
+    }
+    parts.push({ text: url, url });
+    if (trailing) {
+      parts.push({ text: trailing });
+    }
+    cursor = start + match[0].length;
+  }
+  if (cursor < text.length) {
+    parts.push({ text: text.slice(cursor) });
+  }
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.url ? (
+          <a
+            key={`${part.url}-${index}`}
+            className="g-message-link"
+            href={part.url}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              void Browser.OpenURL(part.url!);
+            }}
+          >
+            {part.text}
+          </a>
+        ) : (
+          <Fragment key={`text-${index}`}>{part.text}</Fragment>
+        ),
+      )}
+    </>
+  );
+}
+
+/** Renders Telegram message entities (bold, code, spoilers, links, quotes) without a markdown parser. */
+function MessageMeta({ message }: { message: Message }) {
+  const { t } = useTranslation();
+  return (
+    <span className="g-message-meta">
+      {message.editDate ? <span className="g-message-edited">{t("chat.edited")}</span> : null}
+      {message.views ? (
+        <span className="g-message-views">
+          <Icon name="visibility" size={13} />
+          {formatCompact(message.views)}
+        </span>
+      ) : null}
+      <span>{message.time}</span>
+      {message.out ? (
+        message.checks === "read" ? (
+          <Icon name="done_all" size={15} className="g-message-checks" />
+        ) : (
+          <Icon name="done" size={15} className="g-message-checks" />
+        )
+      ) : null}
+    </span>
+  );
+}
+
+function formatCompact(value: number) {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`;
+  }
+  return String(value);
+}
+
+function RichText({
+  text,
+  entities,
+}: {
+  text: string;
+  entities?: Message["entities"];
+}) {
+  const [revealed, setRevealed] = useState(false);
+
+  if (!entities || entities.length === 0) {
+    return (
+      <span className="g-message-text">
+        <AutoLinked text={text} />
+      </span>
+    );
+  }
+
+  const boundaries = new Set<number>([0, text.length]);
+  for (const entity of entities) {
+    const start = Math.max(0, Math.min(text.length, entity.offset));
+    const end = Math.max(start, Math.min(text.length, entity.offset + entity.length));
+    boundaries.add(start);
+    boundaries.add(end);
+  }
+  const ordered = [...boundaries].sort((left, right) => left - right);
+
+  const segments: ReactNode[] = [];
+  for (let index = 0; index < ordered.length - 1; index += 1) {
+    const start = ordered[index];
+    const end = ordered[index + 1];
+    if (end <= start) {
+      continue;
+    }
+    const active = entities.filter(
+      (entity) => entity.offset <= start && entity.offset + entity.length >= end,
+    );
+    const segment = text.slice(start, end);
+    let node = <AutoLinked text={segment} />;
+
+    const link = active.find(
+      (entity) => entity.type === "link" || entity.type === "url",
+    );
+    if (link) {
+      const href =
+        link.type === "link" && link.url
+          ? link.url
+          : /^https?:\/\//iu.test(segment)
+            ? segment
+            : `https://${segment}`;
+      node = (
+        <a
+          className="g-message-link"
+          href={href}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void Browser.OpenURL(href);
+          }}
+        >
+          {node}
+        </a>
+      );
+    }
+
+    if (active.some((entity) => entity.type === "code")) {
+      node = <code className="g-text-code">{node}</code>;
+    }
+    if (active.some((entity) => entity.type === "pre")) {
+      const language = active.find((entity) => entity.type === "pre")?.language;
+      node = (
+        <span className="g-text-pre" data-language={language || undefined}>
+          {node}
+        </span>
+      );
+    }
+    if (active.some((entity) => entity.type === "bold")) {
+      node = <strong>{node}</strong>;
+    }
+    if (active.some((entity) => entity.type === "italic")) {
+      node = <em>{node}</em>;
+    }
+    if (active.some((entity) => entity.type === "underline")) {
+      node = <u>{node}</u>;
+    }
+    if (active.some((entity) => entity.type === "strike")) {
+      node = <s>{node}</s>;
+    }
+    if (active.some((entity) => entity.type === "blockquote")) {
+      node = <span className="g-text-quote">{node}</span>;
+    }
+    if (active.some((entity) => entity.type === "spoiler")) {
+      node = (
+        <span
+          className="g-text-spoiler"
+          data-revealed={revealed || undefined}
+          onClick={(event) => {
+            event.stopPropagation();
+            setRevealed((current) => !current);
+          }}
+        >
+          {node}
+        </span>
+      );
+    }
+    if (active.some((entity) => entity.type === "custom_emoji")) {
+      node = (
+        <span className="g-custom-emoji">
+          {segment === "\uFFFC" ? "✨" : node}
+        </span>
+      );
+    }
+
+    segments.push(<Fragment key={`${start}-${end}`}>{node}</Fragment>);
+  }
+
+  return <span className="g-message-text">{segments}</span>;
+}
+

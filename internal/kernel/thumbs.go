@@ -2,134 +2,17 @@ package kernel
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/tg"
-	"github.com/iyear/tdl/core/dcpool"
-	coretclient "github.com/iyear/tdl/core/tclient"
 	"github.com/iyear/tdl/core/tmedia"
-	"github.com/iyear/tdl/core/util/tutil"
-	"tgdesk/internal/paths"
 )
 
-// GetMessageThumb returns a JPEG thumbnail for a photo/video message as a
-// base64 payload. Telegram Desktop shows thumbnails in the chat list and media
-// panel; tgdesk fetches only the small Telegram thumb size, never the full file.
-func (s *Service) GetMessageThumb(chatID string, messageID int, proxy, ntp string) (string, error) {
-	if strings.TrimSpace(chatID) == "" || messageID <= 0 {
-		return "", fmt.Errorf("invalid message")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
-	client, err := s.ensureSession(ctx, proxy, ntp)
-	if err != nil {
-		return "", err
-	}
-	peer, err := parsePeerID(chatID)
-	if err != nil {
-		return "", err
-	}
-	msg, err := tutil.GetSingleMessage(ctx, client.API(), peer, messageID)
-	if err != nil {
-		return "", err
-	}
-	thumb, ok := messageThumbMedia(msg)
-	if !ok {
-		return "", nil
-	}
-
-	cacheDir := filepath.Join(paths.Data(), "thumbs")
-	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
-		return "", err
-	}
-	cacheName := fmt.Sprintf("%s_%d_%s.jpg", safeFilePart(chatID), msg.ID, safeFilePart(thumbType(thumb)))
-	return downloadThumb(ctx, client, thumb, filepath.Join(cacheDir, cacheName))
-}
-
-// GetChatAvatar returns the current profile photo of a user, group or channel
-// as a small JPEG base64 payload. Photos are cached per photo ID so changing an
-// avatar invalidates the previous file without any extra metadata call.
-func (s *Service) GetChatAvatar(chatID, proxy, ntp string) (string, error) {
-	if strings.TrimSpace(chatID) == "" {
-		return "", fmt.Errorf("invalid chat")
-	}
-
-	peer, err := parsePeerID(chatID)
-	if err != nil {
-		return "", err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
-	client, err := s.ensureSession(ctx, proxy, ntp)
-	if err != nil {
-		return "", err
-	}
-
-	photo, err := chatPhoto(ctx, client, peer)
-	if err != nil || photo == nil {
-		return "", err
-	}
-	thumb, ok := photoThumb(photo)
-	if !ok {
-		return "", nil
-	}
-
-	cacheDir := filepath.Join(paths.Data(), "avatars")
-	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
-		return "", err
-	}
-	cacheName := fmt.Sprintf("%s_%d.jpg", safeFilePart(chatID), photo.ID)
-	return downloadThumb(ctx, client, thumb, filepath.Join(cacheDir, cacheName))
-}
-
-func downloadThumb(
-	ctx context.Context,
-	client *telegram.Client,
-	thumb *tmedia.Media,
-	cachePath string,
-) (string, error) {
-	if data, readErr := os.ReadFile(cachePath); readErr == nil && len(data) > 0 {
-		return base64.StdEncoding.EncodeToString(data), nil
-	}
-
-	limit := int(thumb.Size)
-	const align = 4096
-	if limit <= 0 {
-		limit = 64 * 1024
-	}
-	limit = (limit + align - 1) / align * align
-
-	pool := dcpool.NewPool(client, 1, coretclient.NewDefaultMiddlewares(ctx, time.Minute)...)
-	defer pool.Close()
-	dc := pool.Client(ctx, thumb.DC)
-	res, err := dc.UploadGetFile(ctx, &tg.UploadGetFileRequest{
-		Location: thumb.InputFileLoc,
-		Offset:   0,
-		Limit:    limit,
-		Precise:  true,
-	})
-	if err != nil {
-		return "", err
-	}
-	file, ok := res.(*tg.UploadFile)
-	if !ok || len(file.Bytes) == 0 {
-		return "", fmt.Errorf("thumbnail is not directly available")
-	}
-	if err := os.WriteFile(cachePath, file.Bytes, 0o600); err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(file.Bytes), nil
-}
+// Image helpers shared by the loopback image server. Thumbnails, avatars and
+// full photos are never written to disk; the server resolves them on demand and
+// relies on the WebView HTTP cache plus a bounded in-memory cache.
 
 func chatPhoto(ctx context.Context, client *telegram.Client, peer tg.InputPeerClass) (*tg.Photo, error) {
 	var class tg.PhotoClass
@@ -209,10 +92,87 @@ func messageThumbMedia(msg *tg.Message) (*tmedia.Media, bool) {
 		if !ok {
 			return nil, false
 		}
-		return tmedia.GetDocumentThumb(doc)
+		return documentThumbMedia(doc)
+	case *tg.MessageMediaWebPage:
+		page, ok := m.Webpage.(*tg.WebPage)
+		if !ok {
+			return nil, false
+		}
+		photo, ok := page.Photo.(*tg.Photo)
+		if !ok {
+			return nil, false
+		}
+		return photoThumb(photo)
+	case *tg.MessageMediaGame:
+		photo, ok := m.Game.Photo.(*tg.Photo)
+		if !ok {
+			return nil, false
+		}
+		return photoThumb(photo)
 	default:
 		return nil, false
 	}
+}
+
+// documentThumbMedia chooses a real thumbnail size. tdl's GetDocumentThumb
+// keeps the first *PhotoSize even when the document only carries progressive or
+// stripped thumbs, which produces an empty thumb type and an invalid
+// upload.getFile request (the image then hangs instead of failing).
+func documentThumbMedia(doc *tg.Document) (*tmedia.Media, bool) {
+	thumbs, ok := doc.GetThumbs()
+	if !ok {
+		return nil, false
+	}
+	var (
+		chosen      *tg.PhotoSize
+		smallest    *tg.PhotoSize
+		progressive *tg.PhotoSize
+	)
+	for _, thumb := range thumbs {
+		switch value := thumb.(type) {
+		case *tg.PhotoSize:
+			if value.Size <= 0 || value.Type == "" {
+				continue
+			}
+			if smallest == nil || value.Size < smallest.Size {
+				smallest = value
+			}
+			if value.Size <= 160*1024 && (chosen == nil || value.Size > chosen.Size) {
+				chosen = value
+			}
+		case *tg.PhotoSizeProgressive:
+			if len(value.Sizes) == 0 || value.Type == "" {
+				continue
+			}
+			progressive = &tg.PhotoSize{
+				Type: value.Type,
+				W:    value.W,
+				H:    value.H,
+				Size: value.Sizes[len(value.Sizes)-1],
+			}
+		}
+	}
+	if chosen == nil {
+		chosen = smallest
+	}
+	if chosen == nil {
+		chosen = progressive
+	}
+	if chosen == nil {
+		return nil, false
+	}
+	return &tmedia.Media{
+		InputFileLoc: &tg.InputDocumentFileLocation{
+			ID:            doc.ID,
+			AccessHash:    doc.AccessHash,
+			FileReference: doc.FileReference,
+			ThumbSize:     chosen.Type,
+		},
+		Name: fmt.Sprintf("%d_%s.jpg", doc.ID, chosen.Type),
+		Size: int64(chosen.Size),
+		DC:   doc.DCID,
+		Date: int64(doc.Date),
+	}, true
 }
 
 func photoThumb(photo *tg.Photo) (*tmedia.Media, bool) {
@@ -235,6 +195,48 @@ func photoThumb(photo *tg.Photo) (*tmedia.Media, bool) {
 			}
 		}
 	}
+	return photoSizeMedia(photo, chosen)
+}
+
+// avatarThumb picks a small profile-photo size for the full-avatar fallback.
+func avatarThumb(photo *tg.Photo) (*tmedia.Media, bool) {
+	var (
+		smallest  *tg.PhotoSize
+		preferred *tg.PhotoSize
+	)
+	for _, size := range photo.Sizes {
+		var candidate *tg.PhotoSize
+		switch value := size.(type) {
+		case *tg.PhotoSize:
+			candidate = value
+		case *tg.PhotoSizeProgressive:
+			if len(value.Sizes) == 0 {
+				continue
+			}
+			candidate = &tg.PhotoSize{
+				Type: value.Type,
+				W:    value.W,
+				H:    value.H,
+				Size: value.Sizes[len(value.Sizes)-1],
+			}
+		}
+		if candidate == nil || candidate.Size <= 0 {
+			continue
+		}
+		if smallest == nil || candidate.Size < smallest.Size {
+			smallest = candidate
+		}
+		if candidate.Size <= 24*1024 && (preferred == nil || candidate.Size > preferred.Size) {
+			preferred = candidate
+		}
+	}
+	if preferred == nil {
+		preferred = smallest
+	}
+	return photoSizeMedia(photo, preferred)
+}
+
+func photoSizeMedia(photo *tg.Photo, chosen *tg.PhotoSize) (*tmedia.Media, bool) {
 	if chosen == nil {
 		return nil, false
 	}
@@ -252,14 +254,66 @@ func photoThumb(photo *tg.Photo) (*tmedia.Media, bool) {
 	}, true
 }
 
-func thumbType(media *tmedia.Media) string {
-	switch loc := media.InputFileLoc.(type) {
-	case *tg.InputPhotoFileLocation:
-		return loc.ThumbSize
-	case *tg.InputDocumentFileLocation:
-		return loc.ThumbSize
+func fullPhotoMedia(photo *tg.Photo) (*tmedia.Media, bool) {
+	if photo == nil {
+		return nil, false
+	}
+	var chosen *tg.PhotoSize
+	for _, size := range photo.Sizes {
+		switch value := size.(type) {
+		case *tg.PhotoSize:
+			if value.Size > 0 && (chosen == nil || value.Size > chosen.Size) {
+				chosen = value
+			}
+		case *tg.PhotoSizeProgressive:
+			if len(value.Sizes) == 0 {
+				continue
+			}
+			last := value.Sizes[len(value.Sizes)-1]
+			if last > 0 && (chosen == nil || last > chosen.Size) {
+				chosen = &tg.PhotoSize{Type: value.Type, W: value.W, H: value.H, Size: last}
+			}
+		}
+	}
+	if chosen == nil {
+		return nil, false
+	}
+	return &tmedia.Media{
+		InputFileLoc: &tg.InputPhotoFileLocation{
+			ID:            photo.ID,
+			AccessHash:    photo.AccessHash,
+			FileReference: photo.FileReference,
+		},
+		Name: fmt.Sprintf("%d.jpg", photo.ID),
+		Size: int64(chosen.Size),
+		DC:   photo.DCID,
+		Date: int64(photo.Date),
+	}, true
+}
+
+// messageFullPhotoMedia returns the full-size photo attached to a webpage or
+// game preview so the frontend can render a wide preview instead of a tiny
+// 76 px thumbnail.
+func messageFullPhotoMedia(msg *tg.Message) (*tmedia.Media, bool) {
+	switch media := msg.Media.(type) {
+	case *tg.MessageMediaWebPage:
+		page, ok := media.Webpage.(*tg.WebPage)
+		if !ok {
+			return nil, false
+		}
+		photo, ok := page.Photo.(*tg.Photo)
+		if !ok {
+			return nil, false
+		}
+		return fullPhotoMedia(photo)
+	case *tg.MessageMediaGame:
+		photo, ok := media.Game.Photo.(*tg.Photo)
+		if !ok {
+			return nil, false
+		}
+		return fullPhotoMedia(photo)
 	default:
-		return "thumb"
+		return nil, false
 	}
 }
 

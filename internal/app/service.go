@@ -1,6 +1,8 @@
 package app
 
 import (
+	"strings"
+
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"tgdesk/internal/kernel"
@@ -27,6 +29,20 @@ func New(k *kernel.Service) *Service {
 		}
 		app.Event.Emit("download:event", event)
 	})
+	k.SetChatEventSink(func(event kernel.ChatEvent) {
+		app := application.Get()
+		if app == nil {
+			return
+		}
+		app.Event.Emit("chat:event", event)
+	})
+	k.SetUploadEventSink(func(event kernel.UploadEvent) {
+		app := application.Get()
+		if app == nil {
+			return
+		}
+		app.Event.Emit("upload:event", event)
+	})
 	return &Service{kernel: k}
 }
 
@@ -38,12 +54,22 @@ func (s *Service) RefreshUser(proxy, ntp string) (*kernel.AuthUser, error) {
 	return s.kernel.RefreshUser(proxy, ntp)
 }
 
-func (s *Service) GetChats(proxy, ntp string, limit int) ([]kernel.ChatDTO, error) {
-	return s.kernel.GetChats(proxy, ntp, limit)
+func (s *Service) GetChats(proxy, ntp string, limit int, force bool) ([]kernel.ChatDTO, error) {
+	return s.kernel.GetChats(proxy, ntp, limit, force)
 }
 
-func (s *Service) GetArchivedChats(proxy, ntp string, limit int) ([]kernel.ChatDTO, error) {
-	return s.kernel.GetArchivedChats(proxy, ntp, limit)
+func (s *Service) GetArchivedChats(proxy, ntp string, limit int, force bool) ([]kernel.ChatDTO, error) {
+	return s.kernel.GetArchivedChats(proxy, ntp, limit, force)
+}
+
+// GetCachedChats returns the last local dialog snapshot for instant paint.
+func (s *Service) GetCachedChats() []kernel.ChatDTO {
+	return s.kernel.GetCachedChats()
+}
+
+// GetCachedMessages returns the last local message snapshot for instant paint.
+func (s *Service) GetCachedMessages(chatID string) []kernel.MessageDTO {
+	return s.kernel.GetCachedMessages(chatID)
 }
 
 func (s *Service) GetFolders(proxy, ntp string) ([]kernel.ChatFolderDTO, error) {
@@ -62,6 +88,21 @@ func (s *Service) GetMessages(chatID, proxy, ntp string, limit int) ([]kernel.Me
 	return s.kernel.GetMessages(chatID, proxy, ntp, limit)
 }
 
+func (s *Service) GetNewMessages(
+	chatID string,
+	afterID int,
+	proxy, ntp string,
+) ([]kernel.MessageDTO, error) {
+	return s.kernel.GetNewMessages(chatID, afterID, proxy, ntp)
+}
+
+func (s *Service) GetChatMembers(
+	chatID, proxy, ntp string,
+	limit int,
+) ([]kernel.ChatMemberDTO, error) {
+	return s.kernel.GetChatMembers(chatID, proxy, ntp, limit)
+}
+
 func (s *Service) GetOlderMessages(
 	chatID string,
 	beforeID int,
@@ -71,8 +112,66 @@ func (s *Service) GetOlderMessages(
 	return s.kernel.GetOlderMessages(chatID, beforeID, proxy, ntp, limit)
 }
 
-func (s *Service) SendMessage(chatID, text, proxy, ntp string) error {
-	return s.kernel.SendMessage(chatID, text, proxy, ntp)
+func (s *Service) SendMessage(chatID, text string, replyToID int, proxy, ntp string) error {
+	return s.kernel.SendMessage(chatID, text, replyToID, proxy, ntp)
+}
+
+func (s *Service) EditMessage(chatID string, messageID int, text, proxy, ntp string) error {
+	return s.kernel.EditMessage(chatID, messageID, text, proxy, ntp)
+}
+
+func (s *Service) DeleteMessages(
+	chatID string,
+	messageIDs []int,
+	revoke bool,
+	proxy, ntp string,
+) error {
+	return s.kernel.DeleteMessages(chatID, messageIDs, revoke, proxy, ntp)
+}
+
+func (s *Service) ForwardMessages(
+	fromChatID, toChatID string,
+	messageIDs []int,
+	proxy, ntp string,
+) error {
+	return s.kernel.ForwardMessages(fromChatID, toChatID, messageIDs, proxy, ntp)
+}
+
+func (s *Service) SendReaction(chatID string, messageID int, emoji, customEmojiID, proxy, ntp string) error {
+	return s.kernel.SendReaction(chatID, messageID, emoji, customEmojiID, proxy, ntp)
+}
+
+func (s *Service) MarkChatsRead(chatIDs []string, proxy, ntp string) error {
+	return s.kernel.MarkChatsRead(chatIDs, proxy, ntp)
+}
+
+func (s *Service) SendAttachment(
+	chatID, filePath, caption string,
+	replyToID int,
+	proxy, ntp string,
+) error {
+	return s.kernel.SendAttachment(chatID, filePath, caption, replyToID, proxy, ntp)
+}
+
+// ChooseFiles opens the native multi-file picker. An empty slice means the user
+// cancelled; the caller keeps the composer state unchanged.
+func (s *Service) ChooseFiles(title string) ([]string, error) {
+	app := application.Get()
+	if app == nil {
+		return nil, nil
+	}
+	selected, err := app.Dialog.OpenFile().
+		CanChooseFiles(true).
+		CanChooseDirectories(false).
+		SetTitle(title).
+		PromptForMultipleSelection()
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "cancel") {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return selected, nil
 }
 
 func (s *Service) StartDownload(
@@ -84,12 +183,8 @@ func (s *Service) StartDownload(
 	return s.kernel.StartDownload(chatID, chatTitle, messageIDs, proxy, ntp, dir, fileNameTemplate, threads)
 }
 
-func (s *Service) GetMessageThumb(chatID string, messageID int, proxy, ntp string) (string, error) {
-	return s.kernel.GetMessageThumb(chatID, messageID, proxy, ntp)
-}
-
-func (s *Service) GetChatAvatar(chatID, proxy, ntp string) (string, error) {
-	return s.kernel.GetChatAvatar(chatID, proxy, ntp)
+func (s *Service) GetSelfAvatarURL(proxy, ntp string) (string, error) {
+	return s.kernel.GetSelfAvatarURL(proxy, ntp)
 }
 
 func (s *Service) GetMessageMedia(
@@ -131,6 +226,34 @@ func (s *Service) ClearCompletedDownloads() error {
 
 func (s *Service) OpenDownloadFolder(path string) error {
 	return s.kernel.OpenDownloadFolder(path)
+}
+
+// ChooseDownloadFolder opens the native directory picker and returns the
+// selected path, or an empty string when the dialog is cancelled.
+func (s *Service) ChooseDownloadFolder(currentDirectory, title string) (string, error) {
+	app := application.Get()
+	if app == nil {
+		return "", nil
+	}
+	selected, err := app.Dialog.OpenFile().
+		CanChooseFiles(false).
+		CanChooseDirectories(true).
+		CanCreateDirectories(true).
+		SetTitle(title).
+		SetDirectory(currentDirectory).
+		PromptForSingleSelection()
+	if err != nil {
+		// The Wails folder dialog reports a cancellation as an error. It is not
+		// a failure the user needs to see.
+		if strings.Contains(strings.ToLower(err.Error()), "cancel") {
+			return "", nil
+		}
+		return "", err
+	}
+	if selected == "" || selected == "." {
+		return "", nil
+	}
+	return selected, nil
 }
 
 func (s *Service) GetAuthStatus() kernel.AuthStatus {

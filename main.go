@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -19,6 +20,36 @@ var assets embed.FS
 
 // migrateLegacyWebView copies the old profile-backed WebView2 data once so
 // existing settings/language survive the move to the portable directory.
+// resetWebViewCacheOnUpgrade drops the Chromium HTTP/JS cache once per binary
+// build. Without this WebView2 can keep an old index.html (and therefore old
+// hashed JS/CSS) after the exe is replaced, which makes UI changes invisible
+// until the profile cache is manually cleared. Cookies, localStorage and the
+// Telegram session are intentionally left untouched.
+func resetWebViewCacheOnUpgrade() {
+	exe, err := os.Executable()
+	if err != nil {
+		return
+	}
+	info, err := os.Stat(exe)
+	if err != nil {
+		return
+	}
+	version := fmt.Sprintf("%d:%d", info.ModTime().UnixNano(), info.Size())
+	marker := filepath.Join(paths.Data(), "webview-cache.version")
+	if old, err := os.ReadFile(marker); err == nil && string(old) == version {
+		return
+	}
+	for _, dir := range []string{
+		filepath.Join("EBWebView", "Default", "Cache"),
+		filepath.Join("EBWebView", "Default", "Code Cache"),
+		filepath.Join("EBWebView", "Default", "GPUCache"),
+		filepath.Join("EBWebView", "Default", "DawnCache"),
+	} {
+		_ = os.RemoveAll(filepath.Join(paths.WebView(), dir))
+	}
+	_ = os.WriteFile(marker, []byte(version), 0o600)
+}
+
 func migrateLegacyWebView() {
 	marker := filepath.Join(paths.Data(), ".legacy-webview-migrated")
 	if _, err := os.Stat(marker); err == nil {
@@ -84,6 +115,8 @@ func copyTree(src, dst string) error {
 func main() {
 	application.RegisterEvent[kernel.AuthEvent]("auth:event")
 	application.RegisterEvent[kernel.DownloadEvent]("download:event")
+	application.RegisterEvent[kernel.ChatEvent]("chat:event")
+	application.RegisterEvent[kernel.UploadEvent]("upload:event")
 
 	k := kernel.New()
 	svc := app.New(k)
@@ -91,6 +124,10 @@ func main() {
 	if err := paths.Ensure(); err != nil {
 		log.Fatalf("create portable data directories: %v", err)
 	}
+	if err := paths.RemoveLegacyImageCaches(); err != nil {
+		log.Printf("legacy image cache cleanup skipped: %v", err)
+	}
+	resetWebViewCacheOnUpgrade()
 	migrateLegacyWebView()
 
 	windowsOptions := application.WindowsOptions{
@@ -107,7 +144,7 @@ func main() {
 
 	wailsApp := application.New(application.Options{
 		Name:        "tgdesk",
-		Description: "Telegram media downloader and browser powered by tdl",
+		Description: "tgdesk",
 		Services: []application.Service{
 			application.NewService(svc),
 		},

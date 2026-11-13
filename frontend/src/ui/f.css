@@ -1,0 +1,484 @@
+/* F design layer — tgdesk.
+ *
+ * Radix Themes owns component behaviour and its own colour scales; this file
+ * only adds the tgdesk canvas/surface tokens, typography and the small number
+ * of shared patterns (fields, dialogs, menus) that all F screens compose from.
+ */
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-latin.woff2") format("woff2");
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --f-font: "Inter", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+
+  --f-canvas: #eceef3;
+  --f-surface: #ffffff;
+  --f-surface-muted: #f6f7f9;
+  --f-line: #e3e6eb;
+  --f-line-strong: #d5d9e0;
+  --f-text: #1c2024;
+  --f-muted: #646a73;
+  --f-faint: #8f959e;
+  --f-accent: #3e63dd;
+  --f-accent-soft: #eef1ff;
+  --f-danger: #d64040;
+
+  --f-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 28px 64px -34px rgba(16, 24, 40, 0.42);
+  --f-shadow-pop: 0 1px 2px rgba(16, 24, 40, 0.05), 0 14px 34px -14px rgba(16, 24, 40, 0.28);
+}
+
+html[data-theme="dark"],
+.radix-themes.dark,
+.radix-themes.dark-theme {
+  --f-canvas: #0f0f11;
+  --f-surface: #1d1d23;
+  --f-surface-muted: #26262c;
+  --f-line: #34343d;
+  --f-line-strong: #42424d;
+  --f-text: #ededf0;
+  --f-muted: #a1a1aa;
+  --f-faint: #7f7f89;
+  --f-accent: #8b95ff;
+  --f-accent-soft: #1e2340;
+  --f-danger: #ff6b6b;
+
+  --f-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.45), 0 32px 80px -36px rgba(0, 0, 0, 0.9);
+  --f-shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.45), 0 18px 40px -16px rgba(0, 0, 0, 0.7);
+}
+
+.radix-themes {
+  --default-font-family: var(--f-font);
+  --heading-font-family: var(--f-font);
+  --code-font-family: "Cascadia Code", "JetBrains Mono", ui-monospace, monospace;
+}
+
+.f-theme {
+  height: 100%;
+  min-height: 0;
+}
+
+/* Radix' root theme defaults to 100vh; the desktop shell lives below the
+ * caption bar, so it must fill its host exactly instead. */
+#root .radix-themes.f-theme {
+  min-height: 0;
+}
+
+.f-logo {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  background: linear-gradient(135deg, #6b8bff 0%, #3e63dd 100%);
+  color: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* --------------------------------------------------------------- avatar */
+
+.f-avatar {
+  position: relative;
+  display: inline-flex;
+  width: var(--avatar-size, 40px);
+  height: var(--avatar-size, 40px);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--avatar-color, var(--f-accent));
+  color: #ffffff;
+  font-family: var(--f-font);
+  font-size: var(--avatar-font-size, 14px);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.f-avatar-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.f-avatar-initials {
+  transform: translateY(0.5px);
+}
+
+.f-avatar-online {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--f-surface);
+  border-radius: 50%;
+  background: #34a853;
+}
+
+html[data-theme="dark"] .f-avatar:not([data-photo]) {
+  filter: saturate(0.88) brightness(0.9);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--f-canvas);
+}
+
+/* ---------------------------------------------------------------- fields */
+
+.f-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.f-field-label {
+  color: var(--f-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+
+.f-field-hint,
+.f-field-error {
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.f-field-hint {
+  color: var(--f-faint);
+}
+
+.f-field-error {
+  color: var(--red-11);
+}
+
+/* Quiet field focus: one hairline instead of the browser/Radix double ring. */
+.f-field input:focus-visible {
+  outline: none;
+}
+
+.f-field .rt-TextFieldRoot:focus-within {
+  outline: 1px solid var(--gray-a6);
+  outline-offset: -1px;
+  box-shadow: none;
+  background: var(--f-surface);
+}
+
+/* --------------------------------------------------------------- dialogs */
+
+.f-dialog {
+  border: 1px solid var(--f-line);
+  padding: 20px;
+  box-shadow: var(--f-shadow-pop);
+}
+
+.f-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.f-dialog .rt-DialogTitle {
+  letter-spacing: -0.02em;
+}
+
+.f-dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--f-faint);
+  cursor: pointer;
+}
+
+.f-dialog-close:hover {
+  background: var(--gray-a3);
+  color: var(--f-text);
+}
+
+.f-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+/* ----------------------------------------------------------------- menus */
+
+.f-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--f-muted);
+  cursor: pointer;
+  font-family: var(--f-font);
+  font-size: 11.5px;
+  line-height: 1;
+  padding: 6px 7px;
+  white-space: nowrap;
+}
+
+.f-menu-trigger:hover {
+  background: var(--gray-a3);
+  color: var(--f-text);
+}
+
+.f-menu-trigger:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 1px;
+}
+
+.f-menu-content {
+  min-width: 168px;
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.f-button-full {
+  width: 100%;
+}
+
+.f-select-trigger {
+  width: 100%;
+}
+
+.f-icon-button {
+  flex: 0 0 auto;
+}
+
+/* ------------------------------------------------------------ chips/badges */
+
+.f-chip {
+  display: inline-flex;
+  height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  padding: 0 9px;
+  color: var(--f-muted);
+  cursor: pointer;
+  font-family: var(--f-font);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.f-chip:hover {
+  background: var(--gray-a3);
+  color: var(--f-text);
+}
+
+.f-chip[data-active] {
+  background: var(--gray-12);
+  color: var(--gray-1);
+}
+
+.f-chip-count {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.62;
+}
+
+.f-badge {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* -------------------------------------------------------------- empty state */
+
+.f-empty {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 24px;
+  color: var(--f-muted);
+  text-align: center;
+}
+
+.f-empty-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--f-line);
+  border-radius: 12px;
+  background: var(--f-surface);
+  color: var(--f-faint);
+}
+
+.f-empty h3 {
+  margin: 0;
+  color: var(--f-text);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.f-empty p {
+  max-width: 280px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.f-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.f-progress {
+  height: 4px;
+  border-radius: 999px;
+}
+
+.f-empty-action {
+  margin-top: 6px;
+}
+
+.f-slider {
+  width: 100%;
+}
+
+/* --------------------------------------------------------- toast/context */
+
+.f-toast {
+  position: fixed;
+  z-index: 140;
+  bottom: 22px;
+  left: 50%;
+  display: flex;
+  max-width: min(440px, calc(100vw - 32px));
+  align-items: center;
+  gap: 8px;
+  border-radius: 9px;
+  background: var(--gray-12);
+  padding: 9px 14px;
+  color: var(--gray-1);
+  box-shadow: var(--f-shadow-pop);
+  font-family: var(--f-font);
+  font-size: 12px;
+  line-height: 1.45;
+  transform: translateX(-50%);
+  animation: f-toast-in 160ms ease;
+}
+
+.f-toast .f-icon {
+  flex: 0 0 auto;
+  opacity: 0.75;
+}
+
+/* Context menus are portalled outside the Theme, so these use the global F
+ * tokens rather than Radix' scoped scales. */
+.f-menu {
+  z-index: 130;
+  min-width: 190px;
+  border: 1px solid var(--f-line);
+  border-radius: 10px;
+  background: var(--f-surface);
+  padding: 5px;
+  box-shadow: var(--f-shadow-pop);
+  color: var(--f-text);
+  font-family: var(--f-font);
+  font-size: 12.5px;
+}
+
+.f-menu-item {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: var(--f-text);
+  cursor: default;
+  outline: none;
+  user-select: none;
+}
+
+.f-menu-item[data-highlighted] {
+  background: color-mix(in srgb, var(--f-text) 6%, transparent);
+}
+
+.f-menu-item[data-danger] {
+  color: var(--red-11, #d64040);
+}
+
+.f-menu-item[data-disabled] {
+  opacity: 0.45;
+}
+
+.f-menu-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--f-muted);
+}
+
+.f-menu-item[data-danger] .f-menu-icon {
+  color: inherit;
+}
+
+.f-menu-label {
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+}
+
+.f-menu-separator {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--f-line);
+}
+
+@keyframes f-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

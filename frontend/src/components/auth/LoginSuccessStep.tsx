@@ -1,7 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Callout } from "../ui/Callout";
-import { Icon } from "../ui/Icon";
-import { Spinner } from "../ui/Spinner";
+import { Callout, Icon, Spinner } from "../../ui";
 
 interface LoginSuccessStepProps {
   tdataError: string;
@@ -11,13 +9,13 @@ export function LoginSuccessStep({ tdataError }: LoginSuccessStepProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="g-login-step g-login-success">
-      <span className="g-login-success-icon">
-        <Icon name="check" size={30} />
+    <div className="f-login-step f-login-success">
+      <span className="f-success-mark">
+        <Icon name="check" size={26} strokeWidth={2} />
       </span>
       <h2>{t("login.successTitle")}</h2>
-      <span className="g-login-success-loading">
-        <Spinner size={16} />
+      <span className="f-success-loading">
+        <Spinner size={15} />
         {t("login.successDescription")}
       </span>
 

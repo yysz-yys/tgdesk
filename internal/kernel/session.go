@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/gotd/td/telegram"
+	"github.com/iyear/tdl/core/dcpool"
 	"github.com/iyear/tdl/core/storage"
+	coretclient "github.com/iyear/tdl/core/tclient"
 	"github.com/iyear/tdl/pkg/kv"
 	tdlclient "github.com/iyear/tdl/pkg/tclient"
 )
@@ -17,6 +19,10 @@ import (
 type telegramSession struct {
 	key    string
 	client *telegram.Client
+	// pool keeps a small set of warm connections per data center. Chat
+	// thumbnails and avatars are fetched through it: recreating a pool for every
+	// image (the old behaviour) opened a fresh media connection per photo.
+	pool   dcpool.Pool
 	stg    kv.Storage
 	ns     storage.Storage
 	cancel context.CancelFunc
@@ -51,6 +57,7 @@ func (s *Service) ensureSession(ctx context.Context, proxy, ntp string) (*telegr
 		Proxy:            resolveAuthProxy(proxy),
 		NTP:              ntp,
 		ReconnectTimeout: 2 * time.Minute,
+		UpdateHandler:    newLiveUpdateHandler(s, proxy, ntp),
 	}, false)
 	if err != nil {
 		cancel()
@@ -98,9 +105,16 @@ func (s *Service) ensureSession(ctx context.Context, proxy, ntp string) (*telegr
 		return nil, ctx.Err()
 	}
 
+	pool := dcpool.NewPool(
+		client,
+		2,
+		coretclient.NewDefaultMiddlewares(runCtx, 2*time.Minute)...,
+	)
+
 	s.session = &telegramSession{
 		key:    key,
 		client: client,
+		pool:   pool,
 		stg:    stg,
 		ns:     ns,
 		cancel: cancel,
@@ -128,6 +142,12 @@ func (s *Service) stopSessionLocked() {
 	s.session = nil
 	if session == nil {
 		return
+	}
+	s.dialogsCacheMu.Lock()
+	s.dialogsCache = make(map[string]dialogsCacheEntry)
+	s.dialogsCacheMu.Unlock()
+	if session.pool != nil {
+		_ = session.pool.Close()
 	}
 	session.cancel()
 	closeSession(session.stg, session.done)

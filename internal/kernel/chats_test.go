@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gotd/td/tg"
@@ -54,6 +55,21 @@ func TestHumanSize(t *testing.T) {
 		if got := humanSize(size); got != want {
 			t.Errorf("humanSize(%d) = %q, want %q", size, got, want)
 		}
+	}
+}
+
+func TestReplyPreviewText(t *testing.T) {
+	text := strings.Repeat("a", 140)
+	if got := replyPreviewText(&tg.Message{Message: text}); len([]rune(got)) != 121 || !strings.HasSuffix(got, "…") {
+		t.Fatalf("long reply preview = %q", got)
+	}
+	plain := replyPreviewText(&tg.Message{Message: "hello"})
+	if plain != "hello" {
+		t.Fatalf("reply preview = %q", plain)
+	}
+	photo := replyPreviewText(&tg.Message{Media: &tg.MessageMediaPhoto{Photo: &tg.Photo{}}})
+	if photo != "Photo" {
+		t.Fatalf("media reply preview = %q", photo)
 	}
 }
 

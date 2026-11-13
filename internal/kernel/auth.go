@@ -871,6 +871,7 @@ func (s *Service) Logout() error {
 	s.stopAuth()
 	s.cancelAllDownloads()
 	s.stopSession()
+	s.ClearLocalCache()
 	s.authMu.Lock()
 	s.authUser = nil
 	s.tdataImportAttempted = false

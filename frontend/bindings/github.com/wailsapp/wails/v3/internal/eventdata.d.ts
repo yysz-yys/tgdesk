@@ -13,7 +13,9 @@ declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "auth:event": kernel$0.AuthEvent;
+            "chat:event": kernel$0.ChatEvent;
             "download:event": kernel$0.DownloadEvent;
+            "upload:event": kernel$0.UploadEvent;
         }
     }
 }

@@ -2,6 +2,112 @@
 
 ## Unreleased
 
+### Chat surface and loading
+
+- Rebuilt the message surface around Telegram Web K metrics: 15 px/5 px bubble
+  radii, fully rounded bubbles (no protruding tail), 4/9/5 px padding, 480 px
+  column, inline time/checks, fixed avatar gutter, grouped sender avatars,
+  doodle wallpaper, outgoing pale green / dark steel blue, reduced-motion-aware
+  entry.
+- Added rich text entities (bold, italic, underline, strike, code, pre,
+  blockquote, spoiler, links) with a segment renderer that preserves Telegram's
+  UTF-16 offsets.
+- Added dedicated renderers for voice waveforms, audio, TGS/WebM stickers, GIFs,
+  posters, web previews, polls/quizzes, checklists, invoices, giveaways, paid
+  media, stories, games, dice, contacts and locations; inline keyboard buttons.
+- Media now uses intrinsic aspect ratio (capped at 420 px), full-bleed photos
+  and albums, and overlay timestamps; portraits are no longer forced into a
+  360×220 crop.
+- Media-only photos/videos/GIFs/albums no longer paint a bubble or `<img>`
+  background plate; transparent PNGs show the wallpaper like Telegram Web.
+- Captioned portrait photos keep their natural height and fill a wider caption
+  bubble with a blurred copy of the photo instead of leaving a white side band.
+- Stickers, GIFs and media-only photos keep the same 15 px rounded corners as
+  Telegram Web; stickers get the translucent timestamp overlay and no square
+  card edges.
+- Media-only portrait photos keep the intrinsic narrow frame used by Telegram
+  Web; the blurred side fill is reserved for captioned portraits. Media sender
+  names get a bubble-coloured header band instead of floating on the wallpaper.
+- Web-page previews are a wide image-under-text card using the full preview
+  photo when available and the thumbnail as fallback; removed the tiny right-hand
+  thumbnail and its empty white area.
+- Added local dialog/message snapshots under `data/cache/` and `GetCachedChats` /
+  `GetCachedMessages`; the WebView paints them before the network answer
+  (measured ~0.3 s to first messages on reload).
+- Removed the legacy F-shell message overrides so one message stylesheet owns
+  the surface.
+- Reactions moved from a detached pill row into the bubble footer, sharing the
+  bubble background with the timestamp; removed the permanent `+` circle.
+- Custom emoji reactions now stream their Telegram document thumbnail and toggle
+  with the custom emoji document id instead of a placeholder glyph.
+- Sender names now sit inside the top of the bubble like Telegram Web, with the
+  premium custom-emoji status resolved from `user.emoji_status` and rendered
+  next to the name.
+- The archive search field is hidden by default and replaces the archive title
+  row when Search is chosen; back arrow, input and close button share one row.
+- All dropdowns share one quiet gray highlight; the blue selected row is gone.
+- Sidebar icon buttons no longer show the saturated blue focus outline after
+  clicking/closing a menu; keyboard focus uses a quiet gray background instead.
+- Incoming rows always reserve the same 40 px avatar gutter, with the avatar
+  wrapper absolutely positioned in it, so rows that do show an avatar and
+  grouped continuation rows share exactly the same bubble left edge.
+- WebView2 HTTP/JS cache is cleared once whenever the executable changes, so a
+  rebuilt UI can no longer be masked by a stale cached `index.html`; cookies,
+  localStorage and the Telegram session are preserved.
+- The archived row's chat count is now plain muted text instead of a blue
+  unread-style badge; the app-menu archived entry uses the same neutral count
+  and its hover/highlight state is quiet gray rather than the accent fill.
+- Archived chats no longer jump back into the main list when a new message
+  arrives: main/archive dialog duplicates are merged with the archived flag
+  winning, and the archived row's preview/unread is updated in place.
+- The archive header menu now has exactly Search, Hide/Show in Chat List and Mark
+  all as read; hiding the archive row is persisted and the archive remains
+  reachable from the app menu.
+- Mark all as read now calls `messages.readHistory` / `channels.readHistory`
+  server-side for every archived unread chat, instead of only changing the local
+  unread counter.
+- Dialog rows now honour Telegram's `dialog.folder_id == 1`, so archived peers
+  stay archived even when only the main dialog query has answered.
+- Folder selector now shows "所有" plus the user-created folders only (no
+  synthetic Unread tab). It is a dropdown when custom folders exist and a plain
+  "所有" label when they do not. The archived row uses normal chat-row geometry
+  and only appears under "所有"; custom folders exclude archived peers.
+- Removed the bubble tail/foot and the hover three-dot circle. Every incoming
+  row in a group chat reserves the same avatar gutter, so short and long bubbles
+  share one left edge.
+- Dark-theme audit: message text, time, reply quotes, captions, code and media
+  cards use the dark palette; sender names are lightened for contrast.
+
+### Chat and media loading
+
+- Removed the click-to-select message mode and the blue selection outline;
+  messages now behave like Telegram Web (text selection, hover actions and a
+  right-click menu).
+- Added Telegram Web-style message actions: reply, copy text, forward, edit own
+  text messages, delete for me / for everyone, link detection and a full photo
+  viewer.
+- The composer shows a reply/edit banner and sends `reply_to_msg_id`.
+- Thumbnails, avatars and full photos are served from MTProto by the loopback
+  image server and loaded by the WebView as normal HTTP images. The per-image
+  `data/thumbs/` and `data/avatars/` JPEGs are no longer written; legacy copies
+  are deleted on startup.
+- Dialog and history entities now provide avatar locations directly, avoiding a
+  full-user RPC per avatar; thumbnails use a warm per-DC connection pool.
+- Chat history keeps an in-memory snapshot so switching back renders instantly
+  before the background refresh completes.
+- The open chat now delta-polls `messages.getHistory(min_id)` every two seconds;
+  only messages newer than the newest rendered id are mapped, so update-stream
+  gaps no longer leave the conversation or reply targets stale.
+- Live updates: a gotd update dispatcher pushes new/edit/delete/reaction/read
+  events to the UI, with short-message mapping and `updatesTooLong` resync.
+- Emoji reactions with counts, chosen state and an emoji picker.
+- Album mosaic grouping for consecutive messages with the same `grouped_id`;
+  forward/delete/download actions operate on every album message.
+- Native multi-file attachment picker with 512 KiB-part uploads and an in-composer
+  progress bar (caption and reply supported).
+- Dialog list and archived/folder loads are independent; a 20 s kernel dialogs
+  cache avoids duplicate flood-limited `messages.getDialogs` calls on reload.
+
 ### Login and tdata
 
 - Rebuilt the login flow on a custom phone authenticator: code delivery method

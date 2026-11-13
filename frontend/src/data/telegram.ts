@@ -1,5 +1,13 @@
 import type { TFunction } from "i18next";
-import type { Chat, ChatKind, Message, MessageMedia, MediaKind } from "../types";
+import type {
+  Chat,
+  ChatKind,
+  ChatMember,
+  Message,
+  MessageMedia,
+  MessageButton,
+  MediaKind,
+} from "../types";
 
 export interface KernelChat {
   id: string;
@@ -7,6 +15,7 @@ export interface KernelChat {
   kind: string;
   username?: string;
   preview: string;
+  avatarUrl?: string;
   lastMessageDate?: number;
   unread?: number;
   pinned?: boolean;
@@ -18,9 +27,32 @@ export interface KernelChat {
   members?: number;
 }
 
+export interface KernelChatMember {
+  id: string;
+  name: string;
+  username?: string;
+  avatarUrl?: string;
+  admin?: boolean;
+  bot?: boolean;
+}
+
+export function mapChatMember(member: KernelChatMember): ChatMember {
+  return {
+    id: member.id,
+    name: member.name,
+    username: member.username || undefined,
+    avatarUrl: member.avatarUrl || undefined,
+    admin: Boolean(member.admin),
+    bot: Boolean(member.bot),
+  };
+}
+
 export interface KernelMessageMedia {
   kind: string;
   name: string;
+  thumbUrl?: string;
+  photoUrl?: string;
+  streamUrl?: string;
   size?: string;
   ext?: string;
   color?: string;
@@ -29,12 +61,19 @@ export interface KernelMessageMedia {
   height?: number;
   sizeBytes?: number;
   mime?: string;
+  title?: string;
+  performer?: string;
+  waveform?: number[] | null;
   options?: string[] | null;
   voteCounts?: number[] | null;
   chosen?: boolean[] | null;
   totalVoters?: number;
   pollClosed?: boolean;
   quiz?: boolean;
+  correctOption?: number;
+  explanation?: string;
+  multipleChoice?: boolean;
+  publicVoters?: boolean;
   latitude?: number;
   longitude?: number;
   live?: boolean;
@@ -42,10 +81,44 @@ export interface KernelMessageMedia {
   contactName?: string;
   url?: string;
   siteName?: string;
-  title?: string;
   description?: string;
   emoji?: string;
   value?: number;
+  checklist?: { text: string; done: boolean }[] | null;
+  amount?: number;
+  currency?: string;
+  quantity?: number;
+  months?: number;
+  untilDate?: number;
+  paidCount?: number;
+  storyId?: number;
+  spoiler?: boolean;
+  round?: boolean;
+  externalId?: string;
+}
+
+export interface KernelMessageEntity {
+  type: string;
+  offset: number;
+  length: number;
+  url?: string;
+  language?: string;
+  userId?: string;
+}
+
+export interface KernelMessageButton {
+  text: string;
+  url?: string;
+  data?: string;
+  kind?: string;
+}
+
+export interface KernelReaction {
+  emoji: string;
+  count: number;
+  chosen?: boolean;
+  customEmojiId?: string;
+  url?: string;
 }
 
 export interface KernelMessage {
@@ -54,6 +127,8 @@ export interface KernelMessage {
   out: boolean;
   sender?: string;
   senderId?: string;
+  senderAvatarUrl?: string;
+  senderEmojiStatusUrl?: string;
   text?: string;
   date: number;
   checks?: string;
@@ -66,7 +141,19 @@ export interface KernelMessage {
   serviceKind?: string;
   serviceActor?: string;
   serviceValue?: string;
+  groupedId?: string;
+  reactions?: KernelReaction[] | null;
   media?: KernelMessageMedia | null;
+  entities?: KernelMessageEntity[] | null;
+  buttons?: KernelMessageButton[] | null;
+  pinned?: boolean;
+  postAuthor?: string;
+  views?: number;
+  forwards?: number;
+  editDate?: number;
+  ttl?: number;
+  noForwards?: boolean;
+  via?: string;
 }
 
 const AVATAR_COLORS = [
@@ -189,6 +276,7 @@ export function mapChat(chat: KernelChat, language: string, t: TFunction): Chat 
     username: chat.username || undefined,
     preview: localizedPreview(chat.preview || "", t),
     time: date ? formatChatTime(date, language) : "",
+    avatarUrl: chat.avatarUrl || undefined,
     unread: chat.unread || undefined,
     pinned: chat.pinned,
     muted: chat.muted,
@@ -315,6 +403,9 @@ function mapMedia(
   return {
     kind: normalizedMediaKind(media.kind),
     name: localizedPreview(media.name || "File", t),
+    thumbUrl: media.thumbUrl || undefined,
+    photoUrl: media.photoUrl || undefined,
+    streamUrl: media.streamUrl || undefined,
     size: media.size || undefined,
     ext: media.ext || undefined,
     duration: media.duration || undefined,
@@ -322,12 +413,19 @@ function mapMedia(
     height: media.height || undefined,
     sizeBytes: media.sizeBytes || undefined,
     mime: media.mime || undefined,
+    title: media.title || undefined,
+    performer: media.performer || undefined,
+    waveform: media.waveform || undefined,
     options: media.options || undefined,
     voteCounts: media.voteCounts || undefined,
     chosen: media.chosen || undefined,
     totalVoters: media.totalVoters || undefined,
     pollClosed: media.pollClosed || undefined,
     quiz: media.quiz || undefined,
+    correctOption: media.correctOption ?? undefined,
+    explanation: media.explanation || undefined,
+    multipleChoice: media.multipleChoice || undefined,
+    publicVoters: media.publicVoters || undefined,
     latitude: media.latitude || undefined,
     longitude: media.longitude || undefined,
     live: media.live || undefined,
@@ -335,11 +433,21 @@ function mapMedia(
     contactName: media.contactName || undefined,
     url: media.url || undefined,
     siteName: media.siteName || undefined,
-    title: media.title || undefined,
     description: media.description || undefined,
     emoji: media.emoji || undefined,
     value: media.value || undefined,
     color: media.color || undefined,
+    checklist: media.checklist || undefined,
+    amount: media.amount || undefined,
+    currency: media.currency || undefined,
+    quantity: media.quantity || undefined,
+    months: media.months || undefined,
+    untilDate: media.untilDate || undefined,
+    paidCount: media.paidCount || undefined,
+    storyId: media.storyId || undefined,
+    spoiler: media.spoiler || undefined,
+    round: media.round || undefined,
+    externalId: media.externalId || undefined,
   };
 }
 
@@ -356,6 +464,8 @@ export function mapMessage(
     out: message.out,
     sender: message.sender || undefined,
     senderId: message.senderId || undefined,
+    senderAvatarUrl: message.senderAvatarUrl || undefined,
+    senderEmojiStatusUrl: message.senderEmojiStatusUrl || undefined,
     text: message.text || undefined,
     time: formatMessageTime(date, language),
     date: formatMessageDate(date, language, t, now),
@@ -370,7 +480,37 @@ export function mapMessage(
     serviceKind: message.serviceKind || undefined,
     serviceActor: message.serviceActor || undefined,
     serviceValue: message.serviceValue || undefined,
+    groupedId: message.groupedId || undefined,
+    reactions: (message.reactions ?? []).map((reaction) => ({
+      emoji: reaction.emoji,
+      count: reaction.count,
+      chosen: Boolean(reaction.chosen),
+      customEmojiId: reaction.customEmojiId || undefined,
+      url: reaction.url || undefined,
+    })),
     media: mapMedia(message.media, t),
+    entities: message.entities?.map((entity) => ({
+      type: entity.type,
+      offset: entity.offset,
+      length: entity.length,
+      url: entity.url || undefined,
+      language: entity.language || undefined,
+      userId: entity.userId || undefined,
+    })) as Message["entities"],
+    buttons: message.buttons?.map((button) => ({
+      text: button.text,
+      url: button.url || undefined,
+      data: button.data || undefined,
+      kind: button.kind as MessageButton["kind"],
+    })),
+    pinned: Boolean(message.pinned),
+    postAuthor: message.postAuthor || undefined,
+    views: message.views || undefined,
+    forwards: message.forwards || undefined,
+    editDate: message.editDate || undefined,
+    ttl: message.ttl || undefined,
+    noForwards: Boolean(message.noForwards),
+    via: message.via || undefined,
     tail: true,
   };
 }

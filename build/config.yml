@@ -8,9 +8,9 @@ info:
   companyName: "tgdesk"
   productName: "tgdesk"
   productIdentifier: "com.tgdesk.app"
-  description: "Telegram Desktop-style frontend for tdl"
+  description: "tgdesk"
   copyright: "AGPL-3.0"
-  comments: "Windows-first tdl desktop shell"
+  comments: "tgdesk"
   version: "0.1.0"
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
   #                               # Should match the name of your .icon file without the extension

@@ -1,8 +1,6 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "../ui/Button";
-import { Callout } from "../ui/Callout";
-import { Icon } from "../ui/Icon";
-import { TextField } from "../ui/TextField";
+import { Button, Callout, Icon, IconButton, TextField } from "../../ui";
 
 interface LoginPasswordStepProps {
   password: string;
@@ -26,52 +24,53 @@ export function LoginPasswordStep({
   onBack,
 }: LoginPasswordStepProps) {
   const { t } = useTranslation();
+  const [visible, setVisible] = useState(false);
 
   return (
     <form
-      className="g-login-step"
+      className="f-login-step"
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit();
       }}
     >
-      <span className="g-login-lock">
-        <Icon name="lock" size={22} />
+      <span className="f-login-mark">
+        <Icon name="lock" size={20} />
       </span>
 
-      <header className="g-login-heading g-login-heading-center">
+      <header className="f-login-heading f-login-heading-center">
         <h2>{t("login.passwordTitle")}</h2>
         <p>{t("login.passwordDescription")}</p>
       </header>
 
       {passwordHint ? (
-        <div className="g-login-code-hint">
-          <span className="g-login-code-hint-icon">
-            <Icon name="key" size={18} />
-          </span>
+        <div className="f-hint-row">
+          <Icon name="key" size={16} />
           <span>{t("login.passwordHint", { hint: passwordHint })}</span>
         </div>
       ) : null}
 
       <TextField
-        type="password"
+        type={visible ? "text" : "password"}
         label={t("login.passwordPlaceholder")}
         value={password}
         onValueChange={onPassword}
         autoComplete="current-password"
         autoFocus
+        trailing={
+          <IconButton
+            label={t(visible ? "login.hidePassword" : "login.showPassword")}
+            icon={visible ? "visibility_off" : "visibility"}
+            size="1"
+            tooltip={false}
+            onClick={() => setVisible((current) => !current)}
+          />
+        }
       />
 
       {error ? <Callout tone="error">{error}</Callout> : null}
 
-      <Button
-        type="submit"
-        variant="filled"
-        size="lg"
-        fullWidth
-        loading={busy}
-        disabled={retryIn > 0}
-      >
+      <Button type="submit" size="3" fullWidth loading={busy} disabled={retryIn > 0}>
         {busy
           ? t("login.signingIn")
           : retryIn > 0
@@ -79,9 +78,11 @@ export function LoginPasswordStep({
             : t("login.continue")}
       </Button>
 
-      <button type="button" className="g-login-text-link" onClick={onBack}>
-        {t("login.startOver")}
-      </button>
+      <div className="f-login-links">
+        <Button type="button" variant="ghost" size="1" onClick={onBack}>
+          {t("login.startOver")}
+        </Button>
+      </div>
     </form>
   );
 }

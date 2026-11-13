@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Popover } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import {
   COUNTRIES,
@@ -8,8 +8,7 @@ import {
   flagEmoji,
   type Country,
 } from "../../data/countries";
-import { Icon } from "../ui/Icon";
-import { SearchField } from "../ui/SearchField";
+import { Icon, TextField } from "../../ui";
 
 interface CountryPickerProps {
   value: string;
@@ -19,8 +18,6 @@ interface CountryPickerProps {
 }
 
 const PINNED = ["CN", "US", "GB", "JP", "KR", "RU", "IN", "DE", "FR", "SG"];
-const POPOVER_WIDTH = 350;
-const POPOVER_HEIGHT = 290;
 
 function orderedCountries(language: string): Country[] {
   const pinned = PINNED.map((iso) => COUNTRIES.find((item) => item.iso === iso)).filter(
@@ -36,59 +33,13 @@ export function CountryPicker({ value, onChange, language, disabled }: CountryPi
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const selected = findCountry(value);
 
   useEffect(() => {
     if (!open) {
       setQuery("");
-      setPosition(null);
-      return;
     }
-
-    const place = () => {
-      const rect = triggerRef.current?.getBoundingClientRect();
-      if (!rect) {
-        return;
-      }
-      const width = Math.min(POPOVER_WIDTH, window.innerWidth - 24);
-      const left = Math.min(
-        Math.max(12, rect.left),
-        Math.max(12, window.innerWidth - width - 12),
-      );
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const top =
-        spaceBelow >= POPOVER_HEIGHT || rect.top < POPOVER_HEIGHT
-          ? Math.min(rect.bottom + 8, window.innerHeight - 16)
-          : Math.max(12, rect.top - POPOVER_HEIGHT - 8);
-      setPosition({ top, left });
-    };
-
-    place();
-    window.addEventListener("resize", place);
-
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (!rootRef.current?.contains(target) && !popoverRef.current?.contains(target)) {
-        setOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-    window.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("resize", place);
-      window.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
   }, [open]);
 
   const countries = useMemo(() => orderedCountries(language), [language]);
@@ -116,83 +67,71 @@ export function CountryPicker({ value, onChange, language, disabled }: CountryPi
   };
 
   return (
-    <div className="g-country" ref={rootRef}>
-      <button
-        ref={triggerRef}
-        type="button"
-        className="g-country-trigger"
-        onClick={() => setOpen((current) => !current)}
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={t("login.country")}
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger>
+        <button
+          ref={triggerRef}
+          type="button"
+          className="f-country-trigger"
+          disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={t("login.country")}
+          data-country-trigger
+        >
+          <span className="f-country-flag" aria-hidden="true">
+            {selected ? flagEmoji(selected.iso) : <Icon name="public" size={16} />}
+          </span>
+          {selected ? (
+            <span className="f-country-dial">{selected.dial}</span>
+          ) : (
+            <span className="f-country-placeholder">{t("login.countrySelect")}</span>
+          )}
+          <Icon name="expand_more" size={14} />
+        </button>
+      </Popover.Trigger>
+      <Popover.Content
+        className="f-country-popover"
+        side="top"
+        align="start"
+        sideOffset={8}
+        width="336px"
+        onOpenAutoFocus={(event) => event.preventDefault()}
       >
-        <span className="g-country-flag" aria-hidden="true">
-          {selected ? flagEmoji(selected.iso) : <Icon name="public" size={17} />}
-        </span>
-        {selected ? (
-          <span className="g-country-dial">{selected.dial}</span>
-        ) : (
-          <span className="g-country-placeholder">{t("login.countrySelect")}</span>
-        )}
-        <Icon name="expand_more" size={17} />
-      </button>
-
-      {open && position
-        ? createPortal(
-            <div
-              ref={popoverRef}
-              className="g-country-popover"
-              role="dialog"
-              aria-label={t("login.country")}
-              style={
-                {
-                  top: position.top,
-                  left: position.left,
-                  width: `min(${POPOVER_WIDTH}px, calc(100vw - 24px))`,
-                } as CSSProperties
-              }
-            >
-              <SearchField
-                compact
-                autoFocus
-                value={query}
-                onValueChange={setQuery}
-                placeholder={t("login.countrySearch")}
-                label={t("login.countrySearch")}
-                clearLabel={t("common.clear")}
-                className="g-country-search"
-              />
-              <div className="g-country-list" role="listbox">
-                {filtered.length === 0 ? (
-                  <p className="g-country-empty">{t("login.countryEmpty")}</p>
-                ) : (
-                  filtered.map((country) => (
-                    <button
-                      type="button"
-                      key={country.iso}
-                      role="option"
-                      aria-selected={country.iso === selected?.iso}
-                      className="g-country-option"
-                      data-selected={country.iso === selected?.iso || undefined}
-                      onClick={() => pick(country.iso)}
-                    >
-                      <span className="g-country-flag" aria-hidden="true">
-                        {flagEmoji(country.iso)}
-                      </span>
-                      <span className="g-country-name">{countryName(country.iso, language)}</span>
-                      <span className="g-country-option-dial">{country.dial}</span>
-                      {country.iso === selected?.iso ? (
-                        <Icon name="check" size={17} className="g-country-check" />
-                      ) : null}
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
-    </div>
+        <TextField
+          size="2"
+          autoFocus
+          value={query}
+          onValueChange={setQuery}
+          placeholder={t("login.countrySearch")}
+          aria-label={t("login.countrySearch")}
+          leadingIcon="search"
+        />
+        <div className="f-country-list" role="listbox" aria-label={t("login.country")}>
+          {filtered.length === 0 ? (
+            <p className="f-country-empty">{t("login.countryEmpty")}</p>
+          ) : (
+            filtered.map((country) => (
+              <button
+                type="button"
+                key={country.iso}
+                role="option"
+                aria-selected={country.iso === selected?.iso}
+                className="f-country-option"
+                data-selected={country.iso === selected?.iso || undefined}
+                onClick={() => pick(country.iso)}
+              >
+                <span className="f-country-flag" aria-hidden="true">
+                  {flagEmoji(country.iso)}
+                </span>
+                <span className="f-country-name">{countryName(country.iso, language)}</span>
+                <span className="f-country-option-dial">{country.dial}</span>
+                {country.iso === selected?.iso ? <Icon name="check" size={15} /> : null}
+              </button>
+            ))
+          )}
+        </div>
+      </Popover.Content>
+    </Popover.Root>
   );
 }

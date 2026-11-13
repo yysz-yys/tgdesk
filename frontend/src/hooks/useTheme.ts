@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export type ThemePreference = "system" | "light" | "dark";
 
@@ -10,21 +10,25 @@ export function resolveTheme(preference: ThemePreference): "light" | "dark" {
 }
 
 /**
- * Applies the stored theme preference to the document. `system` follows the
- * Windows colour scheme live; explicit light/dark choices win until changed.
+ * Applies the stored theme preference to the document and returns the resolved
+ * appearance so the Radix theme root can follow it without a second listener.
+ * `system` follows the Windows colour scheme live; explicit choices win.
  */
-export function useTheme(preference: ThemePreference) {
+export function useTheme(preference: ThemePreference): "light" | "dark" {
+  const [resolved, setResolved] = useState(() => resolveTheme(preference));
+
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
 
     const apply = () => {
-      const resolved = resolveTheme(preference);
+      const next = resolveTheme(preference);
+      setResolved(next);
       const root = document.documentElement;
-      root.dataset.theme = resolved;
-      root.style.colorScheme = resolved;
+      root.dataset.theme = next;
+      root.style.colorScheme = next;
       document
         .querySelector('meta[name="theme-color"]')
-        ?.setAttribute("content", resolved === "dark" ? "#131314" : "#f8fafd");
+        ?.setAttribute("content", next === "dark" ? "#101012" : "#eceef3");
     };
 
     apply();
@@ -34,4 +38,6 @@ export function useTheme(preference: ThemePreference) {
     }
     return undefined;
   }, [preference]);
+
+  return resolved;
 }

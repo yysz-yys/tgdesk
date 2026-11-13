@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../../hooks/useSettings";
-import { Button } from "../ui/Button";
-import { Dialog } from "../ui/Dialog";
-import { SelectField } from "../ui/SelectField";
-import { TextField } from "../ui/TextField";
+import { Button, Dialog, SelectField, TextField } from "../../ui";
 
 type ProxyDraft = Pick<
   AppSettings,
@@ -30,9 +27,9 @@ function draftFrom(settings: AppSettings): ProxyDraft {
 }
 
 /**
- * Proxy editor for sign-in. It is a modal so the 420px login card never grows
- * or scrolls when the fields appear. Edits stay local until Save, and the
- * caller restarts the QR flow after the new settings have rendered.
+ * Proxy editor for sign-in. A modal keeps the login card from growing or
+ * scrolling; edits stay local until Save and the caller restarts the QR flow
+ * after the new settings render.
  */
 export function LoginNetworkSettings({
   settings,
@@ -76,13 +73,12 @@ export function LoginNetworkSettings({
       description={t("login.networkDescription")}
       closeLabel={t("common.close")}
     >
-      <div className="g-login-network">
+      <div className="f-network">
         <SelectField
+          size="2"
           label={t("settings.network.proxyType")}
           value={draft.proxyType}
-          onValueChange={(value) =>
-            set("proxyType", value as AppSettings["proxyType"])
-          }
+          onValueChange={(value) => set("proxyType", value as AppSettings["proxyType"])}
           options={[
             { value: "none", label: t("settings.network.none") },
             { value: "socks5", label: t("settings.network.socks5") },
@@ -92,8 +88,9 @@ export function LoginNetworkSettings({
 
         {draft.proxyType !== "none" ? (
           <>
-            <div className="g-login-network-grid">
+            <div className="f-network-grid">
               <TextField
+                size="2"
                 label={t("settings.network.host")}
                 value={draft.proxyHost}
                 onValueChange={(value) => set("proxyHost", value)}
@@ -101,6 +98,7 @@ export function LoginNetworkSettings({
                 autoComplete="off"
               />
               <TextField
+                size="2"
                 label={t("settings.network.port")}
                 value={draft.proxyPort}
                 onValueChange={(value) => set("proxyPort", value)}
@@ -109,16 +107,18 @@ export function LoginNetworkSettings({
                 autoComplete="off"
               />
             </div>
-            <div className="g-login-network-grid">
+            <div className="f-network-grid">
               <TextField
+                size="2"
                 label={t("settings.network.username")}
                 value={draft.proxyUser}
                 onValueChange={(value) => set("proxyUser", value)}
                 autoComplete="off"
               />
               <TextField
-                label={t("settings.network.password")}
+                size="2"
                 type="password"
+                label={t("settings.network.password")}
                 value={draft.proxyPass}
                 onValueChange={(value) => set("proxyPass", value)}
                 autoComplete="off"
@@ -128,11 +128,11 @@ export function LoginNetworkSettings({
         ) : null}
       </div>
 
-      <div className="g-dialog-actions">
-        <Button variant="text" onClick={() => onOpenChange(false)}>
+      <div className="f-dialog-actions">
+        <Button variant="ghost" onClick={() => onOpenChange(false)}>
           {t("common.cancel")}
         </Button>
-        <Button variant="filled" icon="check" onClick={save}>
+        <Button variant="solid" icon="check" onClick={save}>
           {t("common.save")}
         </Button>
       </div>

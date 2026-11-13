@@ -2,8 +2,14 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../../hooks/useSettings";
 import type { ThemePreference } from "../../hooks/useTheme";
-import { Icon } from "../ui/Icon";
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "../ui/Menu";
+import {
+  Icon,
+  Menu,
+  MenuLabel,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuSeparator,
+} from "../../ui";
 import { BrandMark } from "./BrandMark";
 
 export type LoginLanguage = AppSettings["language"];
@@ -29,9 +35,9 @@ interface LoginShellProps {
 }
 
 /**
- * Minimal sign-in surface: one brand lockup, one card, one footer. The language
- * and theme menus are the only chrome outside the card. Both offer "follow
- * system" and persist through AppSettings.
+ * F sign-in surface: a floating card between one brand lockup and one quiet
+ * footer. Language and theme are the only chrome outside the card; both stay
+ * persisted in AppSettings.
  */
 export function LoginShell({
   children,
@@ -44,86 +50,75 @@ export function LoginShell({
   const resolved = (i18n.resolvedLanguage ?? "en") as keyof typeof LANGUAGE_NAMES;
   const currentName = LANGUAGE_NAMES[resolved] ?? LANGUAGE_NAMES.en;
   const languageLabel =
-    language === "system"
-      ? `${t("common.systemDefault")} · ${currentName}`
-      : currentName;
+    language === "system" ? `${t("common.systemDefault")} · ${currentName}` : currentName;
   const themeLabel = t(`settings.appearance.${theme}`);
 
   return (
-    <div className="g-login">
-      <main className="g-login-main">
-        <div className="g-login-brand">
-          <BrandMark size={36} alt="" />
-          <span className="g-login-wordmark">tgdesk</span>
+    <div className="f-login">
+      <main className="f-login-main">
+        <div className="f-login-brand">
+          <BrandMark size={32} alt="" />
+          <span className="f-login-wordmark">tgdesk</span>
         </div>
 
-        <section className="g-login-card" aria-label={t("login.title")}>
+        <section className="f-login-card" aria-label={t("login.title")}>
           {children}
         </section>
 
-        <div className="g-login-footer">
-          <Menu>
-            <MenuTrigger asChild>
-              <button
-                type="button"
-                className="g-login-language"
-                aria-label={`${t("login.language")}: ${languageLabel}`}
-              >
-                <Icon name="language" size={16} />
+        <div className="f-login-footer">
+          <Menu
+            side="top"
+            triggerClassName="f-footer-language"
+            trigger={
+              <>
+                <Icon name="language" size={15} />
                 <span>{languageLabel}</span>
-                <Icon name="expand_more" size={15} />
-              </button>
-            </MenuTrigger>
-            <MenuContent align="start" side="top">
-              <MenuLabel>{t("login.language")}</MenuLabel>
-              <MenuItem
-                selected={language === "system"}
-                onSelect={() => onLanguageChange("system")}
-              >
-                {t("common.systemDefault")}
-              </MenuItem>
+                <Icon name="expand_more" size={13} />
+              </>
+            }
+          >
+            <MenuLabel>{t("login.language")}</MenuLabel>
+            <MenuRadioGroup
+              value={language}
+              onValueChange={(value) => onLanguageChange(value as LoginLanguage)}
+            >
+              <MenuRadioItem value="system">{t("common.systemDefault")}</MenuRadioItem>
               <MenuSeparator />
               {(["en", "zh", "ja"] as const).map((code) => (
-                <MenuItem
-                  key={code}
-                  selected={language === code}
-                  onSelect={() => onLanguageChange(code)}
-                >
+                <MenuRadioItem key={code} value={code}>
                   {LANGUAGE_NAMES[code]}
-                </MenuItem>
+                </MenuRadioItem>
               ))}
-            </MenuContent>
+            </MenuRadioGroup>
           </Menu>
-          <span className="g-login-footer-dot" />
 
-          <Menu>
-            <MenuTrigger asChild>
-              <button
-                type="button"
-                className="g-login-theme"
-                aria-label={`${t("settings.appearance.theme")}: ${themeLabel}`}
-                title={themeLabel}
-              >
-                <Icon name={THEME_ICONS[theme]} size={17} />
-              </button>
-            </MenuTrigger>
-            <MenuContent align="start" side="top">
-              <MenuLabel>{t("settings.appearance.theme")}</MenuLabel>
+          <span className="f-footer-dot" />
+
+          <Menu
+            side="top"
+            triggerClassName="f-footer-theme"
+            trigger={
+              <>
+                <Icon name={THEME_ICONS[theme]} size={15} />
+                <span className="f-sr-only">{themeLabel}</span>
+              </>
+            }
+          >
+            <MenuLabel>{t("settings.appearance.theme")}</MenuLabel>
+            <MenuRadioGroup
+              value={theme}
+              onValueChange={(value) => onThemeChange(value as ThemePreference)}
+            >
               {(["system", "light", "dark"] as const).map((value) => (
-                <MenuItem
-                  key={value}
-                  icon={<Icon name={THEME_ICONS[value]} size={18} />}
-                  selected={theme === value}
-                  onSelect={() => onThemeChange(value)}
-                >
+                <MenuRadioItem key={value} value={value}>
                   {t(`settings.appearance.${value}`)}
-                </MenuItem>
+                </MenuRadioItem>
               ))}
-            </MenuContent>
+            </MenuRadioGroup>
           </Menu>
 
-          <span className="g-login-footer-dot" />
-          <span>{t("login.footerReal")}</span>
+          <span className="f-footer-dot" />
+          <span className="f-footer-legal">{t("login.footerReal")}</span>
         </div>
       </main>
     </div>

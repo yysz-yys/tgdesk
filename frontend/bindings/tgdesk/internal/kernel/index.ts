@@ -6,11 +6,18 @@ export type {
     AuthStatus,
     AuthUser,
     ChatDTO,
+    ChatEvent,
     ChatFolderDTO,
+    ChatMemberDTO,
+    ChecklistItemDTO,
     DownloadEvent,
     DownloadTaskDTO,
+    MessageButtonDTO,
     MessageDTO,
+    MessageEntityDTO,
     MessageMediaDTO,
     PortablePaths,
-    TDataExport
+    ReactionDTO,
+    TDataExport,
+    UploadEvent
 } from "./models.js";

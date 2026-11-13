@@ -50,3 +50,16 @@ func Ensure() error {
 	}
 	return nil
 }
+
+// RemoveLegacyImageCaches deletes the per-image JPEG directories written by
+// older builds (data/thumbs, data/avatars). Images are now served from MTProto
+// through the loopback server and cached by the WebView, so those files are
+// dead weight next to the executable. Safe to call on every start.
+func RemoveLegacyImageCaches() error {
+	for _, dir := range []string{"thumbs", "avatars"} {
+		if err := os.RemoveAll(filepath.Join(Data(), dir)); err != nil {
+			return err
+		}
+	}
+	return nil
+}

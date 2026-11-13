@@ -18,10 +18,8 @@ test with a real Telegram Desktop account safely.
     .legacy-session-migrated  migration marker
     .legacy-webview-migrated  migration marker
     downloads.json            persisted download tasks
-    thumbs/                   downloaded Telegram thumbnails
-    avatars/                  cached chat/sender profile-photo thumbnails
-    media/                    cached playable videos served over loopback HTTP
-    webview/                  WebView2 user data (settings/drafts)
+    media/                    opt-in video cache served over loopback HTTP
+    webview/                  WebView2 user data (settings/drafts + image HTTP cache)
   tdata/                      official Telegram Desktop files only
     key_datas
     D877F783D5D3EF8Cs         MTP authorization (account index 0)
@@ -108,23 +106,32 @@ marker; an abandoned QR attempt alone is not sufficient.
 - `localStorage`: language, app settings, composer drafts.
 - localStorage keys currently used: `tgdesk.settings`,
   `tgdesk.draft.<chatId>`.
+- the WebView HTTP cache, which may hold chat thumbnails and avatars loaded from
+  the loopback image server.
 
-Deleting `data/webview` resets local UI preferences but not the Telegram session.
-Do not commit or share it; it may contain private draft text.
+Deleting `data/webview` resets local UI preferences and the image cache but not
+the Telegram session. Do not commit or share it; it may contain private draft
+text and cached media.
 
-## Downloads and thumbnails
+## Downloads and media cache
 
 - `data/downloads.json` stores task metadata and resume paths.
 - Partial downloads are written as `<name>.tmp`; completed files are renamed.
-- `data/thumbs/` contains small JPEG thumbnails fetched from Telegram. It is safe
-  to delete; they are re-fetched on demand.
-- `data/avatars/` contains cached profile-photo thumbnails for chats and message
-  senders. It is also safe to delete; the UI falls back to initials until the
-  next lazy fetch.
+- Chat thumbnails, avatars and full photos are **not** written as files. The
+  kernel serves them from MTProto through a loopback HTTP server (`/thumb`,
+  `/avatar`, `/photo`); the WebView loads them like normal web images and keeps
+  its own HTTP cache. The kernel also keeps a bounded in-memory image cache.
+  Older builds wrote `data/thumbs/` and `data/avatars/`; both are removed on
+  startup and are safe to delete manually.
 - `data/media/` contains video cache files. Default range streaming does not
   retain the video; tdl download-while-watching keeps `stream_*` files here.
   A random loopback-only HTTP token is used; deleting the folder is safe.
 - `downloads/` is the default output directory and may contain private media.
+- `data/cache/` contains the last dialog list and up to 50 messages per opened
+  chat so the UI can paint before the network answers. It is local-only, never
+  uploaded, and is deleted on logout. Delete it manually to force a cold start.
+- Attachment uploads read the file from the path chosen in the native picker;
+  tgdesk does not copy it into `data/`.
 
 ## Legacy migration
 

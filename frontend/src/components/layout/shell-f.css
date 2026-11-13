@@ -1,0 +1,1002 @@
+/* F shell layer.
+ *
+ * The conversation list and chat pane become two floating surfaces on the F
+ * canvas. Existing g-* hooks in ChatView/MessageList are kept so message media
+ * and scrolling behaviour stay untouched; this file restyles them.
+ */
+
+.f-shell {
+  /* Old feature CSS keeps reading app aliases; map them onto F/Radix here. */
+  --app-surface: var(--f-surface);
+  --app-surface-container-lowest: var(--f-surface);
+  --app-surface-container-low: var(--f-surface-muted);
+  --app-surface-container: var(--gray-3);
+  --app-surface-container-high: var(--gray-4);
+  --app-surface-container-highest: var(--gray-5);
+  --app-on-surface: var(--f-text);
+  --app-on-surface-variant: var(--f-muted);
+  --app-outline: var(--gray-a8);
+  --app-outline-variant: var(--f-line);
+  --app-primary: var(--accent-9);
+  --app-on-primary: #ffffff;
+  --app-primary-container: var(--accent-a3);
+  --app-on-primary-container: var(--accent-12);
+  --app-selected: var(--accent-a3);
+  --app-selected-text: var(--accent-12);
+  --app-chat-canvas: var(--f-surface);
+  --app-chat-pattern: none;
+  --app-incoming: var(--gray-3);
+  --app-outgoing: var(--accent-9);
+  --app-outgoing-text: #ffffff;
+  --app-success: var(--green-11);
+  --app-error: var(--red-11);
+  --app-font: var(--f-font);
+  --app-font-size-body: 13.5px;
+  --app-line-height-body: 20px;
+  --app-font-size-label: 11.5px;
+  --app-font-size-caption: 10.5px;
+  --app-radius-sm: 8px;
+  --app-radius-md: 10px;
+  --app-radius-lg: 12px;
+  --app-radius-xl: 14px;
+  --app-elevation-1: var(--f-shadow-pop);
+  --app-elevation-2: var(--f-shadow-pop);
+
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  gap: 10px;
+  padding: 0 10px 10px;
+  background: var(--f-canvas);
+  color: var(--f-text);
+  font-family: var(--f-font);
+  position: relative;
+}
+
+.f-sidebar,
+.f-shell .g-chat-pane,
+.f-shell .f-chat-pane {
+  border: 1px solid var(--f-line);
+  border-radius: 14px;
+  background: var(--f-surface);
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 10px 28px -18px rgba(16, 24, 40, 0.3);
+}
+
+.f-sidebar {
+  position: relative;
+  display: flex;
+  width: 316px;
+  min-width: 0;
+  min-height: 0;
+  flex: 0 0 316px;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------- sidebar head */
+
+.f-sidebar-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 12px 4px;
+}
+
+.f-sidebar-search {
+  min-width: 0;
+  flex: 1;
+}
+
+.f-sidebar-head .f-field {
+  min-width: 0;
+  flex: 1;
+  gap: 0;
+}
+
+.f-sidebar-head .rt-TextFieldRoot {
+  width: 100%;
+  background: var(--f-surface-muted);
+  box-shadow: none;
+}
+
+.f-sidebar-head input {
+  font-size: 12.5px;
+}
+
+/* Archived chats view: back/title/menu header + search. */
+
+.f-archive-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 10px 4px 12px;
+}
+
+.f-archive-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--f-text);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-archive-search {
+  flex: 0 0 auto;
+  padding: 4px 12px 8px;
+}
+
+.f-archive-search .rt-TextFieldRoot {
+  width: 100%;
+  background: var(--f-surface-muted);
+  box-shadow: none;
+}
+
+.f-archive-search input {
+  font-size: 12.5px;
+}
+
+.f-archive-entry {
+  display: flex;
+  width: calc(100% - 16px);
+  align-items: center;
+  gap: 10px;
+  margin: 2px 8px 6px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  padding: 7px 8px;
+  color: inherit;
+  cursor: pointer;
+  font-family: var(--f-font);
+  text-align: left;
+}
+
+.f-archive-entry:hover {
+  border-color: var(--f-line);
+  background: var(--gray-a2);
+}
+
+.f-archive-entry-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-a3);
+  color: var(--accent-11);
+}
+
+.f-archive-entry-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.f-archive-entry-copy b {
+  color: var(--f-text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.f-archive-entry-copy small {
+  overflow: hidden;
+  color: var(--f-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-filter-bar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 12px 6px;
+}
+
+.f-filter-trigger {
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0 4px;
+  color: var(--f-muted);
+  box-shadow: none;
+  cursor: pointer;
+  font-family: var(--f-font);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.f-filter-trigger b {
+  color: var(--f-faint);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.f-filter-trigger .f-icon {
+  color: var(--f-faint);
+}
+
+.f-filter-trigger:hover {
+  background: var(--gray-a3);
+  color: var(--f-text);
+}
+
+.f-filter-trigger:focus,
+.f-filter-trigger:focus-visible {
+  outline: none;
+}
+
+.f-downloads-shortcut {
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0 8px;
+  color: var(--f-muted);
+  cursor: pointer;
+  font-family: var(--f-font);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.f-downloads-shortcut:hover {
+  background: var(--gray-a3);
+  color: var(--f-text);
+}
+
+.f-downloads-shortcut[data-active] {
+  background: var(--accent-a2);
+  color: var(--accent-11);
+}
+
+.f-downloads-shortcut b {
+  display: grid;
+  min-width: 17px;
+  height: 17px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--accent-9);
+  padding: 0 5px;
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.f-filter-menu {
+  min-width: 200px;
+}
+
+.f-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.f-filter-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-filter-count {
+  color: var(--f-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.f-filter-item[data-highlighted] {
+  background: var(--gray-a3);
+  color: var(--f-text);
+}
+
+.f-filter-item[data-highlighted] .f-filter-count {
+  color: var(--f-muted);
+}
+
+.f-filter-item[data-highlighted] .f-filter-check {
+  color: var(--accent-11);
+}
+
+.f-filter-item[data-active] {
+  color: var(--accent-11);
+}
+
+.f-filter-check {
+  flex: 0 0 auto;
+  color: var(--accent-11);
+}
+
+/* Shared app menu (chat sidebar + downloads page). */
+
+.f-app-menu {
+  min-width: 210px;
+}
+
+.f-app-menu-account {
+  display: flex;
+  max-width: 220px;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  padding: 4px 8px 6px;
+  color: var(--f-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.f-app-menu-account > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-app-menu-count {
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--accent-9);
+  padding: 0 5px;
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.f-app-menu-check {
+  flex: 0 0 auto;
+  color: var(--accent-11);
+}
+
+.f-restricted {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 12px 8px;
+  border: 1px solid var(--amber-a5);
+  border-radius: 9px;
+  background: var(--amber-a2);
+  padding: 8px 10px;
+  color: var(--amber-11);
+  cursor: pointer;
+  text-align: left;
+}
+
+.f-restricted-icon {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.f-restricted strong {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.f-restricted small {
+  display: block;
+  margin-top: 1px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+
+/* ------------------------------------------------------------- conversation */
+
+.f-sidebar-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 8px 8px;
+}
+
+.f-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.f-row {
+  display: flex;
+  width: 100%;
+  height: 64px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  padding: 0 8px;
+  color: var(--f-text);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 120ms ease;
+}
+
+.f-row:hover {
+  background: var(--gray-a3);
+}
+
+.f-row[data-active] {
+  background: var(--accent-a3);
+}
+
+.f-row[data-active] .f-row-title {
+  color: var(--accent-12);
+}
+
+.f-row[data-active] .f-row-time,
+.f-row[data-active] .f-row-preview,
+.f-row[data-active] .f-row-flags,
+.f-row[data-active] .f-row-verified {
+  color: var(--accent-11);
+}
+
+.f-row-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.f-row-top {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.f-row-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: var(--f-text);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-row-verified {
+  flex: 0 0 auto;
+  color: var(--accent-11);
+}
+
+.f-row-time {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: var(--f-faint);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.f-row-bottom {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.f-row-flags {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  color: var(--f-faint);
+}
+
+.f-row-preview {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--f-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-row[data-unread] .f-row-preview {
+  color: var(--f-text);
+  font-weight: 500;
+}
+
+.f-row .g-chat-avatar {
+  flex: 0 0 auto;
+}
+
+.f-skeleton-row {
+  display: flex;
+  height: 64px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+}
+
+.f-skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--gray-a3);
+}
+
+.f-skeleton-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.f-skeleton-copy span {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--gray-a3);
+}
+
+/* ----------------------------------------------------------------- chat pane */
+
+.f-shell .g-chat-pane,
+.f-shell .f-chat-pane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--f-surface);
+}
+
+.f-chat-empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.f-chat-header {
+  display: flex;
+  height: 58px;
+  flex: 0 0 58px;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--f-line);
+  background: var(--f-surface);
+  padding: 0 12px 0 16px;
+}
+
+.f-peer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  margin-left: -6px;
+  padding: 4px 6px;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.f-peer:hover {
+  background: var(--gray-a3);
+}
+
+.f-peer-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.f-peer-name {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--f-text);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-peer-verified {
+  flex: 0 0 auto;
+  color: var(--accent-11);
+}
+
+.f-peer-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--f-muted);
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+
+.f-online-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--green-9);
+}
+
+.f-chat-actions {
+  display: flex;
+  margin-left: auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.f-chat-search {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+}
+
+.f-chat-search .f-field {
+  min-width: 0;
+  flex: 1;
+}
+
+.f-chat-search .rt-TextFieldRoot {
+  width: 100%;
+  flex: 1;
+  background: var(--f-surface-muted);
+  box-shadow: none;
+}
+
+.f-search-count {
+  color: var(--f-faint);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- message list */
+
+.f-shell .g-chat-canvas {
+  min-height: 0;
+  flex: 1;
+  background: var(--tg-chat-base, var(--f-surface));
+}
+
+.f-shell .g-message-scroll {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0 4px;
+  background-color: transparent;
+}
+
+/* ---------------------------------------------------------------- composer */
+
+.f-composer {
+  display: flex;
+  min-height: 58px;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  background: var(--f-surface);
+  padding: 6px 14px 14px;
+}
+
+.f-composer-field {
+  display: flex;
+  width: 100%;
+  max-width: 760px;
+  min-height: 46px;
+  align-items: flex-end;
+  gap: 2px;
+  border: 1px solid var(--f-line);
+  border-radius: 12px;
+  margin: 0 auto;
+  background: var(--f-surface-muted);
+  padding: 3px 4px;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.f-composer-field:focus-within {
+  border-color: var(--accent-8);
+  box-shadow: 0 0 0 2px var(--accent-a3);
+}
+
+.f-composer-input {
+  width: 100%;
+  min-height: 34px;
+  max-height: 132px;
+  flex: 1;
+  resize: none;
+  overflow-y: auto;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 7px 6px 6px;
+  color: var(--f-text);
+  font-family: var(--f-font);
+  font-size: 13.5px;
+  line-height: 20px;
+}
+
+.f-composer-input::placeholder {
+  color: var(--gray-a9);
+  opacity: 1;
+}
+
+.f-composer-input:focus-visible {
+  outline: 0;
+}
+
+.f-composer-send {
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.f-composer-sending {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--accent-11);
+}
+
+/* ------------------------------------------------------------- channel bar */
+
+.f-shell .g-channel-bar {
+  border-top: 1px solid var(--f-line);
+  border-radius: 0;
+  background: var(--f-surface);
+  margin: 0;
+  padding: 10px 16px;
+}
+
+@media (max-width: 860px) {
+  .f-shell {
+    gap: 0;
+    padding: 0;
+  }
+
+  .f-sidebar {
+    width: 280px;
+    flex-basis: 280px;
+    border-radius: 0;
+    border-left: 0;
+  }
+
+  .f-shell .g-chat-pane {
+    border-radius: 0;
+    border-right: 0;
+  }
+}
+
+.f-archive-row {
+  flex: 0 0 64px;
+}
+
+.f-archive-avatar {
+  --avatar-color: var(--gray-a4);
+  --avatar-size: 40px;
+  color: var(--f-muted);
+}
+
+.f-archive-avatar .f-icon {
+  color: var(--f-muted);
+}
+
+/* Telegram Web folder tabs: All + the custom dialog filters, no synthetic
+   Unread tab. */
+.f-folder-tabs {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.f-folder-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.f-folder-tab {
+  display: inline-flex;
+  height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0 8px;
+  color: var(--f-muted);
+  cursor: pointer;
+  font-family: var(--f-font);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.f-folder-tab b {
+  color: var(--f-faint);
+  font-size: 10.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.f-folder-tab:hover {
+  background: var(--gray-a3);
+  color: var(--f-text);
+}
+
+.f-folder-tab[data-active] {
+  background: var(--gray-a3);
+  color: var(--accent-11);
+  box-shadow: inset 0 -2px 0 var(--accent-9);
+}
+
+.f-folder-tab[data-active] b {
+  color: var(--accent-11);
+}
+
+.f-filter-static {
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+  color: var(--f-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.f-filter-static b {
+  color: var(--f-faint);
+  font-size: 10.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Archive row count is metadata, not an unread badge: plain muted text, never
+   the blue accent pill used for actual unread counters. */
+.f-archive-row .f-archive-count {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--f-muted) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  padding: 0 2px;
+}
+
+/* App-menu rows (including the archived-chats entry) use the same quiet gray
+   hover as the chat list, never the saturated accent fill. */
+.f-app-menu .f-menu-row[data-highlighted],
+.f-app-menu .f-menu-row[data-state="open"],
+.f-app-menu .f-menu-row:hover {
+  background: var(--gray-a3) !important;
+  color: var(--f-text) !important;
+}
+
+.f-app-menu .f-menu-row:focus-visible {
+  outline: none;
+}
+
+.f-app-menu-count-neutral {
+  min-width: 0;
+  height: auto;
+  border-radius: 0;
+  background: transparent !important;
+  padding: 0 2px;
+  color: var(--f-muted) !important;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.f-app-menu .f-menu-row[data-highlighted] .f-app-menu-count-neutral,
+.f-app-menu .f-menu-row:hover .f-app-menu-count-neutral {
+  background: transparent !important;
+  color: var(--f-muted) !important;
+}
+
+/* Icon buttons in the sidebar headers use a quiet gray state only while the
+   menu is actually open. Focus alone must not leave a filled square after the
+   menu closes. */
+.f-sidebar-head .f-icon-button:focus-visible,
+.f-archive-head .f-icon-button:focus-visible {
+  outline: none;
+  background: transparent;
+}
+
+.f-sidebar-head .f-icon-button[data-state="open"],
+.f-archive-head .f-icon-button[data-state="open"] {
+  background: var(--gray-a3);
+}
+
+/* Unified dropdown highlight: every menu (archive, app, filters) uses the same
+   quiet gray row; no saturated blue selection anywhere. */
+.f-menu-content [role="menuitem"][data-highlighted],
+.f-menu-content [role="menuitem"][data-state="open"],
+.f-menu-content [role="menuitem"]:hover,
+.f-filter-menu [role="menuitem"][data-highlighted],
+.f-filter-menu [role="menuitem"][data-state="open"],
+.f-filter-menu [role="menuitem"]:hover {
+  background: var(--gray-a3) !important;
+  color: var(--f-text) !important;
+}
+
+.f-menu-content [role="menuitem"]:focus-visible,
+.f-filter-menu [role="menuitem"]:focus-visible {
+  outline: none;
+}
+
+/* Archive search takes over the title row: back arrow, input, close. */
+.f-archive-head-search {
+  min-width: 0;
+  flex: 1;
+}
+
+.f-archive-head-search .rt-TextFieldRoot {
+  width: 100%;
+  background: var(--f-surface-muted);
+  box-shadow: none;
+}
+
+.f-archive-head-search input {
+  font-size: 12.5px;
+}

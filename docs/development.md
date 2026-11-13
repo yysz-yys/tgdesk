@@ -87,7 +87,8 @@ packages. The internal packages are the maintained contract.
 
 All executable-relative writes use `internal/paths`:
 
-- `data/` — tdl session, cached user, WebView state, download metadata, thumbs.
+- `data/` — tdl session, cached user, WebView state, download metadata and the
+  WebView image cache.
 - `tdata/` — official Telegram Desktop files only.
 - `downloads/` — media output.
 
@@ -164,11 +165,12 @@ Privacy rules:
 ### Add a page or component
 
 1. Create a focused component under `components/<area>/`.
-2. Use `tg-`-prefixed classes and component-local CSS.
-3. Reuse `components/ui` atoms; login pages use the Material 3 tokens in
-   `components/auth/login.css`.
+2. Use component-local CSS for layout only; colour, radius and control states
+   come from `src/ui/f.css` tokens or Radix variables.
+3. Reuse `src/ui` atoms; login pages, shell, downloads and settings all compose
+   the same primitives.
 4. Add strings to `locales/en.ts`, `zh.ts`, `ja.ts` together.
-5. Wire it into `App.tsx` or the settings sheet.
+5. Wire it into `App.tsx` or the settings dialog.
 6. Verify with `npm run build` and `wails3 build`.
 
 ### Add a local setting

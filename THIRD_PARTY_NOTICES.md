@@ -18,21 +18,23 @@ each package/module remains authoritative.
 | React, React DOM | MIT | <https://react.dev/> |
 | i18next, react-i18next | MIT | <https://www.i18next.com/> |
 | Radix UI primitives | MIT | <https://www.radix-ui.com/> |
-| Material Web (`@material/web`) | Apache-2.0 | <https://github.com/material-components/material-web> |
+| Radix Themes | MIT | <https://www.radix-ui.com/themes> |
+| Lucide icons | ISC | <https://lucide.dev/> |
 | Wails JS runtime | MIT | <https://github.com/wailsapp/wails> |
 | clsx | MIT | <https://github.com/lukeed/clsx> |
 | qrcode.react | ISC | <https://github.com/zpao/qrcode.react> |
+| lottie-web | MIT | <https://github.com/airbnb/lottie-web> |
 | Vite, TypeScript and build tooling | MIT / Apache-2.0 | see package manifests |
 
 ## Fonts
 
 | Font | License | Bundled license |
 |---|---|---|
-| Roboto | Apache-2.0 | [`frontend/public/fonts/LICENSE.txt`](frontend/public/fonts/LICENSE.txt) |
-| Material Symbols Rounded | SIL Open Font License 1.1 | [`frontend/public/fonts/MATERIAL_SYMBOLS_LICENSE.txt`](frontend/public/fonts/MATERIAL_SYMBOLS_LICENSE.txt) |
+| Inter | SIL Open Font License 1.1 | [`frontend/public/fonts/Inter-OFL.txt`](frontend/public/fonts/Inter-OFL.txt) |
 
-The Roboto and Material Symbols files are shipped inside `frontend/public/fonts`
-and are included in the production bundle. They are not fetched from a CDN.
+The Inter Latin subset is shipped inside `frontend/public/fonts` and is included
+in the production bundle. CJK text falls back to the Windows UI font. The font is
+not fetched from a CDN.
 
 ## Protocol implementation
 

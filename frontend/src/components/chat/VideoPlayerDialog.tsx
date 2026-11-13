@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dialog } from "../ui/Dialog";
-import { Icon } from "../ui/Icon";
-import { Spinner } from "../ui/Spinner";
+import { Dialog, Icon, Spinner } from "../../ui";
 
 interface VideoPlayerDialogProps {
   open: boolean;
@@ -56,17 +54,17 @@ export function VideoPlayerDialog({
       title={title || t("media.video")}
       description={t("chat.videoPlayer")}
       closeLabel={t("rightPanel.close")}
-      width={760}
+      width="760px"
     >
-      <div className="g-video-player">
+      <div className="f-video-player">
         {failed ? (
-          <div className="g-video-player-status">
-            <Icon name="error" size={26} />
+          <div className="f-video-status">
+            <Icon name="error" size={24} />
             <span>{t("chat.videoLoadFailed")}</span>
           </div>
         ) : url ? (
           <video
-            className="g-video-player-media"
+            className="f-video-media"
             src={url}
             controls
             autoPlay
@@ -75,8 +73,8 @@ export function VideoPlayerDialog({
             onError={() => setFailed(true)}
           />
         ) : (
-          <div className="g-video-player-status">
-            <Spinner size={24} />
+          <div className="f-video-status">
+            <Spinner size={22} />
             <span>{t("chat.videoLoading")}</span>
           </div>
         )}

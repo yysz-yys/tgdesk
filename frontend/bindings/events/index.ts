@@ -14,7 +14,17 @@ import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
 export const AuthEvent = "auth:event";
 
 /**
+ * Name of the custom event "chat:event".
+ */
+export const ChatEvent = "chat:event";
+
+/**
  * Name of the custom event "download:event".
  */
 export const DownloadEvent = "download:event";
+
+/**
+ * Name of the custom event "upload:event".
+ */
+export const UploadEvent = "upload:event";
 

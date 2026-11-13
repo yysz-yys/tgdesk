@@ -1,0 +1,209 @@
+/* F downloads surface: one page card inside the chat pane. */
+
+.f-downloads-pane {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  justify-content: center;
+}
+
+.f-page {
+  display: flex;
+  width: min(960px, 100%);
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--f-line);
+  border-radius: 14px;
+  background: var(--f-surface);
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 10px 28px -18px rgba(16, 24, 40, 0.3);
+}
+
+.f-page-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px 14px;
+}
+
+.f-page-title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.f-page-title h1 {
+  margin: 0;
+  color: var(--f-text);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+.f-page-title p {
+  margin: 0;
+  color: var(--f-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.f-page-actions {
+  display: flex;
+  margin-left: auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.f-download-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 5px;
+  border-bottom: 1px solid var(--f-line);
+  padding: 0 20px 12px;
+}
+
+.f-download-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px 16px;
+}
+
+.f-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.f-task {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  padding: 11px 12px;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.f-task:hover {
+  border-color: var(--f-line);
+  background: var(--gray-a2);
+}
+
+.f-task-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--task-color, var(--accent-9)) 14%, transparent);
+  color: var(--task-color, var(--accent-11));
+}
+
+.f-task[data-status="done"] .f-task-icon {
+  background: var(--green-a3);
+  color: var(--green-11);
+}
+
+.f-task[data-status="failed"] .f-task-icon {
+  background: var(--red-a3);
+  color: var(--red-11);
+}
+
+.f-task-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.f-task-topline {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.f-task-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--f-text);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-task-ext {
+  flex: 0 0 auto;
+  border: 1px solid var(--f-line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--f-faint);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.f-task-meta {
+  overflow: hidden;
+  color: var(--f-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-task[data-status="failed"] .f-task-meta {
+  color: var(--red-11);
+}
+
+.f-task-progress {
+  margin-top: 7px;
+}
+
+.f-task-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 1px;
+  opacity: 0.65;
+}
+
+.f-task:hover .f-task-actions {
+  opacity: 1;
+}
+
+@media (max-width: 860px) {
+  .f-page {
+    border: 0;
+    border-radius: 0;
+  }
+
+  .f-page-head {
+    padding: 14px 14px 10px;
+  }
+
+  .f-download-tabs {
+    padding: 0 14px 10px;
+  }
+
+  .f-download-scroll {
+    padding: 8px 8px 12px;
+  }
+}

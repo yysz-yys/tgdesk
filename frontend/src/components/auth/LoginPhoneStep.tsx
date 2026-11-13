@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../../hooks/useSettings";
-import { Button } from "../ui/Button";
-import { Callout } from "../ui/Callout";
-import { Icon } from "../ui/Icon";
-import { IconButton } from "../ui/IconButton";
+import { Button, Callout, IconButton } from "../../ui";
 import { CountryPicker } from "./CountryPicker";
 import { LoginNetworkSettings } from "./LoginNetworkSettings";
 
@@ -46,23 +43,23 @@ export function LoginPhoneStep({
 
   return (
     <form
-      className="g-login-step"
+      className="f-login-step"
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit();
       }}
     >
-      <div className="g-login-toolbar">
-        <IconButton label={t("login.back")} icon="arrow_back" onClick={onBack} />
-        <button
-          type="button"
-          className="g-login-toolbar-action"
+      <div className="f-login-toolbar">
+        <IconButton label={t("login.back")} icon="arrow_back" size="1" onClick={onBack} />
+        <Button
+          variant="ghost"
+          size="1"
+          icon="tune"
           onClick={() => setNetworkOpen((current) => !current)}
           aria-expanded={networkOpen}
         >
-          <Icon name="tune" size={17} />
           {t("login.networkSettings")}
-        </button>
+        </Button>
       </div>
 
       <LoginNetworkSettings
@@ -73,20 +70,21 @@ export function LoginPhoneStep({
         onApply={onApplyNetwork}
       />
 
-      <header className="g-login-heading">
+      <header className="f-login-heading">
         <h2>{t("login.phoneTitle")}</h2>
         <p>{t("login.phoneDescription")}</p>
       </header>
 
-      <div className="g-login-phone-field">
+      <div className="f-phone-field">
         <CountryPicker
           value={country}
           onChange={onCountry}
           language={language}
           disabled={busy}
         />
+        <span className="f-phone-divider" aria-hidden="true" />
         <input
-          className="g-login-phone-input"
+          className="f-phone-input"
           value={phone}
           onChange={(event) => onPhone(event.target.value.replace(/[^\d\s-]/g, ""))}
           placeholder={t("login.phonePlaceholder")}
@@ -97,10 +95,10 @@ export function LoginPhoneStep({
         />
       </div>
 
-      <p className="g-login-phone-hint">
+      <p className="f-login-hint">
         {country ? t("login.phoneHint") : t("login.phoneHintCountry")}
         {phone.replace(/\D/g, "").length >= 5 && displayPhone ? (
-          <span className="g-login-phone-preview">{displayPhone}</span>
+          <span className="f-phone-preview">{displayPhone}</span>
         ) : null}
       </p>
 
@@ -108,12 +106,11 @@ export function LoginPhoneStep({
 
       <Button
         type="submit"
-        variant="filled"
-        size="lg"
+        size="3"
         fullWidth
         loading={busy}
-        icon={busy ? undefined : "arrow_forward"}
         disabled={retryIn > 0 || !country}
+        trailingIcon={busy ? undefined : "arrow_forward"}
       >
         {busy
           ? t("login.signingIn")

@@ -6,6 +6,7 @@ import { resolveLanguage } from "./i18n";
 
 import {
   mapChat,
+  mapChatMember,
   mapMessage,
   type KernelChat,
   type KernelMessage,
@@ -15,20 +16,20 @@ import type { ChatFolderDTO } from "../bindings/tgdesk/internal/kernel/models";
 import type {
   AuthUser,
   Chat,
+  ChatEvent,
   ChatFolder,
   DownloadEvent,
   DownloadTask,
   TaskStatus,
+  UploadEvent,
+  UploadProgress,
 } from "./types";
 import { useSettings, type AppSettings } from "./hooks/useSettings";
 import { useTheme } from "./hooks/useTheme";
-import { TooltipProvider } from "./components/ui/Tooltip";
-import { Toast } from "./components/ui/Toast";
-import { EmptyState } from "./components/ui/EmptyState";
+import { AppTheme } from "./ui/theme";
+import { EmptyState, Toast } from "./ui";
 import { Sidebar } from "./components/layout/Sidebar";
-import { NavDrawer } from "./components/layout/NavDrawer";
 import { ChatView } from "./components/chat/ChatView";
-import { NewMessageDialog } from "./components/chat/NewMessageDialog";
 import { DownloadsView } from "./components/downloads/DownloadsView";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { LoginLoading } from "./components/auth/LoginLoading";
@@ -71,17 +72,38 @@ function buildProxy(settings: AppSettings): string {
   return `${settings.proxyType}://${auth}${host}:${port}`;
 }
 
+/**
+ * Merge a server history snapshot with messages appended by the live update
+ * stream while that request was in flight. Only ids newer than the snapshot are
+ * kept, so a refresh cannot resurrect a deleted older message.
+ */
+function mergeHistory(
+  snapshot: KernelMessage[],
+  current: KernelMessage[],
+): KernelMessage[] {
+  if (current.length === 0) {
+    return snapshot;
+  }
+  const merged = new Map(snapshot.map((message) => [message.id, message]));
+  const newest = snapshot.reduce((max, message) => Math.max(max, message.id), 0);
+  for (const message of current) {
+    if (message.id > newest && !merged.has(message.id)) {
+      merged.set(message.id, message);
+    }
+  }
+  return [...merged.values()].sort((left, right) => left.id - right.id);
+}
+
 export default function App() {
   const { t, i18n } = useTranslation();
   const { settings, update } = useSettings();
-  useTheme(settings.theme);
+  const resolvedTheme = useTheme(settings.theme);
   const [authChecked, setAuthChecked] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [selfAvatar, setSelfAvatar] = useState("");
   const [authImportError, setAuthImportError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [newMessageOpen, setNewMessageOpen] = useState(false);
   const [chatDTOs, setChatDTOs] = useState<KernelChat[]>([]);
   const [folders, setFolders] = useState<ChatFolder[]>([]);
   const [messageDTOs, setMessageDTOs] = useState<KernelMessage[]>([]);
@@ -92,21 +114,25 @@ export default function App() {
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [chatsFailed, setChatsFailed] = useState(false);
   const [messagesFailed, setMessagesFailed] = useState(false);
-  const [portableRoot, setPortableRoot] = useState("");
   const [portableDownloads, setPortableDownloads] = useState("");
   const [view, setView] = useState<"chats" | "downloads">("chats");
   const [query, setQuery] = useState("");
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [downloads, setDownloads] = useState<DownloadTask[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [upload, setUpload] = useState<UploadProgress | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  // Telegram Web keeps the loaded history in memory so switching back to a
+  // chat is instant. Same idea here; a background refresh replaces it.
+  const messageCache = useRef(new Map<string, KernelMessage[]>());
+  const refreshChatsBusy = useRef(false);
+  const syncMessagesBusy = useRef(false);
+  const newestMessageID = useRef(0);
 
   useEffect(() => {
     let alive = true;
     AppService.GetPaths()
       .then((value) => {
         if (alive && value?.downloads) {
-          setPortableRoot(value.root ?? "");
           setPortableDownloads(value.downloads);
         }
       })
@@ -119,19 +145,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!portableDownloads || !portableRoot) {
+    if (!portableDownloads) {
       return;
     }
-    const normalize = (value: string) =>
-      value.replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+    const normalize = (value: string) => value.replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
     const current = normalize(settings.downloadDir);
-    const root = normalize(portableRoot);
-    // Keep custom folders inside the portable root, but never keep a path
-    // from another executable location (or an old default outside the root).
-    if (!current || current === "d:\\downloads" || !current.startsWith(`${root}\\`)) {
+    // Reset only the old hard-coded default; a path the user picked anywhere on
+    // disk stays untouched.
+    if (!current || current === "d:\\downloads") {
       update("downloadDir", portableDownloads);
     }
-  }, [portableRoot, portableDownloads, settings.downloadDir, update]);
+  }, [portableDownloads, settings.downloadDir, update]);
 
   useEffect(() => {
     let alive = true;
@@ -160,10 +184,6 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    setSelectedIds(new Set());
-  }, [selectedChatId]);
-
   // Opening a conversation clears its local unread badge. Telegram read state
   // is still backend-owned; this only keeps the shell honest until the read
   // API is available.
@@ -183,17 +203,6 @@ export default function App() {
   }, [selectedChatId]);
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && selectedIds.size > 0) {
-        setSelectedIds(new Set());
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedIds]);
-
-  useEffect(() => {
     return () => window.clearTimeout(toastTimer.current);
   }, []);
 
@@ -206,6 +215,39 @@ export default function App() {
   }, [settings.language, i18n]);
 
   const proxyUrl = useMemo(() => buildProxy(settings), [settings]);
+
+  useEffect(() => {
+    if (!loggedIn) {
+      setSelfAvatar("");
+      return;
+    }
+    let alive = true;
+    void AppService.GetSelfAvatarURL(proxyUrl, settings.ntp)
+      .then((url) => {
+        if (alive) {
+          setSelfAvatar(url ?? "");
+        }
+      })
+      .catch(() => {
+        // Initials remain the fallback when the profile photo is unavailable.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [loggedIn, proxyUrl, settings.ntp]);
+
+  const loadChatMembers = useCallback(
+    async (chatID: string) => {
+      const rows = await AppService.GetChatMembers(
+        chatID,
+        proxyUrl,
+        settings.ntp,
+        100,
+      );
+      return (rows ?? []).map(mapChatMember);
+    },
+    [proxyUrl, settings.ntp],
+  );
 
   useEffect(() => {
     if (!loggedIn) {
@@ -226,17 +268,33 @@ export default function App() {
     };
   }, [loggedIn, proxyUrl, settings.ntp]);
 
-  const showToast = (message: string) => {
+  const showToast = useCallback((message: string) => {
     setToastMessage(message);
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToastMessage(null), 2600);
-  };
+  }, []);
 
   const language = i18n.resolvedLanguage ?? "en";
-  const chatState = useMemo(
-    () => chatDTOs.map((chat) => mapChat(chat, language, t)),
-    [chatDTOs, language, t],
-  );
+  const chatState = useMemo(() => {
+    // The archive query and the main dialog query can both contain a peer while
+    // it is being moved. Keep one row and never let a stale non-archived copy
+    // pull it back into the main list.
+    const byID = new Map<string, KernelChat>();
+    for (const chat of chatDTOs) {
+      const existing = byID.get(chat.id);
+      if (!existing) {
+        byID.set(chat.id, chat);
+        continue;
+      }
+      byID.set(chat.id, {
+        ...existing,
+        ...chat,
+        archived: Boolean(existing.archived || chat.archived),
+        unread: Math.max(existing.unread ?? 0, chat.unread ?? 0),
+      });
+    }
+    return Array.from(byID.values()).map((chat) => mapChat(chat, language, t));
+  }, [chatDTOs, language, t]);
 
   const filteredChats = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -278,57 +336,100 @@ export default function App() {
     }
 
     let alive = true;
+    let networkDone = false;
+    let cachedChatsApplied = false;
     setChatsLoading(true);
     setChatsFailed(false);
-    Promise.all([
-      AppService.GetChats(proxyUrl, settings.ntp, 100),
-      AppService.GetArchivedChats(proxyUrl, settings.ntp, 100).catch(() => []),
-      AppService.GetFolders(proxyUrl, settings.ntp).catch(() => []),
-    ])
-      .then(([list, archived, folderList]) => {
+
+    // Paint the last local snapshot immediately (official clients do the same
+    // from their local database), then replace it with the network answer.
+    void AppService.GetCachedChats()
+      .then((cached) => {
+        if (!alive || networkDone || !cached || cached.length === 0) {
+          return;
+        }
+        cachedChatsApplied = true;
+        setChatDTOs(cached);
+        setChatsLoading(false);
+        setSelectedChatId((current) => {
+          if (cached.some((chat) => chat.id === current)) {
+            return current;
+          }
+          return (cached.find((chat) => !chat.archived) ?? cached[0])?.id ?? "";
+        });
+      })
+      .catch(() => {
+        // A missing/corrupt cache only loses the head start.
+      });
+
+    // The main dialog list is the critical path. Archived chats and folders are
+    // loaded independently so a slow/retrying auxiliary call cannot hold the
+    // whole chat screen hostage.
+    AppService.GetChats(proxyUrl, settings.ntp, 100, false)
+      .then((list) => {
+        networkDone = true;
         if (!alive) {
           return;
         }
-        const next = [...(list ?? []), ...(archived ?? [])];
+        const next = list ?? [];
         setChatDTOs(next);
-        setFolders(
-          (folderList ?? []).map((folder: ChatFolderDTO) => ({
-            id: folder.id,
-            title: folder.title,
-            emoticon: folder.emoticon || undefined,
-            chatKeys: folder.chatKeys ?? [],
-            excludeKeys: folder.excludeKeys ?? [],
-            groups: folder.groups,
-            broadcasts: folder.broadcasts,
-            contacts: folder.contacts,
-            nonContacts: folder.nonContacts,
-            bots: folder.bots,
-            excludeMuted: folder.excludeMuted,
-            excludeRead: folder.excludeRead,
-            excludeArchived: folder.excludeArchived,
-          })),
-        );
         setSelectedChatId((current) => {
           if (next.some((chat) => chat.id === current)) {
             return current;
           }
           return (next.find((chat) => !chat.archived) ?? next[0])?.id ?? "";
         });
+        setChatsLoading(false);
       })
       .catch(() => {
+        networkDone = true;
         if (!alive) {
           return;
         }
+        if (cachedChatsApplied) {
+          setChatsLoading(false);
+          return;
+        }
         setChatDTOs([]);
-        setFolders([]);
         setSelectedChatId("");
         setChatsFailed(true);
-      })
-      .finally(() => {
-        if (alive) {
-          setChatsLoading(false);
-        }
+        setChatsLoading(false);
       });
+
+    void Promise.all([
+      AppService.GetArchivedChats(proxyUrl, settings.ntp, 100, false).catch(() => []),
+      AppService.GetFolders(proxyUrl, settings.ntp).catch(() => []),
+    ]).then(([archived, folderList]) => {
+      if (!alive) {
+        return;
+      }
+      if ((archived ?? []).length > 0) {
+        setChatDTOs((current) => {
+          const known = new Set(current.map((chat) => chat.id));
+          return [
+            ...current,
+            ...(archived ?? []).filter((chat) => !known.has(chat.id)),
+          ];
+        });
+      }
+      setFolders(
+        (folderList ?? []).map((folder: ChatFolderDTO) => ({
+          id: folder.id,
+          title: folder.title,
+          emoticon: folder.emoticon || undefined,
+          chatKeys: folder.chatKeys ?? [],
+          excludeKeys: folder.excludeKeys ?? [],
+          groups: folder.groups,
+          broadcasts: folder.broadcasts,
+          contacts: folder.contacts,
+          nonContacts: folder.nonContacts,
+          bots: folder.bots,
+          excludeMuted: folder.excludeMuted,
+          excludeRead: folder.excludeRead,
+          excludeArchived: folder.excludeArchived,
+        })),
+      );
+    });
 
     return () => {
       alive = false;
@@ -344,20 +445,44 @@ export default function App() {
     }
 
     let alive = true;
-    setMessagesLoading(true);
+    let networkDone = false;
+    let diskApplied = false;
+    const cached = messageCache.current.get(selectedChatId);
+    setMessagesLoading(!cached);
     setMessagesFailed(false);
     setOlderMessagesLoading(false);
     setHasMoreMessages(true);
-    setMessageDTOs([]);
+    setMessageDTOs(cached ?? []);
+    if (!cached) {
+      void AppService.GetCachedMessages(selectedChatId)
+        .then((disk) => {
+          if (!alive || networkDone || !disk || disk.length === 0) {
+            return;
+          }
+          diskApplied = true;
+          messageCache.current.set(selectedChatId, disk);
+          setMessageDTOs(disk);
+          setMessagesLoading(false);
+        })
+        .catch(() => {
+          // No local snapshot; keep the normal loading state.
+        });
+    }
     AppService.GetMessages(selectedChatId, proxyUrl, settings.ntp, 50)
       .then((list) => {
+        networkDone = true;
         if (alive) {
-          setMessageDTOs(list ?? []);
+          setMessageDTOs((current) => {
+            const next = mergeHistory(list ?? [], current);
+            messageCache.current.set(selectedChatId, next);
+            return next;
+          });
           setHasMoreMessages((list ?? []).length >= 50);
         }
       })
       .catch(() => {
-        if (alive) {
+        networkDone = true;
+        if (alive && !cached && !diskApplied) {
           setMessageDTOs([]);
           setMessagesFailed(true);
         }
@@ -442,7 +567,6 @@ export default function App() {
 
   const openDownloads = () => {
     setView("downloads");
-    setSelectedIds(new Set());
   };
 
   const togglePin = (id: string) => {
@@ -473,11 +597,32 @@ export default function App() {
     showToast(t("toasts.notificationUpdated"));
   };
 
-  const markRead = (id: string) => {
+  const markChatsRead = (ids: string[]) => {
+    if (ids.length === 0) {
+      return;
+    }
     setChatDTOs((current) =>
-      current.map((chat) => (chat.id === id ? { ...chat, unread: 0 } : chat)),
+      current.map((chat) =>
+        ids.includes(chat.id) ? { ...chat, unread: 0 } : chat,
+      ),
     );
-    showToast(t("toasts.markedRead"));
+    void AppService.MarkChatsRead(ids, proxyUrl, settings.ntp)
+      .then(() => showToast(t("toasts.markedRead")))
+      .catch(() => {
+        showToast(t("toasts.markedReadFailed"));
+        void refreshChats();
+      });
+  };
+
+  const markRead = (id: string) => {
+    void markChatsRead([id]);
+  };
+
+  const markAllRead = () => {
+    const ids = chatState
+      .filter((chat) => chat.archived && (chat.unread ?? 0) > 0)
+      .map((chat) => chat.id);
+    void markChatsRead(ids);
   };
 
   const queueDownloads = async (chat: Chat, ids: number[]) => {
@@ -512,31 +657,6 @@ export default function App() {
       return;
     }
     void queueDownloads(chat, messages.map((message) => message.id));
-  };
-
-  const toggleSelect = (id: number) => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
-  const selectAll = () => {
-    setSelectedIds(new Set(messages.map((message) => message.id)));
-    showToast(t("toasts.allSelected"));
-  };
-
-  const downloadSelected = () => {
-    if (selectedIds.size === 0 || !selectedChat) {
-      return;
-    }
-    void queueDownloads(selectedChat, Array.from(selectedIds));
-    setSelectedIds(new Set());
   };
 
   const pauseTask = (id: string) => {
@@ -577,6 +697,23 @@ export default function App() {
     });
   };
 
+  const chooseDownloadFolder = () => {
+    void AppService.ChooseDownloadFolder(
+      settings.downloadDir,
+      t("settings.downloads.folder"),
+    )
+      .then((directory) => {
+        if (directory) {
+          update("downloadDir", directory);
+        }
+      })
+      .catch((error) => {
+        if (!String(error).toLowerCase().includes("cancel")) {
+          showToast(t("toasts.downloadActionFailed"));
+        }
+      });
+  };
+
   const pauseAll = () => {
     const running = active.filter(
       (task) => task.status === "active" || task.status === "queued",
@@ -595,17 +732,6 @@ export default function App() {
       .catch(() => showToast(t("toasts.downloadActionFailed")));
   };
 
-  const loadThumbnail = useCallback(
-    (chatID: string, messageID: number) =>
-      AppService.GetMessageThumb(chatID, messageID, proxyUrl, settings.ntp),
-    [proxyUrl, settings.ntp],
-  );
-
-  const loadChatAvatar = useCallback(
-    (chatID: string) => AppService.GetChatAvatar(chatID, proxyUrl, settings.ntp),
-    [proxyUrl, settings.ntp],
-  );
-
   const loadMessageVideo = useCallback(
     (chatID: string, messageID: number) =>
       AppService.GetVideoStream(
@@ -618,14 +744,201 @@ export default function App() {
     [proxyUrl, settings.ntp, settings.tdlStreaming],
   );
 
-  const sendMessage = async (text: string) => {
+  const refreshMessages = useCallback(async () => {
+    if (!selectedChatId) {
+      return;
+    }
+    const next = await AppService.GetMessages(
+      selectedChatId,
+      proxyUrl,
+      settings.ntp,
+      50,
+    );
+    setMessageDTOs((current) => {
+      const merged = mergeHistory(next ?? [], current);
+      messageCache.current.set(selectedChatId, merged);
+      return merged;
+    });
+    setHasMoreMessages((next ?? []).length >= 50);
+  }, [proxyUrl, selectedChatId, settings.ntp]);
+
+  useEffect(() => {
+    newestMessageID.current =
+      messageDTOs.length > 0 ? messageDTOs[messageDTOs.length - 1].id : 0;
+  }, [messageDTOs]);
+
+  useEffect(() => {
+    if (!loggedIn || !selectedChatId || messagesLoading) {
+      return;
+    }
+    let alive = true;
+    const sync = () => {
+      if (
+        !alive ||
+        syncMessagesBusy.current ||
+        document.visibilityState === "hidden"
+      ) {
+        return;
+      }
+      syncMessagesBusy.current = true;
+      void AppService.GetNewMessages(
+        selectedChatId,
+        newestMessageID.current,
+        proxyUrl,
+        settings.ntp,
+      )
+        .then((incoming) => {
+          if (!alive || !incoming?.length) {
+            return;
+          }
+          setMessageDTOs((current) => {
+            const merged = mergeHistory(incoming, current);
+            messageCache.current.set(selectedChatId, merged);
+            return merged;
+          });
+        })
+        .catch(() => {
+          // A transient poll failure is retried on the next tick.
+        })
+        .finally(() => {
+          syncMessagesBusy.current = false;
+        });
+    };
+    const timer = window.setInterval(sync, 2000);
+    const onFocus = () => sync();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        sync();
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [loggedIn, messagesLoading, proxyUrl, selectedChatId, settings.ntp]);
+
+  const refreshChats = useCallback(async () => {    if (!loggedIn || refreshChatsBusy.current) {
+      return;
+    }
+    refreshChatsBusy.current = true;
+    try {
+      const [list, archived] = await Promise.all([
+        AppService.GetChats(proxyUrl, settings.ntp, 100, true),
+        AppService.GetArchivedChats(proxyUrl, settings.ntp, 100, true).catch(() => []),
+      ]);
+      setChatDTOs([...(list ?? []), ...(archived ?? [])]);
+    } catch {
+      // A transient refresh failure leaves the current list untouched.
+    } finally {
+      refreshChatsBusy.current = false;
+    }
+  }, [loggedIn, proxyUrl, settings.ntp]);
+
+  const sendMessage = async (text: string, replyToID?: number) => {
     if (!selectedChatId) {
       throw new Error("No chat selected");
     }
-    await AppService.SendMessage(selectedChatId, text, proxyUrl, settings.ntp);
-    const next = await AppService.GetMessages(selectedChatId, proxyUrl, settings.ntp, 50);
-    setMessageDTOs(next ?? []);
-    setHasMoreMessages((next ?? []).length >= 50);
+    await AppService.SendMessage(
+      selectedChatId,
+      text,
+      replyToID ?? 0,
+      proxyUrl,
+      settings.ntp,
+    );
+    await refreshMessages();
+  };
+
+  const editMessage = async (messageID: number, text: string) => {
+    if (!selectedChatId) {
+      throw new Error("No chat selected");
+    }
+    await AppService.EditMessage(selectedChatId, messageID, text, proxyUrl, settings.ntp);
+    await refreshMessages();
+  };
+
+  const deleteMessage = async (messageIDs: number[], revoke: boolean) => {
+    if (!selectedChatId) {
+      throw new Error("No chat selected");
+    }
+    await AppService.DeleteMessages(
+      selectedChatId,
+      messageIDs,
+      revoke,
+      proxyUrl,
+      settings.ntp,
+    );
+    const removed = new Set(messageIDs);
+    setMessageDTOs((current) => {
+      const next = current.filter((message) => !removed.has(message.id));
+      messageCache.current.set(selectedChatId, next);
+      return next;
+    });
+  };
+
+  const forwardMessage = async (messageIDs: number[], chatID: string) => {
+    if (!selectedChatId) {
+      throw new Error("No chat selected");
+    }
+    await AppService.ForwardMessages(
+      selectedChatId,
+      chatID,
+      messageIDs,
+      proxyUrl,
+      settings.ntp,
+    );
+    if (chatID === selectedChatId) {
+      await refreshMessages();
+    }
+  };
+
+  const reactMessage = async (
+    messageID: number,
+    emoji: string,
+    customEmojiID?: string,
+  ) => {
+    if (!selectedChatId) {
+      throw new Error("No chat selected");
+    }
+    await AppService.SendReaction(
+      selectedChatId,
+      messageID,
+      emoji,
+      customEmojiID ?? "",
+      proxyUrl,
+      settings.ntp,
+    );
+    await refreshMessages();
+  };
+
+  const attachFiles = async (caption: string, replyToID?: number) => {
+    if (!selectedChatId) {
+      throw new Error("No chat selected");
+    }
+    const paths = (await AppService.ChooseFiles(t("chat.attachTitle"))) ?? [];
+    if (paths.length === 0) {
+      return false;
+    }
+    try {
+      for (let index = 0; index < paths.length; index += 1) {
+        await AppService.SendAttachment(
+          selectedChatId,
+          paths[index],
+          index === 0 ? caption : "",
+          index === 0 ? replyToID ?? 0 : 0,
+          proxyUrl,
+          settings.ntp,
+        );
+      }
+      await refreshMessages();
+      return true;
+    } catch {
+      showToast(t("chat.attachFailed"));
+      return false;
+    }
   };
 
   const loadOlderMessages = useCallback(async () => {
@@ -645,7 +958,9 @@ export default function App() {
         )) ?? [];
       setMessageDTOs((current) => {
         const known = new Set(current.map((message) => message.id));
-        return [...older.filter((message) => !known.has(message.id)), ...current];
+        const next = [...older.filter((message) => !known.has(message.id)), ...current];
+        messageCache.current.set(selectedChatId, next);
+        return next;
       });
       setHasMoreMessages(older.length >= 50);
     } catch {
@@ -664,6 +979,176 @@ export default function App() {
     t,
   ]);
 
+  const handleChatEvent = useCallback(
+    (payload: ChatEvent) => {
+      const chatID = payload.chatId || "";
+      const raw = payload.message as KernelMessage | undefined;
+      const belongs = chatID !== "" && chatID === selectedChatId;
+
+      if (payload.kind === "message" || payload.kind === "edit") {
+        if (!raw) {
+          return;
+        }
+        if (belongs) {
+          setMessageDTOs((current) => {
+            const exists = current.some((message) => message.id === raw.id);
+            const next = exists
+              ? current.map((message) => (message.id === raw.id ? raw : message))
+              : [...current, raw].sort((left, right) => left.id - right.id);
+            messageCache.current.set(selectedChatId, next);
+            return next;
+          });
+        }
+        const preview =
+          payload.kind === "message"
+            ? raw.text || raw.media?.name || ""
+            : undefined;
+        setChatDTOs((current) => {
+          let found = false;
+          const next = current.map((chat) => {
+            if (chat.id !== chatID) {
+              return chat;
+            }
+            found = true;
+            return {
+              ...chat,
+              preview: preview ? preview : chat.preview,
+              lastMessageDate:
+                payload.kind === "message" ? raw.date : chat.lastMessageDate,
+              unread:
+                payload.kind === "message" && !belongs && !raw.out
+                  ? (chat.unread ?? 0) + 1
+                  : belongs
+                    ? 0
+                    : chat.unread,
+            };
+          });
+          if (!found && payload.kind === "message") {
+            void refreshChats();
+            return current;
+          }
+          return next;
+        });
+        return;
+      }
+
+      if (payload.kind === "delete") {
+        const ids = payload.messageIds ?? [];
+        if (ids.length === 0) {
+          return;
+        }
+        if (chatID && chatID !== selectedChatId) {
+          return;
+        }
+        const removed = new Set(ids);
+        setMessageDTOs((current) => {
+          const next = current.filter((message) => !removed.has(message.id));
+          messageCache.current.set(selectedChatId, next);
+          return next;
+        });
+        return;
+      }
+
+      if (payload.kind === "reaction") {
+        if (!belongs || payload.messageId === undefined) {
+          return;
+        }
+        setMessageDTOs((current) => {
+          const next = current.map((message) =>
+            message.id === payload.messageId
+              ? { ...message, reactions: payload.reactions ?? [] }
+              : message,
+          );
+          messageCache.current.set(selectedChatId, next);
+          return next;
+        });
+        return;
+      }
+
+      if (payload.kind === "read") {
+        if (!chatID) {
+          return;
+        }
+        setChatDTOs((current) =>
+          current.map((chat) =>
+            chat.id === chatID
+              ? { ...chat, unread: payload.unread ?? chat.unread }
+              : chat,
+          ),
+        );
+        return;
+      }
+
+      if (payload.kind === "readOutbox") {
+        if (!belongs || payload.maxId === undefined) {
+          return;
+        }
+        setMessageDTOs((current) => {
+          const next = current.map((message) =>
+            message.out && message.id <= (payload.maxId ?? 0)
+              ? { ...message, checks: "read" }
+              : message,
+          );
+          messageCache.current.set(selectedChatId, next);
+          return next;
+        });
+        return;
+      }
+
+      if (payload.kind === "resync") {
+        if (!chatID || chatID === selectedChatId) {
+          void refreshMessages();
+        }
+        void refreshChats();
+      }
+    },
+    [
+      refreshChats,
+      refreshMessages,
+      selectedChatId,
+    ],
+  );
+
+  useEffect(() => {
+    const off = Events.On("chat:event", (event) => {
+      const payload = event.data as ChatEvent;
+      if (payload) {
+        handleChatEvent(payload);
+      }
+    });
+    return off;
+  }, [handleChatEvent]);
+
+  useEffect(() => {
+    setUpload(null);
+  }, [selectedChatId]);
+
+  useEffect(() => {
+    const off = Events.On("upload:event", (event) => {
+      const payload = event.data as UploadEvent;
+      if (!payload) {
+        return;
+      }
+      if (payload.done || payload.failed) {
+        setUpload(null);
+        if (payload.failed) {
+          showToast(t("chat.uploadFailed"));
+        }
+        return;
+      }
+      if (payload.chatId === selectedChatId) {
+        setUpload({
+          id: payload.id,
+          name: payload.name,
+          progress: payload.progress,
+        });
+      }
+    });
+    return off;
+  }, [selectedChatId, showToast, t]);
+
+
+
   const handleAuthenticated = useCallback((user: AuthUser) => {
     setAuthUser(user);
     setLoggedIn(true);
@@ -676,8 +1161,8 @@ export default function App() {
         setAuthUser(null);
         setLoggedIn(false);
         setSettingsOpen(false);
-        setSelectedIds(new Set());
         setChatDTOs([]);
+        messageCache.current.clear();
         setMessageDTOs([]);
         setSelectedChatId("");
         setDownloads([]);
@@ -690,89 +1175,114 @@ export default function App() {
 
   if (!authChecked) {
     return (
-      <TooltipProvider delayDuration={350}>
-        <LoginLoading />
-      </TooltipProvider>
+      <AppTheme appearance={resolvedTheme}>
+        <>
+          <LoginLoading />
+        </>
+      </AppTheme>
     );
   }
 
   if (!loggedIn) {
     return (
-      <TooltipProvider delayDuration={350}>
-        <LoginScreen
-          onAuthenticated={handleAuthenticated}
-          proxy={proxyUrl}
-          ntp={settings.ntp}
-          importError={authImportError}
-          settings={settings}
-          onUpdate={update}
-        />
-      </TooltipProvider>
+      <AppTheme appearance={resolvedTheme}>
+        <>
+          <LoginScreen
+            onAuthenticated={handleAuthenticated}
+            proxy={proxyUrl}
+            ntp={settings.ntp}
+            importError={authImportError}
+            settings={settings}
+            onUpdate={update}
+          />
+        </>
+      </AppTheme>
     );
   }
 
   return (
-    <TooltipProvider delayDuration={350}>
+    <AppTheme appearance={resolvedTheme}>
+      <>
       <div className="g-app-shell">
-        {view === "downloads" ? (
-          <DownloadsView
-            active={active}
-            completed={completed}
-            failed={failed}
-            onPause={pauseTask}
-            onResume={resumeTask}
-            onRetry={retryTask}
-            onRemove={removeTask}
-            onOpenFolder={openFolder}
-            onPauseAll={pauseAll}
-            onClearCompleted={clearCompleted}
-            onOpenDownloadFolder={openDownloadFolder}
-            onMenu={() => setDrawerOpen(true)}
-          />
-        ) : (
-          <>
+          <div className="f-shell">
             <Sidebar
+              activeView={view}
               chats={filteredChats}
               selectedChatId={selectedChatId}
               query={query}
-              onQueryChange={setQuery}
-              onSelectChat={openChat}
+              onQueryChange={(value) => {
+                setQuery(value);
+                if (value) {
+                  setView("chats");
+                }
+              }}
+              onSelectChat={(id) => {
+                setView("chats");
+                openChat(id);
+              }}
               onTogglePin={togglePin}
               onToggleMute={toggleMute}
               onMarkRead={markRead}
+              onMarkAllRead={markAllRead}
               onDownloadAll={downloadAll}
               onToggleArchive={toggleArchive}
               onToast={showToast}
-              onLoadAvatar={loadChatAvatar}
-              onMenu={() => setDrawerOpen(true)}
-              onCompose={() => setNewMessageOpen(true)}
+              onChats={() => setView("chats")}
+              onDownloads={openDownloads}
+              onSettings={() => setSettingsOpen(true)}
+              onLogout={() => void handleLogout()}
+              activeDownloads={active.length}
               folders={folders}
               archivedCount={chatState.filter((chat) => chat.archived).length}
               accountRestricted={authUser?.restricted}
               accountRestriction={authUser?.restriction}
+              accountName={authUser?.displayName ?? t("settings.general.telegramAccount")}
+              accountInitials={authUser?.initials ?? "T"}
+              accountColor={authUser?.color}
+              accountPhoto={selfAvatar || undefined}
               loading={chatsLoading}
               failed={chatsFailed}
             />
 
-            {selectedChat ? (
+            {view === "downloads" ? (
+              <div className="f-downloads-pane">
+                <DownloadsView
+                  active={active}
+                  completed={completed}
+                  failed={failed}
+                  onPause={pauseTask}
+                  onResume={resumeTask}
+                  onRetry={retryTask}
+                  onRemove={removeTask}
+                  onOpenFolder={openFolder}
+                  onPauseAll={pauseAll}
+                  onClearCompleted={clearCompleted}
+                  onOpenDownloadFolder={openDownloadFolder}
+                />
+              </div>
+            ) : selectedChat ? (
               <ChatView
                 chat={selectedChat}
+                chats={chatState}
                 messages={messages}
-                selectedIds={selectedIds}
-                onToggleSelect={toggleSelect}
-                onDownloadMessage={(id) => {
+                onDownloadMessage={(ids) => {
                   if (selectedChat) {
-                    void queueDownloads(selectedChat, [id]);
+                    void queueDownloads(selectedChat, ids);
                   }
                 }}
-                onLoadThumbnail={loadThumbnail}
-                onLoadAvatar={loadChatAvatar}
                 onLoadVideo={loadMessageVideo}
-                onClearSelection={() => setSelectedIds(new Set())}
-                onSelectAll={selectAll}
-                onDownloadSelected={downloadSelected}
+                onLoadMembers={loadChatMembers}
                 onDownloadAll={() => downloadAll(selectedChat)}
+                onTogglePin={togglePin}
+                onToggleMute={toggleMute}
+                onMarkRead={markRead}
                 onSendMessage={sendMessage}
+                onEditMessage={editMessage}
+                onDeleteMessage={deleteMessage}
+                onForwardMessage={forwardMessage}
+                onReactMessage={reactMessage}
+                onAttach={attachFiles}
+                upload={upload ?? undefined}
                 onToast={showToast}
                 enterToSend={settings.enterToSend}
                 loading={messagesLoading}
@@ -783,9 +1293,10 @@ export default function App() {
                 selfName={authUser?.displayName ?? t("chat.you")}
                 selfInitials={authUser?.initials ?? "Y"}
                 selfColor={authUser?.color ?? "#7cacf8"}
+                selfAvatarUrl={selfAvatar || undefined}
               />
             ) : (
-              <main className="g-app-main">
+              <main className="f-chat-pane f-chat-empty">
                 <EmptyState
                   icon={chatsLoading ? "hourglass_top" : chatsFailed ? "cloud_off" : "forum"}
                   title={
@@ -801,47 +1312,8 @@ export default function App() {
                 />
               </main>
             )}
-          </>
-        )}
+          </div>
       </div>
-
-      <NavDrawer
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        view={view}
-        activeDownloads={active.length}
-        onChats={() => {
-          setView("chats");
-          setDrawerOpen(false);
-        }}
-        onDownloads={() => {
-          openDownloads();
-          setDrawerOpen(false);
-        }}
-        onSettings={() => {
-          setDrawerOpen(false);
-          setSettingsOpen(true);
-        }}
-        onLogout={() => {
-          setDrawerOpen(false);
-          handleLogout();
-        }}
-        accountName={authUser?.displayName ?? t("settings.general.telegramAccount")}
-        accountInitials={authUser?.initials ?? "T"}
-        accountColor={authUser?.color ?? "#65aadd"}
-        accountRestricted={authUser?.restricted}
-      />
-
-      <NewMessageDialog
-        open={newMessageOpen}
-        onOpenChange={setNewMessageOpen}
-        chats={chatState}
-        onSelect={(id) => {
-          openChat(id);
-          setNewMessageOpen(false);
-        }}
-        onLoadAvatar={loadChatAvatar}
-      />
 
       <SettingsDialog
         open={settingsOpen}
@@ -849,9 +1321,11 @@ export default function App() {
         settings={settings}
         onUpdate={update}
         onOpenDownloadFolder={openDownloadFolder}
+        onChooseDownloadFolder={chooseDownloadFolder}
       />
 
       {toastMessage ? <Toast message={toastMessage} /> : null}
-    </TooltipProvider>
+      </>
+    </AppTheme>
   );
 }

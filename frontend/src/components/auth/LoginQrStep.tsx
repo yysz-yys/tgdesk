@@ -2,12 +2,9 @@ import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../../hooks/useSettings";
-import { Button } from "../ui/Button";
-import { Callout } from "../ui/Callout";
-import { Icon } from "../ui/Icon";
-import { Spinner } from "../ui/Spinner";
 import { BrandMark } from "./BrandMark";
 import { LoginNetworkSettings } from "./LoginNetworkSettings";
+import { Button, Callout, Icon, Spinner } from "../../ui";
 
 interface LoginQrStepProps {
   qrUrl: string;
@@ -41,26 +38,20 @@ export function LoginQrStep({
   const expired = Boolean(qrUrl) && secondsLeft <= 0;
 
   return (
-    <div className="g-login-step g-login-qr">
-      <div className="g-login-toolbar g-login-toolbar--end">
-        <button
-          type="button"
-          className="g-login-toolbar-action"
-          onClick={onRefresh}
-          disabled={busy}
-        >
-          <Icon name="refresh" size={17} />
+    <div className="f-login-step">
+      <div className="f-login-toolbar f-login-toolbar-end">
+        <Button variant="ghost" size="1" icon="refresh" onClick={onRefresh} disabled={busy}>
           {t("login.refresh")}
-        </button>
-        <button
-          type="button"
-          className="g-login-toolbar-action"
+        </Button>
+        <Button
+          variant="ghost"
+          size="1"
+          icon="tune"
           onClick={() => setNetworkOpen((current) => !current)}
           aria-expanded={networkOpen}
         >
-          <Icon name="tune" size={17} />
           {t("login.networkSettings")}
-        </button>
+        </Button>
       </div>
 
       <LoginNetworkSettings
@@ -71,62 +62,72 @@ export function LoginQrStep({
         onApply={onApplyNetwork}
       />
 
-      <div className="g-login-qr-body">
-        <header className="g-login-heading g-login-heading-center">
-          <h2>{t("login.qrHeading")}</h2>
-          <p>{t("login.scanHint")}</p>
-        </header>
+      <header className="f-login-heading f-login-heading-center">
+        <h2>{t("login.qrHeading")}</h2>
+        <p>{t("login.scanHint")}</p>
+      </header>
 
-        <div className="g-login-qr-shell" data-expired={expired || undefined}>
+      <div className="f-qr" data-expired={expired || undefined}>
+        <div className="f-qr-code">
           {qrUrl ? (
             <>
               <QRCodeSVG
                 value={qrUrl}
-                size={188}
-                level="M"
+                size={200}
+                level="H"
                 bgColor="#ffffff"
-                fgColor="#1f1f1f"
+                fgColor="#1c2024"
                 marginSize={1}
                 title={t("login.qrTitle")}
               />
-              <span className="g-login-qr-mark" aria-hidden="true">
-                <BrandMark size={34} alt="" />
-              </span>
-              {expired ? (
-                <button type="button" className="g-login-qr-expired" onClick={onRefresh}>
-                  <Icon name="refresh" size={18} />
-                  {t("login.refreshQr")}
-                </button>
+              {!expired ? (
+                <span className="f-qr-mark" aria-hidden="true">
+                  <BrandMark size={28} alt="" />
+                </span>
               ) : null}
             </>
           ) : (
-            <div className="g-login-qr-placeholder">
-              <Spinner size={26} label={t("login.generatingQr")} />
+            <div className="f-qr-placeholder">
+              <Spinner size={20} label={t("login.generatingQr")} />
               <span>{t("login.generatingQr")}</span>
             </div>
           )}
         </div>
-
-        <div className="g-login-status-chip" data-expired={expired || undefined}>
-          <Icon name={expired ? "timer_off" : "schedule"} size={17} />
-          {expired ? (
-            <span>{t("login.qrExpired")}</span>
-          ) : !qrUrl ? (
-            <span>{t("login.connecting")}</span>
-          ) : secondsLeft > 0 ? (
-            <span>{t("login.qrExpiresIn", { seconds: secondsLeft })}</span>
-          ) : (
-            <span>{t("login.qrRefreshHint")}</span>
-          )}
-        </div>
-        {importError ? <Callout tone="error">{importError}</Callout> : null}
-        {error ? <Callout tone="error">{error}</Callout> : null}
-        {notice ? <Callout tone="info">{notice}</Callout> : null}
-
-        <Button variant="text" icon="smartphone" onClick={onPhone}>
-          {t("login.phoneLogin")}
-        </Button>
+        {expired ? (
+          <div className="f-qr-expired">
+            <Button size="2" icon="refresh" onClick={onRefresh}>
+              {t("login.refreshQr")}
+            </Button>
+          </div>
+        ) : null}
       </div>
+
+      <div className="f-qr-status" data-expired={expired || undefined}>
+        <Icon name={expired ? "timer_off" : "schedule"} size={14} />
+        {expired ? (
+          <span>{t("login.qrExpired")}</span>
+        ) : !qrUrl ? (
+          <span>{t("login.connecting")}</span>
+        ) : secondsLeft > 0 ? (
+          <span>{t("login.qrExpiresIn", { seconds: secondsLeft })}</span>
+        ) : (
+          <span>{t("login.qrRefreshHint")}</span>
+        )}
+      </div>
+
+      {importError ? <Callout tone="error">{importError}</Callout> : null}
+      {error ? <Callout tone="error">{error}</Callout> : null}
+      {notice ? <Callout tone="info">{notice}</Callout> : null}
+
+      <Button
+        className="f-login-alt"
+        variant="ghost"
+        size="2"
+        icon="smartphone"
+        onClick={onPhone}
+      >
+        {t("login.phoneLogin")}
+      </Button>
     </div>
   );
 }

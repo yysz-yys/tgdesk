@@ -8,10 +8,10 @@
 			"FileVersion": "0.1.0",
 			"ProductVersion": "0.1.0",
 			"CompanyName": "tgdesk",
-			"FileDescription": "Telegram media downloader and browser powered by tdl",
+			"FileDescription": "tgdesk",
 			"LegalCopyright": "AGPL-3.0",
 			"ProductName": "tgdesk",
-			"Comments": "This is a comment"
+			"Comments": "tgdesk"
 		}
 	}
 }

@@ -23,28 +23,70 @@ export function CancelLogin(): $CancellablePromise<void> {
     return $Call.ByID(368947391);
 }
 
+/**
+ * ChooseDownloadFolder opens the native directory picker and returns the
+ * selected path, or an empty string when the dialog is cancelled.
+ */
+export function ChooseDownloadFolder(currentDirectory: string, title: string): $CancellablePromise<string> {
+    return $Call.ByID(3980035853, currentDirectory, title);
+}
+
+/**
+ * ChooseFiles opens the native multi-file picker. An empty slice means the user
+ * cancelled; the caller keeps the composer state unchanged.
+ */
+export function ChooseFiles(title: string): $CancellablePromise<string[] | null> {
+    return $Call.ByID(4169843316, title);
+}
+
 export function ClearCompletedDownloads(): $CancellablePromise<void> {
     return $Call.ByID(1141707211);
+}
+
+export function DeleteMessages(chatID: string, messageIDs: number[] | null, revoke: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(1448502483, chatID, messageIDs, revoke, proxy, ntp);
+}
+
+export function EditMessage(chatID: string, messageID: number, text: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(361098035, chatID, messageID, text, proxy, ntp);
 }
 
 export function ExportTData(): $CancellablePromise<kernel$0.TDataExport | null> {
     return $Call.ByID(1299955590);
 }
 
-export function GetArchivedChats(proxy: string, ntp: string, limit: number): $CancellablePromise<kernel$0.ChatDTO[] | null> {
-    return $Call.ByID(1184233245, proxy, ntp, limit);
+export function ForwardMessages(fromChatID: string, toChatID: string, messageIDs: number[] | null, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(1693371933, fromChatID, toChatID, messageIDs, proxy, ntp);
+}
+
+export function GetArchivedChats(proxy: string, ntp: string, limit: number, force: boolean): $CancellablePromise<kernel$0.ChatDTO[] | null> {
+    return $Call.ByID(1184233245, proxy, ntp, limit, force);
 }
 
 export function GetAuthStatus(): $CancellablePromise<kernel$0.AuthStatus> {
     return $Call.ByID(846342628);
 }
 
-export function GetChatAvatar(chatID: string, proxy: string, ntp: string): $CancellablePromise<string> {
-    return $Call.ByID(3942644491, chatID, proxy, ntp);
+/**
+ * GetCachedChats returns the last local dialog snapshot for instant paint.
+ */
+export function GetCachedChats(): $CancellablePromise<kernel$0.ChatDTO[] | null> {
+    return $Call.ByID(3117252849);
 }
 
-export function GetChats(proxy: string, ntp: string, limit: number): $CancellablePromise<kernel$0.ChatDTO[] | null> {
-    return $Call.ByID(393713803, proxy, ntp, limit);
+/**
+ * GetCachedMessages returns the last local message snapshot for instant paint.
+ */
+export function GetCachedMessages(chatID: string): $CancellablePromise<kernel$0.MessageDTO[] | null> {
+    return $Call.ByID(4156755298, chatID);
+}
+
+export function GetChatMembers(chatID: string, proxy: string, ntp: string, limit: number): $CancellablePromise<kernel$0.ChatMemberDTO[] | null> {
+    return $Call.ByID(3787369541, chatID, proxy, ntp, limit);
+}
+
+export function GetChats(proxy: string, ntp: string, limit: number, force: boolean): $CancellablePromise<kernel$0.ChatDTO[] | null> {
+    return $Call.ByID(393713803, proxy, ntp, limit, force);
 }
 
 export function GetDownloads(): $CancellablePromise<kernel$0.DownloadTaskDTO[] | null> {
@@ -59,12 +101,12 @@ export function GetMessageMedia(chatID: string, messageID: number, proxy: string
     return $Call.ByID(3944720973, chatID, messageID, proxy, ntp);
 }
 
-export function GetMessageThumb(chatID: string, messageID: number, proxy: string, ntp: string): $CancellablePromise<string> {
-    return $Call.ByID(103314033, chatID, messageID, proxy, ntp);
-}
-
 export function GetMessages(chatID: string, proxy: string, ntp: string, limit: number): $CancellablePromise<kernel$0.MessageDTO[] | null> {
     return $Call.ByID(1918792072, chatID, proxy, ntp, limit);
+}
+
+export function GetNewMessages(chatID: string, afterID: number, proxy: string, ntp: string): $CancellablePromise<kernel$0.MessageDTO[] | null> {
+    return $Call.ByID(788018406, chatID, afterID, proxy, ntp);
 }
 
 export function GetOlderMessages(chatID: string, beforeID: number, proxy: string, ntp: string, limit: number): $CancellablePromise<kernel$0.MessageDTO[] | null> {
@@ -75,12 +117,20 @@ export function GetPaths(): $CancellablePromise<kernel$0.PortablePaths> {
     return $Call.ByID(119407144);
 }
 
+export function GetSelfAvatarURL(proxy: string, ntp: string): $CancellablePromise<string> {
+    return $Call.ByID(3979655064, proxy, ntp);
+}
+
 export function GetVideoStream(chatID: string, messageID: number, proxy: string, ntp: string, useTDL: boolean): $CancellablePromise<string> {
     return $Call.ByID(231628327, chatID, messageID, proxy, ntp, useTDL);
 }
 
 export function Logout(): $CancellablePromise<void> {
     return $Call.ByID(2555236166);
+}
+
+export function MarkChatsRead(chatIDs: string[] | null, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(305193224, chatIDs, proxy, ntp);
 }
 
 export function OpenDownloadFolder(path: string): $CancellablePromise<void> {
@@ -103,8 +153,16 @@ export function ResumeDownload(id: string, proxy: string, ntp: string): $Cancell
     return $Call.ByID(2763229687, id, proxy, ntp);
 }
 
-export function SendMessage(chatID: string, text: string, proxy: string, ntp: string): $CancellablePromise<void> {
-    return $Call.ByID(1826619901, chatID, text, proxy, ntp);
+export function SendAttachment(chatID: string, filePath: string, caption: string, replyToID: number, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(1507448875, chatID, filePath, caption, replyToID, proxy, ntp);
+}
+
+export function SendMessage(chatID: string, text: string, replyToID: number, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(1826619901, chatID, text, replyToID, proxy, ntp);
+}
+
+export function SendReaction(chatID: string, messageID: number, emoji: string, customEmojiID: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(703832737, chatID, messageID, emoji, customEmojiID, proxy, ntp);
 }
 
 export function SetChatArchived(chatID: string, archived: boolean, proxy: string, ntp: string): $CancellablePromise<void> {

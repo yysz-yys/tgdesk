@@ -36,6 +36,20 @@ type Service struct {
 	eventMu   sync.RWMutex
 	eventSink func(AuthEvent)
 
+	chatEventMu     sync.RWMutex
+	chatEventSink   func(ChatEvent)
+	uploadEventMu   sync.RWMutex
+	uploadEventSink func(UploadEvent)
+
+	peerIndexMu sync.RWMutex
+	peerIndex   map[string]string
+
+	dialogsCacheMu sync.Mutex
+	dialogsCache   map[string]dialogsCacheEntry
+
+	emojiStatusMu    sync.Mutex
+	emojiStatusCache map[int64]string
+
 	chatMu sync.Mutex
 
 	sessionMu sync.Mutex
@@ -44,7 +58,16 @@ type Service struct {
 	mediaServerMu   sync.Mutex
 	mediaBaseURL    string
 	mediaStreamBase string
+	thumbBase       string
+	avatarBase      string
+	photoBase       string
 	videoStreams    map[string]*videoStreamSession
+	imageRefs       *imageRefStore
+	images          *imageCache
+
+	mediaConfigMu sync.RWMutex
+	mediaProxy    string
+	mediaNTP      string
 
 	downloadMu      sync.Mutex
 	downloadTasks   map[string]*downloadTask
@@ -57,8 +80,13 @@ type Service struct {
 
 func New() *Service {
 	s := &Service{
-		downloadTasks: make(map[string]*downloadTask),
-		downloadSem:   make(chan struct{}, 2),
+		downloadTasks:    make(map[string]*downloadTask),
+		downloadSem:      make(chan struct{}, 2),
+		imageRefs:        newImageRefStore(2048),
+		images:           newImageCache(48 << 20),
+		peerIndex:        make(map[string]string),
+		dialogsCache:     make(map[string]dialogsCacheEntry),
+		emojiStatusCache: make(map[int64]string),
 	}
 	s.loadDownloadTasks()
 	return s

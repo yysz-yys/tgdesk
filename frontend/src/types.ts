@@ -52,6 +52,7 @@ export interface Chat {
   username?: string;
   preview: string;
   time: string;
+  avatarUrl?: string;
   unread?: number;
   pinned?: boolean;
   muted?: boolean;
@@ -82,6 +83,15 @@ export interface ChatFolder {
   excludeArchived?: boolean;
 }
 
+export interface ChatMember {
+  id: string;
+  name: string;
+  username?: string;
+  avatarUrl?: string;
+  admin?: boolean;
+  bot?: boolean;
+}
+
 export type MediaKind =
   | "photo"
   | "video"
@@ -108,6 +118,9 @@ export type MediaKind =
 export interface MessageMedia {
   kind: MediaKind;
   name: string;
+  thumbUrl?: string;
+  photoUrl?: string;
+  streamUrl?: string;
   size?: string;
   ext?: string;
   duration?: number;
@@ -115,12 +128,19 @@ export interface MessageMedia {
   height?: number;
   sizeBytes?: number;
   mime?: string;
+  title?: string;
+  performer?: string;
+  waveform?: number[];
   options?: string[];
   voteCounts?: number[];
   chosen?: boolean[];
   totalVoters?: number;
   pollClosed?: boolean;
   quiz?: boolean;
+  correctOption?: number;
+  explanation?: string;
+  multipleChoice?: boolean;
+  publicVoters?: boolean;
   latitude?: number;
   longitude?: number;
   live?: boolean;
@@ -128,11 +148,63 @@ export interface MessageMedia {
   contactName?: string;
   url?: string;
   siteName?: string;
-  title?: string;
   description?: string;
   emoji?: string;
   value?: number;
   color?: string;
+  checklist?: { text: string; done: boolean }[];
+  amount?: number;
+  currency?: string;
+  quantity?: number;
+  months?: number;
+  untilDate?: number;
+  paidCount?: number;
+  storyId?: number;
+  spoiler?: boolean;
+  round?: boolean;
+  externalId?: string;
+}
+
+export interface MessageEntity {
+  type:
+    | "bold"
+    | "italic"
+    | "underline"
+    | "strike"
+    | "code"
+    | "pre"
+    | "link"
+    | "url"
+    | "mention"
+    | "hashtag"
+    | "cashtag"
+    | "bot_command"
+    | "email"
+    | "phone"
+    | "spoiler"
+    | "blockquote"
+    | "text_mention"
+    | "custom_emoji";
+  offset: number;
+  length: number;
+  url?: string;
+  language?: string;
+  userId?: string;
+}
+
+export interface MessageButton {
+  text: string;
+  url?: string;
+  data?: string;
+  kind?: "url" | "callback" | "webview" | "copy";
+}
+
+export interface Reaction {
+  emoji: string;
+  count: number;
+  chosen?: boolean;
+  customEmojiId?: string;
+  url?: string;
 }
 
 export interface Message {
@@ -141,6 +213,8 @@ export interface Message {
   out: boolean;
   sender?: string;
   senderId?: string;
+  senderAvatarUrl?: string;
+  senderEmojiStatusUrl?: string;
   text?: string;
   time: string;
   date: string;
@@ -154,8 +228,52 @@ export interface Message {
   serviceKind?: string;
   serviceActor?: string;
   serviceValue?: string;
+  groupedId?: string;
+  reactions?: Reaction[];
   media?: MessageMedia;
+  entities?: MessageEntity[];
+  buttons?: MessageButton[];
+  pinned?: boolean;
+  postAuthor?: string;
+  views?: number;
+  forwards?: number;
+  editDate?: number;
+  ttl?: number;
+  noForwards?: boolean;
+  via?: string;
   tail?: boolean;
+}
+
+export interface ChatEvent {
+  kind: "message" | "edit" | "delete" | "reaction" | "resync" | "read" | "readOutbox";
+  chatId?: string;
+  message?: unknown;
+  messageIds?: number[] | null;
+  messageId?: number;
+  reactions?: Reaction[] | null;
+  unread?: number;
+  maxId?: number;
+}
+
+export interface UploadEvent {
+  id: string;
+  chatId: string;
+  name: string;
+  uploaded: number;
+  total: number;
+  progress: number;
+  done?: boolean;
+  failed?: boolean;
+  error?: string;
+}
+
+export interface UploadProgress {
+  id: string;
+  name: string;
+  progress: number;
+  done?: boolean;
+  failed?: boolean;
+  error?: string;
 }
 
 export type TaskStatus = "active" | "queued" | "paused" | "done" | "failed";
