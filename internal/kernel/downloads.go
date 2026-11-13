@@ -283,6 +283,24 @@ func (s *Service) GetDownloads() []DownloadTaskDTO {
 	s.downloadMu.Lock()
 	defer s.downloadMu.Unlock()
 
+	changed := false
+	for _, task := range s.downloadTasks {
+		if task.dto.Status != downloadDone || task.dto.Path == "" {
+			continue
+		}
+		if _, err := os.Stat(task.dto.Path); err != nil {
+			// The file was deleted outside the app: report the task as failed so
+			// the message badge offers a fresh download instead of opening a
+			// folder that no longer contains anything.
+			task.dto.Status = downloadFailed
+			task.dto.Error = "downloaded file is missing"
+			changed = true
+		}
+	}
+	if changed {
+		s.persistDownloadsLocked(true)
+	}
+
 	result := make([]DownloadTaskDTO, 0, len(s.downloadOrder))
 	for _, id := range s.downloadOrder {
 		if task := s.downloadTasks[id]; task != nil {
@@ -290,6 +308,34 @@ func (s *Service) GetDownloads() []DownloadTaskDTO {
 		}
 	}
 	return result
+}
+
+// ValidateDownload re-checks a delivered task against the filesystem. It is
+// called when the user clicks a downloaded badge: false means the file was
+// removed and the caller should start a fresh transfer.
+func (s *Service) ValidateDownload(id string) (bool, error) {
+	s.downloadMu.Lock()
+	task := s.downloadTasks[id]
+	if task == nil {
+		s.downloadMu.Unlock()
+		return false, nil
+	}
+	path := task.dto.Path
+	if task.dto.Status != downloadDone || path == "" {
+		s.downloadMu.Unlock()
+		return false, nil
+	}
+	if _, err := os.Stat(path); err == nil {
+		s.downloadMu.Unlock()
+		return true, nil
+	}
+	task.dto.Status = downloadFailed
+	task.dto.Error = "downloaded file is missing"
+	event := DownloadEvent{Task: cloneTask(task.dto)}
+	s.persistDownloadsLocked(true)
+	s.downloadMu.Unlock()
+	s.emitDownload(event)
+	return false, nil
 }
 
 func (s *Service) PauseDownload(id string) error {
@@ -1079,23 +1125,24 @@ func taskPath(task *downloadTask, media *tmedia.Media, msg *tg.Message, mediaKin
 }
 
 // downloadCategoryFolder groups downloads the way Telegram mobile does
-// (Images/Video/Audio/Documents) with the labels used by this client's tabs.
+// (Images/Video/Audio/Documents) while keeping filesystem names stable and
+// language-neutral for every UI language.
 func downloadCategoryFolder(kind string) string {
 	switch kind {
 	case "photo":
-		return "图片"
+		return "Images"
 	case "video", "video_note":
-		return "视频"
+		return "Videos"
 	case "animation":
-		return "动图"
+		return "GIFs"
 	case "audio":
-		return "音频"
+		return "Audio"
 	case "voice":
-		return "语音"
+		return "Voice"
 	case "sticker":
-		return "贴纸"
+		return "Stickers"
 	default:
-		return "文件"
+		return "Files"
 	}
 }
 

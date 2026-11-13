@@ -289,7 +289,8 @@ sync.
   byte offset. The UI offers one Pause all / Resume all toggle.
 - The default destination is `<root>/downloads`; the Settings template is
   evaluated with tdl `tplfunc`. Files are grouped below it by Telegram mobile
-  categories (`图片`, `视频`, `动图`, `音频`, `语音`, `贴纸`, `文件`).
+  categories using language-neutral English folders (`Images`, `Videos`, `GIFs`,
+  `Audio`, `Voice`, `Stickers`, `Files`).
 
 ## Frontend architecture
 

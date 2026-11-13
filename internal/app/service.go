@@ -232,6 +232,10 @@ func (s *Service) GetDownloads() []kernel.DownloadTaskDTO {
 	return s.kernel.GetDownloads()
 }
 
+func (s *Service) ValidateDownload(id string) (bool, error) {
+	return s.kernel.ValidateDownload(id)
+}
+
 func (s *Service) PauseDownload(id string) error {
 	return s.kernel.PauseDownload(id)
 }

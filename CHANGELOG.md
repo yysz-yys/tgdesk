@@ -62,8 +62,9 @@
 - The chat-info header has a "Downloaded only" filter for every downloadable
   tab; it keeps only items whose local task is done.
 - Downloads are grouped under the configured folder by Telegram's own mobile
-  categories: 图片 (photos), 视频 (videos and round videos), 动图 (GIFs),
-  音频 (music), 语音 (voice), 贴纸 (stickers) and 文件 (documents).
+  categories, using stable English folder names: `Images` (photos), `Videos`
+  (videos and round videos), `GIFs`, `Audio`, `Voice`, `Stickers` and `Files`
+  (documents).
 - Settings → Downloads now exposes tdl's real download knobs with tdl's
   documented defaults: folder, file-name template, threads per file (4), DC
   pool size (8), concurrent files (2), reconnect timeout (5 min), skip-same,
@@ -71,6 +72,10 @@
   tasks (pool size, tdl `--limit`, tdl `--skip-same`, takeout clients,
   extension sniffing, and tdl's reconnect middleware window).
 - The delete-message dialog buttons are baseline-aligned again (both 32 px).
+- Clicking a downloaded badge now re-checks the file first: if it still exists
+  the containing folder opens, but if it was deleted outside the app the badge
+  starts a fresh download instead of opening an empty folder. `GetDownloads`
+  also demotes delivered tasks whose file disappeared to `failed`.
 
 ### Chat info and history loading
 

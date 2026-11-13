@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -37,15 +38,15 @@ func TestUploadFileDataTrimsFinalPart(t *testing.T) {
 
 func TestDownloadCategoryFolder(t *testing.T) {
 	cases := map[string]string{
-		"photo":      "图片",
-		"video":      "视频",
-		"video_note": "视频",
-		"animation":  "动图",
-		"audio":      "音频",
-		"voice":      "语音",
-		"sticker":    "贴纸",
-		"file":       "文件",
-		"webpage":    "文件",
+		"photo":      "Images",
+		"video":      "Videos",
+		"video_note": "Videos",
+		"animation":  "GIFs",
+		"audio":      "Audio",
+		"voice":      "Voice",
+		"sticker":    "Stickers",
+		"file":       "Files",
+		"webpage":    "Files",
 	}
 	for kind, want := range cases {
 		if got := downloadCategoryFolder(kind); got != want {
@@ -70,12 +71,74 @@ func TestTaskPathAddsCategoryFolder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantDir := filepath.Join(task.dir, "图片")
+	wantDir := filepath.Join(task.dir, "Images")
 	if filepath.Dir(path) != wantDir {
 		t.Fatalf("task path dir = %q, want %q", filepath.Dir(path), wantDir)
 	}
 	if !strings.Contains(filepath.Base(path), "42") || !strings.HasSuffix(path, ".jpg") {
 		t.Fatalf("unexpected task path %q", path)
+	}
+}
+
+func TestGetDownloadsDemotesMissingFiles(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "Images", "photo.jpg")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("image"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	service := New()
+	service.downloadTasks = map[string]*downloadTask{
+		"dl-1": {
+			dto: DownloadTaskDTO{
+				ID:        "dl-1",
+				Status:    downloadDone,
+				Path:      path,
+				ChatID:    "channel:1:2",
+				MessageID: 10,
+			},
+		},
+	}
+	service.downloadOrder = []string{"dl-1"}
+
+	if got := service.GetDownloads(); len(got) != 1 || got[0].Status != downloadDone {
+		t.Fatalf("existing file marked %q, want done", got[0].Status)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if got := service.GetDownloads(); len(got) != 1 || got[0].Status != downloadFailed {
+		t.Fatalf("missing file marked %q, want failed", got[0].Status)
+	}
+}
+
+func TestValidateDownloadMissingFile(t *testing.T) {
+	service := New()
+	service.downloadTasks = map[string]*downloadTask{
+		"dl-1": {
+			dto: DownloadTaskDTO{
+				ID:        "dl-1",
+				Status:    downloadDone,
+				Path:      filepath.Join(t.TempDir(), "gone.jpg"),
+				ChatID:    "channel:1:2",
+				MessageID: 10,
+			},
+		},
+	}
+	exists, err := service.ValidateDownload("dl-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Fatal("ValidateDownload reported a missing file as present")
+	}
+	if task := service.downloadTasks["dl-1"]; task == nil || task.dto.Status != downloadFailed {
+		t.Fatalf("task status = %#v, want failed", task)
+	}
+	if exists, err := service.ValidateDownload("missing"); err != nil || exists {
+		t.Fatalf("unknown task validate = %v/%v, want false/nil", exists, err)
 	}
 }
 

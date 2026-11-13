@@ -210,3 +210,7 @@ export function SubmitCode(code: string): $CancellablePromise<void> {
 export function SubmitPassword(password: string): $CancellablePromise<void> {
     return $Call.ByID(3314132097, password);
 }
+
+export function ValidateDownload(id: string): $CancellablePromise<boolean> {
+    return $Call.ByID(3161272398, id);
+}

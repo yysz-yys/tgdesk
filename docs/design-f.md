@@ -235,8 +235,11 @@ right info pane; the archived row opens the archived view.
   - The download-folder row shows the current path, a **Change** button that
     opens the native folder picker, and an open-folder shortcut. The chosen path
     is persisted and may live anywhere on disk.
-  - The rest is the Enter-to-send switch, threads slider, tdl streaming toggle,
-    filename template, and the proxy type/host/port/credentials/NTP group.
+  - The rest is the Enter-to-send switch; the tdl download controls (threads,
+    DC pool, concurrent files, reconnect timeout, skip-same, takeout,
+    rewrite-extension), the tdl streaming toggle, filename template; and the
+    proxy type/host/port/credentials/NTP group. Defaults follow tdl's documented
+    values (4 threads, pool 8, 2 concurrent files, 5 min reconnect).
 - **Toast** is an inverse pill at the bottom centre; **context menus** use the F
   menu surface (portalled, so they read the global `--f-*` tokens).
 

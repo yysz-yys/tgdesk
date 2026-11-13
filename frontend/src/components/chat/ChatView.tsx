@@ -39,6 +39,7 @@ interface ChatViewProps {
   ) => Promise<SharedMediaPage>;
   liveVersion?: number;
   downloads: DownloadTask[];
+  onRefreshDownloads?: () => void;
   onDownloadMessage: (ids: number[]) => void;
   onDownloadInline: (ids: number[]) => void;
   onOpenDownloaded: (task: DownloadTask) => void;
@@ -80,6 +81,7 @@ export function ChatView({
   onLoadSharedMedia,
   liveVersion,
   downloads,
+  onRefreshDownloads,
   onDownloadMessage,
   onDownloadInline,
   onOpenDownloaded,
@@ -261,7 +263,15 @@ export function ChatView({
             }
           }}
           onDownloadAll={onDownloadAll}
-          onInfo={() => setInfoOpen((open) => !open)}
+          onInfo={() =>
+            setInfoOpen((open) => {
+              const next = !open;
+              if (next) {
+                onRefreshDownloads?.();
+              }
+              return next;
+            })
+          }
         />
 
         <div className="g-chat-canvas">

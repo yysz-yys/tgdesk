@@ -743,6 +743,14 @@ export default function App() {
     }
   };
 
+  const refreshDownloads = () => {
+    void AppService.GetDownloads()
+      .then((list) => setDownloads((list ?? []).map(toDownloadTask)))
+      .catch(() => {
+        // Auxiliary state; the panel keeps working if this fails.
+      });
+  };
+
   const queueDownloads = (chat: Chat, ids: number[], onlyLoadedMedia = false) =>
     startDownloads(chat, ids, onlyLoadedMedia, true);
 
@@ -792,9 +800,33 @@ export default function App() {
   };
 
   const openDownloadedTask = (task: DownloadTask) => {
-    void AppService.OpenDownloadFolder(task.path ?? settings.downloadDir).catch(() => {
-      showToast(t("toasts.downloadActionFailed"));
-    });
+    void (async () => {
+      try {
+        const exists = await AppService.ValidateDownload(task.id);
+        setDownloads(
+          ((await AppService.GetDownloads()) ?? []).map(toDownloadTask),
+        );
+        if (exists) {
+          void AppService.OpenDownloadFolder(task.path ?? settings.downloadDir).catch(
+            () => showToast(t("toasts.downloadActionFailed")),
+          );
+          return;
+        }
+        // The delivered file was deleted outside the app; treat the badge as a
+        // normal download button and fetch the message again.
+        const target =
+          selectedChat?.id === task.chatId
+            ? selectedChat
+            : chatState.find((chat) => chat.id === task.chatId);
+        if (target && task.messageId > 0) {
+          await startDownloads(target, [task.messageId], false, false);
+        } else {
+          showToast(t("toasts.downloadStartFailed"));
+        }
+      } catch {
+        showToast(t("toasts.downloadActionFailed"));
+      }
+    })();
   };
 
   const chooseDownloadFolder = () => {
@@ -1391,6 +1423,7 @@ export default function App() {
                 chats={chatState}
                 messages={messages}
                 downloads={downloads}
+                onRefreshDownloads={refreshDownloads}
                 onDownloadMessage={(ids) => {
                   if (selectedChat) {
                     void queueDownloads(selectedChat, ids);
