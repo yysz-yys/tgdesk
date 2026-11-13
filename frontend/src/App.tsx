@@ -1528,6 +1528,8 @@ export default function App() {
                   }
                 }}
                 onOpenDownloaded={openDownloadedTask}
+                onPauseDownload={(task) => pauseTask(task.id)}
+                onResumeDownload={(task) => resumeTask(task.id)}
                 onLoadVideo={loadMessageVideo}
                 onLoadChatInfo={loadChatInfo}
                 onLoadMembersPage={loadChatMembersPage}

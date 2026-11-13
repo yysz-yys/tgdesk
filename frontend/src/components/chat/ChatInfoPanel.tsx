@@ -46,6 +46,8 @@ interface ChatInfoPanelProps {
   downloads: DownloadTask[];
   onDownloadInline: (ids: number[]) => void;
   onOpenDownloaded: (task: DownloadTask) => void;
+  onPauseDownload: (task: DownloadTask) => void;
+  onResumeDownload: (task: DownloadTask) => void;
   onForwardMessage?: (message: Message) => void;
   onDeleteMessage?: (message: Message) => void;
   onForwardMessages?: (messages: Message[]) => void;
@@ -199,6 +201,8 @@ export function ChatInfoPanel({
   downloads,
   onDownloadInline,
   onOpenDownloaded,
+  onPauseDownload,
+  onResumeDownload,
   onForwardMessage,
   onDeleteMessage,
   onForwardMessages,
@@ -698,6 +702,8 @@ export function ChatInfoPanel({
     onDownload: onDownloadInline,
     onDownloadInline,
     onOpenDownloaded,
+    onPauseDownload,
+    onResumeDownload,
     downloads: downloadsByMessage,
     onForward: onForwardMessage,
     onDelete: onDeleteMessage,

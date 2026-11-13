@@ -34,6 +34,8 @@ interface MessageListProps {  chatId: string;
   downloads?: DownloadTask[];
   onDownloadInline?: (ids: number[]) => void;
   onOpenDownloaded?: (task: DownloadTask) => void;
+  onPauseDownload?: (task: DownloadTask) => void;
+  onResumeDownload?: (task: DownloadTask) => void;
   onReact?: (message: Message, reaction: Reaction | null) => void;
   onOpenReactions?: (message: Message) => void;
   onToast: (message: string) => void;
@@ -66,6 +68,8 @@ export function MessageList({
   downloads,
   onDownloadInline,
   onOpenDownloaded,
+  onPauseDownload,
+  onResumeDownload,
   onReact,
   onOpenReactions,
   onToast,
@@ -303,6 +307,8 @@ export function MessageList({
           downloads={downloadsByMessage}
           onDownloadInline={onDownloadInline}
           onOpenDownloaded={onOpenDownloaded}
+          onPauseDownload={onPauseDownload}
+          onResumeDownload={onResumeDownload}
           onReact={onReact}
           onOpenReactions={onOpenReactions}
           onToast={onToast}

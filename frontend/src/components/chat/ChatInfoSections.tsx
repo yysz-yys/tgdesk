@@ -35,6 +35,8 @@ export interface SectionActions {
   onDownload?: (ids: number[]) => void;
   onDownloadInline?: (ids: number[]) => void;
   onOpenDownloaded?: (task: DownloadTask) => void;
+  onPauseDownload?: (task: DownloadTask) => void;
+  onResumeDownload?: (task: DownloadTask) => void;
   downloads?: Map<number, DownloadTask>;
   onForward?: (message: Message) => void;
   onDelete?: (message: Message) => void;
@@ -247,6 +249,8 @@ export function MediaGrid({
   onDownload,
   onDownloadInline,
   onOpenDownloaded,
+  onPauseDownload,
+  onResumeDownload,
   downloads,
   onForward,
   onDelete,
@@ -338,6 +342,8 @@ export function MediaGrid({
                 task={downloads?.get(message.id)}
                 onStart={onDownloadInline}
                 onOpen={onOpenDownloaded}
+                onPause={onPauseDownload}
+                onResume={onResumeDownload}
               />
             ) : null}
             {selecting ? (
@@ -359,6 +365,8 @@ export function FileList({
   onDownload,
   onDownloadInline,
   onOpenDownloaded,
+  onPauseDownload,
+  onResumeDownload,
   downloads,
   onForward,
   onDelete,
@@ -415,6 +423,8 @@ export function FileList({
                   task={task}
                   onStart={onDownloadInline}
                   onOpen={onOpenDownloaded}
+                onPause={onPauseDownload}
+                onResume={onResumeDownload}
                 />
               ) : null}
             </span>
@@ -650,6 +660,8 @@ export function AudioList({
   onDownload,
   onDownloadInline,
   onOpenDownloaded,
+  onPauseDownload,
+  onResumeDownload,
   downloads,
   onForward,
   onDelete,
@@ -763,6 +775,8 @@ export function AudioList({
                   task={downloads?.get(message.id)}
                   onStart={onDownloadInline}
                   onOpen={onOpenDownloaded}
+                onPause={onPauseDownload}
+                onResume={onResumeDownload}
                 />
               </span>
             )}

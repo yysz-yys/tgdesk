@@ -15,6 +15,8 @@ export function DownloadBadge({
   task,
   onStart,
   onOpen,
+  onPause,
+  onResume,
   variant = "corner",
   asSpan = false,
 }: {
@@ -22,6 +24,8 @@ export function DownloadBadge({
   task?: DownloadTask;
   onStart?: (ids: number[]) => void;
   onOpen?: (task: DownloadTask) => void;
+  onPause?: (task: DownloadTask) => void;
+  onResume?: (task: DownloadTask) => void;
   variant?: DownloadBadgeVariant;
   /** Use inside an existing <button> (media cards); a nested button is invalid. */
   asSpan?: boolean;
@@ -34,17 +38,21 @@ export function DownloadBadge({
   const label = done
     ? t("downloads.downloaded")
     : status === "paused"
-      ? t("downloads.paused", { progress })
+      ? t("downloads.pausedResumeLabel", { progress })
       : status === "failed"
         ? t("downloads.failedRetryLabel")
         : active
-          ? t("downloads.progressLabel", { progress })
+          ? t("downloads.progressPauseLabel", { progress })
           : t("common.download");
 
   const activate = () => {
     if (done && task) {
       onOpen?.(task);
-    } else if (!task || status === "failed") {
+    } else if (task?.status === "active" || task?.status === "queued") {
+      onPause?.(task);
+    } else if (task?.status === "paused") {
+      onResume?.(task);
+    } else if (!task || task.status === "failed") {
       onStart?.([messageID]);
     }
   };

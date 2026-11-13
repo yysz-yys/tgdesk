@@ -43,6 +43,8 @@ interface ChatViewProps {
   onDownloadMessage: (ids: number[]) => void;
   onDownloadInline: (ids: number[]) => void;
   onOpenDownloaded: (task: DownloadTask) => void;
+  onPauseDownload: (task: DownloadTask) => void;
+  onResumeDownload: (task: DownloadTask) => void;
   onDownloadAll: () => void;
   onTogglePin: (id: string) => void;
   onToggleMute: (id: string) => void;
@@ -85,6 +87,8 @@ export function ChatView({
   onDownloadMessage,
   onDownloadInline,
   onOpenDownloaded,
+  onPauseDownload,
+  onResumeDownload,
   onDownloadAll,
   onTogglePin,
   onToggleMute,
@@ -327,6 +331,8 @@ export function ChatView({
               downloads={downloads}
               onDownloadInline={onDownloadInline}
               onOpenDownloaded={onOpenDownloaded}
+              onPauseDownload={onPauseDownload}
+              onResumeDownload={onResumeDownload}
               onReact={(message, reaction) => {
                 void onReactMessage(
                   message.id,
@@ -480,6 +486,8 @@ export function ChatView({
           downloads={downloads}
           onDownloadInline={onDownloadInline}
           onOpenDownloaded={onOpenDownloaded}
+          onPauseDownload={onPauseDownload}
+          onResumeDownload={onResumeDownload}
           onOpenPhoto={setViewingPhoto}
           onPlayVideo={setPlayingVideo}
           onForwardMessage={(message) =>

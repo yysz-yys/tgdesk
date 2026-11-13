@@ -42,6 +42,8 @@ interface MessageBubbleProps {
   downloads?: Map<number, DownloadTask>;
   onDownloadInline?: (ids: number[]) => void;
   onOpenDownloaded?: (task: DownloadTask) => void;
+  onPauseDownload?: (task: DownloadTask) => void;
+  onResumeDownload?: (task: DownloadTask) => void;
   onReact?: (message: Message, reaction: Reaction | null) => void;
   onOpenReactions?: (message: Message) => void;
   onToast: (message: string) => void;
@@ -77,6 +79,8 @@ export function MessageBubble({
   downloads,
   onDownloadInline,
   onOpenDownloaded,
+  onPauseDownload,
+  onResumeDownload,
   onReact,
   onOpenReactions,
   onToast,
@@ -307,6 +311,8 @@ export function MessageBubble({
                   downloads={downloads}
                   onDownloadInline={onDownloadInline}
                   onOpenDownloaded={onOpenDownloaded}
+                  onPauseDownload={onPauseDownload}
+                  onResumeDownload={onResumeDownload}
                 />
               ) : null}
 
@@ -329,6 +335,8 @@ export function MessageBubble({
                   downloads={downloads}
                   onDownloadInline={onDownloadInline}
                   onOpenDownloaded={onOpenDownloaded}
+                  onPauseDownload={onPauseDownload}
+                  onResumeDownload={onResumeDownload}
                 />
               ) : null}
 

@@ -477,6 +477,8 @@ function Shell() {
           onDownloadMessage={noop}
           onDownloadInline={noop}
           onOpenDownloaded={noop}
+          onPauseDownload={noop}
+          onResumeDownload={noop}
           onLoadVideo={() => Promise.resolve("")}
           onLoadChatInfo={() =>
             Promise.resolve({

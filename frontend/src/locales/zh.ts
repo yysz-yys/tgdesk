@@ -247,6 +247,8 @@ export default {
     activeStatus: "{{speed}} · {{eta}}",
     downloaded: "已下载",
     progressLabel: "下载中 {{progress}}%",
+    progressPauseLabel: "下载中 {{progress}}% · 点击暂停",
+    pausedResumeLabel: "已暂停 {{progress}}% · 点击继续",
   },
   rightPanel: {
     chatInfo: "聊天信息",

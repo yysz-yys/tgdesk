@@ -16,6 +16,8 @@ interface MessageMediaViewProps {
   downloads?: Map<number, DownloadTask>;
   onDownloadInline?: (ids: number[]) => void;
   onOpenDownloaded?: (task: DownloadTask) => void;
+  onPauseDownload?: (task: DownloadTask) => void;
+  onResumeDownload?: (task: DownloadTask) => void;
 }
 
 const BLEED_KINDS = new Set(["photo", "video", "video_note", "animation"]);
@@ -82,6 +84,8 @@ export function MessageMediaView({
   downloads,
   onDownloadInline,
   onOpenDownloaded,
+  onPauseDownload,
+  onResumeDownload,
 }: MessageMediaViewProps) {
   const media = message.media;
   const downloadBadge = (
@@ -95,6 +99,8 @@ export function MessageMediaView({
       task={downloads?.get(id)}
       onStart={onDownloadInline}
       onOpen={onOpenDownloaded}
+      onPause={onPauseDownload}
+      onResume={onResumeDownload}
     />
   );
   if (album && album.length > 1) {
@@ -106,6 +112,8 @@ export function MessageMediaView({
         downloads={downloads}
         onDownloadInline={onDownloadInline}
         onOpenDownloaded={onOpenDownloaded}
+        onPauseDownload={onPauseDownload}
+        onResumeDownload={onResumeDownload}
       />
     );
   }
@@ -828,6 +836,8 @@ function AlbumGrid({
   downloads,
   onDownloadInline,
   onOpenDownloaded,
+  onPauseDownload,
+  onResumeDownload,
 }: {
   items: Message[];
   onOpenPhoto?: (message: Message) => void;
@@ -835,6 +845,8 @@ function AlbumGrid({
   downloads?: Map<number, DownloadTask>;
   onDownloadInline?: (ids: number[]) => void;
   onOpenDownloaded?: (task: DownloadTask) => void;
+  onPauseDownload?: (task: DownloadTask) => void;
+  onResumeDownload?: (task: DownloadTask) => void;
 }) {
   return (
     <div className="g-album" data-count={items.length}>
@@ -852,6 +864,8 @@ function AlbumGrid({
             task={downloads?.get(item.id)}
             onStart={onDownloadInline}
             onOpen={onOpenDownloaded}
+            onPause={onPauseDownload}
+            onResume={onResumeDownload}
           />
         );
         const content = <MediaThumb src={media.thumbUrl || media.photoUrl} alt={media.name} />;

@@ -191,7 +191,9 @@ without a rewrite.
   carry the same inline download button/ring as the info pane in their top-right
   corner; document cards centre it on the file icon. Done badges re-validate the
   file when the conversation opens or the window regains focus, so a file
-  deleted in Explorer goes back to a normal download button.
+  deleted in Explorer goes back to a normal download button. Clicking an active
+  badge pauses it, a paused badge resumes it, a failed badge retries, and a done
+  badge opens the containing folder.
 - Composer: a floating surface card like Telegram Web K's input plate (14 px
   radius, soft shadow, max 760 px, centred) with 18 px line icons and a solid
   indigo send circle; the text field itself is transparent inside the card.

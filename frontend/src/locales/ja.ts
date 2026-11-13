@@ -247,6 +247,8 @@ export default {
     activeStatus: "{{speed}} · {{eta}}",
     downloaded: "ダウンロード済み",
     progressLabel: "ダウンロード中 {{progress}}%",
+    progressPauseLabel: "ダウンロード中 {{progress}}% · クリックで一時停止",
+    pausedResumeLabel: "一時停止中 {{progress}}% · クリックで再開",
   },
   rightPanel: {
     chatInfo: "チャット情報",

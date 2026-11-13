@@ -74,6 +74,10 @@
   file icon. It becomes the familiar progress ring / green check, downloads
   without opening the Downloads page, and does not trigger the photo/video
   viewer.
+- Inline download badges now toggle like the Downloads page: first click starts
+  the transfer, clicking the progress ring pauses it, clicking the paused ring
+  resumes it, and a failed ring retries. Tooltips state the action
+  ("Downloading 42% · click to pause", "Paused 42% · click to resume").
 
 - Shared-media downloads no longer jump to the Downloads page: photos, GIFs,
   videos, files, music and voice rows carry an inline download control. Media

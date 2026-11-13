@@ -247,6 +247,8 @@ export default {
     activeStatus: "{{speed}} · {{eta}}",
     downloaded: "Downloaded",
     progressLabel: "Downloading {{progress}}%",
+    progressPauseLabel: "Downloading {{progress}}% · click to pause",
+    pausedResumeLabel: "Paused {{progress}}% · click to resume",
   },
   rightPanel: {
     chatInfo: "Chat info",
