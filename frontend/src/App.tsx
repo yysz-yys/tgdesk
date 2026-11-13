@@ -798,13 +798,35 @@ export default function App() {
     }
   };
 
-  const refreshDownloads = () => {
+  const refreshDownloads = useCallback(() => {
     void AppService.GetDownloads()
       .then((list) => setDownloads((list ?? []).map(toDownloadTask)))
       .catch(() => {
         // Auxiliary state; the panel keeps working if this fails.
       });
-  };
+  }, []);
+
+  // Done tasks are only path hints. Re-read them whenever a conversation is
+  // opened or the window regains focus so a file deleted in Explorer cannot
+  // leave a stale green check on a message bubble or in the info pane.
+  useEffect(() => {
+    if (loggedIn && selectedChatId) {
+      refreshDownloads();
+    }
+  }, [loggedIn, selectedChatId, refreshDownloads]);
+
+  useEffect(() => {
+    if (!loggedIn) {
+      return;
+    }
+    const refreshOnFocus = () => refreshDownloads();
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnFocus);
+    return () => {
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
+    };
+  }, [loggedIn, refreshDownloads]);
 
   const queueDownloads = (chat: Chat, ids: number[], onlyLoadedMedia = false) =>
     startDownloads(chat, ids, onlyLoadedMedia, true);

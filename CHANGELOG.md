@@ -97,10 +97,12 @@
 - Clicking a downloaded badge now re-checks the file first: if it still exists
   the containing folder opens, but if it was deleted or moved the stale "done"
   record is forgotten and the message starts a fresh download, like Telegram
-  Desktop's downloaded-path behaviour. `GetDownloads` applies the same cleanup,
-  so no fake completed row survives. If an unrelated file already occupies the
-  rendered name, the new download is saved as `name (2).ext` instead of
-  overwriting it.
+  Desktop's downloaded-path behaviour. Message bubbles refresh that state when
+  the conversation is opened or the window regains focus, so a file deleted in
+  Explorer cannot leave a stale green check there either. `GetDownloads`
+  applies the same cleanup, so no fake completed row survives. If an unrelated
+  file already occupies the rendered name, the new download is saved as
+  `name (2).ext` instead of overwriting it.
 
 ### Chat info and history loading
 
