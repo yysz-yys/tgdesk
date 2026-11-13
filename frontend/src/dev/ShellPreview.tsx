@@ -456,6 +456,7 @@ function Shell() {
             onPauseAll={noop}
             onResumeAll={noop}
             onClearCompleted={noop}
+            onClearFailed={noop}
             onOpenDownloadFolder={noop}
           />
         </div>

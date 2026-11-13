@@ -43,6 +43,10 @@ export function ClearCompletedDownloads(): $CancellablePromise<void> {
     return $Call.ByID(1141707211);
 }
 
+export function ClearFailedDownloads(): $CancellablePromise<void> {
+    return $Call.ByID(547873733);
+}
+
 export function DeleteMessages(chatID: string, messageIDs: number[] | null, revoke: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(1448502483, chatID, messageIDs, revoke, proxy, ntp);
 }

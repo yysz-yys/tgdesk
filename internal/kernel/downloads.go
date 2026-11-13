@@ -462,11 +462,19 @@ func (s *Service) CancelDownload(id string) error {
 }
 
 func (s *Service) ClearCompletedDownloads() error {
+	return s.clearDownloadsByStatus(downloadDone)
+}
+
+func (s *Service) ClearFailedDownloads() error {
+	return s.clearDownloadsByStatus(downloadFailed)
+}
+
+func (s *Service) clearDownloadsByStatus(status string) error {
 	s.downloadMu.Lock()
 	next := s.downloadOrder[:0]
 	for _, id := range s.downloadOrder {
 		task := s.downloadTasks[id]
-		if task == nil || task.dto.Status != downloadDone {
+		if task == nil || task.dto.Status != status {
 			next = append(next, id)
 		} else {
 			delete(s.downloadTasks, id)

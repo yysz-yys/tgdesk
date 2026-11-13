@@ -15,6 +15,7 @@ interface DownloadsViewProps {
   onPauseAll: () => void;
   onResumeAll: () => void;
   onClearCompleted: () => void;
+  onClearFailed: () => void;
   onOpenDownloadFolder: () => void;
 }
 
@@ -68,6 +69,7 @@ export function DownloadsView({
   onPauseAll,
   onResumeAll,
   onClearCompleted,
+  onClearFailed,
   onOpenDownloadFolder,
 }: DownloadsViewProps) {
   const { t } = useTranslation();
@@ -124,7 +126,17 @@ export function DownloadsView({
             color="red"
             size="2"
             iconSize={18}
+            disabled={completed.length === 0}
             onClick={onClearCompleted}
+          />
+          <IconButton
+            label={t("downloads.clearFailed")}
+            icon="delete_forever"
+            color="red"
+            size="2"
+            iconSize={18}
+            disabled={failed.length === 0}
+            onClick={onClearFailed}
           />
         </div>
       </header>

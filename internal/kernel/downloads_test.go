@@ -143,6 +143,34 @@ func TestValidateDownloadForgetsMissingFile(t *testing.T) {
 	}
 }
 
+func TestClearFailedDownloads(t *testing.T) {
+	service := New()
+	service.downloadTasks = map[string]*downloadTask{
+		"dl-1": {dto: DownloadTaskDTO{ID: "dl-1", Status: downloadFailed}},
+		"dl-2": {dto: DownloadTaskDTO{ID: "dl-2", Status: downloadDone}},
+		"dl-3": {dto: DownloadTaskDTO{ID: "dl-3", Status: downloadPaused}},
+	}
+	service.downloadOrder = []string{"dl-1", "dl-2", "dl-3"}
+	if err := service.ClearFailedDownloads(); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := service.downloadTasks["dl-1"]; ok {
+		t.Fatal("failed task was not cleared")
+	}
+	if len(service.downloadTasks) != 2 {
+		t.Fatalf("remaining tasks = %d, want 2", len(service.downloadTasks))
+	}
+	if err := service.ClearCompletedDownloads(); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := service.downloadTasks["dl-2"]; ok {
+		t.Fatal("completed task was not cleared")
+	}
+	if _, ok := service.downloadTasks["dl-3"]; !ok {
+		t.Fatal("paused task should survive clear completed/failed")
+	}
+}
+
 func TestUniqueDownloadPath(t *testing.T) {
 	dir := t.TempDir()
 	first := filepath.Join(dir, "clip.mp4")

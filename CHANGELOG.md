@@ -30,8 +30,20 @@
   switching from the title to the search box no longer pushes the chat list
   down.
 
+### Chat read state
+
+- Opening a chat (or focusing it, or receiving a message while it is open) now
+  sends the read marker to Telegram (`messages.readHistory` /
+  `channels.readHistory`) instead of only clearing the local badge. Previously
+  the optimistic local clear was overwritten by the server on the next dialog
+  refresh, which made a group look unread again shortly after reading it.
+  Requests are coalesced per chat and only sent while the window is visible.
+
 ### Downloads
 
+- The downloads header now has Clear all failed next to Clear completed; both
+  disable themselves when their tab is empty, and clearing failed removes the
+  whole failed list.
 - The downloads header now uses one Pause all / Resume all toggle that follows
   the task state, and shows Open folder and Clear completed as plain icon
   buttons instead of hiding them in a dropdown.

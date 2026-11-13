@@ -235,6 +235,61 @@ export default function App() {
 
   const proxyUrl = useMemo(() => buildProxy(settings), [settings]);
 
+  // Telegram read state is server-owned: opening a chat and receiving messages
+  // while it is focused must call messages.readHistory / channels.readHistory,
+  // otherwise the next dialog refresh brings the unread badge back. Coalesce
+  // bursts into one request per chat and only send it while the window is
+  // actually visible and focused.
+  const readSyncTimers = useRef<Record<string, number>>({});
+  const syncChatRead = useCallback(
+    (chatID: string) => {
+      if (!loggedIn || !chatID) {
+        return;
+      }
+      window.clearTimeout(readSyncTimers.current[chatID]);
+      readSyncTimers.current[chatID] = window.setTimeout(() => {
+        delete readSyncTimers.current[chatID];
+        if (document.visibilityState !== "visible") {
+          return;
+        }
+        void AppService.MarkChatsRead([chatID], proxyUrl, settings.ntp).catch(() => {
+          // Keep the optimistic local state; the next dialogs refresh reconciles.
+        });
+      }, 400);
+    },
+    [loggedIn, proxyUrl, settings.ntp],
+  );
+
+  useEffect(() => {
+    if (!selectedChatId || view !== "chats") {
+      return;
+    }
+    syncChatRead(selectedChatId);
+  }, [selectedChatId, view, syncChatRead]);
+
+  useEffect(() => {
+    const syncActiveChat = () => {
+      if (selectedChatId && view === "chats") {
+        syncChatRead(selectedChatId);
+      }
+    };
+    window.addEventListener("focus", syncActiveChat);
+    document.addEventListener("visibilitychange", syncActiveChat);
+    return () => {
+      window.removeEventListener("focus", syncActiveChat);
+      document.removeEventListener("visibilitychange", syncActiveChat);
+    };
+  }, [selectedChatId, view, syncChatRead]);
+
+  useEffect(
+    () => () => {
+      for (const timer of Object.values(readSyncTimers.current)) {
+        window.clearTimeout(timer);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!loggedIn) {
       setSelfAvatar("");
@@ -878,6 +933,17 @@ export default function App() {
       .catch(() => showToast(t("toasts.downloadActionFailed")));
   };
 
+  const clearFailed = () => {
+    void AppService.ClearFailedDownloads()
+      .then(() => {
+        setDownloads((current) =>
+          current.filter((task) => task.status !== "failed"),
+        );
+        showToast(t("toasts.failedCleared"));
+      })
+      .catch(() => showToast(t("toasts.downloadActionFailed")));
+  };
+
   const loadMessageVideo = useCallback(
     (chatID: string, messageID: number) =>
       AppService.GetVideoStream(
@@ -1186,6 +1252,9 @@ export default function App() {
           }
           return next;
         });
+        if (belongs && payload.kind === "message") {
+          syncChatRead(chatID);
+        }
         return;
       }
 
@@ -1263,6 +1332,7 @@ export default function App() {
       refreshChats,
       refreshMessages,
       selectedChatId,
+      syncChatRead,
     ],
   );
 
@@ -1414,6 +1484,7 @@ export default function App() {
                   onPauseAll={pauseAll}
                   onResumeAll={resumeAll}
                   onClearCompleted={clearCompleted}
+                  onClearFailed={clearFailed}
                   onOpenDownloadFolder={openDownloadFolder}
                 />
               </div>

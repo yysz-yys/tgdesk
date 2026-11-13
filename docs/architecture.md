@@ -276,6 +276,9 @@ sync.
 - Emit `download:event` for progress/speed/ETA/state; each task carries its
   chat/message ids and media kind so the chat-info panel can draw inline
   progress badges and a downloaded-only filter without changing views.
+- Read state is server-owned: the shell calls `MarkChatsRead` when a chat is
+  opened/focused and coalesces new-message read updates for the visible chat,
+  so `GetChats` cannot resurrect an unread badge the user already cleared.
 - A done task records the delivered path only. Every read/click stats it first
   (Telegram Desktop keeps a downloaded-path log too): existing file → open its
   folder; missing file → forget the record and fetch the media again. Colliding

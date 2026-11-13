@@ -252,6 +252,10 @@ func (s *Service) ClearCompletedDownloads() error {
 	return s.kernel.ClearCompletedDownloads()
 }
 
+func (s *Service) ClearFailedDownloads() error {
+	return s.kernel.ClearFailedDownloads()
+}
+
 func (s *Service) OpenDownloadFolder(path string) error {
 	return s.kernel.OpenDownloadFolder(path)
 }
