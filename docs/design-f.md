@@ -132,6 +132,9 @@ without a rewrite.
   signed-in user's avatar + name; the items are Chats, Downloads with a live
   count, Archived chats (when any exist), then Settings and Log out. A compact
   download shortcut also sits next to the filter dropdown.
+- **App-wide wallpaper**: once signed in, the window canvas (caption bar and
+  the gaps between the floating panels) uses the same light/dark doodle pattern
+  as the message surface; the login screen keeps its quiet flat backdrop.
 - Chat header 58 px: the peer lockup toggles the right info pane; search takes
   over the header; a Radix dropdown holds download-all.
 - **Right info pane** 320 px (300 px below 1180, overlay below 1050): close +
@@ -159,6 +162,8 @@ without a rewrite.
     not exposed yet because those management features are not built.
   Clicking the title again or the close button dismisses the pane; changing
   chats closes it. Open panes merge the newest page when new messages arrive.
+  The pane always keeps its own column; below 990 px the chat list hides while
+  it is open so it can never cover message bubbles.
 - Message column max 760 px: Telegram Web K bubble geometry (15 px radius,
   5 px grouped corners, 4/9/5 px padding, no protruding tail), white incoming
   and pale-green outgoing in light, steel-blue outgoing in dark, 480 px text

@@ -224,6 +224,12 @@ export default function App() {
     document.documentElement.lang = language === "zh" ? "zh-CN" : language;
   }, [settings.language, i18n]);
 
+  // The chat wallpaper becomes the window canvas for the signed-in app; the
+  // login screen keeps its own quiet backdrop.
+  useEffect(() => {
+    document.documentElement.dataset.loggedIn = loggedIn ? "true" : "false";
+  }, [loggedIn]);
+
   const proxyUrl = useMemo(() => buildProxy(settings), [settings]);
 
   useEffect(() => {

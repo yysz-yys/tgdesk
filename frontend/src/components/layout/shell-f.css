@@ -49,7 +49,7 @@
   flex: 1;
   gap: 10px;
   padding: 0 10px 10px;
-  background: var(--f-canvas);
+  background: transparent;
   color: var(--f-text);
   font-family: var(--f-font);
   position: relative;
@@ -108,14 +108,16 @@
   font-size: 12.5px;
 }
 
-/* Archived chats view: back/title/menu header + search. */
-
+/* Archived chats view: back/title/menu header + search. The header keeps one
+ * fixed height in both title and search modes so swapping in the field doesn't
+ * shove the chat list down. */
 .f-archive-head {
   display: flex;
-  flex: 0 0 auto;
+  height: 44px;
+  flex: 0 0 44px;
   align-items: center;
   gap: 5px;
-  padding: 10px 10px 4px 12px;
+  padding: 0 10px 0 12px;
 }
 
 .f-archive-title {
@@ -993,10 +995,12 @@
 
 .f-archive-head-search .rt-TextFieldRoot {
   width: 100%;
+  height: 30px;
   background: var(--f-surface-muted);
   box-shadow: none;
 }
 
-.f-archive-head-search input {
+.f-archive-head-search .rt-TextFieldRoot input {
+  height: 100%;
   font-size: 12.5px;
 }

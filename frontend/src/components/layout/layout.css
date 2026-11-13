@@ -19,5 +19,21 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: var(--app-surface);
+  background: transparent;
+}
+
+/* Signed-in app: the Telegram chat wallpaper is the whole-window canvas, so
+ * the floating panels and the caption bar sit on the same doodle pattern as
+ * the message surface. The login screen keeps its own backdrop. */
+html[data-logged-in="true"] .g-window {
+  background-color: var(--tg-chat-base, var(--app-bg));
+  background-image: var(--tg-chat-pattern, none), var(--tg-chat-glow-1, none),
+    var(--tg-chat-glow-2, none);
+  background-position: 0 0, center, center;
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-size: 180px 180px, auto, auto;
+}
+
+html[data-logged-in="true"] .f-titlebar {
+  background: transparent;
 }

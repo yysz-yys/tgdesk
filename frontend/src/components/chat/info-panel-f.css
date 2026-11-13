@@ -554,26 +554,12 @@
   }
 }
 
-@media (max-width: 1050px) {
-  .f-info-panel {
-    position: absolute;
-    z-index: 24;
-    top: 0;
-    right: 10px;
-    bottom: 10px;
-    width: min(340px, calc(100% - 20px));
-    flex-basis: auto;
-    box-shadow: var(--f-shadow-pop);
-  }
-}
-
-@media (max-width: 860px) {
-  .f-info-panel {
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(360px, 100%);
-    border-radius: 0;
+/* The pane always takes its own column so it can never cover the conversation.
+ * When the window is too narrow for sidebar + chat + info, the chat list steps
+ * aside for the duration instead of letting the info pane overlap bubbles. */
+@media (max-width: 990px) {
+  .f-shell:has(.f-info-panel) .f-sidebar {
+    display: none;
   }
 }
 

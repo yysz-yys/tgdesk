@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Window and archive polish
+
+- The chat wallpaper is now the canvas for the whole signed-in window: the
+  floating sidebar, chat and info cards sit on the same doodle pattern as the
+  message surface instead of a flat gray backdrop. The login screen keeps its
+  own backdrop.
+- The chat-info pane never covers the conversation: it always occupies its own
+  column, and below 990 px the chat list steps aside while it is open so the
+  bubbles keep their full width.
+- Archive search is a compact 30 px field inside a fixed 44 px header, so
+  switching from the title to the search box no longer pushes the chat list
+  down.
+
 ### Downloads
 
 - The downloads header now uses one Pause all / Resume all toggle that follows

@@ -207,7 +207,7 @@ export function Sidebar({
           {archiveSearchOpen ? (
             <div className="f-archive-head-search" ref={archiveSearchRef}>
               <TextField
-                size="2"
+                size="1"
                 value={query}
                 onValueChange={changeQuery}
                 placeholder={t("sidebar.searchArchived")}
