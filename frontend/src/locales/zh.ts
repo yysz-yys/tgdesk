@@ -238,6 +238,7 @@ export default {
     completed: "已完成 · {{size}}",
     failed: "失败",
     failedRetry: "连接中断 · 可重试",
+    failedRetryLabel: "下载失败，点击重试",
     pause: "暂停",
     resume: "继续",
     retry: "重试",

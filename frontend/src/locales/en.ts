@@ -238,6 +238,7 @@ export default {
     completed: "Completed · {{size}}",
     failed: "Failed",
     failedRetry: "Connection lost · retry available",
+    failedRetryLabel: "Download failed, click to retry",
     pause: "Pause",
     resume: "Resume",
     retry: "Retry",

@@ -238,6 +238,7 @@ export default {
     completed: "完了 · {{size}}",
     failed: "失敗",
     failedRetry: "接続が切断されました · 再試行できます",
+    failedRetryLabel: "ダウンロードに失敗しました。クリックで再試行",
     pause: "一時停止",
     resume: "再開",
     retry: "再試行",

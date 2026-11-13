@@ -36,7 +36,7 @@ export function DownloadBadge({
     : status === "paused"
       ? t("downloads.paused", { progress })
       : status === "failed"
-        ? t("downloads.retry")
+        ? t("downloads.failedRetryLabel")
         : active
           ? t("downloads.progressLabel", { progress })
           : t("common.download");

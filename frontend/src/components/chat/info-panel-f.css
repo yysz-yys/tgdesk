@@ -710,3 +710,8 @@
   width: 100%;
   height: 100%;
 }
+
+/* Keep failed file badges red on top of coloured file icons. */
+.f-info-download[data-variant="file"][data-status="failed"] {
+  background: rgba(214, 64, 64, 0.94);
+}
