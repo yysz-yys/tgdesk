@@ -575,6 +575,8 @@
 
 /* ----------------------------------------------------------------- chat pane */
 
+/* Telegram Web K paints the wallpaper behind the whole centre column and lets
+ * the top bar and composer float over it as their own rounded cards. */
 .f-shell .g-chat-pane,
 .f-shell .f-chat-pane {
   display: flex;
@@ -583,7 +585,10 @@
   flex: 1;
   flex-direction: column;
   overflow: hidden;
-  background: var(--f-surface);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .f-chat-empty {
@@ -593,13 +598,17 @@
 
 .f-chat-header {
   display: flex;
-  height: 58px;
-  flex: 0 0 58px;
+  width: min(760px, calc(100% - 20px));
+  height: 48px;
+  flex: 0 0 48px;
   align-items: center;
   gap: 10px;
-  border-bottom: 1px solid var(--f-line);
+  margin: 8px auto 0;
+  border: 0;
+  border-radius: 12px;
   background: var(--f-surface);
-  padding: 0 12px 0 16px;
+  padding: 0 8px;
+  box-shadow: 0 1px 5px -1px rgba(0, 0, 0, 0.21);
 }
 
 .f-peer {
@@ -703,7 +712,7 @@
 .f-shell .g-chat-canvas {
   min-height: 0;
   flex: 1;
-  background: var(--tg-chat-base, var(--f-surface));
+  background: transparent;
 }
 
 .f-shell .g-message-scroll {
@@ -711,41 +720,48 @@
   flex-direction: column;
   padding: 6px 0 4px;
   background-color: transparent;
+  background-image: none;
 }
 
 /* ---------------------------------------------------------------- composer */
 
+/* The composer is a floating rounded card like Telegram Web K's input plate,
+ * not a full-width bar. */
 .f-composer {
   display: flex;
-  min-height: 58px;
+  width: min(760px, calc(100% - 20px));
+  min-height: 50px;
   flex: 0 0 auto;
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
+  margin: 6px auto 10px;
+  border-radius: 14px;
   background: var(--f-surface);
-  padding: 6px 14px 14px;
+  padding: 4px 6px;
+  box-shadow: 0 1px 8px 1px rgba(0, 0, 0, 0.12);
 }
 
 .f-composer-field {
   display: flex;
   width: 100%;
-  max-width: 760px;
-  min-height: 46px;
+  max-width: none;
+  min-height: 42px;
   align-items: flex-end;
   gap: 2px;
-  border: 1px solid var(--f-line);
+  border: 0;
   border-radius: 12px;
   margin: 0 auto;
-  background: var(--f-surface-muted);
-  padding: 3px 4px;
+  background: transparent;
+  padding: 2px 2px;
   transition:
     border-color 120ms ease,
     box-shadow 120ms ease;
 }
 
 .f-composer-field:focus-within {
-  border-color: var(--accent-8);
-  box-shadow: 0 0 0 2px var(--accent-a3);
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .f-composer-input {
@@ -792,11 +808,13 @@
 /* ------------------------------------------------------------- channel bar */
 
 .f-shell .g-channel-bar {
-  border-top: 1px solid var(--f-line);
-  border-radius: 0;
+  width: min(760px, calc(100% - 20px));
+  margin: 6px auto 10px;
+  border: 0;
+  border-radius: 14px;
   background: var(--f-surface);
-  margin: 0;
   padding: 10px 16px;
+  box-shadow: 0 1px 8px 1px rgba(0, 0, 0, 0.12);
 }
 
 @media (max-width: 860px) {
@@ -814,7 +832,6 @@
 
   .f-shell .g-chat-pane {
     border-radius: 0;
-    border-right: 0;
   }
 }
 

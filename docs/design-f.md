@@ -132,13 +132,17 @@ without a rewrite.
   signed-in user's avatar + name; the items are Chats, Downloads with a live
   count, Archived chats (when any exist), then Settings and Log out. A compact
   download shortcut also sits next to the filter dropdown.
-- **App-wide wallpaper**: once signed in, the window canvas (caption bar and
-  the gaps between the floating panels) uses the same light/dark doodle pattern
-  as the message surface; the login screen keeps its quiet flat backdrop.
-- Chat header 58 px: the peer lockup toggles the right info pane; search takes
-  over the header; a Radix dropdown holds download-all.
-- **Right info pane** 320 px (300 px below 1180, overlay below 1050): close +
-  title, 84 px avatar, title/status, mute/pin/read actions, then a sticky,
+- **App-wide wallpaper**: once signed in, the window canvas (caption bar, the
+  gaps between the floating panels and the whole centre chat column) uses the
+  same light/dark doodle pattern; the chat pane paints no surface of its own, so
+  the header and composer read as cards floating on it. The login screen keeps
+  its quiet flat backdrop.
+- Chat header: a floating 48 px surface card (12 px radius, soft shadow, max
+  760 px, centred) over the wallpaper, matching Telegram Web K's top bar. The
+  peer lockup toggles the right info pane; search takes over the header; a
+  Radix dropdown holds download-all.
+- **Right info pane** 320 px (300 px below 1180): close + title, 84 px avatar,
+  title/status, mute/pin/read actions, then a sticky,
   horizontally scrollable tab rail mirroring Telegram Web:
   - The tab set comes from `messages.getSearchCounters` (cached for 60 s):
     Members for groups, then Media, Files, Links, Music, Voice and GIFs, each
@@ -174,8 +178,10 @@ without a rewrite.
   the composer.
 - Media cards use intrinsic Telegram width/height (max 420 px / 68 vw), full
   bleed inside the bubble, overlay timestamps, and rounded/circular video notes.
-- Composer: 46 px quiet field, 18 px line icons, solid indigo send circle;
-  drafts, auto-grow and Enter-to-send are unchanged.
+- Composer: a floating surface card like Telegram Web K's input plate (14 px
+  radius, soft shadow, max 760 px, centred) with 18 px line icons and a solid
+  indigo send circle; the text field itself is transparent inside the card.
+  Drafts, auto-grow and Enter-to-send are unchanged.
 - Media cards (file/photo/poll/voice/…) inherit the mapped palette and radii
   from the F aliases; all surrounding dialogs have been migrated.
 - Field focus is one hairline (`gray-a6`) instead of the browser/Radix double
@@ -199,9 +205,10 @@ right info pane; the archived row opens the archived view.
 
 - **Downloads** replaces only the chat pane on the right: the conversation list
   and its app menu stay in place, and a 960 px page card fills the right pane.
-  The header is title + live summary, pause-all and a Radix dropdown (open
-  folder / clear completed); the sidebar app-menu / download shortcut handles
-  navigation. Active/completed/failed are F chips; task rows are 64 px with a
+  The header is title + live summary, one Pause all/Resume all toggle plus
+  direct Open folder and Clear completed buttons; the sidebar app-menu /
+  download shortcut handles navigation. Active/completed/failed are F chips;
+  task rows are 64 px with a
   tonal file tile, extension chip, meta line and a 4 px indigo progress track.
   Each tab has an F empty state with an open-folder action.
 - **App menu** replaces the old navigation drawer. Its trigger sits left of the

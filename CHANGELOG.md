@@ -4,7 +4,14 @@
 
 ### Window and archive polish
 
-- The chat wallpaper is now the canvas for the whole signed-in window: the
+- The chat pane no longer paints its own wallpaper or white card: the message
+  canvas is transparent, so the signed-in window's doodle wallpaper runs
+  continuously behind the conversation.
+- The chat header and the message composer are now floating rounded surface
+  cards with soft shadows over that wallpaper, copied from Telegram Web K's top
+  bar and input plate (48 px, centred, max 760 px); the channel bar uses the
+  same floating shape.
+- The chat wallpaper is the canvas for the whole signed-in window: the
   floating sidebar, chat and info cards sit on the same doodle pattern as the
   message surface instead of a flat gray backdrop. The login screen keeps its
   own backdrop.
