@@ -11,8 +11,10 @@ import {
   Icon,
   IconButton,
 } from "../../ui";
+import { captureViewerSource, type ViewerSource } from "../media/types";
 import { MediaThumb } from "./MediaThumb";
 import { DownloadBadge } from "./DownloadBadge";
+import { copyImageToClipboard } from "../../lib/mediaClipboard";
 
 /** mm:ss for the duration pills and audio rows, like Telegram Web. */
 export function formatMediaDuration(seconds?: number) {
@@ -82,46 +84,26 @@ function canSaveMessage(message: Message) {
   return true;
 }
 
-async function copyImageToClipboard(
+async function copyImageWithFeedback(
   url: string,
   t: (key: string) => string,
   onToast?: (message: string) => void,
   fallback?: string,
 ) {
-  try {
-    if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
-      throw new Error("clipboard image unsupported");
-    }
-    const response = await fetch(url);
-    const blob = await response.blob();
-    let png = blob;
-    if (blob.type !== "image/png") {
-      const bitmap = await createImageBitmap(blob);
-      const canvas = document.createElement("canvas");
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
-      const converted = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, "image/png"),
-      );
-      if (converted) {
-        png = converted;
-      }
-    }
-    await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
+  if (await copyImageToClipboard(url)) {
     onToast?.(t("rightPanel.copiedMedia"));
-  } catch {
-    if (fallback) {
-      try {
-        await navigator.clipboard.writeText(fallback);
-        onToast?.(t("chatMenu.copied"));
-        return;
-      } catch {
-        // fall through to the error toast
-      }
-    }
-    onToast?.(t("rightPanel.copyMediaFailed"));
+    return;
   }
+  if (fallback) {
+    try {
+      await navigator.clipboard.writeText(fallback);
+      onToast?.(t("chatMenu.copied"));
+      return;
+    } catch {
+      // fall through to the error toast
+    }
+  }
+  onToast?.(t("rightPanel.copyMediaFailed"));
 }
 
 /**
@@ -159,7 +141,7 @@ function InfoContextMenu({
         key="copy"
         icon={<Icon name="content_copy" size={18} />}
         onSelect={() =>
-          void copyImageToClipboard(
+          void copyImageWithFeedback(
             media?.photoUrl || media?.thumbUrl || "",
             t,
             actions.onToast,
@@ -261,8 +243,8 @@ export function MediaGrid({
 }: {
   items: Message[];
   gifs?: boolean;
-  onOpenPhoto?: (message: Message) => void;
-  onPlayVideo?: (message: Message) => void;
+  onOpenPhoto?: (message: Message, source?: ViewerSource) => void;
+  onPlayVideo?: (message: Message, source?: ViewerSource) => void;
 } & SectionActions) {
   const { t } = useTranslation();
   const actions: SectionActions = {
@@ -283,15 +265,19 @@ export function MediaGrid({
         const playable =
           kind === "video" || kind === "video_note" || kind === "animation";
         const selected = Boolean(selectedIds?.has(message.id));
-        const open = () => {
+        const open = (element?: HTMLElement) => {
           if (selecting) {
             onToggleSelect?.(message);
             return;
           }
+          const source = captureViewerSource(
+            element,
+            media?.thumbUrl || media?.photoUrl,
+          );
           if (playable) {
-            onPlayVideo?.(message);
+            onPlayVideo?.(message, source);
           } else {
-            onOpenPhoto?.(message);
+            onOpenPhoto?.(message, source);
           }
         };
         return withContextMenu(
@@ -299,6 +285,7 @@ export function MediaGrid({
           actions,
           <span
             className="f-info-media-cell"
+            data-media-id={message.id}
             data-selected={selected || undefined}
           >
             <button
@@ -311,7 +298,7 @@ export function MediaGrid({
                     : "media.video"
                   : "chat.openPhoto",
               )}
-              onClick={open}
+              onClick={(event) => open(event.currentTarget)}
             >
               <MediaThumb
                 src={media?.thumbUrl || media?.photoUrl}

@@ -270,6 +270,8 @@ body {
 
 .f-menu-content {
   min-width: 168px;
+  /* Above the full-screen media viewer (z 100) and its dialogs (z 150). */
+  z-index: 160;
 }
 
 /* --------------------------------------------------------------- buttons */
@@ -392,7 +394,7 @@ body {
 
 .f-toast {
   position: fixed;
-  z-index: 140;
+  z-index: 400;
   bottom: 22px;
   left: 50%;
   display: flex;
@@ -488,4 +490,13 @@ body {
     opacity: 1;
     transform: translate(-50%, 0);
   }
+}
+
+/* ---------------------------------------------------- dialog layering */
+
+/* The media viewer is a fixed z-index:100 surface. Radix renders its dialogs
+ * in a portal with no z-index of their own, so lift every dialog overlay above
+ * the viewer (forward picker, delete confirmation, settings). */
+.rt-BaseDialogOverlay {
+  z-index: 150;
 }

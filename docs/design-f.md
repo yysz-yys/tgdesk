@@ -204,6 +204,20 @@ without a rewrite.
   outline.
 - At 860 px and below the floating gaps collapse and the list narrows to 280 px.
 
+### Media viewer preview
+
+```
+/media-preview.html?state=photo&theme=dark
+```
+
+States: `photo`, `album`, `video`, `note`, plus `theme=light|dark` and
+`zoom=1` (dispatches a wheel zoom after mount so the zoom bar can be
+screenshot). Photos are drawn on a canvas at runtime and the video state
+streams a public sample clip, so the viewer can be checked without the Go
+backend. The real chat flow — opening from a bubble or the info pane, paging,
+zooming, the video chrome, the overlaid forward/delete dialogs and closing —
+can be exercised on `/shell-preview.html` with Chrome's DevTools protocol.
+
 ### Shell preview
 
 ```
@@ -230,10 +244,20 @@ right info pane; the archived row opens the archived view.
 - **App menu** replaces the old navigation drawer. Its trigger sits left of the
   sidebar search (and in the downloads header); it opens a dropdown with the
   account name, chats, downloads/count, settings and logout.
-- **Video** uses the F `Dialog` atom: a 760 px video dialog on a black stage.
-  Chat info is the right-hand pane described above. The new-message picker was
-  removed with its sidebar button. The existing callbacks, avatar loaders and
-  video streaming stay unchanged.
+- **Media viewer**: message photos, videos, GIFs, round video notes and albums
+  open in a full-window Telegram Web K style viewer (`components/media`). The
+  media grows out of the clicked thumbnail, the top bar carries the sender
+  avatar, name, position counter, message date/time and the right-hand action
+  row (delete, forward, copy image, download, rotate, zoom, ⋮, close), and the
+  caption/album strip sits under the media. Photos support wheel and
+  double-click zoom (0.5–4×), pan, rotate and drag paging/close; videos use
+  tweb's custom chrome — seek line with buffered fill and hover time,
+  play/pause, expanding volume slider, current/total time, playback-rate menu,
+  picture-in-picture and fullscreen with 3 s auto-hide — streamed from the
+  loopback range endpoint. Escape closes, arrow keys page, Ctrl +/- and 0 zoom.
+  Opening from the info pane pages through that tab's media instead of the
+  conversation. The old F photo/video dialogs, their CSS and their i18n strings
+  were removed. Chat info remains the right-hand pane described above.
 - **Settings** is a 560 px centred F `Dialog` with a scrollable body of grouped
   cards. There is no visible subtitle and no footer button: the header close
   button is the only dismiss action.
@@ -279,14 +303,15 @@ The Material layer was removed once every surface had an F equivalent:
 | App dropdown menu | done |
 | Chat header + search + menu | done |
 | Chat composer + channel bar | done |
-| Message actions, reply/edit banner, forward picker and photo viewer | done |
+| Message actions, reply/edit banner and forward picker | done |
+| Media viewer: photos, videos, GIFs, albums, round notes | done (Telegram Web K port) |
 | Message list, bubbles, dates, service rows | done |
 | Message media cards + context menu | done (F palette; legacy structural CSS) |
 | Right chat info pane | done |
 | Chat info members / media / links tabs | done |
 | Archived chats view + dropdown | done |
 | New message dialog | removed (sidebar button and dialog deleted) |
-| Video dialog | done |
+| Video dialog | replaced by the media viewer |
 | Downloads | done |
 | Settings | done |
 | Toast, context menus, empty states | done |

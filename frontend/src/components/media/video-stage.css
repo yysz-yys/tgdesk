@@ -1,0 +1,550 @@
+/* Telegram Web K style in-viewer video surface.
+ *
+ * Geometry follows tweb's .ckin__player / .default__controls / .progress-line
+ * SCSS: 5px progress line with 16px side margins, a 36px bottom control row on
+ * desktop, 40x40 circular icon buttons, white chrome on a dark stage and the
+ * app accent (--app-primary) for the played fill. The viewer is always dark,
+ * so only literal whites/greys are used for chrome; --app-primary is the one
+ * theme-aware colour.
+ */
+
+.tg-video-stage {
+  --tg-video-accent: var(--app-primary, #3e63dd);
+  --tg-video-icon: rgba(255, 255, 255, 0.5);
+  --tg-video-icon-hover: #ffffff;
+  --tg-video-hover: rgba(255, 255, 255, 0.12);
+  --tg-video-layer-transition: 0.2s cubic-bezier(0.22, 0.61, 0.25, 1);
+
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  isolation: isolate;
+  background: #000;
+  color: #fff;
+  direction: ltr;
+  font-family: inherit;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tg-video-stage:fullscreen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10000;
+  border-radius: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* media                                                               */
+/* ------------------------------------------------------------------ */
+
+.tg-video-stage__poster {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tg-video-stage__video {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  cursor: pointer;
+}
+
+.tg-video-stage:fullscreen .tg-video-stage__video {
+  object-fit: contain;
+}
+
+.tg-video-stage__video::-webkit-media-controls,
+.tg-video-stage__video::-webkit-media-controls-enclosure {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* centre play / replay affordance                                     */
+/* ------------------------------------------------------------------ */
+
+.tg-video-stage__center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.45));
+  transition: opacity var(--tg-video-layer-transition);
+}
+
+.tg-video-stage__center svg {
+  fill: rgba(255, 255, 255, 0.94);
+  stroke: rgba(255, 255, 255, 0.94);
+  stroke-width: 1.5;
+}
+
+.tg-video-stage[data-seeking] .tg-video-stage__center {
+  opacity: 0;
+}
+
+.tg-video-stage[data-buffering] .tg-video-stage__center {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* gradient scrim + controls bar                                       */
+/* ------------------------------------------------------------------ */
+
+.tg-video-stage__scrim {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  height: 98px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  pointer-events: none;
+  transform: translate3d(0, 100%, 0);
+  transition: transform var(--tg-video-layer-transition);
+}
+
+.tg-video-stage__controls {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  direction: ltr;
+  text-align: start;
+  transform: translate3d(0, 52px, 0);
+  transition: transform var(--tg-video-layer-transition);
+}
+
+.tg-video-stage[data-show-controls] .tg-video-stage__scrim,
+.tg-video-stage[data-show-controls] .tg-video-stage__controls {
+  transform: translate3d(0, 0, 0);
+}
+
+.tg-video-stage[data-playing]:not([data-show-controls]) {
+  cursor: none;
+}
+
+.tg-video-stage[data-playing]:not([data-show-controls]) .tg-video-stage__video {
+  cursor: none;
+}
+
+.tg-video-stage[data-chromeless] .tg-video-stage__video {
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ */
+/* progress / seek line                                                */
+/* ------------------------------------------------------------------ */
+
+.tg-video-stage__progress {
+  position: relative;
+  height: 5px;
+  margin: 0 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+/* tweb's range input extends its hit box ~8px above and below the 5px line. */
+.tg-video-stage__progress::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  right: 0;
+  bottom: -8px;
+  left: 0;
+}
+
+.tg-video-stage__progress:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 4px;
+}
+
+.tg-video-stage__track {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.tg-video-stage__buffered,
+.tg-video-stage__played {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999px;
+}
+
+.tg-video-stage__buffered {
+  background: #fff;
+  opacity: 0.3;
+}
+
+.tg-video-stage__played {
+  background: var(--tg-video-accent);
+}
+
+.tg-video-stage__thumb {
+  position: absolute;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tg-video-accent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition:
+    width 0.1s ease,
+    height 0.1s ease,
+    opacity 0.12s ease;
+}
+
+.tg-video-stage__progress:hover .tg-video-stage__thumb,
+.tg-video-stage__progress:focus-visible .tg-video-stage__thumb,
+.tg-video-stage__progress[data-dragging] .tg-video-stage__thumb {
+  width: 17px;
+  height: 17px;
+  opacity: 1;
+}
+
+.tg-video-stage__bubble {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  padding: 2px 0;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 12px;
+  white-space: nowrap;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.tg-video-stage:not([data-show-controls]) .tg-video-stage__bubble {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* bottom row                                                          */
+/* ------------------------------------------------------------------ */
+
+.tg-video-stage__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 10px;
+}
+
+.tg-video-stage__group {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.tg-video-stage__btn {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--tg-video-icon);
+  cursor: pointer;
+  transition:
+    color 0.15s ease-in-out,
+    background-color 0.15s ease-in-out,
+    opacity 0.15s ease-in-out;
+}
+
+.tg-video-stage__btn:hover {
+  background: var(--tg-video-hover);
+  color: var(--tg-video-icon-hover);
+}
+
+.tg-video-stage__btn[data-active] {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--tg-video-icon-hover);
+}
+
+.tg-video-stage__btn:focus-visible,
+.tg-video-stage__rate-item:focus-visible,
+.tg-video-stage__retry:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 2px;
+}
+
+.tg-video-stage__time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ */
+/* volume: 36/40px button that expands the slider on hover             */
+/* ------------------------------------------------------------------ */
+
+.tg-video-stage__volume {
+  display: flex;
+  align-items: center;
+  width: 40px;
+  overflow: hidden;
+  border-radius: 20px;
+  transition: width var(--tg-video-layer-transition);
+}
+
+.tg-video-stage__volume:hover,
+.tg-video-stage__volume:focus-within {
+  width: 104px;
+}
+
+.tg-video-stage__volume-bar {
+  position: relative;
+  flex: 0 0 56px;
+  width: 56px;
+  height: 4px;
+  margin-left: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.tg-video-stage__volume-bar:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 4px;
+}
+
+.tg-video-stage__volume-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999px;
+  background: #fff;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* playback rate button + menu                                         */
+/* ------------------------------------------------------------------ */
+
+.tg-video-stage__rate {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.tg-video-stage__rate-label {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tg-video-stage__rate-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 132px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(32, 32, 36, 0.98);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+  transform-origin: bottom right;
+  animation: tg-video-stage-menu-in 120ms ease-out;
+}
+
+.tg-video-stage__rate-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 14px;
+  line-height: 1.2;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.tg-video-stage__rate-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.tg-video-stage__rate-item[data-active] {
+  color: #fff;
+  font-weight: 500;
+}
+
+.tg-video-stage__rate-check {
+  display: flex;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: #fff;
+}
+
+@keyframes tg-video-stage-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* loading / error                                                     */
+/* ------------------------------------------------------------------ */
+
+.tg-video-stage__spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 5;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 2.5px solid rgba(255, 255, 255, 0.22);
+  border-top-color: rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: tg-video-stage-spin 0.9s linear infinite;
+}
+
+@keyframes tg-video-stage-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tg-video-stage__status {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.tg-video-stage__status--error svg {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tg-video-stage__status-text {
+  max-width: 280px;
+}
+
+.tg-video-stage__retry {
+  margin-top: 2px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--tg-video-accent);
+  color: var(--app-on-primary, #fff);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter 0.15s ease-in-out;
+}
+
+.tg-video-stage__retry:hover {
+  filter: brightness(1.1);
+}
+
+/* ------------------------------------------------------------------ */
+/* reduced motion                                                      */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-video-stage__scrim,
+  .tg-video-stage__controls,
+  .tg-video-stage__center,
+  .tg-video-stage__thumb,
+  .tg-video-stage__volume,
+  .tg-video-stage__btn,
+  .tg-video-stage__rate-item {
+    transition: none;
+  }
+
+  .tg-video-stage__rate-menu {
+    animation: none;
+  }
+
+  /* Keep the buffering indicator perceivable; base.css otherwise forces a
+     single 1ms iteration for every animation under reduced motion. */
+  .tg-video-stage__spinner {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}

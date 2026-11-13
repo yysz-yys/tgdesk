@@ -222,8 +222,11 @@ loopback image server (see below); no Wails call is made per image.
     range throttle.
   - Scrub/seek requests re-enter the same range handler and are satisfied from
     MTProto or the growing file.
-  - The video dialog shows a preparation spinner only while message metadata is
-    resolved; the actual transfer happens while the native player is open.
+  - The media viewer asks for the stream URL only when a video slide becomes
+    active, caches it per message id (each `GetVideoStream` call pins a
+    server-side session) and shows the thumbnail until the first frame; its
+    custom player exposes the same seek line, volume, speed, PiP and fullscreen
+    controls as Telegram Web K.
 
 ## License note
 

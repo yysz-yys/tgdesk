@@ -13,6 +13,7 @@ import type {
 } from "../../types";
 import { Avatar, Button, Icon, IconButton, Spinner } from "../../ui";
 import { chatColor, chatInitials } from "../../data/telegram";
+import type { ViewerSource } from "../media/types";
 import { ChatAvatar } from "./ChatAvatar";
 import {
   AudioList,
@@ -41,8 +42,16 @@ interface ChatInfoPanelProps {
     section: SharedMediaSection,
     beforeID: number,
   ) => Promise<SharedMediaPage>;
-  onOpenPhoto?: (message: Message) => void;
-  onPlayVideo?: (message: Message) => void;
+  onOpenPhoto?: (
+    message: Message,
+    source?: ViewerSource,
+    mediaItems?: Message[],
+  ) => void;
+  onPlayVideo?: (
+    message: Message,
+    source?: ViewerSource,
+    mediaItems?: Message[],
+  ) => void;
   downloads: DownloadTask[];
   onDownloadInline: (ids: number[]) => void;
   onOpenDownloaded: (task: DownloadTask) => void;
@@ -761,8 +770,12 @@ export function ChatInfoPanel({
         list = (
           <MediaGrid
             items={items}
-            onOpenPhoto={onOpenPhoto}
-            onPlayVideo={onPlayVideo}
+            onOpenPhoto={(message, source) =>
+              onOpenPhoto?.(message, source, items)
+            }
+            onPlayVideo={(message, source) =>
+              onPlayVideo?.(message, source, items)
+            }
             {...sectionActions}
           />
         );
@@ -772,8 +785,12 @@ export function ChatInfoPanel({
           <MediaGrid
             gifs
             items={items}
-            onOpenPhoto={onOpenPhoto}
-            onPlayVideo={onPlayVideo}
+            onOpenPhoto={(message, source) =>
+              onOpenPhoto?.(message, source, items)
+            }
+            onPlayVideo={(message, source) =>
+              onPlayVideo?.(message, source, items)
+            }
             {...sectionActions}
           />
         );

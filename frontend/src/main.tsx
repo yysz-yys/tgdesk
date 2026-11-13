@@ -9,7 +9,6 @@ import "./app.css";
 import "./components/layout/layout.css";
 import "./components/layout/shell-f.css";
 import "./components/chat/chat.css";
-import "./components/chat/dialogs-f.css";
 import "./components/downloads/downloads-f.css";
 import "./components/settings/settings-f.css";
 

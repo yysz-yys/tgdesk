@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Browser } from "@wailsio/runtime";
 import type { DownloadTask, Message, Reaction } from "../../types";
+import type { ViewerSource } from "../media/types";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -31,8 +32,8 @@ interface MessageBubbleProps {
   showAvatarSpace?: boolean;
   grouped?: boolean;
   lastInGroup?: boolean;
-  onPlayVideo?: (message: Message) => void;
-  onOpenPhoto?: (message: Message) => void;
+  onPlayVideo?: (message: Message, source?: ViewerSource) => void;
+  onOpenPhoto?: (message: Message, source?: ViewerSource) => void;
   onReply?: (message: Message) => void;
   onEdit?: (message: Message) => void;
   onForward?: (message: Message, group?: Message[]) => void;
@@ -528,7 +529,8 @@ function formatCompact(value: number) {
   return String(value);
 }
 
-function RichText({
+/** Renders Telegram message entities (bold, code, spoilers, links, quotes) without a markdown parser. */
+export function RichText({
   text,
   entities,
 }: {

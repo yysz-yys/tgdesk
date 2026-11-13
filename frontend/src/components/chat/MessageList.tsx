@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { DownloadTask, Message, Reaction } from "../../types";
+import type { ViewerSource } from "../media/types";
 import { chatColor, chatInitials } from "../../data/telegram";
 import { Icon, Spinner } from "../../ui";
 import { MessageBubble, type MessageAuthor } from "./MessageBubble";
@@ -23,8 +24,8 @@ interface MessageListProps {  chatId: string;
   hasMoreMessages: boolean;
   olderMessagesLoading: boolean;
   onLoadOlder: () => void;
-  onPlayVideo?: (message: Message) => void;
-  onOpenPhoto?: (message: Message) => void;
+  onPlayVideo?: (message: Message, source?: ViewerSource) => void;
+  onOpenPhoto?: (message: Message, source?: ViewerSource) => void;
   onReply?: (message: Message) => void;
   onEdit?: (message: Message) => void;
   onForward?: (message: Message, group?: Message[]) => void;

@@ -3,6 +3,7 @@ import type { CSSProperties, MouseEvent, ReactNode } from "react";
 import { Browser } from "@wailsio/runtime";
 import type { DownloadTask, Message, MessageMedia } from "../../types";
 import { Icon } from "../../ui";
+import { captureViewerSource, type ViewerSource } from "../media/types";
 import { DownloadBadge } from "./DownloadBadge";
 import { MediaThumb } from "./MediaThumb";
 import { LocationPreview } from "./LocationPreview";
@@ -10,8 +11,8 @@ import { LocationPreview } from "./LocationPreview";
 interface MessageMediaViewProps {
   message: Message;
   album?: Message[];
-  onOpenPhoto?: (message: Message) => void;
-  onPlayVideo?: (message: Message) => void;
+  onOpenPhoto?: (message: Message, source?: ViewerSource) => void;
+  onPlayVideo?: (message: Message, source?: ViewerSource) => void;
   onToast?: (message: string) => void;
   downloads?: Map<number, DownloadTask>;
   onDownloadInline?: (ids: number[]) => void;
@@ -126,9 +127,15 @@ export function MessageMediaView({
       return (
         <PhotoCard
           media={media}
+          mediaId={message.id}
           label="Photo"
           downloadBadge={downloadBadge(message.id)}
-          onClick={() => onOpenPhoto?.(message)}
+          onClick={(element) =>
+            onOpenPhoto?.(
+              message,
+              captureViewerSource(element, media.thumbUrl || media.photoUrl),
+            )
+          }
         />
       );
     case "video":
@@ -136,17 +143,23 @@ export function MessageMediaView({
       return (
         <VideoCard
           media={media}
+          mediaId={message.id}
           round={media.kind === "video_note"}
           downloadBadge={downloadBadge(message.id)}
-          onClick={() => onPlayVideo?.(message)}
+          onClick={(element) =>
+            onPlayVideo?.(message, captureViewerSource(element, media.thumbUrl))
+          }
         />
       );
     case "animation":
       return (
         <AnimationCard
           media={media}
+          mediaId={message.id}
           downloadBadge={downloadBadge(message.id)}
-          onClick={() => onPlayVideo?.(message)}
+          onClick={(element) =>
+            onPlayVideo?.(message, captureViewerSource(element, media.thumbUrl))
+          }
         />
       );
     case "sticker":
@@ -247,14 +260,16 @@ export function MessageMediaView({
 
 function PhotoCard({
   media,
+  mediaId,
   label,
   downloadBadge,
   onClick,
 }: {
   media: MessageMedia;
+  mediaId: number;
   label: string;
   downloadBadge?: ReactNode;
-  onClick?: () => void;
+  onClick?: (element?: HTMLElement) => void;
 }) {
   const layout = aspectFor(media);
   const [revealed, setRevealed] = useState(false);
@@ -264,6 +279,7 @@ function PhotoCard({
     <button
       type="button"
       className="g-media-card g-media-photo"
+      data-media-id={mediaId}
       data-portrait={layout.portrait || undefined}
       style={
         {
@@ -275,12 +291,12 @@ function PhotoCard({
         } as CSSProperties
       }
       aria-label={label}
-      onClick={() => {
+      onClick={(event) => {
         if (media.spoiler && !revealed) {
           setRevealed(true);
           return;
         }
-        onClick?.();
+        onClick?.(event.currentTarget);
       }}
     >
       <span
@@ -302,23 +318,26 @@ function PhotoCard({
 
 function VideoCard({
   media,
+  mediaId,
   round,
   downloadBadge,
   onClick,
 }: {
   media: MessageMedia;
+  mediaId: number;
   round?: boolean;
   downloadBadge?: ReactNode;
-  onClick?: () => void;
+  onClick?: (element?: HTMLElement) => void;
 }) {
   const layout = aspectFor(media);
   return (
     <button
       type="button"
       className={round ? "g-media-card g-video-note" : "g-media-card g-media-video"}
+      data-media-id={mediaId}
       style={round ? undefined : { width: layout.width, aspectRatio: layout.ratio }}
       aria-label="Play video"
-      onClick={onClick}
+      onClick={(event) => onClick?.(event.currentTarget)}
     >
       <MediaThumb src={media.thumbUrl} alt={media.name} />
       <span className="g-media-play" aria-hidden="true">
@@ -335,21 +354,24 @@ function VideoCard({
 
 function AnimationCard({
   media,
+  mediaId,
   downloadBadge,
   onClick,
 }: {
   media: MessageMedia;
+  mediaId: number;
   downloadBadge?: ReactNode;
-  onClick?: () => void;
+  onClick?: (element?: HTMLElement) => void;
 }) {
   const layout = aspectFor(media);
   return (
     <button
       type="button"
       className="g-media-card g-media-animation"
+      data-media-id={mediaId}
       style={{ width: layout.width, aspectRatio: layout.ratio }}
       aria-label="Open GIF"
-      onClick={onClick}
+      onClick={(event) => onClick?.(event.currentTarget)}
     >
       <LazyVideo src={media.streamUrl} poster={media.thumbUrl} />
       {downloadBadge}
@@ -840,8 +862,8 @@ function AlbumGrid({
   onResumeDownload,
 }: {
   items: Message[];
-  onOpenPhoto?: (message: Message) => void;
-  onPlayVideo?: (message: Message) => void;
+  onOpenPhoto?: (message: Message, source?: ViewerSource) => void;
+  onPlayVideo?: (message: Message, source?: ViewerSource) => void;
   downloads?: Map<number, DownloadTask>;
   onDownloadInline?: (ids: number[]) => void;
   onOpenDownloaded?: (task: DownloadTask) => void;
@@ -882,8 +904,19 @@ function AlbumGrid({
             type="button"
             key={item.id}
             className="g-album-cell"
+            data-media-id={item.id}
             aria-label={isVideo ? "Play video" : "Open photo"}
-            onClick={() => (isVideo ? onPlayVideo?.(item) : onOpenPhoto?.(item))}
+            onClick={(event) => {
+              const source = captureViewerSource(
+                event.currentTarget,
+                media.thumbUrl || media.photoUrl,
+              );
+              if (isVideo) {
+                onPlayVideo?.(item, source);
+              } else {
+                onOpenPhoto?.(item, source);
+              }
+            }}
           >
             {content}
             {badge}

@@ -323,8 +323,12 @@ Component layers:
   `LoginLoading`, `BrandMark` and the proxy sub-panel. `LoginShell` owns the
   page surface; `LoginScreen` owns the state machine and `auth:event` handling.
 - `components/chat` — conversation is split into header, search, list, bubble
-  with hover/context actions, media thumbnail, photo/video viewers, forward
-  picker, composer with reply/edit banner, channel bar and the right info pane.
+  with hover/context actions, media thumbnail, forward picker, composer with
+  reply/edit banner, channel bar and the right info pane.
+- `components/media` — the full-window media viewer: photo stage with
+  zoom/pan/rotate and open/close flight, album strip and caption, tweb-style
+  video player surface (custom controls, PiP, fullscreen) and the message
+  author/top bar chrome.
 - `components/layout` — caption bar, shared app menu and conversation list.
 - `components/settings` — the F settings dialog, composed from `src/ui` fields,
   segmented control, switch, slider and select.

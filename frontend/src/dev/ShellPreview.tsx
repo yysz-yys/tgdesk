@@ -6,7 +6,6 @@ import "../app.css";
 import "../components/layout/layout.css";
 import "../components/layout/titlebar.css";
 import "../components/chat/chat.css";
-import "../components/chat/dialogs-f.css";
 import "../components/layout/shell-f.css";
 import "../components/downloads/downloads-f.css";
 import "../components/settings/settings-f.css";
@@ -142,6 +141,23 @@ const chats: Chat[] = [
   }),
 ];
 
+function previewPhotoDataUrl(
+  title: string,
+  from: string,
+  to: string,
+  width: number,
+  height: number,
+) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><rect x="18" y="18" width="${width - 36}" height="${height - 36}" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="4"/><text x="50%" y="50%" fill="rgba(255,255,255,.9)" font-family="Inter, sans-serif" font-size="${Math.round(height / 8)}" text-anchor="middle" dominant-baseline="middle">${title}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+const previewLandscapePhoto = previewPhotoDataUrl("Preview photo", "#1f3b73", "#0d1b33", 900, 560);
+const previewPortraitPhoto = previewPhotoDataUrl("Portrait", "#5b2c6f", "#1b0a21", 620, 930);
+const previewVideoPoster = previewPhotoDataUrl("Screen recording", "#2c3e50", "#0b1520", 960, 540);
+const previewVideoUrl =
+  "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
+
 const messages: Message[] = [
   {
     id: 1,
@@ -205,6 +221,67 @@ const messages: Message[] = [
       name: "Voice message",
       duration: 12,
       size: "128 KB",
+    },
+  },
+  {
+    id: 6,
+    chatId: "team",
+    out: false,
+    sender: "Mia",
+    senderId: "mia",
+    text: "海边拍的参考图，这次改版就往这个方向靠。",
+    time: "22:21",
+    date: "今天",
+    media: {
+      kind: "photo",
+      name: "reference.jpg",
+      photoUrl: previewLandscapePhoto,
+      thumbUrl: previewLandscapePhoto,
+      width: 900,
+      height: 560,
+      size: "2.4 MB",
+      ext: "JPG",
+    },
+  },
+  {
+    id: 7,
+    chatId: "team",
+    out: false,
+    sender: "Leo",
+    senderId: "leo",
+    text: "",
+    time: "22:22",
+    date: "今天",
+    media: {
+      kind: "photo",
+      name: "poster.png",
+      photoUrl: previewPortraitPhoto,
+      thumbUrl: previewPortraitPhoto,
+      width: 620,
+      height: 930,
+      size: "1.1 MB",
+      ext: "PNG",
+    },
+  },
+  {
+    id: 8,
+    chatId: "team",
+    out: false,
+    sender: "Mia",
+    senderId: "mia",
+    text: "录屏在这里，看下动效节奏。",
+    time: "22:23",
+    date: "今天",
+    media: {
+      kind: "video",
+      name: "screen-recording.mp4",
+      thumbUrl: previewVideoPoster,
+      width: 960,
+      height: 540,
+      duration: 12,
+      size: "8.6 MB",
+      ext: "MP4",
+      mime: "video/mp4",
     },
   },
 ];
@@ -479,7 +556,7 @@ function Shell() {
           onOpenDownloaded={noop}
           onPauseDownload={noop}
           onResumeDownload={noop}
-          onLoadVideo={() => Promise.resolve("")}
+          onLoadVideo={() => Promise.resolve(previewVideoUrl)}
           onLoadChatInfo={() =>
             Promise.resolve({
               members: previewMembers.length,

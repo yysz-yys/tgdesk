@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Media viewer
+
+- Chat photos, videos, GIFs, round video notes and albums now open in a
+  full-window media viewer copied from Telegram Web K, replacing the small
+  photo/video dialogs. The media grows out of the clicked thumbnail, returns to
+  its bubble when the viewer closes, and prev/next pages through the
+  conversation (or through the info pane tab it was opened from) with the arrow
+  keys, the side arrows or a horizontal drag.
+- Photos zoom with the wheel, double click, the zoom bar or Ctrl +/- and can be
+  panned and rotated; Escape closes the viewer, a click on the picture or the
+  backdrop returns to the chat, and the caption can be selected.
+- Videos play in Telegram's own player chrome instead of the browser controls:
+  a seek line with buffered fill and a hover time bubble, play/pause, an
+  expanding volume slider, current and total time, a playback-speed menu,
+  picture-in-picture and fullscreen, with the controls fading out while the
+  video plays. Short videos loop, GIFs autoplay muted, round video notes stay
+  round and chromeless. The stream URL is cached per message so reopening a
+  video does not start a second transfer session.
+- The top bar shows the sender (avatar, name, position in the album/chat and the
+  message date) and acts on the media: delete, forward, copy image, download,
+  rotate, zoom, ⋮ and close. Forward and delete keep using the chat's existing
+  pickers and confirmation dialogs, which now sit above the viewer.
+- The viewer has a backend-free dev preview at `/media-preview.html` with
+  photo, album, video and round-video states, in light and dark themes.
+
 ### Window and archive polish
 
 - The archived-chats header menu now has a Downloads entry next to Search, so

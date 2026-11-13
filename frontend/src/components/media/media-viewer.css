@@ -1,0 +1,684 @@
+/* Full-screen media viewer chrome (Telegram Web K geometry).
+ *
+ * The stage morphs out of the clicked chat thumbnail, then the top bar, side
+ * switchers and caption fade in. The overlay is always a dark translucent
+ * layer: the app behind it stays faintly visible, like Telegram Web. */
+
+.mv-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow: hidden;
+  color: #fff;
+  font-family: var(--app-font);
+  -webkit-font-smoothing: antialiased;
+  outline: none;
+  user-select: none;
+}
+
+.mv-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  transition: opacity 200ms ease-in-out;
+}
+
+.mv-root[data-opening] .mv-backdrop,
+.mv-root[data-closing] .mv-backdrop {
+  opacity: 0;
+}
+
+/* ---------------------------------------------------------------- top bar */
+
+.mv-topbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 6;
+  display: flex;
+  height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  pointer-events: none;
+  transition: opacity 200ms ease-in-out;
+}
+
+.mv-root[data-opening] .mv-topbar,
+.mv-root[data-closing] .mv-topbar {
+  opacity: 0;
+}
+
+.mv-author {
+  display: flex;
+  max-width: min(46vw, 520px);
+  align-items: center;
+  gap: 16px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: #fff;
+  opacity: 0.4;
+  cursor: pointer;
+  pointer-events: auto;
+  text-align: start;
+  transition:
+    opacity 150ms ease-in-out,
+    color 150ms ease-in-out;
+}
+
+.mv-author:disabled {
+  cursor: default;
+}
+
+.mv-author:hover,
+.mv-author:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+
+.mv-avatar {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  border-radius: 50%;
+  object-fit: cover;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+}
+
+.mv-avatar--initials {
+  text-transform: uppercase;
+}
+
+.mv-author-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.3125;
+}
+
+.mv-author-name {
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mv-author-date {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.mv-date-dot {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 15px;
+}
+
+.mv-date-dot::before {
+  content: "•";
+  margin: 0 6px;
+  font-size: 1.15em;
+  vertical-align: middle;
+  line-height: 0;
+}
+
+.mv-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+  pointer-events: auto;
+}
+
+.mv-icon-btn {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  margin: 0;
+  padding: 8px;
+  background: transparent;
+  color: #fff;
+  opacity: 0.4;
+  cursor: pointer;
+  outline: none;
+  transition:
+    opacity 150ms ease-in-out,
+    background-color 150ms ease-in-out,
+    color 150ms ease-in-out;
+}
+
+.mv-icon-btn:hover,
+.mv-icon-btn:focus-visible {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  opacity: 1;
+}
+
+.mv-icon-btn:disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+
+.mv-icon-btn:disabled:hover {
+  background: transparent;
+}
+
+.mv-actions .mv-more-trigger.f-menu-trigger {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  margin: 0;
+  padding: 8px;
+  background: transparent;
+  color: #fff;
+  opacity: 0.4;
+  cursor: pointer;
+}
+
+.mv-actions .mv-more-trigger.f-menu-trigger:hover,
+.mv-actions .mv-more-trigger.f-menu-trigger:focus-visible,
+.mv-actions .mv-more-trigger.f-menu-trigger[data-state="open"] {
+  background-color: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}
+
+.mv-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --------------------------------------------------------------- switchers */
+
+.mv-switcher {
+  position: absolute;
+  top: 60px;
+  bottom: 120px;
+  z-index: 3;
+  display: grid;
+  width: 112px;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #fff;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 200ms ease-in-out;
+}
+
+.mv-switcher--prev {
+  left: 0;
+}
+
+.mv-switcher--next {
+  right: 0;
+}
+
+.mv-switcher:hover,
+.mv-switcher:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+
+.mv-switcher[data-hidden] {
+  display: none;
+}
+
+.mv-root[data-opening] .mv-switcher,
+.mv-root[data-closing] .mv-switcher {
+  opacity: 0;
+}
+
+.mv-switcher .f-icon {
+  opacity: 0.55;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+  transition: opacity 150ms ease-in-out;
+}
+
+.mv-switcher:hover .f-icon {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------------- stage */
+
+.mv-page {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.mv-stage {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 0;
+  background: transparent;
+  will-change: left, top, width, height, transform;
+  transition-property: left, top, width, height, border-radius, opacity;
+  transition-timing-function: cubic-bezier(0.22, 0.61, 0.25, 1);
+  touch-action: none;
+}
+
+.mv-stage[data-kind="photo"] {
+  cursor: zoom-in;
+}
+
+/* Zoomed photos are allowed to grow past their fitted box, like tweb's
+ * movers container which spans the whole window. */
+.mv-stage[data-zoomed] {
+  overflow: visible;
+}
+
+.mv-root:has(.mv-zoombar) .mv-stage[data-kind="photo"] {
+  cursor: grab;
+}
+
+.mv-stage[data-dragging] {
+  cursor: grabbing;
+}
+
+.mv-stage[data-kind="video"],
+.mv-stage[data-kind="animation"],
+.mv-stage[data-kind="video_note"] {
+  background: #000;
+  cursor: default;
+}
+
+.mv-stage[data-kind="video"],
+.mv-stage[data-kind="animation"] {
+  overflow: hidden;
+}
+
+.mv-stage[data-round] {
+  overflow: hidden;
+  background: #000;
+}
+
+.mv-stage[data-slide="next"] {
+  animation: mv-slide-next 220ms cubic-bezier(0.22, 0.61, 0.25, 1);
+}
+
+.mv-stage[data-slide="prev"] {
+  animation: mv-slide-prev 220ms cubic-bezier(0.22, 0.61, 0.25, 1);
+}
+
+@keyframes mv-slide-next {
+  from {
+    opacity: 0.35;
+    transform: translate3d(64px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mv-slide-prev {
+  from {
+    opacity: 0.35;
+    transform: translate3d(-64px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.mv-transform {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transform-origin: center center;
+  transition: transform 160ms cubic-bezier(0.22, 0.61, 0.25, 1);
+  will-change: transform;
+}
+
+.mv-stage[data-dragging] .mv-transform {
+  transition: none;
+}
+
+.mv-stage-poster,
+.mv-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mv-stage-poster {
+  z-index: 0;
+}
+
+.mv-photo--thumb {
+  z-index: 0;
+  transition: opacity 160ms ease-out;
+}
+
+.mv-photo {
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+}
+
+.mv-photo[data-loaded] {
+  opacity: 1;
+}
+
+.mv-stage[data-kind="video"] .mv-photo,
+.mv-stage[data-kind="video_note"] .mv-photo,
+.mv-stage[data-kind="animation"] .mv-photo {
+  display: none;
+}
+
+.mv-stage-status {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+}
+
+.mv-text-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.mv-text-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ---------------------------------------------------------------- zoom bar */
+
+.mv-zoombar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  z-index: 7;
+  display: flex;
+  width: 274px;
+  height: 54px;
+  align-items: center;
+  gap: 4px;
+  border-radius: 24px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  transform: translateX(-50%);
+  transition: opacity 200ms ease-in-out;
+}
+
+.mv-root[data-opening] .mv-zoombar,
+.mv-root[data-closing] .mv-zoombar {
+  opacity: 0;
+}
+
+.mv-zoombar-range {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 2px;
+  accent-color: var(--app-primary);
+  cursor: pointer;
+}
+
+/* While the zoom bar is up the bottom chrome and paging arrows step aside. */
+.mv-root:has(.mv-zoombar) .mv-caption,
+.mv-root:has(.mv-zoombar) .mv-album,
+.mv-root:has(.mv-zoombar) .mv-switcher {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ bottom */
+
+.mv-bottom {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  transition: opacity 200ms ease-in-out;
+}
+
+.mv-root[data-opening] .mv-bottom,
+.mv-root[data-closing] .mv-bottom {
+  opacity: 0;
+}
+
+.mv-album {
+  order: 2;
+  display: flex;
+  height: 72px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 0 12px;
+  pointer-events: auto;
+}
+
+.mv-album-thumb {
+  position: relative;
+  display: grid;
+  height: 100%;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 150ms ease-in-out;
+}
+
+.mv-album-thumb:hover,
+.mv-album-thumb:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+
+.mv-album-thumb[data-active] {
+  opacity: 1;
+  cursor: default;
+}
+
+.mv-album-media {
+  display: block;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  transition:
+    width 200ms ease,
+    height 200ms ease;
+}
+
+.mv-album-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.mv-album-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  transform: translate(-50%, -50%);
+}
+
+.mv-caption {
+  order: 1;
+  width: min(760px, calc(100vw - 48px));
+  max-height: 96px;
+  overflow-y: auto;
+  padding: 8px 20px 14px;
+  color: #fff;
+  font-size: 14.5px;
+  line-height: 1.4;
+  text-align: center;
+  word-break: break-word;
+  white-space: pre-wrap;
+  opacity: 0.4;
+  pointer-events: auto;
+  user-select: text;
+  transition: opacity 200ms ease-in-out;
+  scrollbar-width: thin;
+}
+
+.mv-caption:hover {
+  opacity: 1;
+}
+
+.mv-bottom[data-has-album] .mv-caption {
+  padding-bottom: 8px;
+}
+
+.mv-caption a {
+  color: #60a5e9;
+  text-decoration: none;
+  pointer-events: auto;
+}
+
+.mv-caption a:hover {
+  text-decoration: underline;
+}
+
+.mv-caption--file {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13.5px;
+  opacity: 0.5;
+}
+
+.mv-filename {
+  overflow: hidden;
+  display: block;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mv-caption .g-message-text,
+.mv-caption span {
+  white-space: pre-wrap;
+}
+
+.mv-caption .g-message-link,
+.mv-caption .g-text-code,
+.mv-caption .g-text-quote,
+.mv-caption .g-text-spoiler {
+  pointer-events: auto;
+}
+
+/* ------------------------------------------------------------- responsive */
+
+@media (max-width: 720px) {
+  .mv-topbar {
+    height: 52px;
+    padding: 0 8px;
+  }
+
+  .mv-author {
+    gap: 10px;
+  }
+
+  .mv-avatar {
+    display: none;
+  }
+
+  .mv-author-name {
+    font-size: 15px;
+  }
+
+  .mv-author-date {
+    font-size: 12.5px;
+  }
+
+  .mv-actions {
+    gap: 0;
+  }
+
+  .mv-icon-btn,
+  .mv-actions .mv-more-trigger.f-menu-trigger {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    padding: 6px;
+  }
+
+  .mv-switcher {
+    display: none;
+  }
+
+  .mv-zoombar {
+    display: none;
+  }
+
+  .mv-caption {
+    width: calc(100vw - 24px);
+    font-size: 13.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mv-stage,
+  .mv-transform,
+  .mv-caption,
+  .mv-topbar,
+  .mv-bottom,
+  .mv-switcher,
+  .mv-zoombar,
+  .mv-album-media,
+  .mv-album-thumb,
+  .mv-photo,
+  .mv-photo--thumb,
+  .mv-backdrop,
+  .mv-icon-btn,
+  .mv-author {
+    transition: none !important;
+    animation: none !important;
+  }
+}

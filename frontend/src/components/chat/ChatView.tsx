@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   Chat,
@@ -10,14 +10,20 @@ import type {
   SharedMediaSection,
   UploadProgress,
 } from "../../types";
+import { chatColor, chatInitials } from "../../data/telegram";
 import { Button, Dialog, EmptyState, Spinner } from "../../ui";
+import { MediaViewer } from "../media/MediaViewer";
+import type {
+  ViewerAuthor,
+  ViewerItem,
+  ViewerSource,
+} from "../media/types";
+import { viewerItemFor, viewerItemsFrom } from "../media/types";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { ChannelBar } from "./ChannelBar";
 import { MessageList } from "./MessageList";
 import { ChatInfoPanel } from "./ChatInfoPanel";
-import { VideoPlayerDialog } from "./VideoPlayerDialog";
-import { PhotoViewerDialog } from "./PhotoViewerDialog";
 import { ForwardDialog } from "./ForwardDialog";
 import { ReactionPickerDialog } from "./ReactionPickerDialog";
 import "./info-panel-f.css";
@@ -116,8 +122,13 @@ export function ChatView({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [infoOpen, setInfoOpen] = useState(false);
-  const [playingVideo, setPlayingVideo] = useState<Message | null>(null);
-  const [viewingPhoto, setViewingPhoto] = useState<Message | null>(null);
+  const [viewer, setViewer] = useState<{
+    items: ViewerItem[];
+    activeId: number;
+    source?: ViewerSource;
+    /** Chat-history media follows the live message list (deletes advance it). */
+    fromChat: boolean;
+  } | null>(null);
   const [forwarding, setForwarding] = useState<{
     message: Message;
     ids: number[];
@@ -136,8 +147,7 @@ export function ChatView({
     setSearchOpen(false);
     setSearchQuery("");
     setInfoOpen(false);
-    setPlayingVideo(null);
-    setViewingPhoto(null);
+    setViewer(null);
     setForwarding(null);
     setReplyingTo(null);
     setEditing(null);
@@ -174,6 +184,72 @@ export function ChatView({
         .includes(query),
     );
   }, [messages, query]);
+
+  // The viewer pages through the loaded chat media, oldest first. Opening from
+  // the info pane instead pages through that tab's list (newest first → reverse).
+  const chatViewerItems = useMemo(() => viewerItemsFrom(messages), [messages]);
+
+  const closeViewer = useCallback(() => setViewer(null), []);
+
+  const openViewer = useCallback(
+    (message: Message, source?: ViewerSource, mediaItems?: Message[]) => {
+      const list = mediaItems
+        ? viewerItemsFrom([...mediaItems].reverse())
+        : chatViewerItems;
+      const fromChat = !mediaItems;
+      if (list.some((entry) => entry.message.id === message.id)) {
+        setViewer({ items: list, activeId: message.id, source, fromChat });
+        return;
+      }
+      const single = viewerItemFor(message);
+      if (single) {
+        setViewer({ items: [single], activeId: message.id, source, fromChat });
+      }
+    },
+    [chatViewerItems],
+  );
+
+  const viewerItems = useMemo(() => {
+    if (!viewer) {
+      return [];
+    }
+    if (!viewer.fromChat) {
+      return viewer.items;
+    }
+    const byId = new Map(messages.map((message) => [message.id, message]));
+    return viewer.items
+      .filter((entry) => byId.has(entry.message.id))
+      .map((entry) => viewerItemFor(byId.get(entry.message.id)!) ?? entry);
+  }, [messages, viewer]);
+
+  const authorFor = useCallback(
+    (message: Message): ViewerAuthor => {
+      if (message.out) {
+        return {
+          name: selfName,
+          initials: selfInitials,
+          color: selfColor,
+          avatarUrl: selfAvatarUrl,
+        };
+      }
+      return {
+        name: message.sender || chat.title,
+        initials: message.sender ? chatInitials(message.sender) : chat.initials,
+        color: message.sender ? chatColor(message.sender) : chat.color,
+        avatarUrl: message.senderAvatarUrl || chat.avatarUrl,
+      };
+    },
+    [
+      chat.avatarUrl,
+      chat.color,
+      chat.initials,
+      chat.title,
+      selfAvatarUrl,
+      selfColor,
+      selfInitials,
+      selfName,
+    ],
+  );
 
   const sendOrEdit = async (text: string) => {
     if (editing) {
@@ -309,8 +385,8 @@ export function ChatView({
               hasMoreMessages={hasMoreMessages}
               olderMessagesLoading={olderMessagesLoading}
               onLoadOlder={onLoadOlder}
-              onPlayVideo={setPlayingVideo}
-              onOpenPhoto={setViewingPhoto}
+              onPlayVideo={openViewer}
+              onOpenPhoto={openViewer}
               onReply={(message) => {
                 setEditing(null);
                 setReplyingTo(message);
@@ -372,31 +448,24 @@ export function ChatView({
           />
         )}
 
-        <VideoPlayerDialog
-          open={Boolean(playingVideo)}
-          onOpenChange={(open) => {
-            if (!open) {
-              setPlayingVideo(null);
-            }
-          }}
-          title={playingVideo?.media?.name ?? t("media.video")}
-          onLoad={() =>
-            playingVideo
-              ? onLoadVideo(playingVideo.chatId, playingVideo.id)
-              : Promise.resolve("")
-          }
-        />
-
-        <PhotoViewerDialog
-          open={Boolean(viewingPhoto)}
-          onOpenChange={(open) => {
-            if (!open) {
-              setViewingPhoto(null);
-            }
-          }}
-          url={viewingPhoto?.media?.photoUrl}
-          title={viewingPhoto?.media?.name ?? t("media.photo")}
-        />
+        {viewer ? (
+          <MediaViewer
+            items={viewerItems}
+            initialId={viewer.activeId}
+            source={viewer.source}
+            authorOf={authorFor}
+            onLoadVideo={onLoadVideo}
+            onClose={closeViewer}
+            onDownload={(message) => onDownloadInline([message.id])}
+            onForward={(message) => setForwarding({ message, ids: [message.id] })}
+            onDelete={(message) => requestDelete(message, message.out)}
+            onShowInChat={(message) => {
+              setViewer(null);
+              jumpToMessage(message.id);
+            }}
+            onToast={onToast}
+          />
+        ) : null}
 
         <ForwardDialog
           open={Boolean(forwarding)}
@@ -488,8 +557,8 @@ export function ChatView({
           onOpenDownloaded={onOpenDownloaded}
           onPauseDownload={onPauseDownload}
           onResumeDownload={onResumeDownload}
-          onOpenPhoto={setViewingPhoto}
-          onPlayVideo={setPlayingVideo}
+          onOpenPhoto={openViewer}
+          onPlayVideo={openViewer}
           onForwardMessage={(message) =>
             setForwarding({ message, ids: [message.id] })
           }
