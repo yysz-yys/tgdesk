@@ -251,6 +251,13 @@ export function Sidebar({
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 className="f-menu-row"
+                onSelect={() => onDownloads()}
+              >
+                <Icon name="download" size={15} />
+                <span>{t("sidebar.downloads")}</span>
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                className="f-menu-row"
                 onSelect={toggleArchiveVisibility}
               >
                 <Icon name={hideArchived ? "unarchive" : "archive"} size={15} />

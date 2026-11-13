@@ -4,6 +4,9 @@
 
 ### Window and archive polish
 
+- The archived-chats header menu now has a Downloads entry next to Search, so
+  the transfer page is reachable without leaving the archive view first.
+
 - Wide message media now sizes against the conversation column instead of the
   viewport: captioned photos, albums and bleed bubbles lost their 68vw/72vw
   minimum/maximum widths, so opening the chat-info pane and narrowing the chat
