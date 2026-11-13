@@ -80,7 +80,7 @@ func TestTaskPathAddsCategoryFolder(t *testing.T) {
 	}
 }
 
-func TestGetDownloadsDemotesMissingFiles(t *testing.T) {
+func TestGetDownloadsForgetsMissingFiles(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "Images", "photo.jpg")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -104,17 +104,17 @@ func TestGetDownloadsDemotesMissingFiles(t *testing.T) {
 	service.downloadOrder = []string{"dl-1"}
 
 	if got := service.GetDownloads(); len(got) != 1 || got[0].Status != downloadDone {
-		t.Fatalf("existing file marked %q, want done", got[0].Status)
+		t.Fatalf("existing file marked %#v, want one done task", got)
 	}
 	if err := os.Remove(path); err != nil {
 		t.Fatal(err)
 	}
-	if got := service.GetDownloads(); len(got) != 1 || got[0].Status != downloadFailed {
-		t.Fatalf("missing file marked %q, want failed", got[0].Status)
+	if got := service.GetDownloads(); len(got) != 0 {
+		t.Fatalf("missing file kept %d stale tasks, want none", len(got))
 	}
 }
 
-func TestValidateDownloadMissingFile(t *testing.T) {
+func TestValidateDownloadForgetsMissingFile(t *testing.T) {
 	service := New()
 	service.downloadTasks = map[string]*downloadTask{
 		"dl-1": {
@@ -127,6 +127,7 @@ func TestValidateDownloadMissingFile(t *testing.T) {
 			},
 		},
 	}
+	service.downloadOrder = []string{"dl-1"}
 	exists, err := service.ValidateDownload("dl-1")
 	if err != nil {
 		t.Fatal(err)
@@ -134,11 +135,30 @@ func TestValidateDownloadMissingFile(t *testing.T) {
 	if exists {
 		t.Fatal("ValidateDownload reported a missing file as present")
 	}
-	if task := service.downloadTasks["dl-1"]; task == nil || task.dto.Status != downloadFailed {
-		t.Fatalf("task status = %#v, want failed", task)
+	if _, ok := service.downloadTasks["dl-1"]; ok {
+		t.Fatal("missing done task was not forgotten")
 	}
 	if exists, err := service.ValidateDownload("missing"); err != nil || exists {
 		t.Fatalf("unknown task validate = %v/%v, want false/nil", exists, err)
+	}
+}
+
+func TestUniqueDownloadPath(t *testing.T) {
+	dir := t.TempDir()
+	first := filepath.Join(dir, "clip.mp4")
+	if err := os.WriteFile(first, []byte("one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	second := uniqueDownloadPath(first)
+	if second != filepath.Join(dir, "clip (2).mp4") {
+		t.Fatalf("second path = %q", second)
+	}
+	if err := os.WriteFile(second, []byte("two"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	third := uniqueDownloadPath(first)
+	if third != filepath.Join(dir, "clip (3).mp4") {
+		t.Fatalf("third path = %q", third)
 	}
 }
 

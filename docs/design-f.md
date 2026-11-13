@@ -165,7 +165,8 @@ without a rewrite.
     in the corner of every media/GIF tile and over the file/music/voice icon.
     It turns into a circular progress ring during the transfer and a green
     check afterwards; clicking it starts the download without leaving the
-    panel, and a finished badge opens the containing folder. The header check
+    panel, and a finished badge opens the containing folder after re-checking
+    that the file still exists (missing → download again). The header check
     button filters any downloadable tab to already-downloaded items.
   - Members pages through `channels.getParticipants` (50 first, then offset
     pages) rather than filtering the dialog list. Member admin/tag actions are

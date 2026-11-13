@@ -276,6 +276,10 @@ sync.
 - Emit `download:event` for progress/speed/ETA/state; each task carries its
   chat/message ids and media kind so the chat-info panel can draw inline
   progress badges and a downloaded-only filter without changing views.
+- A done task records the delivered path only. Every read/click stats it first
+  (Telegram Desktop keeps a downloaded-path log too): existing file → open its
+  folder; missing file → forget the record and fetch the media again. Colliding
+  destination names get Telegram's `name (2).ext` suffix instead of overwriting.
 - A paused file keeps its `.tmp`; resume aligns to a 4 KiB boundary and fetches
   the missing tail as parallel 1 MiB `upload.getFile` ranges through the same
   tdl pool (the old sequential range loop was the slow path). CDN locations fall

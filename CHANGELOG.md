@@ -73,9 +73,12 @@
   extension sniffing, and tdl's reconnect middleware window).
 - The delete-message dialog buttons are baseline-aligned again (both 32 px).
 - Clicking a downloaded badge now re-checks the file first: if it still exists
-  the containing folder opens, but if it was deleted outside the app the badge
-  starts a fresh download instead of opening an empty folder. `GetDownloads`
-  also demotes delivered tasks whose file disappeared to `failed`.
+  the containing folder opens, but if it was deleted or moved the stale "done"
+  record is forgotten and the message starts a fresh download, like Telegram
+  Desktop's downloaded-path behaviour. `GetDownloads` applies the same cleanup,
+  so no fake completed row survives. If an unrelated file already occupies the
+  rendered name, the new download is saved as `name (2).ext` instead of
+  overwriting it.
 
 ### Chat info and history loading
 

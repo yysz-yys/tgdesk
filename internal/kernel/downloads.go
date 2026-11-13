@@ -283,21 +283,29 @@ func (s *Service) GetDownloads() []DownloadTaskDTO {
 	s.downloadMu.Lock()
 	defer s.downloadMu.Unlock()
 
+	// A completed task is only a cache of where the file was delivered. If the
+	// file disappeared (deleted in Explorer, drive removed, ...), forget the
+	// record like Telegram Desktop forgets a downloaded path: the message
+	// button goes back to "download" and no stale "completed" row is kept.
 	changed := false
-	for _, task := range s.downloadTasks {
-		if task.dto.Status != downloadDone || task.dto.Path == "" {
+	for _, id := range append([]string(nil), s.downloadOrder...) {
+		task := s.downloadTasks[id]
+		if task == nil || task.dto.Status != downloadDone || task.dto.Path == "" {
 			continue
 		}
 		if _, err := os.Stat(task.dto.Path); err != nil {
-			// The file was deleted outside the app: report the task as failed so
-			// the message badge offers a fresh download instead of opening a
-			// folder that no longer contains anything.
-			task.dto.Status = downloadFailed
-			task.dto.Error = "downloaded file is missing"
+			delete(s.downloadTasks, id)
 			changed = true
 		}
 	}
 	if changed {
+		order := make([]string, 0, len(s.downloadTasks))
+		for _, id := range s.downloadOrder {
+			if _, ok := s.downloadTasks[id]; ok {
+				order = append(order, id)
+			}
+		}
+		s.downloadOrder = order
 		s.persistDownloadsLocked(true)
 	}
 
@@ -312,7 +320,8 @@ func (s *Service) GetDownloads() []DownloadTaskDTO {
 
 // ValidateDownload re-checks a delivered task against the filesystem. It is
 // called when the user clicks a downloaded badge: false means the file was
-// removed and the caller should start a fresh transfer.
+// removed and the caller should start a fresh transfer. A missing file drops
+// the stale done task, matching Telegram Desktop's downloaded-path behaviour.
 func (s *Service) ValidateDownload(id string) (bool, error) {
 	s.downloadMu.Lock()
 	task := s.downloadTasks[id]
@@ -329,12 +338,16 @@ func (s *Service) ValidateDownload(id string) (bool, error) {
 		s.downloadMu.Unlock()
 		return true, nil
 	}
-	task.dto.Status = downloadFailed
-	task.dto.Error = "downloaded file is missing"
-	event := DownloadEvent{Task: cloneTask(task.dto)}
+	delete(s.downloadTasks, id)
+	for index, orderID := range s.downloadOrder {
+		if orderID == id {
+			s.downloadOrder = append(s.downloadOrder[:index], s.downloadOrder[index+1:]...)
+			break
+		}
+	}
 	s.persistDownloadsLocked(true)
 	s.downloadMu.Unlock()
-	s.emitDownload(event)
+	s.emitDownload(DownloadEvent{Removed: true})
 	return false, nil
 }
 
@@ -563,7 +576,8 @@ func (s *Service) runDownload(task *downloadTask, ctx context.Context, generatio
 	task.dto.MediaKind = mediaKind
 
 	finalPath := task.dto.Path
-	if finalPath == "" {
+	freshPath := finalPath == ""
+	if freshPath {
 		finalPath, err = taskPath(task, media, msg, mediaKind)
 		if err != nil {
 			s.failDownload(task.dto.ID, generation, err)
@@ -576,6 +590,13 @@ func (s *Service) runDownload(task *downloadTask, ctx context.Context, generatio
 		if info, statErr := os.Stat(finalPath); statErr == nil && info.Size() == media.Size {
 			s.completeDownload(task, generation, finalPath, media.Size, mediaKind, true)
 			return
+		}
+	}
+	// Telegram Desktop never overwrites an unrelated file that happens to sit at
+	// the rendered name; a fresh task gets "name (2).ext" instead.
+	if freshPath {
+		if _, statErr := os.Stat(finalPath); statErr == nil {
+			finalPath = uniqueDownloadPath(finalPath)
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(finalPath), 0o755); err != nil {
@@ -1153,6 +1174,20 @@ func messageMediaKind(msg tg.MessageClass) string {
 		}
 	}
 	return ""
+}
+
+// uniqueDownloadPath returns "name (2).ext", "name (3).ext", ... like Telegram
+// Desktop when a different file already occupies the rendered destination.
+func uniqueDownloadPath(path string) string {
+	ext := filepath.Ext(path)
+	base := strings.TrimSuffix(path, ext)
+	for index := 2; index < 1000; index++ {
+		candidate := fmt.Sprintf("%s (%d)%s", base, index, ext)
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+	}
+	return fmt.Sprintf("%s (%d)%s", base, time.Now().UnixNano(), ext)
 }
 
 // rewriteFileExtension mirrors tdl's --rewrite-ext: sniff the delivered file's
