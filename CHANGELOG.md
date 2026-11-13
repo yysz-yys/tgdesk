@@ -4,6 +4,12 @@
 
 ### Downloads
 
+- The downloads header now uses one Pause all / Resume all toggle that follows
+  the task state, and shows Open folder and Clear completed as plain icon
+  buttons instead of hiding them in a dropdown.
+- Download rows keep only the state action (Pause / Resume / Retry) and Cancel;
+  the per-row Open folder button is gone, and the remaining action buttons sit
+  farther apart so they are no longer cramped.
 - Added Resume all next to Pause all in the downloads header; it starts every
   paused transfer with the same tdl core the individual rows use.
 - Fresh transfers stay on tdl's multi-connection downloader (8-connection DC pool

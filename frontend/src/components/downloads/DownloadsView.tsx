@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
-import { DropdownMenu } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import type { DownloadTask, TaskStatus } from "../../types";
-import { Button, Chip, EmptyState, Icon, IconButton } from "../../ui";
+import { Button, Chip, EmptyState, IconButton } from "../../ui";
 import { TaskRow } from "./TaskRow";
 
 interface DownloadsViewProps {
@@ -13,7 +12,6 @@ interface DownloadsViewProps {
   onResume: (id: string) => void;
   onRetry: (id: string) => void;
   onRemove: (id: string) => void;
-  onOpenFolder: (task: DownloadTask) => void;
   onPauseAll: () => void;
   onResumeAll: () => void;
   onClearCompleted: () => void;
@@ -67,7 +65,6 @@ export function DownloadsView({
   onResume,
   onRetry,
   onRemove,
-  onOpenFolder,
   onPauseAll,
   onResumeAll,
   onClearCompleted,
@@ -93,6 +90,10 @@ export function DownloadsView({
 
   const tasks = tab === "completed" ? completed : tab === "failed" ? failed : active;
   const status: TaskStatus = tab === "completed" ? "done" : tab === "failed" ? "failed" : "active";
+  // One toggle replaces the old pause-all/resume-all pair: it pauses while
+  // anything is moving and resumes once everything is held.
+  const hasRunning = running + queued > 0;
+  const toggleAll = hasRunning ? onPauseAll : onResumeAll;
 
   return (
     <section className="f-page f-downloads" aria-label={t("downloads.title")}>
@@ -102,46 +103,31 @@ export function DownloadsView({
           <p>{summary}</p>
         </div>
         <div className="f-page-actions">
-            <IconButton
-              label={t("downloads.pauseAll")}
-              icon="pause_circle"
-              size="2"
-              iconSize={18}
-              disabled={running === 0}
-              onClick={onPauseAll}
-            />
-            <IconButton
-              label={t("downloads.resumeAll")}
-              icon="play_arrow"
-              size="2"
-              iconSize={18}
-              disabled={paused === 0}
-              onClick={onResumeAll}
-            />
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                <IconButton
-                  label={t("downloads.menu")}
-                  icon="more_vert"
-                  size="2"
-                  iconSize={18}
-                  tooltip={false}
-                />
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content align="end" sideOffset={6} className="f-menu-content">
-                <DropdownMenu.Item className="f-menu-row" onSelect={onOpenDownloadFolder}>
-                  <Icon name="folder_open" size={15} />
-                  <span>{t("downloads.openFolder")}</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator />
-                <DropdownMenu.Item className="f-menu-row" color="red" onSelect={onClearCompleted}>
-                  <Icon name="delete_sweep" size={15} />
-                  <span>{t("downloads.clearCompleted")}</span>
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-          </div>
-        </header>
+          <IconButton
+            label={hasRunning ? t("downloads.pauseAll") : t("downloads.resumeAll")}
+            icon={hasRunning ? "pause_circle" : "play_arrow"}
+            size="2"
+            iconSize={18}
+            disabled={!hasRunning && paused === 0}
+            onClick={toggleAll}
+          />
+          <IconButton
+            label={t("downloads.openFolder")}
+            icon="folder_open"
+            size="2"
+            iconSize={18}
+            onClick={onOpenDownloadFolder}
+          />
+          <IconButton
+            label={t("downloads.clearCompleted")}
+            icon="delete_sweep"
+            color="red"
+            size="2"
+            iconSize={18}
+            onClick={onClearCompleted}
+          />
+        </div>
+      </header>
 
         <div className="f-download-tabs" role="tablist" aria-label={t("downloads.title")}>
           <Chip
@@ -183,7 +169,6 @@ export function DownloadsView({
                   onPause={onPause}
                   onResume={onResume}
                   onRetry={onRetry}
-                  onOpenFolder={onOpenFolder}
                   onRemove={onRemove}
                 />
               ))}

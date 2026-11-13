@@ -367,7 +367,6 @@ function Shell() {
             onResume={noop}
             onRetry={noop}
             onRemove={noop}
-            onOpenFolder={noop}
             onPauseAll={noop}
             onResumeAll={noop}
             onClearCompleted={noop}

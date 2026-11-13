@@ -9,7 +9,6 @@ interface TaskRowProps {
   onPause: (id: string) => void;
   onResume: (id: string) => void;
   onRetry: (id: string) => void;
-  onOpenFolder: (task: DownloadTask) => void;
   onRemove: (id: string) => void;
 }
 
@@ -57,7 +56,6 @@ export function TaskRow({
   onPause,
   onResume,
   onRetry,
-  onOpenFolder,
   onRemove,
 }: TaskRowProps) {
   const { t } = useTranslation();
@@ -123,12 +121,6 @@ export function TaskRow({
             onClick={() => onRetry(task.id)}
           />
         ) : null}
-        <IconButton
-          label={t("common.openFolder")}
-          icon="folder_open"
-          size="1"
-          onClick={() => onOpenFolder(task)}
-        />
         <IconButton
           label={isDone ? t("downloads.remove") : t("downloads.cancel")}
           icon="close"

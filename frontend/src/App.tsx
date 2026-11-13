@@ -757,12 +757,6 @@ export default function App() {
     showToast(t("toasts.removed"));
   };
 
-  const openFolder = (task: DownloadTask) => {
-    void AppService.OpenDownloadFolder(task.path ?? settings.downloadDir).catch(() => {
-      showToast(t("toasts.downloadActionFailed"));
-    });
-  };
-
   const openDownloadFolder = () => {
     void AppService.OpenDownloadFolder(settings.downloadDir).catch(() => {
       showToast(t("toasts.downloadActionFailed"));
@@ -1351,7 +1345,6 @@ export default function App() {
                   onResume={resumeTask}
                   onRetry={retryTask}
                   onRemove={removeTask}
-                  onOpenFolder={openFolder}
                   onPauseAll={pauseAll}
                   onResumeAll={resumeAll}
                   onClearCompleted={clearCompleted}
