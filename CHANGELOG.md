@@ -4,6 +4,11 @@
 
 ### Window and archive polish
 
+- Wide message media now sizes against the conversation column instead of the
+  viewport: captioned photos, albums and bleed bubbles lost their 68vw/72vw
+  minimum/maximum widths, so opening the chat-info pane and narrowing the chat
+  reflows the media instead of clipping its right edge.
+
 - The chat pane no longer paints its own wallpaper or white card: the message
   canvas is transparent, so the signed-in window's doodle wallpaper runs
   continuously behind the conversation.

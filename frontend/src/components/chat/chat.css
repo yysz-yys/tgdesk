@@ -1704,7 +1704,7 @@
 
 .g-album {
   display: grid;
-  width: min(360px, 54vw);
+  width: min(360px, 100%);
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2px;
   overflow: hidden;
@@ -2536,6 +2536,7 @@
 .g-media-card {
   position: relative;
   display: block;
+  max-width: 100%;
   overflow: hidden;
   border: 0;
   border-radius: 15px;
@@ -3611,12 +3612,12 @@
 }
 
 .g-album {
-  width: min(420px, 68vw);
-  max-width: min(420px, 68vw);
+  width: min(420px, 100%);
+  max-width: min(420px, 100%);
 }
 
 .g-message-row[data-bleed] .g-message-bubble {
-  max-width: min(480px, 72vw);
+  max-width: min(480px, 100%);
 }
 
 .g-poll {
@@ -3783,7 +3784,7 @@
 .g-message-row[data-bleed]:has(.g-message-caption) .g-media-photo {
   width: 100% !important;
   max-width: 100%;
-  height: var(--media-height, 320px);
+  height: auto;
   aspect-ratio: auto !important;
 }
 
@@ -3796,8 +3797,11 @@
   z-index: 1;
 }
 
+/* Landscape photos fill the bubble's available width; never force the old
+ * intrinsic width here or a narrow chat column (e.g. with the info pane open)
+ * would clip the picture. */
 .g-message-row[data-bleed]:has(.g-message-caption) .g-media-photo {
-  min-width: min(var(--media-min-width), 68vw);
+  min-width: 0;
 }
 
 /* Portrait photos use the full media frame with a blurred backdrop, including

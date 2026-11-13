@@ -176,8 +176,11 @@ without a rewrite.
   of the doodle wallpaper canvas. Albums use a compact mosaic grid; reactions are
   pill chips under the bubble; attachment uploads show a thin progress card above
   the composer.
-- Media cards use intrinsic Telegram width/height (max 420 px / 68 vw), full
-  bleed inside the bubble, overlay timestamps, and rounded/circular video notes.
+- Media cards use intrinsic Telegram width/height capped at 420 px **or the
+  available bubble width, whichever is smaller**, full bleed inside the bubble,
+  overlay timestamps, and rounded/circular video notes. Captioned photos,
+  albums and web previews reflow when the info pane narrows the chat column
+  instead of being clipped by it.
 - Composer: a floating surface card like Telegram Web K's input plate (14 px
   radius, soft shadow, max 760 px, centred) with 18 px line icons and a solid
   indigo send circle; the text field itself is transparent inside the card.
