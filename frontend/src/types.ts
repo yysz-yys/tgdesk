@@ -92,6 +92,41 @@ export interface ChatMember {
   bot?: boolean;
 }
 
+/** Tabs of a chat-info shared media list, mirroring Telegram Web. */
+export type SharedMediaSection =
+  | "media"
+  | "files"
+  | "links"
+  | "music"
+  | "voice"
+  | "gifs";
+
+export interface ChatInfoSectionCount {
+  section: SharedMediaSection;
+  count: number;
+}
+
+/** Which chat-info tabs a peer actually has, resolved server-side. */
+export interface ChatInfo {
+  members: number;
+  canViewMembers: boolean;
+  /** False when Telegram refused the counter request; tabs load lazily. */
+  countsKnown: boolean;
+  counts: ChatInfoSectionCount[];
+}
+
+export interface SharedMediaPage {
+  items: Message[];
+  hasMore: boolean;
+  nextBeforeId: number;
+}
+
+export interface ChatMembersPage {
+  members: ChatMember[];
+  nextOffset: number;
+  total: number;
+}
+
 export type MediaKind =
   | "photo"
   | "video"

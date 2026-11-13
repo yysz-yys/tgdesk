@@ -157,6 +157,26 @@ export interface ChatFolderDTO {
 }
 
 /**
+ * ChatInfoDTO tells the chat-info pane which tabs a peer actually has.
+ */
+export interface ChatInfoDTO {
+    "members": number;
+    "canViewMembers": boolean;
+    "countsKnown": boolean;
+    "counts": ChatInfoSectionCountDTO[] | null;
+}
+
+/**
+ * ChatInfoSectionCountDTO is the server-side number of messages in one shared
+ * media tab. Telegram Web uses these counters to hide empty tabs instead of
+ * showing every possible category for every chat.
+ */
+export interface ChatInfoSectionCountDTO {
+    "section": string;
+    "count": number;
+}
+
+/**
  * ChatMemberDTO is a compact participant row for the chat-info pane.
  */
 export interface ChatMemberDTO {
@@ -166,6 +186,15 @@ export interface ChatMemberDTO {
     "avatarUrl"?: string;
     "admin"?: boolean;
     "bot"?: boolean;
+}
+
+/**
+ * ChatMembersPageDTO is one page of the member list.
+ */
+export interface ChatMembersPageDTO {
+    "members": ChatMemberDTO[] | null;
+    "nextOffset": number;
+    "total": number;
 }
 
 export interface ChecklistItemDTO {
@@ -317,6 +346,16 @@ export interface ReactionDTO {
     "chosen"?: boolean;
     "customEmojiId"?: string;
     "url"?: string;
+}
+
+/**
+ * SharedMediaPageDTO is one page of a shared media tab. NextBeforeID is the
+ * cursor for the older page (0 means the end has been reached).
+ */
+export interface SharedMediaPageDTO {
+    "messages": MessageDTO[] | null;
+    "nextBeforeId": number;
+    "hasMore": boolean;
 }
 
 /**

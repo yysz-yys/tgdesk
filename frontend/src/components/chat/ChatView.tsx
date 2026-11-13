@@ -1,6 +1,14 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Chat, ChatMember, Message, UploadProgress } from "../../types";
+import type {
+  Chat,
+  ChatInfo,
+  ChatMembersPage,
+  Message,
+  SharedMediaPage,
+  SharedMediaSection,
+  UploadProgress,
+} from "../../types";
 import { Button, Dialog, EmptyState, Spinner } from "../../ui";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
@@ -18,7 +26,17 @@ interface ChatViewProps {
   chats: Chat[];
   messages: Message[];
   onLoadVideo: (chatID: string, messageID: number) => Promise<string>;
-  onLoadMembers: (chatID: string) => Promise<ChatMember[]>;
+  onLoadChatInfo: (chatID: string, kind: Chat["kind"]) => Promise<ChatInfo | null>;
+  onLoadMembersPage: (
+    chatID: string,
+    offset: number,
+  ) => Promise<ChatMembersPage>;
+  onLoadSharedMedia: (
+    chatID: string,
+    section: SharedMediaSection,
+    beforeID: number,
+  ) => Promise<SharedMediaPage>;
+  liveVersion?: number;
   onDownloadMessage: (ids: number[]) => void;
   onDownloadAll: () => void;
   onTogglePin: (id: string) => void;
@@ -53,7 +71,10 @@ export function ChatView({
   chats,
   messages,
   onLoadVideo,
-  onLoadMembers,
+  onLoadChatInfo,
+  onLoadMembersPage,
+  onLoadSharedMedia,
+  liveVersion,
   onDownloadMessage,
   onDownloadAll,
   onTogglePin,
@@ -409,13 +430,17 @@ export function ChatView({
       {infoOpen ? (
         <ChatInfoPanel
           chat={chat}
-          messages={messages}
           onClose={() => setInfoOpen(false)}
           onTogglePin={onTogglePin}
           onToggleMute={onToggleMute}
           onMarkRead={onMarkRead}
-          onLoadMembers={onLoadMembers}
+          onLoadChatInfo={onLoadChatInfo}
+          onLoadMembersPage={onLoadMembersPage}
+          onLoadSharedMedia={onLoadSharedMedia}
+          liveVersion={liveVersion}
           onOpenPhoto={setViewingPhoto}
+          onPlayVideo={setPlayingVideo}
+          onDownloadMessage={onDownloadMessage}
           onToast={onToast}
         />
       ) : null}

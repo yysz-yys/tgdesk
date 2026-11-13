@@ -196,11 +196,13 @@ loopback image server (see below); no Wails call is made per image.
   are represented as cards but not expanded into dedicated viewers.
 - Rich text supports the common Telegram entities. Custom emoji are rendered as
   a styled placeholder instead of downloading each emoji document.
-- A history call returns the latest 50 messages. The user can load earlier pages
-  from the top of the timeline (`GetOlderMessages` with `OffsetID`); the UI keeps
-  the previous first message anchored while prepending the older page. Live
-  updates are pushed while connected but have no persisted gap-recovery state;
-  `updatesTooLong` asks the UI to reload.
+- A history call returns the latest 50 messages. Scrolling to the top of the
+  timeline automatically requests the previous page (`GetOlderMessages` with
+  `OffsetID`); there is no load-more button, and a first page too short to fill
+  the viewport keeps paging. The scroll position is anchored to the previous
+  first message while the older page is prepended. Live updates are pushed while
+  connected but have no persisted gap-recovery state; `updatesTooLong` asks the
+  UI to reload.
 - Images are served by the same loopback server under `/thumb`, `/avatar` and
   `/photo` prefixes with a per-process token. Thumbnails and avatars are cached
   in memory (48 MiB LRU) and by the WebView HTTP cache; full photos are streamed

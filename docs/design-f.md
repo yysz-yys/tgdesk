@@ -135,15 +135,20 @@ without a rewrite.
 - Chat header 58 px: the peer lockup toggles the right info pane; search takes
   over the header; a Radix dropdown holds download-all.
 - **Right info pane** 320 px (300 px below 1180, overlay below 1050): close +
-  title, 84 px avatar, title/status, mute/pin/read actions, then the
-  **Members / Media / Links** tabs.
-  - Members loads recent participants from the new `GetChatMembers` binding
-    (admin/creator and bot badges, initials avatars).
-  - Media is a three-column thumbnail grid built from the loaded messages.
-  - Links collects the chat's own `t.me/…` link plus URLs found in loaded
-    messages; rows open in the browser and can be copied.
+  title, 84 px avatar, title/status, mute/pin/read actions, then a sticky,
+  horizontally scrollable tab rail mirroring Telegram Web:
+  - The tab set comes from `messages.getSearchCounters` (cached for 60 s):
+    Members for groups, then Media, Files, Links, Music, Voice and GIFs, each
+    hidden while the server reports no matching messages. The first visible tab
+    opens by default (Members for groups, Media otherwise).
+  - Media and GIFs are three-column thumbnail grids; Files, Links, Music and
+    Voice use Telegram Web's 48 px leading slot + two-line row anatomy. Every
+    list loads its own `messages.search` page on scroll, including while the tab
+    is merely hovered, and a short page keeps filling until the pane is covered.
+  - Members pages through `channels.getParticipants` (50 first, then offset
+    pages) rather than filtering the dialog list.
   Clicking the title again or the close button dismisses the pane; changing
-  chats closes it.
+  chats closes it. Open panes merge the newest page when new messages arrive.
 - Message column max 760 px: Telegram Web K bubble geometry (15 px radius,
   5 px grouped corners, 4/9/5 px padding, no protruding tail), white incoming
   and pale-green outgoing in light, steel-blue outgoing in dark, 480 px text

@@ -8,7 +8,10 @@ export type {
     ChatDTO,
     ChatEvent,
     ChatFolderDTO,
+    ChatInfoDTO,
+    ChatInfoSectionCountDTO,
     ChatMemberDTO,
+    ChatMembersPageDTO,
     ChecklistItemDTO,
     DownloadEvent,
     DownloadTaskDTO,
@@ -18,6 +21,7 @@ export type {
     MessageMediaDTO,
     PortablePaths,
     ReactionDTO,
+    SharedMediaPageDTO,
     TDataExport,
     UploadEvent
 } from "./models.js";

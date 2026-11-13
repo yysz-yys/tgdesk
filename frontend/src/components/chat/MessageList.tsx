@@ -5,8 +5,10 @@ import { chatColor, chatInitials } from "../../data/telegram";
 import { Icon, Spinner } from "../../ui";
 import { MessageBubble, type MessageAuthor } from "./MessageBubble";
 
-interface MessageListProps {
-  chatId: string;
+/** Distance from the top that starts loading the previous page. */
+const LOAD_OLDER_THRESHOLD = 300;
+
+interface MessageListProps {  chatId: string;
   chatTitle: string;
   chatInitials: string;
   chatColor: string;
@@ -67,7 +69,50 @@ export function MessageList({
   const contentRef = useRef<HTMLDivElement>(null);
   const messageCount = useRef(messages.length);
   const stickToBottom = useRef(true);
+  const loadingOlder = useRef(false);
   const [showJump, setShowJump] = useState(false);
+
+  // Telegram Web loads older history from the scroll position itself: reaching
+  // the top starts the next page, and short histories keep filling until the
+  // viewport is covered. There is no "load more" button.
+  const maybeLoadOlder = () => {
+    const node = scrollRef.current;
+    if (
+      !node ||
+      !hasMoreMessages ||
+      olderMessagesLoading ||
+      loadingOlder.current
+    ) {
+      return;
+    }
+    if (node.scrollTop > LOAD_OLDER_THRESHOLD) {
+      return;
+    }
+    loadingOlder.current = true;
+    onLoadOlder();
+  };
+
+  useEffect(() => {
+    if (!olderMessagesLoading) {
+      loadingOlder.current = false;
+    }
+  }, [olderMessagesLoading]);
+
+  useEffect(() => {
+    if (!hasMoreMessages || olderMessagesLoading) {
+      return;
+    }
+    const node = scrollRef.current;
+    if (!node) {
+      return;
+    }
+    // A short first page does not scroll on its own; keep paging until the
+    // conversation fills the pane, just like Telegram Web.
+    if (node.scrollHeight <= node.clientHeight + LOAD_OLDER_THRESHOLD) {
+      maybeLoadOlder();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, hasMoreMessages, olderMessagesLoading]);
 
   // Thumbnails and avatars arrive after the history render. Keep the newest
   // message anchored while images above the viewport grow, like Telegram Web.
@@ -122,6 +167,9 @@ export function MessageList({
     const distance = node.scrollHeight - node.scrollTop - node.clientHeight;
     stickToBottom.current = distance < 120;
     setShowJump(distance > 180);
+    if (node.scrollTop <= LOAD_OLDER_THRESHOLD) {
+      maybeLoadOlder();
+    }
   };
 
   const jumpToBottom = () => {
@@ -250,21 +298,9 @@ export function MessageList({
     <div className="g-message-layer">
       <div className="g-message-scroll" ref={scrollRef} onScroll={onScroll}>
         <div className="g-message-list" ref={contentRef}>
-        {hasMoreMessages ? (
-          <div className="g-load-older">
-            <button
-              type="button"
-              className="g-load-older-button"
-              disabled={olderMessagesLoading}
-              onClick={onLoadOlder}
-            >
-              {olderMessagesLoading ? (
-                <Spinner size={16} />
-              ) : (
-                <Icon name="history" size={17} />
-              )}
-              {olderMessagesLoading ? t("chat.loadingOlder") : t("chat.loadOlder")}
-            </button>
+        {hasMoreMessages && olderMessagesLoading ? (
+          <div className="g-load-older g-load-older-auto" aria-live="polite">
+            <Spinner size={16} />
           </div>
         ) : null}
         {renderedMessages}

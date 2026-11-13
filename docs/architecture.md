@@ -176,7 +176,15 @@ Telegram Desktop fills the rest while connecting.
   optional `InputReplyToMessage`.
 - `EditMessage`, `DeleteMessages` and `ForwardMessages` cover the Telegram Web
   message actions; channel revokes go through `channels.deleteMessages`.
-- `GetChatMembers` includes `avatarUrl` from the participant users.
+- `GetChatInfo` runs one `MessagesGetSearchCounters` request per peer (counters
+  cached for 60 seconds, like Telegram Web) to decide which chat-info tabs
+  exist. `GetSharedMedia` pages a tab with `MessagesSearch` and the matching
+  `InputMessagesFilter*` (PhotoVideo, Document, URL, Music, RoundVoice, GIF),
+  mapped through the same message pipeline as history. `GetChatMembersPage`
+  pages supergroup participants with `ChannelsGetParticipants` offsets and
+  returns the whole participant list of a basic group at once.
+- `GetChatMembers` remains as the first-page wrapper used by older callers and
+  sorts admins first.
 
 DTO families:
 

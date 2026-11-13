@@ -18,8 +18,12 @@ import type {
   Chat,
   ChatEvent,
   ChatFolder,
+  ChatInfo,
+  ChatMembersPage,
   DownloadEvent,
   DownloadTask,
+  SharedMediaPage,
+  SharedMediaSection,
   TaskStatus,
   UploadEvent,
   UploadProgress,
@@ -36,6 +40,10 @@ import { LoginLoading } from "./components/auth/LoginLoading";
 import { SettingsDialog } from "./components/settings/SettingsDialog";
 
 const TASK_STATUSES: TaskStatus[] = ["active", "queued", "paused", "done", "failed"];
+/** Shared-media page size, close to Telegram Web's "a few screens" batch. */
+const SHARED_MEDIA_PAGE_SIZE = 30;
+/** Telegram Web loads 50 members first and then 200-row pages. */
+const MEMBERS_PAGE_SIZE = 50;
 
 function toDownloadTask(task: DownloadTaskDTO): DownloadTask {
   return {
@@ -96,6 +104,7 @@ function mergeHistory(
 
 export default function App() {
   const { t, i18n } = useTranslation();
+  const language = i18n.resolvedLanguage ?? "en";
   const { settings, update } = useSettings();
   const resolvedTheme = useTheme(settings.theme);
   const [authChecked, setAuthChecked] = useState(false);
@@ -114,6 +123,7 @@ export default function App() {
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [chatsFailed, setChatsFailed] = useState(false);
   const [messagesFailed, setMessagesFailed] = useState(false);
+  const [chatInfoVersion, setChatInfoVersion] = useState(0);
   const [portableDownloads, setPortableDownloads] = useState("");
   const [view, setView] = useState<"chats" | "downloads">("chats");
   const [query, setQuery] = useState("");
@@ -236,15 +246,72 @@ export default function App() {
     };
   }, [loggedIn, proxyUrl, settings.ntp]);
 
-  const loadChatMembers = useCallback(
-    async (chatID: string) => {
-      const rows = await AppService.GetChatMembers(
+  // Chat-info data follows Telegram Web: one counters call decides which tabs
+  // exist, then every tab pages its own server-side search on demand. Nothing
+  // is derived from the messages already loaded in the chat pane.
+  const loadChatInfo = useCallback(
+    async (chatID: string, kind: Chat["kind"]): Promise<ChatInfo | null> => {
+      const info = await AppService.GetChatInfo(
+        chatID,
+        kind,
+        proxyUrl,
+        settings.ntp,
+      );
+      if (!info) {
+        return null;
+      }
+      return {
+        members: info.members ?? 0,
+        canViewMembers: Boolean(info.canViewMembers),
+        countsKnown: Boolean(info.countsKnown),
+        counts: (info.counts ?? []).map((count) => ({
+          section: count.section as SharedMediaSection,
+          count: count.count ?? 0,
+        })),
+      };
+    },
+    [proxyUrl, settings.ntp],
+  );
+
+  const loadSharedMedia = useCallback(
+    async (
+      chatID: string,
+      section: SharedMediaSection,
+      beforeID: number,
+    ): Promise<SharedMediaPage> => {
+      const page = await AppService.GetSharedMedia(
+        chatID,
+        section,
+        proxyUrl,
+        settings.ntp,
+        beforeID,
+        SHARED_MEDIA_PAGE_SIZE,
+      );
+      return {
+        items: (page?.messages ?? []).map((message) =>
+          mapMessage(message, language, t),
+        ),
+        hasMore: Boolean(page?.hasMore),
+        nextBeforeId: page?.nextBeforeId ?? 0,
+      };
+    },
+    [language, proxyUrl, settings.ntp, t],
+  );
+
+  const loadChatMembersPage = useCallback(
+    async (chatID: string, offset: number): Promise<ChatMembersPage> => {
+      const page = await AppService.GetChatMembersPage(
         chatID,
         proxyUrl,
         settings.ntp,
-        100,
+        offset,
+        MEMBERS_PAGE_SIZE,
       );
-      return (rows ?? []).map(mapChatMember);
+      return {
+        members: (page?.members ?? []).map(mapChatMember),
+        nextOffset: page?.nextOffset ?? 0,
+        total: page?.total ?? 0,
+      };
     },
     [proxyUrl, settings.ntp],
   );
@@ -274,7 +341,6 @@ export default function App() {
     toastTimer.current = window.setTimeout(() => setToastMessage(null), 2600);
   }, []);
 
-  const language = i18n.resolvedLanguage ?? "en";
   const chatState = useMemo(() => {
     // The archive query and the main dialog query can both contain a peer while
     // it is being moved. Keep one row and never let a stale non-archived copy
@@ -985,6 +1051,17 @@ export default function App() {
       const raw = payload.message as KernelMessage | undefined;
       const belongs = chatID !== "" && chatID === selectedChatId;
 
+      // The open chat-info pane follows Telegram Web and refreshes its counters
+      // and shared media when the conversation changes under it.
+      if (
+        belongs &&
+        (payload.kind === "message" ||
+          payload.kind === "edit" ||
+          payload.kind === "delete")
+      ) {
+        setChatInfoVersion((version) => version + 1);
+      }
+
       if (payload.kind === "message" || payload.kind === "edit") {
         if (!raw) {
           return;
@@ -1271,7 +1348,10 @@ export default function App() {
                   }
                 }}
                 onLoadVideo={loadMessageVideo}
-                onLoadMembers={loadChatMembers}
+                onLoadChatInfo={loadChatInfo}
+                onLoadMembersPage={loadChatMembersPage}
+                onLoadSharedMedia={loadSharedMedia}
+                liveVersion={chatInfoVersion}
                 onDownloadAll={() => downloadAll(selectedChat)}
                 onTogglePin={togglePin}
                 onToggleMute={toggleMute}

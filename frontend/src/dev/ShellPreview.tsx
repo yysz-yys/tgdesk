@@ -388,7 +388,31 @@ function Shell() {
           messages={messages}
           onDownloadMessage={noop}
           onLoadVideo={() => Promise.resolve("")}
-          onLoadMembers={() => Promise.resolve(previewMembers)}
+          onLoadChatInfo={() =>
+            Promise.resolve({
+              members: previewMembers.length,
+              canViewMembers: true,
+              countsKnown: true,
+              counts: [
+                { section: "media" as const, count: 8 },
+                { section: "files" as const, count: 2 },
+                { section: "links" as const, count: 3 },
+                { section: "music" as const, count: 1 },
+                { section: "voice" as const, count: 2 },
+                { section: "gifs" as const, count: 1 },
+              ],
+            })
+          }
+          onLoadMembersPage={(_id, offset) =>
+            Promise.resolve({
+              members: previewMembers.slice(offset, offset + 50),
+              nextOffset: 0,
+              total: previewMembers.length,
+            })
+          }
+          onLoadSharedMedia={() =>
+            Promise.resolve({ items: [], hasMore: false, nextBeforeId: 0 })
+          }
           onDownloadAll={noop}
           onTogglePin={togglePin}
           onToggleMute={toggleMute}

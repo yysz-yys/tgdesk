@@ -47,6 +47,9 @@ type Service struct {
 	dialogsCacheMu sync.Mutex
 	dialogsCache   map[string]dialogsCacheEntry
 
+	chatInfoCacheMu sync.Mutex
+	chatInfoCache   map[string]chatInfoCacheEntry
+
 	emojiStatusMu    sync.Mutex
 	emojiStatusCache map[int64]string
 
@@ -86,6 +89,7 @@ func New() *Service {
 		images:           newImageCache(48 << 20),
 		peerIndex:        make(map[string]string),
 		dialogsCache:     make(map[string]dialogsCacheEntry),
+		chatInfoCache:    make(map[string]chatInfoCacheEntry),
 		emojiStatusCache: make(map[int64]string),
 	}
 	s.loadDownloadTasks()

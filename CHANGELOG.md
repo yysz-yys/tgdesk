@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Chat info and history loading
+
+- Chat info now mirrors Telegram Web's profile column: one
+  `messages.getSearchCounters` call per peer (cached for a minute, like the web
+  client) decides which shared-media tabs exist, so Files, Music, Voice and GIF
+  tabs appear only when the chat actually contains those messages; groups open
+  on Members, every other peer opens on the first available tab.
+- Each chat-info tab pages its own server-side `messages.search` filter (photos
+  and videos combined, documents, URLs, RoundVoice, music, GIFs) with infinite
+  scroll instead of filtering the 50 messages already painted in the chat;
+  Members pages through `channels.getParticipants` with the same 50-first-page
+  behaviour as Telegram Web.
+- Chat-info lists follow the same rows as the web profile: a three-column media
+  and GIF grid with duration/GIF badges, file rows with extension icon and size,
+  link rows with preview and copy action, and music/voice rows sharing one
+  player. New messages and deletions refresh the counter set and merge the
+  newest page into the open tab.
+- History no longer needs a "load older messages" button: reaching the top of
+  the message list automatically requests the previous page, keeps the scroll
+  anchored and fills a short viewport, matching Telegram Web and other chat
+  platforms.
+
 ### Chat surface and loading
 
 - Rebuilt the message surface around Telegram Web K metrics: 15 px/5 px bubble

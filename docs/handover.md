@@ -24,7 +24,10 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 - 登录后生成官方格式 `tdata/`（`key_datas`、`D877F783D5D3EF8Cs`、
   `D877F783D5D3EF8C/maps`），并由官方 Telegram Desktop 7.2.5 读取验证。
 - 从官方 `tdata` 导入会话；按授权身份去重，避免官方客户端重写文件后重复导入。
-- 会话列表、最近 50 条消息、历史分页、纯文本发送。
+- 会话列表、最近消息、历史自动分页（滚动到顶部即加载更早页面，不点按钮）、纯文本发送。
+- 聊天信息面板与 Telegram Web 对齐：先 `messages.getSearchCounters`（内核缓存 60 秒）
+  决定显示哪些分类（成员/媒体/文件/链接/音乐/语音/动图），每个分类各自用
+  `messages.search` 过滤并无限滚动分页；成员走 `channels.getParticipants` 分页。
 - Telegram Web 风格的消息操作：右键/悬停菜单、回复、复制、转发、编辑自己的文本消息、
   为自己/所有人删除、链接自动识别、照片大图查看。
 - 实时消息推送：gotd `UpdateDispatcher` 处理新消息/编辑/删除/reaction/已读，通过
@@ -55,6 +58,8 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 明确未实现：
 
 - 服务端消息搜索、typing/在线状态、定时消息、多文件一次性发送为相册。
+- 聊天信息中的 Stories/Gifts/相似频道/群组等 Web 分类尚未接入（当前覆盖
+  成员、媒体、文件、链接、音乐、语音、动图）。
 - Pin/Mute/Read 仅本地 UI 状态，不写回 Telegram。
 - 带本地 passcode 的 tdata 导入不支持。
 - 只导出主 DC 的 auth key；其余 DC key 由官方客户端连接时补齐。

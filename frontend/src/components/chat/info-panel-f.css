@@ -126,12 +126,22 @@
   white-space: nowrap;
 }
 
+/* Sticky tab rail. Telegram Web keeps the shared-media tabs pinned while the
+ * profile scrolls away. The pane is narrower than the web column, so the pills
+ * wrap instead of hiding categories (GIFs, Voice) behind a horizontal swipe. */
+.f-info-tabs-sticky {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  margin: 14px -18px 8px;
+  padding: 8px 18px;
+  background: var(--f-surface);
+}
+
 .f-info-tabs {
-  display: grid;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
+  display: flex;
+  flex-wrap: wrap;
   gap: 3px;
-  margin: 16px 0 10px;
   border: 1px solid var(--f-line);
   border-radius: 10px;
   background: var(--gray-2);
@@ -139,15 +149,18 @@
 }
 
 .f-info-tab {
-  height: 32px;
+  flex: 0 0 auto;
+  height: 30px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
+  padding: 0 11px;
   color: var(--f-muted);
   cursor: pointer;
   font-family: var(--f-font);
   font-size: 11.5px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .f-info-tab:hover {
@@ -266,51 +279,90 @@
   right: 5px;
   bottom: 5px;
   display: grid;
-  width: 20px;
+  min-width: 20px;
   height: 20px;
   place-items: center;
-  border-radius: 50%;
+  border-radius: 6px;
   background: rgba(0, 0, 0, 0.52);
+  padding: 0 4px;
   color: #ffffff;
 }
 
-.f-info-links {
+.f-info-media-gif {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.f-info-media-duration {
+  position: absolute;
+  bottom: 5px;
+  left: 6px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.52);
+  padding: 1px 5px;
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 500;
+}
+
+.f-info-media-open {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* Shared rows for files, links, music and voice. */
+.f-info-rows {
   display: flex;
   flex-direction: column;
 }
 
-.f-info-link-row {
+.f-info-row {
   display: flex;
+  width: 100%;
   align-items: center;
-  gap: 2px;
-  border-bottom: 1px solid var(--f-line);
-  padding: 3px 0;
-}
-
-.f-info-link-row:last-child {
-  border-bottom: 0;
-}
-
-.f-info-link-main {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  align-items: center;
-  gap: 8px;
+  gap: 10px;
   border: 0;
+  border-bottom: 1px solid var(--f-line);
   background: transparent;
-  padding: 6px 4px;
-  color: var(--accent-11);
+  padding: 8px 2px;
+  color: var(--f-text);
   cursor: pointer;
   font-family: var(--f-font);
   text-align: left;
 }
 
-.f-info-link-main:hover {
-  color: var(--accent-12);
+.f-info-row:last-child {
+  border-bottom: 0;
 }
 
-.f-info-link-copy {
+.f-info-row:hover {
+  background: var(--gray-a3);
+}
+
+.f-info-row-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--f-text);
+  cursor: pointer;
+  font-family: var(--f-font);
+  text-align: left;
+}
+
+.f-info-row-copy {
   display: flex;
   min-width: 0;
   flex: 1;
@@ -318,15 +370,16 @@
   gap: 1px;
 }
 
-.f-info-link-copy b {
+.f-info-row-copy b {
   overflow: hidden;
-  font-size: 12px;
-  font-weight: 500;
+  color: var(--f-text);
+  font-size: 12.5px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.f-info-link-copy small {
+.f-info-row-copy small {
   overflow: hidden;
   color: var(--f-muted);
   font-size: 10.5px;
@@ -334,9 +387,91 @@
   white-space: nowrap;
 }
 
-.f-info-link-row .rt-IconButton {
+.f-info-row-action {
+  display: grid;
   flex: 0 0 auto;
+  place-items: center;
+  color: var(--f-faint);
+  font-size: 10.5px;
 }
+
+.f-info-file-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.f-info-link-thumb {
+  display: block;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.f-info-link-thumb-fallback {
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.f-info-link-url {
+  color: var(--accent-11);
+}
+
+.f-info-audio-play {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--f-line);
+  border-radius: 50%;
+  background: var(--gray-2);
+  color: var(--f-text);
+}
+
+.f-info-audio-row[data-playing] .f-info-audio-play {
+  border-color: transparent;
+  background: var(--accent-9);
+  color: #ffffff;
+}
+
+.f-info-audio-progress {
+  overflow: hidden;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--gray-4);
+  margin-top: 3px;
+}
+
+.f-info-audio-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-9);
+}
+
+.f-info-status-error {
+  gap: 8px;
+  color: var(--f-muted);
+  font-size: 11.5px;
+}
+
+.f-info-status-error p {
+  margin: 0;
+}
+
 
 @keyframes f-info-in {
   from {

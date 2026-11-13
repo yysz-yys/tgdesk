@@ -1,63 +1,212 @@
-import { useEffect, useMemo, useState } from "react";
-import { Browser } from "@wailsio/runtime";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Chat, ChatMember, Message } from "../../types";
-import { Avatar, Icon, IconButton, Spinner } from "../../ui";
+import type {
+  Chat,
+  ChatInfo,
+  ChatMember,
+  ChatMembersPage,
+  Message,
+  SharedMediaPage,
+  SharedMediaSection,
+} from "../../types";
+import { Avatar, Button, Icon, IconButton, Spinner } from "../../ui";
 import { chatColor, chatInitials } from "../../data/telegram";
 import { ChatAvatar } from "./ChatAvatar";
-import { MediaThumb } from "./MediaThumb";
+import {
+  AudioList,
+  FileList,
+  InfoEmpty,
+  LinkList,
+  MediaGrid,
+} from "./ChatInfoSections";
 
 interface ChatInfoPanelProps {
   chat: Chat;
-  messages: Message[];
   onClose: () => void;
   onTogglePin: (id: string) => void;
   onToggleMute: (id: string) => void;
   onMarkRead: (id: string) => void;
-  onLoadMembers: (chatID: string) => Promise<ChatMember[]>;
+  onLoadChatInfo: (
+    chatID: string,
+    kind: Chat["kind"],
+  ) => Promise<ChatInfo | null>;
+  onLoadMembersPage: (
+    chatID: string,
+    offset: number,
+  ) => Promise<ChatMembersPage>;
+  onLoadSharedMedia: (
+    chatID: string,
+    section: SharedMediaSection,
+    beforeID: number,
+  ) => Promise<SharedMediaPage>;
   onOpenPhoto?: (message: Message) => void;
+  onPlayVideo?: (message: Message) => void;
+  onDownloadMessage?: (ids: number[]) => void;
+  liveVersion?: number;
   onToast: (message: string) => void;
 }
 
-type InfoTab = "members" | "media" | "links";
+type InfoTab = "members" | SharedMediaSection;
 
-const visualMedia = new Set(["photo", "video", "animation", "video_note"]);
-const urlPattern = /https?:\/\/[^\s<>"']+/g;
-
-function trimUrl(value: string) {
-  return value.replace(/[),.;!?]+$/u, "");
+interface SectionState {
+  items: Message[];
+  loading: boolean;
+  loaded: boolean;
+  failed: boolean;
+  hasMore: boolean;
+  nextBefore: number;
 }
 
-function linkLabel(value: string) {
-  try {
-    return new URL(value).hostname.replace(/^www\./u, "");
-  } catch {
-    return value;
+interface MembersState {
+  items: ChatMember[];
+  loading: boolean;
+  loaded: boolean;
+  failed: boolean;
+  hasMore: boolean;
+  nextOffset: number;
+  total: number;
+}
+
+const SECTION_ORDER: SharedMediaSection[] = [
+  "media",
+  "files",
+  "links",
+  "music",
+  "voice",
+  "gifs",
+];
+
+const SECTION_LABELS: Record<SharedMediaSection, string> = {
+  media: "rightPanel.media",
+  files: "rightPanel.files",
+  links: "rightPanel.links",
+  music: "rightPanel.music",
+  voice: "rightPanel.voice",
+  gifs: "rightPanel.gifs",
+};
+
+const SECTION_EMPTY: Record<SharedMediaSection, string> = {
+  media: "rightPanel.mediaEmpty",
+  files: "rightPanel.filesEmpty",
+  links: "rightPanel.linksEmpty",
+  music: "rightPanel.musicEmpty",
+  voice: "rightPanel.voiceEmpty",
+  gifs: "rightPanel.gifsEmpty",
+};
+
+/** Distance from the bottom that starts the next page, like Telegram Web's 300px. */
+const LOAD_MORE_THRESHOLD = 280;
+
+function createSections(): Record<SharedMediaSection, SectionState> {
+  return {
+    media: emptySection(),
+    files: emptySection(),
+    links: emptySection(),
+    music: emptySection(),
+    voice: emptySection(),
+    gifs: emptySection(),
+  };
+}
+
+function emptySection(): SectionState {
+  return {
+    items: [],
+    loading: false,
+    loaded: false,
+    failed: false,
+    hasMore: false,
+    nextBefore: 0,
+  };
+}
+
+function createMembers(): MembersState {
+  return {
+    items: [],
+    loading: false,
+    loaded: false,
+    failed: false,
+    hasMore: false,
+    nextOffset: 0,
+    total: 0,
+  };
+}
+
+function mergeMedia(current: Message[], incoming: Message[]): Message[] {
+  if (incoming.length === 0) {
+    return current;
   }
+  const known = new Set(current.map((message) => message.id));
+  const next = current.slice();
+  for (const message of incoming) {
+    if (!known.has(message.id)) {
+      known.add(message.id);
+      next.push(message);
+    }
+  }
+  return next;
 }
 
-/** Right-hand chat info pane: hero, actions and members/media/links tabs. */
+function mergeMembers(current: ChatMember[], incoming: ChatMember[]): ChatMember[] {
+  if (incoming.length === 0) {
+    return current;
+  }
+  const known = new Set(current.map((member) => member.id));
+  const next = current.slice();
+  for (const member of incoming) {
+    if (!known.has(member.id)) {
+      known.add(member.id);
+      next.push(member);
+    }
+  }
+  return next;
+}
+
+/** Right-hand chat info pane, built like Telegram Web's profile column. */
 export function ChatInfoPanel({
   chat,
-  messages,
   onClose,
   onTogglePin,
   onToggleMute,
   onMarkRead,
-  onLoadMembers,
+  onLoadChatInfo,
+  onLoadMembersPage,
+  onLoadSharedMedia,
   onOpenPhoto,
+  onPlayVideo,
+  onDownloadMessage,
+  liveVersion,
   onToast,
 }: ChatInfoPanelProps) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<InfoTab>(
-    chat.kind === "private" ? "media" : "members",
-  );
-  const [members, setMembers] = useState<ChatMember[] | null>(null);
-  const [membersLoading, setMembersLoading] = useState(false);
-  const [membersFailed, setMembersFailed] = useState(false);
+  const [info, setInfo] = useState<ChatInfo | null>(null);
+  const [infoLoading, setInfoLoading] = useState(true);
+  const [infoFailed, setInfoFailed] = useState(false);
+  const [active, setActive] = useState<InfoTab | null>(null);
+  const [sections, setSections] =
+    useState<Record<SharedMediaSection, SectionState>>(createSections);
+  const [members, setMembers] = useState<MembersState>(createMembers);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const handle = chat.username?.replace(/^@/, "");
-  const kind = t(
+  const sectionsRef = useRef(sections);
+  const membersRef = useRef(members);
+  const activeRef = useRef<InfoTab | null>(active);
+  const sectionLoadingRef = useRef<Partial<Record<SharedMediaSection, boolean>>>({});
+  const membersLoadingRef = useRef(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    sectionsRef.current = sections;
+  }, [sections]);
+
+  useEffect(() => {
+    membersRef.current = members;
+  }, [members]);
+
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
+
+  const handleType = t(
     chat.kind === "private"
       ? "rightPanel.privateChat"
       : chat.kind === "channel"
@@ -69,85 +218,420 @@ export function ChatInfoPanel({
       ? chat.online
         ? t("chat.online")
         : t("chat.lastSeen")
-      : (chat.members ?? kind);
+      : (chat.members ?? handleType);
 
-  useEffect(() => {
-    setTab(chat.kind === "private" ? "media" : "members");
-  }, [chat.id, chat.kind]);
-
-  useEffect(() => {
-    if (chat.kind === "private") {
-      return;
-    }
-    let cancelled = false;
-    setMembers(null);
-    setMembersFailed(false);
-    setMembersLoading(true);
-    void onLoadMembers(chat.id)
-      .then((rows) => {
-        if (!cancelled) {
-          setMembers(rows);
+  // One counters request per chat decides which tabs exist; each tab then loads
+  // its own pages on demand instead of filtering the messages already in view.
+  const loadInfo = useCallback(
+    async (initial: boolean) => {
+      if (initial) {
+        setInfoLoading(true);
+        setInfoFailed(false);
+      }
+      try {
+        const next = await onLoadChatInfo(chat.id, chat.kind);
+        if (next) {
+          setInfo(next);
+        } else if (initial) {
+          setInfoFailed(true);
         }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setMembersFailed(true);
+      } catch {
+        if (initial) {
+          setInfoFailed(true);
         }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setMembersLoading(false);
+      } finally {
+        if (initial) {
+          setInfoLoading(false);
         }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [chat.id, chat.kind, onLoadMembers]);
-
-  const media = useMemo(
-    () =>
-      messages.filter(
-        (message) => message.media && visualMedia.has(message.media.kind),
-      ),
-    [messages],
+      }
+    },
+    [chat.id, chat.kind, onLoadChatInfo],
   );
 
-  const links = useMemo(() => {
-    const seen = new Map<string, string>();
-    if (handle) {
-      const own = `https://t.me/${handle}`;
-      seen.set(own, `t.me/${handle}`);
-    }
-    const add = (value?: string) => {
-      if (!value) {
-        return;
-      }
-      const url = trimUrl(value);
-      if (!url || !/^https?:\/\//u.test(url) || seen.has(url)) {
-        return;
-      }
-      seen.set(url, linkLabel(url));
-    };
-    for (const message of messages) {
-      add(message.media?.url);
-      for (const match of message.text?.matchAll(urlPattern) ?? []) {
-        add(match[0]);
-      }
-    }
-    return [...seen.entries()].map(([url, label]) => ({ url, label }));
-  }, [handle, messages]);
+  useEffect(() => {
+    setInfo(null);
+    setActive(null);
+    setSections(createSections());
+    setMembers(createMembers());
+    setInfoFailed(false);
+    void loadInfo(true);
+  }, [loadInfo, reloadKey]);
 
-  const copyLink = async (url: string) => {
+  const tabs = useMemo(() => {
+    const result: Array<{ id: InfoTab; label: string }> = [];
+    if (infoLoading) {
+      return result;
+    }
+    if (info?.canViewMembers || (infoFailed && chat.kind === "group")) {
+      result.push({ id: "members", label: t("rightPanel.members") });
+    }
+    const counts = new Map(
+      (info?.counts ?? []).map((count) => [count.section, count.count]),
+    );
+    for (const section of SECTION_ORDER) {
+      if (info && info.countsKnown) {
+        if ((counts.get(section) ?? 0) <= 0) {
+          continue;
+        }
+      }
+      result.push({ id: section, label: t(SECTION_LABELS[section]) });
+    }
+    return result;
+  }, [chat.kind, info, infoFailed, infoLoading, t]);
+
+  // Telegram Web opens the first visible tab: Members for groups, Media for
+  // everybody else.
+  useEffect(() => {
+    if (tabs.length === 0) {
+      setActive(null);
+      return;
+    }
+    setActive((current) =>
+      current && tabs.some((tab) => tab.id === current) ? current : tabs[0].id,
+    );
+  }, [tabs]);
+
+  const loadSectionPage = useCallback(
+    async (section: SharedMediaSection, mode: "first" | "more") => {
+      if (sectionLoadingRef.current[section]) {
+        return;
+      }
+      const state = sectionsRef.current[section];
+      if (mode === "first" && state.loaded) {
+        return;
+      }
+      if (mode === "more" && (!state.loaded || !state.hasMore)) {
+        return;
+      }
+      sectionLoadingRef.current[section] = true;
+      setSections((current) => ({
+        ...current,
+        [section]: { ...current[section], loading: true, failed: false },
+      }));
+      try {
+        const page = await onLoadSharedMedia(
+          chat.id,
+          section,
+          mode === "first" ? 0 : state.nextBefore,
+        );
+        setSections((current) => ({
+          ...current,
+          [section]: {
+            items:
+              mode === "first"
+                ? page.items
+                : mergeMedia(current[section].items, page.items),
+            loading: false,
+            loaded: true,
+            failed: false,
+            hasMore: page.hasMore,
+            nextBefore: page.nextBeforeId,
+          },
+        }));
+      } catch {
+        setSections((current) => ({
+          ...current,
+          [section]: {
+            ...current[section],
+            loading: false,
+            loaded: current[section].loaded,
+            failed: true,
+          },
+        }));
+      } finally {
+        sectionLoadingRef.current[section] = false;
+      }
+    },
+    [chat.id, onLoadSharedMedia],
+  );
+
+  const loadMembersPage = useCallback(
+    async (mode: "first" | "more") => {
+      if (membersLoadingRef.current) {
+        return;
+      }
+      const state = membersRef.current;
+      if (mode === "first" && state.loaded) {
+        return;
+      }
+      if (mode === "more" && (!state.loaded || !state.hasMore)) {
+        return;
+      }
+      membersLoadingRef.current = true;
+      setMembers((current) => ({ ...current, loading: true, failed: false }));
+      try {
+        const page = await onLoadMembersPage(
+          chat.id,
+          mode === "first" ? 0 : state.nextOffset,
+        );
+        setMembers((current) => ({
+          items:
+            mode === "first"
+              ? page.members
+              : mergeMembers(current.items, page.members),
+          loading: false,
+          loaded: true,
+          failed: false,
+          hasMore: page.nextOffset > 0,
+          nextOffset: page.nextOffset,
+          total: page.total,
+        }));
+      } catch {
+        setMembers((current) => ({
+          ...current,
+          loading: false,
+          loaded: current.loaded,
+          failed: true,
+        }));
+      } finally {
+        membersLoadingRef.current = false;
+      }
+    },
+    [chat.id, onLoadMembersPage],
+  );
+
+  // Live messages change the tab counters and the list under the open tab.
+  // Merge the newest server page over the loaded one instead of resetting the
+  // scroll, the way Telegram Web appends to an open shared-media list.
+  const refreshLive = useCallback(async () => {
+    void loadInfo(false);
+    const current = activeRef.current;
+    if (!current || current === "members") {
+      return;
+    }
+    if (!sectionsRef.current[current].loaded) {
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(url);
-      onToast(t("chatMenu.copied"));
+      const page = await onLoadSharedMedia(chat.id, current, 0);
+      setSections((prev) => {
+        const section = prev[current];
+        const byID = new Map(
+          section.items.map((message) => [message.id, message]),
+        );
+        for (const message of page.items) {
+          byID.set(message.id, message);
+        }
+        const items = [...byID.values()].sort((left, right) => right.id - left.id);
+        return {
+          ...prev,
+          [current]: {
+            ...section,
+            items,
+            loaded: true,
+            failed: false,
+            nextBefore: section.nextBefore || page.nextBeforeId,
+          },
+        };
+      });
     } catch {
-      onToast(t("chat.clipboardError"));
+      // A transient refresh failure leaves the already loaded page in place.
+    }
+  }, [chat.id, loadInfo, onLoadSharedMedia]);
+
+  const liveVersionRef = useRef(liveVersion ?? 0);
+  useEffect(() => {
+    if (liveVersion === undefined || liveVersion === liveVersionRef.current) {
+      return;
+    }
+    liveVersionRef.current = liveVersion;
+    const timer = window.setTimeout(() => {
+      void refreshLive();
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [liveVersion, refreshLive]);
+
+  // Load the selected tab lazily, exactly like the web profile column.
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+    if (active === "members") {
+      void loadMembersPage("first");
+    } else {
+      void loadSectionPage(active, "first");
+    }
+  }, [active, loadMembersPage, loadSectionPage]);
+
+  const loadMore = useCallback(() => {
+    if (!active) {
+      return;
+    }
+    if (active === "members") {
+      void loadMembersPage("more");
+    } else {
+      void loadSectionPage(active, "more");
+    }
+  }, [active, loadMembersPage, loadSectionPage]);
+
+  const checkScroll = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) {
+      return;
+    }
+    const remaining =
+      element.scrollHeight - element.scrollTop - element.clientHeight;
+    if (remaining < LOAD_MORE_THRESHOLD) {
+      loadMore();
+    }
+  }, [loadMore]);
+
+  // A short first page does not scroll on its own; keep filling until the
+  // section either fills the viewport or has no more pages (Telegram Web's
+  // scrollable refiller).
+  useEffect(() => {
+    checkScroll();
+  }, [checkScroll, members, sections]);
+
+  const prefetch = (tab: InfoTab) => {
+    if (tab === "members") {
+      void loadMembersPage("first");
+    } else {
+      void loadSectionPage(tab, "first");
     }
   };
 
-  const tabs: InfoTab[] =
-    chat.kind === "private" ? ["media", "links"] : ["members", "media", "links"];
+  const renderMembers = () => {
+    if (members.failed && members.items.length === 0) {
+      return (
+        <div className="f-info-status f-info-status-error">
+          <p>{t("rightPanel.membersFailed")}</p>
+          <Button variant="ghost" onClick={() => void loadMembersPage("first")}>
+            {t("common.retry")}
+          </Button>
+        </div>
+      );
+    }
+    if (members.items.length === 0) {
+      return members.loading ? (
+        <div className="f-info-status">
+          <Spinner size={20} />
+        </div>
+      ) : (
+        <InfoEmpty text={t("rightPanel.membersEmpty")} />
+      );
+    }
+    return (
+      <>
+        <div className="f-info-members">
+          {members.items.map((member) => (
+            <div className="f-info-member" key={member.id}>
+              <Avatar
+                title={member.name}
+                initials={chatInitials(member.name)}
+                color={chatColor(member.id)}
+                photo={member.avatarUrl}
+                size={36}
+              />
+              <span className="f-info-member-copy">
+                <b>{member.name}</b>
+                <small>
+                  {member.bot
+                    ? t("rightPanel.bot")
+                    : member.username
+                      ? `@${member.username}`
+                      : t("rightPanel.member")}
+                </small>
+              </span>
+              {member.admin ? (
+                <span className="f-info-role">{t("rightPanel.admin")}</span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        {members.loading ? (
+          <div className="f-info-status">
+            <Spinner size={18} />
+          </div>
+        ) : null}
+      </>
+    );
+  };
+
+  const renderSection = (section: SharedMediaSection) => {
+    const state = sections[section];
+    if (state.failed && state.items.length === 0) {
+      return (
+        <div className="f-info-status f-info-status-error">
+          <p>{t("rightPanel.sectionFailed")}</p>
+          <Button
+            variant="ghost"
+            onClick={() => void loadSectionPage(section, "first")}
+          >
+            {t("common.retry")}
+          </Button>
+        </div>
+      );
+    }
+    if (state.items.length === 0) {
+      return state.loading ? (
+        <div className="f-info-status">
+          <Spinner size={20} />
+        </div>
+      ) : (
+        <InfoEmpty text={t(SECTION_EMPTY[section])} />
+      );
+    }
+
+    let list;
+    switch (section) {
+      case "media":
+        list = (
+          <MediaGrid
+            items={state.items}
+            onOpenPhoto={onOpenPhoto}
+            onPlayVideo={onPlayVideo}
+          />
+        );
+        break;
+      case "gifs":
+        list = (
+          <MediaGrid
+            gifs
+            items={state.items}
+            onOpenPhoto={onOpenPhoto}
+            onPlayVideo={onPlayVideo}
+          />
+        );
+        break;
+      case "files":
+        list = (
+          <FileList items={state.items} onDownload={onDownloadMessage} />
+        );
+        break;
+      case "links":
+        list = <LinkList items={state.items} onToast={onToast} />;
+        break;
+      case "music":
+        list = <AudioList items={state.items} />;
+        break;
+      case "voice":
+        list = <AudioList voice items={state.items} />;
+        break;
+      default:
+        list = null;
+    }
+
+    return (
+      <>
+        {list}
+        {state.loading ? (
+          <div className="f-info-status">
+            <Spinner size={18} />
+          </div>
+        ) : null}
+      </>
+    );
+  };
+
+  const renderBody = () => {
+    if (!active) {
+      return (
+        <InfoEmpty text={t("rightPanel.sharedMediaEmpty")} />
+      );
+    }
+    return active === "members" ? renderMembers() : renderSection(active);
+  };
 
   return (
     <aside className="f-info-panel" aria-label={t("rightPanel.chatInfo")}>
@@ -162,7 +646,11 @@ export function ChatInfoPanel({
         <span className="f-info-title">{t("rightPanel.chatInfo")}</span>
       </header>
 
-      <div className="f-info-scroll">
+      <div
+        className="f-info-scroll"
+        ref={scrollRef}
+        onScroll={checkScroll}
+      >
         <div className="f-info-hero">
           <ChatAvatar chat={chat} size={84} />
           <h2>
@@ -210,131 +698,44 @@ export function ChatInfoPanel({
           </button>
         </div>
 
-        <div className="f-info-tabs" role="tablist">
-          {tabs.map((item) => (
-            <button
-              type="button"
-              key={item}
-              role="tab"
-              aria-selected={tab === item}
-              data-active={tab === item || undefined}
-              className="f-info-tab"
-              onClick={() => setTab(item)}
-            >
-              {t(`rightPanel.${item}`)}
-            </button>
-          ))}
-        </div>
+        {tabs.length > 0 ? (
+          <div className="f-info-tabs-sticky">
+            <div className="f-info-tabs" role="tablist">
+              {tabs.map((tab) => (
+                <button
+                  type="button"
+                  key={tab.id}
+                  role="tab"
+                  aria-selected={active === tab.id}
+                  data-active={active === tab.id || undefined}
+                  className="f-info-tab"
+                  onClick={() => setActive(tab.id)}
+                  onMouseEnter={() => prefetch(tab.id)}
+                  onFocus={() => prefetch(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
-        <div className="f-info-tab-body" role="tabpanel">
-          {tab === "members" ? (
-            membersLoading ? (
-              <div className="f-info-status">
-                <Spinner size={20} />
-              </div>
-            ) : membersFailed ? (
-              <p className="f-info-empty">{t("rightPanel.membersFailed")}</p>
-            ) : members && members.length > 0 ? (
-              <div className="f-info-members">
-                {members.map((member) => (
-                  <div className="f-info-member" key={member.id}>
-                    <Avatar
-                      title={member.name}
-                      initials={chatInitials(member.name)}
-                      color={chatColor(member.id)}
-                      photo={member.avatarUrl}
-                      size={36}
-                    />
-                    <span className="f-info-member-copy">
-                      <b>{member.name}</b>
-                      <small>
-                        {member.bot
-                          ? t("rightPanel.bot")
-                          : member.username
-                            ? `@${member.username}`
-                            : t("rightPanel.member")}
-                      </small>
-                    </span>
-                    {member.admin ? (
-                      <span className="f-info-role">{t("rightPanel.admin")}</span>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="f-info-empty">{t("rightPanel.membersEmpty")}</p>
-            )
-          ) : null}
-
-          {tab === "media" ? (
-            media.length > 0 ? (
-              <div className="f-info-media-grid">
-                {media.map((message) => (
-                  <span className="f-info-media-cell" key={message.id}>
-                    {message.media?.kind === "photo" && message.media.photoUrl ? (
-                      <button
-                        type="button"
-                        className="f-info-media-open"
-                        aria-label={t("chat.openPhoto")}
-                        onClick={() => onOpenPhoto?.(message)}
-                      >
-                        <MediaThumb
-                          src={message.media.thumbUrl}
-                          alt={message.media.name}
-                          className="f-info-media-img"
-                        />
-                      </button>
-                    ) : (
-                      <MediaThumb
-                        src={message.media?.thumbUrl}
-                        alt={message.media?.name ?? ""}
-                        className="f-info-media-img"
-                      />
-                    )}
-                    {message.media?.kind === "video" ||
-                    message.media?.kind === "video_note" ? (
-                      <span className="f-info-media-badge">
-                        <Icon name="play_arrow" size={14} />
-                      </span>
-                    ) : null}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="f-info-empty">{t("rightPanel.mediaEmpty")}</p>
-            )
-          ) : null}
-
-          {tab === "links" ? (
-            links.length > 0 ? (
-              <div className="f-info-links">
-                {links.map(({ url, label }) => (
-                  <div className="f-info-link-row" key={url}>
-                    <button
-                      type="button"
-                      className="f-info-link-main"
-                      onClick={() => void Browser.OpenURL(url)}
-                    >
-                      <Icon name="link" size={15} />
-                      <span className="f-info-link-copy">
-                        <b>{label}</b>
-                        <small>{url}</small>
-                      </span>
-                    </button>
-                    <IconButton
-                      label={t("chatMenu.copyLink")}
-                      icon="content_copy"
-                      size="1"
-                      onClick={() => void copyLink(url)}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="f-info-empty">{t("rightPanel.linksEmpty")}</p>
-            )
-          ) : null}
-        </div>
+        {infoLoading ? (
+          <div className="f-info-status">
+            <Spinner size={20} />
+          </div>
+        ) : infoFailed && tabs.length === 0 ? (
+          <div className="f-info-status f-info-status-error">
+            <p>{t("rightPanel.infoFailed")}</p>
+            <Button variant="ghost" onClick={() => setReloadKey((key) => key + 1)}>
+              {t("common.retry")}
+            </Button>
+          </div>
+        ) : (
+          <div className="f-info-tab-body" role="tabpanel">
+            {renderBody()}
+          </div>
+        )}
       </div>
     </aside>
   );

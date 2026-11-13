@@ -81,8 +81,23 @@ export function GetCachedMessages(chatID: string): $CancellablePromise<kernel$0.
     return $Call.ByID(4156755298, chatID);
 }
 
+/**
+ * GetChatInfo resolves which chat-info tabs a peer has using the same
+ * messages.getSearchCounters call as Telegram Web.
+ */
+export function GetChatInfo(chatID: string, kind: string, proxy: string, ntp: string): $CancellablePromise<kernel$0.ChatInfoDTO | null> {
+    return $Call.ByID(274697986, chatID, kind, proxy, ntp);
+}
+
 export function GetChatMembers(chatID: string, proxy: string, ntp: string, limit: number): $CancellablePromise<kernel$0.ChatMemberDTO[] | null> {
     return $Call.ByID(3787369541, chatID, proxy, ntp, limit);
+}
+
+/**
+ * GetChatMembersPage loads one paginated page of a group's member list.
+ */
+export function GetChatMembersPage(chatID: string, proxy: string, ntp: string, offset: number, limit: number): $CancellablePromise<kernel$0.ChatMembersPageDTO | null> {
+    return $Call.ByID(2995914774, chatID, proxy, ntp, offset, limit);
 }
 
 export function GetChats(proxy: string, ntp: string, limit: number, force: boolean): $CancellablePromise<kernel$0.ChatDTO[] | null> {
@@ -119,6 +134,13 @@ export function GetPaths(): $CancellablePromise<kernel$0.PortablePaths> {
 
 export function GetSelfAvatarURL(proxy: string, ntp: string): $CancellablePromise<string> {
     return $Call.ByID(3979655064, proxy, ntp);
+}
+
+/**
+ * GetSharedMedia loads one paginated page of a chat-info media tab.
+ */
+export function GetSharedMedia(chatID: string, section: string, proxy: string, ntp: string, beforeID: number, limit: number): $CancellablePromise<kernel$0.SharedMediaPageDTO | null> {
+    return $Call.ByID(936464407, chatID, section, proxy, ntp, beforeID, limit);
 }
 
 export function GetVideoStream(chatID: string, messageID: number, proxy: string, ntp: string, useTDL: boolean): $CancellablePromise<string> {

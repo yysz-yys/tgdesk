@@ -379,6 +379,13 @@
   padding: var(--app-space-2) 0 var(--app-space-4);
 }
 
+/* History pages load by scroll position, not by a button: the row is only the
+ * quiet spinner that appears while the previous page is in flight. */
+.g-load-older-auto {
+  padding: 10px 0 2px;
+  color: var(--tg-bubble-secondary);
+}
+
 .g-load-older-button {
   display: inline-flex;
   min-height: 34px;

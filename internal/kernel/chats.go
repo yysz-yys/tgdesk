@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -578,178 +577,6 @@ type ChatMemberDTO struct {
 	Bot       bool   `json:"bot,omitempty"`
 }
 
-// GetChatMembers loads recent participants for a group or channel. Private
-// chats have no participant list; basic groups use messages.getFullChat.
-func (s *Service) GetChatMembers(
-	chatID, proxy, ntp string,
-	limit int,
-) ([]ChatMemberDTO, error) {
-	peer, err := parsePeerID(chatID)
-	if err != nil {
-		return nil, err
-	}
-	switch peer.(type) {
-	case *tg.InputPeerChannel, *tg.InputPeerChat:
-	default:
-		return nil, nil
-	}
-	if limit <= 0 || limit > 200 {
-		limit = 100
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
-	s.noteMediaConfig(proxy, ntp)
-	var result []ChatMemberDTO
-	err = s.withChatClient(ctx, proxy, ntp, func(ctx context.Context, client *telegram.Client) error {
-		switch value := peer.(type) {
-		case *tg.InputPeerChannel:
-			resp, err := client.API().ChannelsGetParticipants(
-				ctx,
-				&tg.ChannelsGetParticipantsRequest{
-					Channel: &tg.InputChannel{
-						ChannelID:  value.ChannelID,
-						AccessHash: value.AccessHash,
-					},
-					Filter: &tg.ChannelParticipantsRecent{},
-					Limit:  limit,
-				},
-			)
-			if err != nil {
-				return fmt.Errorf("get participants: %w", err)
-			}
-			data, ok := resp.(*tg.ChannelsChannelParticipants)
-			if !ok {
-				return nil
-			}
-			users := make(map[int64]*tg.User, len(data.Users))
-			for _, item := range data.Users {
-				if user, ok := item.(*tg.User); ok {
-					users[user.ID] = user
-				}
-			}
-			for _, raw := range data.Participants {
-				var (
-					userID int64
-					admin  bool
-				)
-				switch participant := raw.(type) {
-				case *tg.ChannelParticipantCreator:
-					userID, admin = participant.UserID, true
-				case *tg.ChannelParticipantAdmin:
-					userID, admin = participant.UserID, true
-				case *tg.ChannelParticipantSelf:
-					userID = participant.UserID
-				case *tg.ChannelParticipant:
-					userID = participant.UserID
-				}
-				if userID == 0 {
-					continue
-				}
-				user, ok := users[userID]
-				if !ok {
-					continue
-				}
-				name := displayName(user.FirstName, user.LastName)
-				if name == "" {
-					name = user.Username
-				}
-				if name == "" {
-					continue
-				}
-				peerID := encodePeerID("user", user.ID, user.AccessHash)
-				result = append(result, ChatMemberDTO{
-					ID:       peerID,
-					Name:     name,
-					Username: user.Username,
-					AvatarURL: s.userAvatarURL(
-						&tg.InputPeerUser{UserID: user.ID, AccessHash: user.AccessHash},
-						user,
-						proxy,
-						ntp,
-					),
-					Admin: admin,
-					Bot:   user.Bot,
-				})
-			}
-		case *tg.InputPeerChat:
-			full, err := client.API().MessagesGetFullChat(ctx, value.ChatID)
-			if err != nil {
-				return fmt.Errorf("get full chat: %w", err)
-			}
-			chat, ok := full.FullChat.(*tg.ChatFull)
-			if !ok {
-				return nil
-			}
-			participants, ok := chat.Participants.(*tg.ChatParticipants)
-			if !ok {
-				return nil
-			}
-			users := make(map[int64]*tg.User, len(full.Users))
-			for _, item := range full.Users {
-				if user, ok := item.(*tg.User); ok {
-					users[user.ID] = user
-				}
-			}
-			for _, raw := range participants.Participants {
-				var (
-					userID int64
-					admin  bool
-				)
-				switch participant := raw.(type) {
-				case *tg.ChatParticipantCreator:
-					userID, admin = participant.UserID, true
-				case *tg.ChatParticipantAdmin:
-					userID, admin = participant.UserID, true
-				case *tg.ChatParticipant:
-					userID = participant.UserID
-				}
-				if userID == 0 {
-					continue
-				}
-				user, ok := users[userID]
-				if !ok {
-					continue
-				}
-				name := displayName(user.FirstName, user.LastName)
-				if name == "" {
-					name = user.Username
-				}
-				if name == "" {
-					continue
-				}
-				peerID := encodePeerID("user", user.ID, user.AccessHash)
-				result = append(result, ChatMemberDTO{
-					ID:       peerID,
-					Name:     name,
-					Username: user.Username,
-					AvatarURL: s.userAvatarURL(
-						&tg.InputPeerUser{UserID: user.ID, AccessHash: user.AccessHash},
-						user,
-						proxy,
-						ntp,
-					),
-					Admin: admin,
-					Bot:   user.Bot,
-				})
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	sort.SliceStable(result, func(left, right int) bool {
-		if result[left].Admin != result[right].Admin {
-			return result[left].Admin
-		}
-		return strings.ToLower(result[left].Name) < strings.ToLower(result[right].Name)
-	})
-	return result, nil
-}
-
 // GetOlderMessages loads the page immediately before beforeID. The frontend
 // uses this to paginate beyond the latest screen instead of only showing today.
 func (s *Service) GetOlderMessages(
@@ -796,91 +623,15 @@ func (s *Service) getMessages(
 		if err != nil {
 			return fmt.Errorf("get history: %w", err)
 		}
-
-		var (
-			messages []tg.MessageClass
-			users    []tg.UserClass
-			chats    []tg.ChatClass
-		)
-		switch r := resp.(type) {
-		case *tg.MessagesMessages:
-			messages, users, chats = r.Messages, r.Users, r.Chats
-		case *tg.MessagesMessagesSlice:
-			messages, users, chats = r.Messages, r.Users, r.Chats
-		case *tg.MessagesChannelMessages:
-			messages, users, chats = r.Messages, r.Users, r.Chats
-		case *tg.MessagesMessagesNotModified:
+		if _, ok := resp.(*tg.MessagesMessagesNotModified); ok {
 			return nil
-		default:
+		}
+
+		messages, users, chats, ok := messagesList(resp)
+		if !ok {
 			return fmt.Errorf("unexpected history result %T", resp)
 		}
-
-		senders := make(map[int64]string, len(users)+len(chats))
-		senderPeers := make(map[int64]string, len(users)+len(chats))
-		usersByID := make(map[int64]*tg.User, len(users))
-		chatsByID := make(map[int64]*tg.Chat, len(chats))
-		channelsByID := make(map[int64]*tg.Channel, len(chats))
-		for _, user := range users {
-			if value, ok := user.(*tg.User); ok {
-				name := displayName(value.FirstName, value.LastName)
-				if name == "" {
-					name = value.Username
-				}
-				senders[value.ID] = name
-				senderPeers[value.ID] = encodePeerID("user", value.ID, value.AccessHash)
-				usersByID[value.ID] = value
-			}
-		}
-		for _, chat := range chats {
-			switch value := chat.(type) {
-			case *tg.Chat:
-				senders[value.ID] = value.Title
-				senderPeers[value.ID] = encodePeerID("chat", value.ID, 0)
-				chatsByID[value.ID] = value
-			case *tg.Channel:
-				senders[value.ID] = value.Title
-				senderPeers[value.ID] = encodePeerID("channel", value.ID, value.AccessHash)
-				channelsByID[value.ID] = value
-			}
-		}
-		chatAvatar := s.peerAvatarURL(peer, usersByID, chatsByID, channelsByID, proxy, ntp)
-		statusURLs := s.senderEmojiStatusURLs(ctx, client, usersByID, proxy, ntp)
-		s.ensureCustomEmojiURLs(ctx, client, reactionDocumentIDs(messages), proxy, ntp)
-
-		for _, raw := range messages {
-			switch msg := raw.(type) {
-			case *tg.Message:
-				item := mapMessage(chatID, msg, senders, senderPeers)
-				item.SenderStatusURL = statusURLs[peerUserID(msg.FromID)]
-				s.fillReactionURLs(item.Reactions)
-				avatar := s.senderAvatarURL(
-					msg.FromID,
-					usersByID,
-					chatsByID,
-					channelsByID,
-					proxy,
-					ntp,
-				)
-				if avatar == "" {
-					avatar = chatAvatar
-				}
-				item.SenderAvatarURL = avatar
-				if item.Media != nil {
-					thumbURL, fullURL := s.messageImageURLs(msg, proxy, ntp)
-					item.Media.ThumbURL = thumbURL
-					switch item.Media.Kind {
-					case "photo", "webpage":
-						item.Media.PhotoURL = fullURL
-					case "audio", "voice", "animation", "sticker":
-						item.Media.StreamURL = fullURL
-					}
-				}
-				result = append(result, item)
-			case *tg.MessageService:
-				result = append(result, mapService(chatID, msg, senders))
-			}
-		}
-		enrichReplyPreviews(ctx, client, peer, result)
+		result = s.mapHistoryMessages(ctx, client, peer, chatID, messages, users, chats, proxy, ntp)
 		return nil
 	})
 	if err != nil {
@@ -895,6 +646,109 @@ func (s *Service) getMessages(
 		s.saveCachedMessages(chatID, result)
 	}
 	return result, nil
+}
+
+// messagesList unwraps any of the messages.* response wrappers into the
+// message/user/chat slices they carry.
+func messagesList(resp tg.MessagesMessagesClass) (
+	messages []tg.MessageClass,
+	users []tg.UserClass,
+	chats []tg.ChatClass,
+	ok bool,
+) {
+	switch r := resp.(type) {
+	case *tg.MessagesMessages:
+		return r.Messages, r.Users, r.Chats, true
+	case *tg.MessagesMessagesSlice:
+		return r.Messages, r.Users, r.Chats, true
+	case *tg.MessagesChannelMessages:
+		return r.Messages, r.Users, r.Chats, true
+	default:
+		return nil, nil, nil, false
+	}
+}
+
+// mapHistoryMessages converts Telegram messages from a history or search
+// response into UI DTOs, resolving sender names, avatars and media URLs. The
+// order of the input is preserved (Telegram returns newest first).
+func (s *Service) mapHistoryMessages(
+	ctx context.Context,
+	client *telegram.Client,
+	peer tg.InputPeerClass,
+	chatID string,
+	messages []tg.MessageClass,
+	users []tg.UserClass,
+	chats []tg.ChatClass,
+	proxy, ntp string,
+) []MessageDTO {
+	senders := make(map[int64]string, len(users)+len(chats))
+	senderPeers := make(map[int64]string, len(users)+len(chats))
+	usersByID := make(map[int64]*tg.User, len(users))
+	chatsByID := make(map[int64]*tg.Chat, len(chats))
+	channelsByID := make(map[int64]*tg.Channel, len(chats))
+	for _, user := range users {
+		if value, ok := user.(*tg.User); ok {
+			name := displayName(value.FirstName, value.LastName)
+			if name == "" {
+				name = value.Username
+			}
+			senders[value.ID] = name
+			senderPeers[value.ID] = encodePeerID("user", value.ID, value.AccessHash)
+			usersByID[value.ID] = value
+		}
+	}
+	for _, chat := range chats {
+		switch value := chat.(type) {
+		case *tg.Chat:
+			senders[value.ID] = value.Title
+			senderPeers[value.ID] = encodePeerID("chat", value.ID, 0)
+			chatsByID[value.ID] = value
+		case *tg.Channel:
+			senders[value.ID] = value.Title
+			senderPeers[value.ID] = encodePeerID("channel", value.ID, value.AccessHash)
+			channelsByID[value.ID] = value
+		}
+	}
+	chatAvatar := s.peerAvatarURL(peer, usersByID, chatsByID, channelsByID, proxy, ntp)
+	statusURLs := s.senderEmojiStatusURLs(ctx, client, usersByID, proxy, ntp)
+	s.ensureCustomEmojiURLs(ctx, client, reactionDocumentIDs(messages), proxy, ntp)
+
+	result := make([]MessageDTO, 0, len(messages))
+	for _, raw := range messages {
+		switch msg := raw.(type) {
+		case *tg.Message:
+			item := mapMessage(chatID, msg, senders, senderPeers)
+			item.SenderStatusURL = statusURLs[peerUserID(msg.FromID)]
+			s.fillReactionURLs(item.Reactions)
+			avatar := s.senderAvatarURL(
+				msg.FromID,
+				usersByID,
+				chatsByID,
+				channelsByID,
+				proxy,
+				ntp,
+			)
+			if avatar == "" {
+				avatar = chatAvatar
+			}
+			item.SenderAvatarURL = avatar
+			if item.Media != nil {
+				thumbURL, fullURL := s.messageImageURLs(msg, proxy, ntp)
+				item.Media.ThumbURL = thumbURL
+				switch item.Media.Kind {
+				case "photo", "webpage":
+					item.Media.PhotoURL = fullURL
+				case "audio", "voice", "animation", "sticker":
+					item.Media.StreamURL = fullURL
+				}
+			}
+			result = append(result, item)
+		case *tg.MessageService:
+			result = append(result, mapService(chatID, msg, senders))
+		}
+	}
+	enrichReplyPreviews(ctx, client, peer, result)
+	return result
 }
 
 func (s *Service) withChatClient(

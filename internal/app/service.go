@@ -103,6 +103,30 @@ func (s *Service) GetChatMembers(
 	return s.kernel.GetChatMembers(chatID, proxy, ntp, limit)
 }
 
+// GetChatInfo resolves which chat-info tabs a peer has using the same
+// messages.getSearchCounters call as Telegram Web.
+func (s *Service) GetChatInfo(
+	chatID, kind, proxy, ntp string,
+) (*kernel.ChatInfoDTO, error) {
+	return s.kernel.GetChatInfo(chatID, kind, proxy, ntp)
+}
+
+// GetSharedMedia loads one paginated page of a chat-info media tab.
+func (s *Service) GetSharedMedia(
+	chatID, section, proxy, ntp string,
+	beforeID, limit int,
+) (*kernel.SharedMediaPageDTO, error) {
+	return s.kernel.GetSharedMedia(chatID, section, proxy, ntp, beforeID, limit)
+}
+
+// GetChatMembersPage loads one paginated page of a group's member list.
+func (s *Service) GetChatMembersPage(
+	chatID, proxy, ntp string,
+	offset, limit int,
+) (*kernel.ChatMembersPageDTO, error) {
+	return s.kernel.GetChatMembersPage(chatID, proxy, ntp, offset, limit)
+}
+
 func (s *Service) GetOlderMessages(
 	chatID string,
 	beforeID int,
