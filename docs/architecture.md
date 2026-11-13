@@ -266,13 +266,22 @@ sync.
 `internal/kernel/downloads.go` + `download_store.go`:
 
 - Resolve the selected message, extract media with `core/tmedia`.
-- Write to `<name>.tmp`, rename on success.
+- Fresh files use tdl's multi-connection `core/downloader` (the user's thread
+  setting) through an 8-connection tdl DC pool, matching tdl's own defaults.
+- Write to `<name>.tmp`, verify the final byte count and rename on success.
 - Persist task metadata to `<root>/data/downloads.json`.
 - Emit `download:event` for progress/speed/ETA/state.
-- Pause/cancel keeps the partial file; resume aligns to 4 KiB boundaries and
-  uses `upload.getFile` ranges. CDN locations fall back to a full gotd transfer.
+- A paused file keeps its `.tmp`; resume aligns to a 4 KiB boundary and fetches
+  the missing tail as parallel 1 MiB `upload.getFile` ranges through the same
+  tdl pool (the old sequential range loop was the slow path). CDN locations fall
+  back to a full tdl transfer.
+- Removing a task cancels its writer, waits for it and deletes the `.tmp`; only a
+  task that owns a stored partial path may resume it, so an orphaned file from a
+  removed task can never be stitched into a new download.
+- Starting a download for a message that already has an active/queued/paused
+  task returns that task instead of opening the same `.tmp` twice.
 - On restart, active/queued tasks become paused; the user resumes from the stored
-  byte offset.
+  byte offset. The UI offers Pause all and Resume all.
 - The default destination is `<root>/downloads`; the Settings template is
   evaluated with tdl `tplfunc`.
 

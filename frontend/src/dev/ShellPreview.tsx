@@ -369,6 +369,7 @@ function Shell() {
             onRemove={noop}
             onOpenFolder={noop}
             onPauseAll={noop}
+            onResumeAll={noop}
             onClearCompleted={noop}
             onOpenDownloadFolder={noop}
           />

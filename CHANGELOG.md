@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Downloads
+
+- Added Resume all next to Pause all in the downloads header; it starts every
+  paused transfer with the same tdl core the individual rows use.
+- Fresh transfers stay on tdl's multi-connection downloader (8-connection DC pool
+  by default, like tdl itself); resumed files no longer fall back to a sequential
+  single-connection range loop — the missing tail is fetched as parallel 1 MiB
+  ranges through the same tdl DC pool.
+- Removing a task now waits for its writer and deletes its partial `.tmp`, and a
+  brand-new task only resumes a partial file that it owns. Re-downloading a file
+  after removing its paused task therefore starts clean instead of stitching an
+  orphaned temp file into the result.
+- Duplicate clicks for the same message reuse the running task, and a completed
+  transfer is size-checked before it is renamed into place, so short or corrupt
+  files are reported as failed instead of being delivered.
+- Chat-info file rows can start a download even when that message is not part of
+  the chat's loaded history page.
+
 ### Chat info and history loading
 
 - Chat info now mirrors Telegram Web's profile column: one

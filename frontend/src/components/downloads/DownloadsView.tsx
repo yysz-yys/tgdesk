@@ -15,6 +15,7 @@ interface DownloadsViewProps {
   onRemove: (id: string) => void;
   onOpenFolder: (task: DownloadTask) => void;
   onPauseAll: () => void;
+  onResumeAll: () => void;
   onClearCompleted: () => void;
   onOpenDownloadFolder: () => void;
 }
@@ -68,6 +69,7 @@ export function DownloadsView({
   onRemove,
   onOpenFolder,
   onPauseAll,
+  onResumeAll,
   onClearCompleted,
   onOpenDownloadFolder,
 }: DownloadsViewProps) {
@@ -75,6 +77,7 @@ export function DownloadsView({
   const [tab, setTab] = useState("active");
   const running = active.filter((task) => task.status === "active").length;
   const queued = active.filter((task) => task.status === "queued").length;
+  const paused = active.filter((task) => task.status === "paused").length;
 
   const summary = useMemo(() => {
     if (active.length === 0) {
@@ -106,6 +109,14 @@ export function DownloadsView({
               iconSize={18}
               disabled={running === 0}
               onClick={onPauseAll}
+            />
+            <IconButton
+              label={t("downloads.resumeAll")}
+              icon="play_arrow"
+              size="2"
+              iconSize={18}
+              disabled={paused === 0}
+              onClick={onResumeAll}
             />
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>

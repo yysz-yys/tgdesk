@@ -691,10 +691,16 @@ export default function App() {
     void markChatsRead(ids);
   };
 
-  const queueDownloads = async (chat: Chat, ids: number[]) => {
-    const mediaIds = messages
-      .filter((message) => ids.includes(message.id) && message.media)
-      .map((message) => message.id);
+  const queueDownloads = async (
+    chat: Chat,
+    ids: number[],
+    onlyLoadedMedia = false,
+  ) => {
+    const mediaIds = onlyLoadedMedia
+      ? messages
+          .filter((message) => ids.includes(message.id) && message.media)
+          .map((message) => message.id)
+      : ids;
     if (mediaIds.length === 0) {
       showToast(t("toasts.noMedia"));
       return;
@@ -722,7 +728,7 @@ export default function App() {
       showToast(t("toasts.openChatFirst"));
       return;
     }
-    void queueDownloads(chat, messages.map((message) => message.id));
+    void queueDownloads(chat, messages.map((message) => message.id), true);
   };
 
   const pauseTask = (id: string) => {
@@ -786,6 +792,20 @@ export default function App() {
     );
     void Promise.all(running.map((task) => AppService.PauseDownload(task.id)))
       .then(() => showToast(t("toasts.allPaused")))
+      .catch(() => showToast(t("toasts.downloadActionFailed")));
+  };
+
+  const resumeAll = () => {
+    const paused = active.filter((task) => task.status === "paused");
+    if (paused.length === 0) {
+      return;
+    }
+    void Promise.all(
+      paused.map((task) =>
+        AppService.ResumeDownload(task.id, proxyUrl, settings.ntp),
+      ),
+    )
+      .then(() => showToast(t("toasts.allResumed")))
       .catch(() => showToast(t("toasts.downloadActionFailed")));
   };
 
@@ -1333,6 +1353,7 @@ export default function App() {
                   onRemove={removeTask}
                   onOpenFolder={openFolder}
                   onPauseAll={pauseAll}
+                  onResumeAll={resumeAll}
                   onClearCompleted={clearCompleted}
                   onOpenDownloadFolder={openDownloadFolder}
                 />

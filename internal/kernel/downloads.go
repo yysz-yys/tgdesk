@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"text/template"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/iyear/tdl/core/tmedia"
 	"github.com/iyear/tdl/core/util/tutil"
 	"github.com/iyear/tdl/pkg/tplfunc"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -147,6 +149,15 @@ func (s *Service) StartDownload(
 			continue
 		}
 		seen[messageID] = struct{}{}
+		// Never run two downloads of the same message: a second click would
+		// otherwise open (and later rename) the same .tmp concurrently.
+		if existing := s.findDownloadTaskLocked(chatID, messageID); existing != nil {
+			switch existing.dto.Status {
+			case downloadActive, downloadQueued, downloadPaused:
+				ids = append(ids, existing.dto.ID)
+				continue
+			}
+		}
 		s.downloadCounter++
 		id := fmt.Sprintf("dl-%d", s.downloadCounter)
 		task := &downloadTask{
@@ -197,6 +208,17 @@ func (s *Service) StartDownload(
 		go s.runDownload(task, task.ctx, task.generation, task.done)
 	}
 	return ids, nil
+}
+
+// findDownloadTaskLocked returns the live task for a peer message, if any.
+// The caller must hold s.downloadMu.
+func (s *Service) findDownloadTaskLocked(chatID string, messageID int) *downloadTask {
+	for _, task := range s.downloadTasks {
+		if task.chatID == chatID && task.messageID == messageID {
+			return task
+		}
+	}
+	return nil
 }
 
 func (s *Service) GetDownloads() []DownloadTaskDTO {
@@ -285,7 +307,13 @@ func (s *Service) CancelDownload(id string) error {
 		s.downloadMu.Unlock()
 		return nil
 	}
-	if task.cancel != nil {
+	cancel := task.cancel
+	done := task.done
+	tempPath := task.tempPath
+	if tempPath == "" && task.dto.Path != "" {
+		tempPath = task.dto.Path + downloadTempExt
+	}
+	if cancel != nil {
 		task.cancel()
 	}
 	delete(s.downloadTasks, id)
@@ -300,6 +328,19 @@ func (s *Service) CancelDownload(id string) error {
 	s.downloadMu.Unlock()
 
 	s.emitDownload(DownloadEvent{Removed: true, Task: &DownloadTaskDTO{ID: id}})
+
+	// The download goroutine may still be closing its file. Wait for it before
+	// deleting the partial file, otherwise a removed task leaves an orphan that
+	// a later download of the same message would wrongly resume from.
+	if tempPath != "" {
+		if done != nil {
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+			}
+		}
+		_ = os.Remove(tempPath)
+	}
 	return nil
 }
 
@@ -333,15 +374,44 @@ func (s *Service) OpenDownloadFolder(path string) error {
 
 func (s *Service) cancelAllDownloads() {
 	s.downloadMu.Lock()
+	var (
+		temps []string
+		dones []chan struct{}
+	)
 	for _, task := range s.downloadTasks {
 		if task.cancel != nil {
 			task.cancel()
+		}
+		if task.done != nil {
+			dones = append(dones, task.done)
+		}
+		temp := task.tempPath
+		if temp == "" && task.dto.Path != "" {
+			temp = task.dto.Path + downloadTempExt
+		}
+		if temp != "" {
+			temps = append(temps, temp)
 		}
 	}
 	s.downloadTasks = make(map[string]*downloadTask)
 	s.downloadOrder = nil
 	s.persistDownloadsLocked(true)
 	s.downloadMu.Unlock()
+
+	if len(temps) > 0 {
+		go func() {
+			deadline := time.After(3 * time.Second)
+			for _, done := range dones {
+				select {
+				case <-done:
+				case <-deadline:
+				}
+			}
+			for _, temp := range temps {
+				_ = os.Remove(temp)
+			}
+		}()
+	}
 }
 
 func (s *Service) runDownload(task *downloadTask, ctx context.Context, generation int, done chan struct{}) {
@@ -391,26 +461,46 @@ func (s *Service) runDownload(task *downloadTask, ctx context.Context, generatio
 		s.failDownload(task.dto.ID, generation, fmt.Errorf("create download folder: %w", err))
 		return
 	}
-	tempPath := task.tempPath
+	// Only a task that already owns a partial file may resume from it. A fresh
+	// task (and any task whose store entry was removed) must start from zero so
+	// an orphaned .tmp from a removed download can never be stitched into the
+	// new file.
+	resumeTemp := task.tempPath
+	tempPath := resumeTemp
 	if tempPath == "" {
 		tempPath = finalPath + downloadTempExt
 	}
+	defer func() {
+		s.downloadMu.Lock()
+		_, stillListed := s.downloadTasks[task.dto.ID]
+		s.downloadMu.Unlock()
+		if !stillListed {
+			_ = os.Remove(tempPath)
+		}
+	}()
 
 	startSize := int64(0)
-	if info, statErr := os.Stat(tempPath); statErr == nil {
-		startSize = info.Size()
-		if startSize > media.Size {
-			startSize = 0
-		}
-		// Resume on a 4 KiB boundary so Telegram accepts the offset.
-		const align = int64(4096)
-		startSize = startSize / align * align
-		if startSize > 0 {
-			if err := os.Truncate(tempPath, startSize); err != nil {
-				s.failDownload(task.dto.ID, generation, fmt.Errorf("resume file: %w", err))
-				return
+	if resumeTemp != "" {
+		if info, statErr := os.Stat(resumeTemp); statErr == nil {
+			startSize = info.Size()
+			if startSize > media.Size {
+				startSize = 0
+			}
+			// Resume on a 4 KiB boundary so Telegram accepts the offset.
+			const align = int64(4096)
+			startSize = startSize / align * align
+			if startSize > 0 {
+				if err := os.Truncate(tempPath, startSize); err != nil {
+					s.failDownload(task.dto.ID, generation, fmt.Errorf("resume file: %w", err))
+					return
+				}
 			}
 		}
+	}
+	if startSize == 0 {
+		// Drop any stale partial before opening; O_TRUNC alone would keep a
+		// same-named orphan around if opening or writing fails.
+		_ = os.Remove(tempPath)
 	}
 	flags := os.O_CREATE | os.O_WRONLY
 	if startSize == 0 {
@@ -433,7 +523,9 @@ func (s *Service) runDownload(task *downloadTask, ctx context.Context, generatio
 		return
 	}
 
-	pool := dcpool.NewPool(client, 4, coretclient.NewDefaultMiddlewares(ctx, 2*time.Minute)...)
+	// Match tdl's own download defaults (pool 8, threads 4+): fresh files use
+	// tdl's multi-connection downloader and resumed ranges use the same pool.
+	pool := dcpool.NewPool(client, 8, coretclient.NewDefaultMiddlewares(ctx, 2*time.Minute)...)
 	taskProgress := &downloadProgress{
 		service:    s,
 		id:         task.dto.ID,
@@ -445,7 +537,7 @@ func (s *Service) runDownload(task *downloadTask, ctx context.Context, generatio
 
 	var downloadErr error
 	if startSize > 0 {
-		downloadErr = s.downloadRange(ctx, pool, media, file, startSize, taskProgress)
+		downloadErr = s.downloadRange(ctx, pool, media, file, startSize, taskProgress, task.threads)
 		if errors.Is(downloadErr, errCDNRedirect) {
 			// CDN files cannot be fetched with the simple range call. Fall
 			// back to gotd's full downloader and restart this file.
@@ -481,6 +573,18 @@ func (s *Service) runDownload(task *downloadTask, ctx context.Context, generatio
 			}
 		}
 		s.failDownload(task.dto.ID, generation, downloadErr)
+		return
+	}
+
+	// A resumed or multi-threaded write must have produced exactly the media
+	// size before the file is delivered; otherwise leave it as a failed task
+	// instead of renaming a short/corrupt file into place.
+	if info, statErr := os.Stat(tempPath); statErr != nil || (media.Size > 0 && info.Size() != media.Size) {
+		actual := int64(-1)
+		if info != nil {
+			actual = info.Size()
+		}
+		s.failDownload(task.dto.ID, generation, fmt.Errorf("downloaded file has wrong size (%d/%d)", actual, media.Size))
 		return
 	}
 
@@ -565,6 +669,11 @@ func (s *Service) downloadFresh(
 
 var errCDNRedirect = errors.New("CDN download requires full transfer")
 
+// downloadRange downloads the missing tail of a paused file with the same
+// multi-connection strategy as the tdl downloader: several workers pull
+// independent 1 MiB ranges through tdl's DC pool and write them with WriteAt.
+// The previous sequential loop was the only place downloads stopped using the
+// tdl core, and it made every resumed file single-connection slow.
 func (s *Service) downloadRange(
 	ctx context.Context,
 	pool dcpool.Pool,
@@ -572,55 +681,77 @@ func (s *Service) downloadRange(
 	file *os.File,
 	start int64,
 	progress *downloadProgress,
+	threads int,
 ) error {
-	const (
-		partSize   = int64(1024 * 1024)
-		chunkAlign = int64(4096)
-	)
-	offset := start
-	client := pool.Client(ctx, media.DC)
-
-	for offset < media.Size {
-		remaining := media.Size - offset
-		limit := partSize
-		if remaining < limit {
-			limit = remaining
-		}
-		// Telegram requires offset and limit to be divisible by 4 KiB.
-		limit = limit / chunkAlign * chunkAlign
-		if limit < chunkAlign {
-			limit = chunkAlign
-		}
-		result, err := client.UploadGetFile(ctx, &tg.UploadGetFileRequest{
-			Location: media.InputFileLoc,
-			Offset:   offset,
-			Limit:    int(limit),
-			Precise:  true,
-		})
-		if err != nil {
-			return fmt.Errorf("resume download: %w", err)
-		}
-		switch value := result.(type) {
-		case *tg.UploadFile:
-			data := value.Bytes
-			if len(data) == 0 {
-				return fmt.Errorf("resume download returned no data at %d/%d", offset, media.Size)
-			}
-			if int64(len(data)) > remaining {
-				data = data[:remaining]
-			}
-			if _, err := file.WriteAt(data, offset); err != nil {
-				return fmt.Errorf("write resumed file: %w", err)
-			}
-			offset += int64(len(data))
-			progress.Report(offset, media.Size)
-		case *tg.UploadFileCDNRedirect:
-			return errCDNRedirect
-		default:
-			return fmt.Errorf("unexpected upload.getFile result %T", result)
-		}
+	const partSize = int64(1024 * 1024)
+	const maxThreads = 16
+	if threads < 1 {
+		threads = 4
 	}
-	return nil
+	if threads > maxThreads {
+		threads = maxThreads
+	}
+	if start >= media.Size {
+		return nil
+	}
+
+	client := pool.Client(ctx, media.DC)
+	var next atomic.Int64
+	next.Store(start)
+	var downloaded atomic.Int64
+
+	group, groupCtx := errgroup.WithContext(ctx)
+	for worker := 0; worker < threads; worker++ {
+		group.Go(func() error {
+			for {
+				offset := next.Add(partSize) - partSize
+				if offset >= media.Size {
+					return nil
+				}
+				remaining := media.Size - offset
+				// Always request a 4 KiB-aligned part; the server returns a short
+				// chunk at EOF, which is trimmed below.
+				result, err := client.UploadGetFile(groupCtx, &tg.UploadGetFileRequest{
+					Location: media.InputFileLoc,
+					Offset:   offset,
+					Limit:    int(partSize),
+					Precise:  true,
+				})
+				if err != nil {
+					return fmt.Errorf("resume download: %w", err)
+				}
+				data, err := uploadFileData(result, remaining)
+				if err != nil {
+					return err
+				}
+				if _, err := file.WriteAt(data, offset); err != nil {
+					return fmt.Errorf("write resumed file: %w", err)
+				}
+				progress.Report(start+downloaded.Add(int64(len(data))), media.Size)
+			}
+		})
+	}
+	return group.Wait()
+}
+
+// uploadFileData extracts the bytes of an upload.getFile answer and trims the
+// last part to the bytes that are actually still missing.
+func uploadFileData(result tg.UploadFileClass, remaining int64) ([]byte, error) {
+	switch value := result.(type) {
+	case *tg.UploadFile:
+		data := value.Bytes
+		if len(data) == 0 {
+			return nil, fmt.Errorf("resume download returned no data")
+		}
+		if int64(len(data)) > remaining {
+			data = data[:remaining]
+		}
+		return data, nil
+	case *tg.UploadFileCDNRedirect:
+		return nil, errCDNRedirect
+	default:
+		return nil, fmt.Errorf("unexpected upload.getFile result %T", result)
+	}
 }
 
 func (s *Service) activateTask(id string, generation int) bool {

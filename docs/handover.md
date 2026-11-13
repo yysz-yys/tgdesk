@@ -51,7 +51,9 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 - 消息列表切换会话时先用内存快照渲染，再后台刷新；图片不再逐张走 Wails base64 RPC。
   会话列表与 archived/folders 并行加载；内核有 20 秒 dialog 缓存，避免刷新/重载
   时重复 `messages.getDialogs` 触发 flood wait。
-- 媒体下载：断点续传、暂停/继续/取消、进度事件、任务持久化。
+- 媒体下载：tdl 内核多连接传输（新文件用 tdl downloader，续传用 tdl DC 池并发分片），
+  断点续传、全部暂停/全部开始、进度事件、任务持久化；移除任务会删除未完成的 `.tmp`，
+  新任务只续传自己记录的临时文件，完成前校验文件大小，避免残留临时文件导致文件损坏。
 - 设置：语言、Enter 发送、下载目录/并发/线程/模板、代理、NTP。
 - 三语言：English / 简体中文 / 日本語。
 - 全前端统一 F 视觉（Radix Themes 原子层、Lucide 图标、Inter + 系统中文字体、
