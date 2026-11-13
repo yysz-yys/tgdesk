@@ -155,6 +155,78 @@ export function SettingsDialog({
             </div>
           </SettingRow>
 
+          <SettingRow title={t("settings.downloads.pool")}>
+            <div className="f-settings-slider">
+              <Slider
+                min={1}
+                max={16}
+                step={1}
+                value={settings.pool}
+                onValueChange={(value) => onUpdate("pool", value)}
+                label={t("settings.downloads.pool")}
+              />
+              <span className="f-settings-slider-value">{settings.pool}</span>
+            </div>
+          </SettingRow>
+
+          <SettingRow title={t("settings.downloads.concurrent")}>
+            <div className="f-settings-slider">
+              <Slider
+                min={1}
+                max={8}
+                step={1}
+                value={settings.limit}
+                onValueChange={(value) => onUpdate("limit", value)}
+                label={t("settings.downloads.concurrent")}
+              />
+              <span className="f-settings-slider-value">{settings.limit}</span>
+            </div>
+          </SettingRow>
+
+          <SettingRow title={t("settings.downloads.reconnect")}>
+            <div className="f-settings-slider">
+              <Slider
+                min={1}
+                max={30}
+                step={1}
+                value={Math.max(1, Math.round(settings.reconnectSeconds / 60))}
+                onValueChange={(value) =>
+                  onUpdate("reconnectSeconds", Math.round(value) * 60)
+                }
+                label={t("settings.downloads.reconnect")}
+              />
+              <span className="f-settings-slider-value">
+                {t("settings.downloads.reconnectValue", {
+                  count: Math.max(1, Math.round(settings.reconnectSeconds / 60)),
+                })}
+              </span>
+            </div>
+          </SettingRow>
+
+          <SettingRow title={t("settings.downloads.skipSame")}>
+            <Switch
+              label={t("settings.downloads.skipSame")}
+              checked={settings.skipSame}
+              onCheckedChange={(value) => onUpdate("skipSame", value)}
+            />
+          </SettingRow>
+
+          <SettingRow title={t("settings.downloads.takeout")}>
+            <Switch
+              label={t("settings.downloads.takeout")}
+              checked={settings.takeout}
+              onCheckedChange={(value) => onUpdate("takeout", value)}
+            />
+          </SettingRow>
+
+          <SettingRow title={t("settings.downloads.rewriteExt")}>
+            <Switch
+              label={t("settings.downloads.rewriteExt")}
+              checked={settings.rewriteExt}
+              onCheckedChange={(value) => onUpdate("rewriteExt", value)}
+            />
+          </SettingRow>
+
           <SettingRow title={t("settings.downloads.tdlStreaming")}>
             <Switch
               label={t("settings.downloads.tdlStreaming")}

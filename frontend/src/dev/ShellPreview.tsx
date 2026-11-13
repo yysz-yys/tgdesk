@@ -214,6 +214,8 @@ const activeTasks: DownloadTask[] = [
     id: "task-1",
     name: "design-spec.pdf",
     chat: "设计团队",
+    chatId: "team",
+    messageId: 102,
     size: "4.2 MB",
     progress: 42,
     speed: "1.8 MB/s",
@@ -226,6 +228,8 @@ const activeTasks: DownloadTask[] = [
     id: "task-2",
     name: "icon-set-v2.zip",
     chat: "文件传输",
+    chatId: "team",
+    messageId: 103,
     size: "128 MB",
     progress: 0,
     status: "queued",
@@ -236,6 +240,8 @@ const activeTasks: DownloadTask[] = [
     id: "task-3",
     name: "产品演示.mp4",
     chat: "产品讨论",
+    chatId: "team",
+    messageId: 104,
     size: "86 MB",
     progress: 80,
     status: "paused",
@@ -249,6 +255,8 @@ const completedTasks: DownloadTask[] = [
     id: "task-4",
     name: "brand-guidelines.pdf",
     chat: "设计团队",
+    chatId: "team",
+    messageId: 101,
     size: "12 MB",
     progress: 100,
     status: "done",
@@ -259,6 +267,8 @@ const completedTasks: DownloadTask[] = [
     id: "task-5",
     name: "icon-preview.png",
     chat: "文件传输",
+    chatId: "team",
+    messageId: 4,
     size: "2.4 MB",
     progress: 100,
     status: "done",
@@ -272,6 +282,8 @@ const failedTasks: DownloadTask[] = [
     id: "task-6",
     name: "voice-note.ogg",
     chat: "林小满",
+    chatId: "team",
+    messageId: 5,
     size: "3.1 MB",
     progress: 38,
     status: "failed",
@@ -280,6 +292,80 @@ const failedTasks: DownloadTask[] = [
     error: "连接超时，请重试",
   },
 ];
+
+const previewThumb =
+  "data:image/svg+xml;charset=utf-8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#6b8bff"/><stop offset="1" stop-color="#b2d8ff"/></linearGradient></defs><rect width="800" height="600" fill="url(#g)"/><circle cx="400" cy="300" r="120" fill="rgba(255,255,255,.35)"/></svg>',
+  );
+
+function previewSharedMedia(section: string, chatID: string): Message[] {
+  const base = { chatId: chatID, out: false, text: "", time: "22:20", date: "今天" };
+  const photo: Message = {
+    ...base,
+    id: 101,
+    media: { kind: "photo", name: "Photo", thumbUrl: previewThumb, width: 800, height: 600 },
+  };
+  const video: Message = {
+    ...base,
+    id: 102,
+    media: {
+      kind: "video",
+      name: "Video",
+      thumbUrl: previewThumb,
+      duration: 42,
+      width: 1280,
+      height: 720,
+    },
+  };
+  const gif: Message = {
+    ...base,
+    id: 103,
+    media: { kind: "animation", name: "GIF", thumbUrl: previewThumb },
+  };
+  const file: Message = {
+    ...base,
+    id: 4,
+    media: {
+      kind: "file",
+      name: "design-spec.pdf",
+      size: "4.2 MB",
+      ext: "PDF",
+      color: "#d9537f",
+    },
+  };
+  const music: Message = {
+    ...base,
+    id: 104,
+    media: {
+      kind: "audio",
+      name: "Night Drive",
+      title: "Night Drive",
+      performer: "Mia",
+      duration: 183,
+      color: "#7bc862",
+    },
+  };
+  const voice: Message = {
+    ...base,
+    id: 5,
+    media: { kind: "voice", name: "Voice message", duration: 12, size: "128 KB" },
+  };
+  switch (section) {
+    case "media":
+      return [photo, video];
+    case "files":
+      return [file];
+    case "gifs":
+      return [gif];
+    case "music":
+      return [music];
+    case "voice":
+      return [voice];
+    default:
+      return [];
+  }
+}
 
 function SettingsDemo() {
   const [settings, setSettings] = useState<AppSettings>({
@@ -386,7 +472,10 @@ function Shell() {
           chat={demoChat}
           chats={demoChats}
           messages={messages}
+          downloads={[...activeTasks, ...completedTasks, ...failedTasks]}
           onDownloadMessage={noop}
+          onDownloadInline={noop}
+          onOpenDownloaded={noop}
           onLoadVideo={() => Promise.resolve("")}
           onLoadChatInfo={() =>
             Promise.resolve({
@@ -410,8 +499,12 @@ function Shell() {
               total: previewMembers.length,
             })
           }
-          onLoadSharedMedia={() =>
-            Promise.resolve({ items: [], hasMore: false, nextBeforeId: 0 })
+          onLoadSharedMedia={(chatID, section) =>
+            Promise.resolve({
+              items: previewSharedMedia(section, chatID),
+              hasMore: false,
+              nextBeforeId: 0,
+            })
           }
           onDownloadAll={noop}
           onTogglePin={togglePin}
@@ -453,3 +546,5 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     </div>
   </div>,
 );
+
+

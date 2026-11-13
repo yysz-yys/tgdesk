@@ -191,8 +191,8 @@ export function SetChatArchived(chatID: string, archived: boolean, proxy: string
     return $Call.ByID(52835712, chatID, archived, proxy, ntp);
 }
 
-export function StartDownload(chatID: string, chatTitle: string, messageIDs: number[] | null, proxy: string, ntp: string, dir: string, fileNameTemplate: string, threads: number): $CancellablePromise<string[] | null> {
-    return $Call.ByID(915368180, chatID, chatTitle, messageIDs, proxy, ntp, dir, fileNameTemplate, threads);
+export function StartDownload(chatID: string, chatTitle: string, messageIDs: number[] | null, proxy: string, ntp: string, dir: string, fileNameTemplate: string, options: kernel$0.DownloadOptions): $CancellablePromise<string[] | null> {
+    return $Call.ByID(915368180, chatID, chatTitle, messageIDs, proxy, ntp, dir, fileNameTemplate, options);
 }
 
 export function StartPhone(phone: string, proxy: string, ntp: string): $CancellablePromise<void> {

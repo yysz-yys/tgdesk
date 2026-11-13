@@ -14,6 +14,7 @@ export type {
     ChatMembersPageDTO,
     ChecklistItemDTO,
     DownloadEvent,
+    DownloadOptions,
     DownloadTaskDTO,
     MessageButtonDTO,
     MessageDTO,

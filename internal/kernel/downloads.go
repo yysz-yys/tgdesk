@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,18 +36,61 @@ const (
 )
 
 type DownloadTaskDTO struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Chat     string `json:"chat"`
-	Size     string `json:"size"`
-	Progress int    `json:"progress"`
-	Speed    string `json:"speed,omitempty"`
-	ETA      string `json:"eta,omitempty"`
-	Status   string `json:"status"`
-	Ext      string `json:"ext"`
-	Color    string `json:"color"`
-	Error    string `json:"error,omitempty"`
-	Path     string `json:"path,omitempty"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Chat      string `json:"chat"`
+	ChatID    string `json:"chatId"`
+	MessageID int    `json:"messageId"`
+	MediaKind string `json:"mediaKind,omitempty"`
+	Size      string `json:"size"`
+	Progress  int    `json:"progress"`
+	Speed     string `json:"speed,omitempty"`
+	ETA       string `json:"eta,omitempty"`
+	Status    string `json:"status"`
+	Ext       string `json:"ext"`
+	Color     string `json:"color"`
+	Error     string `json:"error,omitempty"`
+	Path      string `json:"path,omitempty"`
+}
+
+// DownloadOptions carries the tdl download settings the client exposes in
+// Settings → Downloads. Zero values are normalized to tdl's own defaults.
+type DownloadOptions struct {
+	Threads          int  `json:"threads"`
+	Pool             int  `json:"pool"`
+	Limit            int  `json:"limit"`
+	SkipSame         bool `json:"skipSame"`
+	RewriteExt       bool `json:"rewriteExt"`
+	Takeout          bool `json:"takeout"`
+	ReconnectSeconds int  `json:"reconnectSeconds"`
+}
+
+func normalizeDownloadOptions(options DownloadOptions) DownloadOptions {
+	if options.Threads < 1 {
+		options.Threads = 4
+	}
+	if options.Threads > 16 {
+		options.Threads = 16
+	}
+	if options.Pool < 1 {
+		options.Pool = 8
+	}
+	if options.Pool > 16 {
+		options.Pool = 16
+	}
+	if options.Limit < 1 {
+		options.Limit = 2
+	}
+	if options.Limit > 8 {
+		options.Limit = 8
+	}
+	if options.ReconnectSeconds < 30 {
+		options.ReconnectSeconds = 300
+	}
+	if options.ReconnectSeconds > 3600 {
+		options.ReconnectSeconds = 3600
+	}
+	return options
 }
 
 type DownloadEvent struct {
@@ -57,13 +101,20 @@ type DownloadEvent struct {
 type downloadTask struct {
 	dto DownloadTaskDTO
 
-	chatID    string
-	messageID int
-	proxy     string
-	ntp       string
-	dir       string
-	template  string
-	threads   int
+	chatID     string
+	messageID  int
+	proxy      string
+	ntp        string
+	dir        string
+	template   string
+	threads    int
+	poolSize   int
+	limit      int
+	skipSame   bool
+	rewriteExt bool
+	takeout    bool
+	reconnect  time.Duration
+	mediaKind  string
 
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -97,7 +148,7 @@ func (s *Service) StartDownload(
 	chatID, chatTitle string,
 	messageIDs []int,
 	proxy, ntp, dir, fileNameTemplate string,
-	threads int,
+	options DownloadOptions,
 ) ([]string, error) {
 	if len(messageIDs) == 0 {
 		return nil, fmt.Errorf("no messages selected")
@@ -109,12 +160,8 @@ func (s *Service) StartDownload(
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("create download folder: %w", err)
 	}
-	if threads < 1 {
-		threads = 4
-	}
-	if threads > 16 {
-		threads = 16
-	}
+	options = normalizeDownloadOptions(options)
+	threads := options.Threads
 	if strings.TrimSpace(fileNameTemplate) == "" {
 		fileNameTemplate = "{{ .DialogID }}_{{ .MessageID }}_{{ filenamify .FileName }}"
 	}
@@ -138,8 +185,11 @@ func (s *Service) StartDownload(
 	if s.downloadTasks == nil {
 		s.downloadTasks = make(map[string]*downloadTask)
 	}
-	if s.downloadSem == nil {
-		s.downloadSem = make(chan struct{}, 2)
+	if s.downloadSem == nil || cap(s.downloadSem) != options.Limit {
+		// tdl's --limit is the number of concurrently transferring items. A new
+		// limit applies to tasks that start from now on; already running tasks
+		// keep the channel they acquired.
+		s.downloadSem = make(chan struct{}, options.Limit)
 	}
 	for _, messageID := range messageIDs {
 		if messageID <= 0 {
@@ -162,20 +212,28 @@ func (s *Service) StartDownload(
 		id := fmt.Sprintf("dl-%d", s.downloadCounter)
 		task := &downloadTask{
 			dto: DownloadTaskDTO{
-				ID:     id,
-				Name:   fmt.Sprintf("Message %d", messageID),
-				Chat:   chatTitle,
-				Status: downloadQueued,
-				Color:  "#f0a04b",
+				ID:        id,
+				Name:      fmt.Sprintf("Message %d", messageID),
+				Chat:      chatTitle,
+				ChatID:    chatID,
+				MessageID: messageID,
+				Status:    downloadQueued,
+				Color:     "#f0a04b",
 			},
-			chatID:    chatID,
-			messageID: messageID,
-			proxy:     proxy,
-			ntp:       ntp,
-			dir:       dir,
-			template:  fileNameTemplate,
-			threads:   threads,
-			created:   time.Now().Unix(),
+			chatID:     chatID,
+			messageID:  messageID,
+			proxy:      proxy,
+			ntp:        ntp,
+			dir:        dir,
+			template:   fileNameTemplate,
+			threads:    threads,
+			poolSize:   options.Pool,
+			limit:      options.Limit,
+			skipSame:   options.SkipSame,
+			rewriteExt: options.RewriteExt,
+			takeout:    options.Takeout,
+			reconnect:  time.Duration(options.ReconnectSeconds) * time.Second,
+			created:    time.Now().Unix(),
 		}
 		s.downloadTasks[id] = task
 		s.downloadOrder = append(s.downloadOrder, id)
@@ -417,12 +475,18 @@ func (s *Service) cancelAllDownloads() {
 func (s *Service) runDownload(task *downloadTask, ctx context.Context, generation int, done chan struct{}) {
 	defer close(done)
 
+	s.downloadMu.Lock()
+	sem := s.downloadSem
+	s.downloadMu.Unlock()
+	if sem == nil {
+		sem = make(chan struct{}, normalizeDownloadOptions(DownloadOptions{}).Limit)
+	}
 	select {
-	case s.downloadSem <- struct{}{}:
+	case sem <- struct{}{}:
 	case <-ctx.Done():
 		return
 	}
-	defer func() { <-s.downloadSem }()
+	defer func() { <-sem }()
 
 	if !s.activateTask(task.dto.ID, generation) {
 		return
@@ -448,12 +512,23 @@ func (s *Service) runDownload(task *downloadTask, ctx context.Context, generatio
 		s.failDownload(task.dto.ID, generation, fmt.Errorf("message has no downloadable media"))
 		return
 	}
+	mediaKind := messageMediaKind(msg)
+	task.mediaKind = mediaKind
+	task.dto.MediaKind = mediaKind
 
 	finalPath := task.dto.Path
 	if finalPath == "" {
-		finalPath, err = taskPath(task, media, msg)
+		finalPath, err = taskPath(task, media, msg, mediaKind)
 		if err != nil {
 			s.failDownload(task.dto.ID, generation, err)
+			return
+		}
+	}
+	// tdl's --skip-same: a same-named file with the exact media size already on
+	// disk is delivered as-is instead of downloaded again.
+	if task.skipSame {
+		if info, statErr := os.Stat(finalPath); statErr == nil && info.Size() == media.Size {
+			s.completeDownload(task, generation, finalPath, media.Size, mediaKind, true)
 			return
 		}
 	}
@@ -525,7 +600,7 @@ func (s *Service) runDownload(task *downloadTask, ctx context.Context, generatio
 
 	// Match tdl's own download defaults (pool 8, threads 4+): fresh files use
 	// tdl's multi-connection downloader and resumed ranges use the same pool.
-	pool := dcpool.NewPool(client, 8, coretclient.NewDefaultMiddlewares(ctx, 2*time.Minute)...)
+	pool := dcpool.NewPool(client, int64(task.poolSize), coretclient.NewDefaultMiddlewares(ctx, task.reconnect)...)
 	taskProgress := &downloadProgress{
 		service:    s,
 		id:         task.dto.ID,
@@ -537,7 +612,7 @@ func (s *Service) runDownload(task *downloadTask, ctx context.Context, generatio
 
 	var downloadErr error
 	if startSize > 0 {
-		downloadErr = s.downloadRange(ctx, pool, media, file, startSize, taskProgress, task.threads)
+		downloadErr = s.downloadRange(ctx, pool, media, file, startSize, taskProgress, task.threads, task.takeout)
 		if errors.Is(downloadErr, errCDNRedirect) {
 			// CDN files cannot be fetched with the simple range call. Fall
 			// back to gotd's full downloader and restart this file.
@@ -592,7 +667,26 @@ func (s *Service) runDownload(task *downloadTask, ctx context.Context, generatio
 		s.failDownload(task.dto.ID, generation, fmt.Errorf("rename download: %w", err))
 		return
 	}
+	if task.rewriteExt {
+		finalPath = rewriteFileExtension(finalPath)
+		if media.Date > 0 {
+			_ = os.Chtimes(finalPath, time.Now(), time.Unix(media.Date, 0))
+		}
+	}
 
+	s.completeDownload(task, generation, finalPath, media.Size, mediaKind, false)
+}
+
+// completeDownload marks a task delivered. skipped is true for --skip-same,
+// where the already-present file is adopted without a transfer.
+func (s *Service) completeDownload(
+	task *downloadTask,
+	generation int,
+	finalPath string,
+	size int64,
+	mediaKind string,
+	skipped bool,
+) {
 	s.downloadMu.Lock()
 	current := s.downloadTasks[task.dto.ID]
 	if current == nil || current.generation != generation {
@@ -603,11 +697,15 @@ func (s *Service) runDownload(task *downloadTask, ctx context.Context, generatio
 	current.dto.Progress = 100
 	current.dto.Speed = ""
 	current.dto.ETA = ""
-	current.dto.Size = humanSize(media.Size)
+	current.dto.Size = humanSize(size)
 	current.dto.Path = finalPath
+	current.dto.MediaKind = mediaKind
+	if skipped {
+		current.dto.Error = ""
+	}
 	current.tempPath = ""
-	current.total = media.Size
-	current.downloaded = media.Size
+	current.total = size
+	current.downloaded = size
 	s.persistDownloadsLocked(true)
 	event := DownloadEvent{Task: cloneTask(current.dto)}
 	s.downloadMu.Unlock()
@@ -653,7 +751,7 @@ func (s *Service) downloadFresh(
 	task *downloadTask,
 	progress *downloadProgress,
 ) error {
-	element := &downloadElement{media: media, to: file}
+	element := &downloadElement{media: media, to: file, takeout: task.takeout}
 	dl := downloader.New(downloader.Options{
 		Pool:     pool,
 		Threads:  task.threads,
@@ -682,6 +780,7 @@ func (s *Service) downloadRange(
 	start int64,
 	progress *downloadProgress,
 	threads int,
+	takeout bool,
 ) error {
 	const partSize = int64(1024 * 1024)
 	const maxThreads = 16
@@ -695,7 +794,6 @@ func (s *Service) downloadRange(
 		return nil
 	}
 
-	client := pool.Client(ctx, media.DC)
 	var next atomic.Int64
 	next.Store(start)
 	var downloaded atomic.Int64
@@ -703,6 +801,10 @@ func (s *Service) downloadRange(
 	group, groupCtx := errgroup.WithContext(ctx)
 	for worker := 0; worker < threads; worker++ {
 		group.Go(func() error {
+			client := pool.Client(groupCtx, media.DC)
+			if takeout {
+				client = pool.Takeout(groupCtx, media.DC)
+			}
 			for {
 				offset := next.Add(partSize) - partSize
 				if offset >= media.Size {
@@ -811,13 +913,14 @@ func cloneTask(task DownloadTaskDTO) *DownloadTaskDTO {
 }
 
 type downloadElement struct {
-	media *tmedia.Media
-	to    io.WriterAt
+	media   *tmedia.Media
+	to      io.WriterAt
+	takeout bool
 }
 
 func (d *downloadElement) File() downloader.File { return d }
 func (d *downloadElement) To() io.WriterAt       { return d.to }
-func (d *downloadElement) AsTakeout() bool       { return false }
+func (d *downloadElement) AsTakeout() bool       { return d.takeout }
 func (d *downloadElement) Location() tg.InputFileLocationClass {
 	return d.media.InputFileLoc
 }
@@ -933,7 +1036,7 @@ type downloadTemplateData struct {
 	DownloadDate int64
 }
 
-func taskPath(task *downloadTask, media *tmedia.Media, msg *tg.Message) (string, error) {
+func taskPath(task *downloadTask, media *tmedia.Media, msg *tg.Message, mediaKind string) (string, error) {
 	id, err := peerRawID(task.chatID)
 	if err != nil {
 		return "", err
@@ -966,12 +1069,101 @@ func taskPath(task *downloadTask, media *tmedia.Media, msg *tg.Message) (string,
 		name = fmt.Sprintf("%d_%d_%s", id, msg.ID, media.Name)
 	}
 
-	finalPath := filepath.Join(task.dir, name)
+	targetDir := filepath.Join(task.dir, downloadCategoryFolder(mediaKind))
+	finalPath := filepath.Join(targetDir, name)
 	rel, err := filepath.Rel(task.dir, finalPath)
 	if err != nil || strings.HasPrefix(rel, "..") {
 		return "", fmt.Errorf("invalid download path")
 	}
 	return finalPath, nil
+}
+
+// downloadCategoryFolder groups downloads the way Telegram mobile does
+// (Images/Video/Audio/Documents) with the labels used by this client's tabs.
+func downloadCategoryFolder(kind string) string {
+	switch kind {
+	case "photo":
+		return "图片"
+	case "video", "video_note":
+		return "视频"
+	case "animation":
+		return "动图"
+	case "audio":
+		return "音频"
+	case "voice":
+		return "语音"
+	case "sticker":
+		return "贴纸"
+	default:
+		return "文件"
+	}
+}
+
+func messageMediaKind(msg tg.MessageClass) string {
+	if message, ok := msg.(*tg.Message); ok {
+		if media := mapMedia(message.Media); media != nil {
+			return media.Kind
+		}
+	}
+	return ""
+}
+
+// rewriteFileExtension mirrors tdl's --rewrite-ext: sniff the delivered file's
+// header and rename it when the extension does not match the MIME type.
+func rewriteFileExtension(path string) string {
+	file, err := os.Open(path)
+	if err != nil {
+		return path
+	}
+	header := make([]byte, 512)
+	n, _ := file.Read(header)
+	_ = file.Close()
+	if n == 0 {
+		return path
+	}
+	ext := extensionForMIME(http.DetectContentType(header[:n]))
+	if ext == "" || strings.EqualFold(filepath.Ext(path), ext) {
+		return path
+	}
+	target := strings.TrimSuffix(path, filepath.Ext(path)) + ext
+	if _, err := os.Stat(target); err == nil {
+		return path
+	}
+	if err := os.Rename(path, target); err != nil {
+		return path
+	}
+	return target
+}
+
+func extensionForMIME(mime string) string {
+	switch strings.ToLower(strings.TrimSpace(strings.Split(mime, ";")[0])) {
+	case "image/jpeg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/gif":
+		return ".gif"
+	case "image/webp":
+		return ".webp"
+	case "video/mp4":
+		return ".mp4"
+	case "video/webm":
+		return ".webm"
+	case "video/quicktime":
+		return ".mov"
+	case "audio/mpeg":
+		return ".mp3"
+	case "audio/ogg":
+		return ".ogg"
+	case "audio/mp4":
+		return ".m4a"
+	case "application/pdf":
+		return ".pdf"
+	case "application/zip":
+		return ".zip"
+	default:
+		return ""
+	}
 }
 
 func peerRawID(chatID string) (int64, error) {

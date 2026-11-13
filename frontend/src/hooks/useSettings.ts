@@ -6,6 +6,12 @@ export interface AppSettings {
   theme: ThemePreference;
   downloadDir: string;
   threads: number;
+  pool: number;
+  limit: number;
+  skipSame: boolean;
+  rewriteExt: boolean;
+  takeout: boolean;
+  reconnectSeconds: number;
   template: string;
   proxyType: "none" | "socks5" | "http";
   proxyHost: string;
@@ -22,6 +28,12 @@ export const defaultSettings: AppSettings = {
   theme: "system",
   downloadDir: "",
   threads: 4,
+  pool: 8,
+  limit: 2,
+  skipSame: false,
+  rewriteExt: false,
+  takeout: false,
+  reconnectSeconds: 300,
   template: "{{ .DialogID }}_{{ .MessageID }}_{{ filenamify .FileName }}",
   proxyType: "none",
   proxyHost: "127.0.0.1",

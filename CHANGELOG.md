@@ -51,6 +51,27 @@
 - Chat-info file rows can start a download even when that message is not part of
   the chat's loaded history page.
 
+### Chat-info downloads and tdl settings
+
+- Shared-media downloads no longer jump to the Downloads page: photos, GIFs,
+  videos, files, music and voice rows carry an inline download control. Media
+  tiles show a transparent round button in the top-right corner, file rows show
+  it over the file icon, and the button becomes a circular progress ring while
+  the transfer runs, then a green check when the file is delivered. Clicking a
+  finished badge opens the containing folder.
+- The chat-info header has a "Downloaded only" filter for every downloadable
+  tab; it keeps only items whose local task is done.
+- Downloads are grouped under the configured folder by Telegram's own mobile
+  categories: 图片 (photos), 视频 (videos and round videos), 动图 (GIFs),
+  音频 (music), 语音 (voice), 贴纸 (stickers) and 文件 (documents).
+- Settings → Downloads now exposes tdl's real download knobs with tdl's
+  documented defaults: folder, file-name template, threads per file (4), DC
+  pool size (8), concurrent files (2), reconnect timeout (5 min), skip-same,
+  takeout session and rewrite-extension. The kernel honours each option for new
+  tasks (pool size, tdl `--limit`, tdl `--skip-same`, takeout clients,
+  extension sniffing, and tdl's reconnect middleware window).
+- The delete-message dialog buttons are baseline-aligned again (both 32 px).
+
 ### Chat info and history loading
 
 - Chat info now mirrors Telegram Web's profile column: one

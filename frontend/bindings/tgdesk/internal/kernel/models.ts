@@ -207,10 +207,27 @@ export interface DownloadEvent {
     "removed"?: boolean;
 }
 
+/**
+ * DownloadOptions carries the tdl download settings the client exposes in
+ * Settings → Downloads. Zero values are normalized to tdl's own defaults.
+ */
+export interface DownloadOptions {
+    "threads": number;
+    "pool": number;
+    "limit": number;
+    "skipSame": boolean;
+    "rewriteExt": boolean;
+    "takeout": boolean;
+    "reconnectSeconds": number;
+}
+
 export interface DownloadTaskDTO {
     "id": string;
     "name": string;
     "chat": string;
+    "chatId": string;
+    "messageId": number;
+    "mediaKind"?: string;
     "size": string;
     "progress": number;
     "speed"?: string;

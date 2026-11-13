@@ -202,9 +202,9 @@ func (s *Service) StartDownload(
 	chatID, chatTitle string,
 	messageIDs []int,
 	proxy, ntp, dir, fileNameTemplate string,
-	threads int,
+	options kernel.DownloadOptions,
 ) ([]string, error) {
-	return s.kernel.StartDownload(chatID, chatTitle, messageIDs, proxy, ntp, dir, fileNameTemplate, threads)
+	return s.kernel.StartDownload(chatID, chatTitle, messageIDs, proxy, ntp, dir, fileNameTemplate, options)
 }
 
 func (s *Service) GetSelfAvatarURL(proxy, ntp string) (string, error) {

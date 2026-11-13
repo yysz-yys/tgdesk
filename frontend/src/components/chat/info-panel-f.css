@@ -568,3 +568,123 @@
     animation: none;
   }
 }
+
+/* --------------------------------------------------------------------------
+ * Inline download affordances in the shared-media lists. The tile/row keeps
+ * its own state instead of sending the user to the Downloads page.
+ */
+
+.f-info-download {
+  position: relative;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.42);
+  padding: 0;
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+
+.f-info-download:hover {
+  background: rgba(0, 0, 0, 0.58);
+  transform: scale(1.05);
+}
+
+.f-info-download[data-status="done"] {
+  background: rgba(43, 158, 66, 0.9);
+}
+
+.f-info-download[data-status="failed"] {
+  background: rgba(214, 64, 64, 0.92);
+}
+
+.f-info-download[data-status="paused"] {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.f-info-download-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.f-info-download-ring-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.32);
+  stroke-width: 2.5;
+}
+
+.f-info-download-ring-bar {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke-dasharray 180ms linear;
+}
+
+.f-info-media-cell > .f-info-download {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+}
+
+.f-info-file-icon-wrap {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  border-radius: 9px;
+}
+
+.f-info-download[data-variant="file"] {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.f-info-download[data-variant="file"]:hover {
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+.f-info-download[data-variant="row"] {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  color: var(--f-muted);
+  backdrop-filter: none;
+}
+
+.f-info-download[data-variant="row"]:hover {
+  background: var(--gray-a4);
+  color: var(--f-text);
+  transform: none;
+}
+
+.f-info-audio-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.f-info-row-progress {
+  flex: 0 0 auto;
+  color: var(--accent-11);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.f-info-filter-on {
+  background: var(--accent-a3);
+  color: var(--accent-11);
+}

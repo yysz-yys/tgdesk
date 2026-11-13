@@ -13,6 +13,9 @@ type persistedDownload struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
 	Chat       string `json:"chat"`
+	ChatID     string `json:"chatId"`
+	MessageID  int    `json:"messageId"`
+	MediaKind  string `json:"mediaKind,omitempty"`
 	Size       string `json:"size"`
 	Status     string `json:"status"`
 	Ext        string `json:"ext"`
@@ -21,11 +24,15 @@ type persistedDownload struct {
 	Path       string `json:"path,omitempty"`
 	TempPath   string `json:"tempPath,omitempty"`
 	Progress   int    `json:"progress"`
-	ChatID     string `json:"chatId"`
-	MessageID  int    `json:"messageId"`
 	Dir        string `json:"dir"`
 	Template   string `json:"template"`
 	Threads    int    `json:"threads"`
+	Pool       int    `json:"pool,omitempty"`
+	Limit      int    `json:"limit,omitempty"`
+	SkipSame   bool   `json:"skipSame,omitempty"`
+	RewriteExt bool   `json:"rewriteExt,omitempty"`
+	Takeout    bool   `json:"takeout,omitempty"`
+	Reconnect  int    `json:"reconnectSeconds,omitempty"`
 	Total      int64  `json:"total,omitempty"`
 	Downloaded int64  `json:"downloaded,omitempty"`
 	Created    int64  `json:"created"`
@@ -102,24 +109,51 @@ func (s *Service) loadDownloadTasks() {
 		}
 
 		dto := DownloadTaskDTO{
-			ID:       item.ID,
-			Name:     item.Name,
-			Chat:     item.Chat,
-			Size:     item.Size,
-			Progress: item.Progress,
-			Status:   status,
-			Ext:      item.Ext,
-			Color:    item.Color,
-			Error:    item.Error,
-			Path:     item.Path,
+			ID:        item.ID,
+			Name:      item.Name,
+			Chat:      item.Chat,
+			ChatID:    item.ChatID,
+			MessageID: item.MessageID,
+			MediaKind: item.MediaKind,
+			Size:      item.Size,
+			Progress:  item.Progress,
+			Status:    status,
+			Ext:       item.Ext,
+			Color:     item.Color,
+			Error:     item.Error,
+			Path:      item.Path,
+		}
+		reconnect := item.Reconnect
+		if reconnect < 30 {
+			reconnect = 300
+		}
+		// Older stores predate the tdl option fields; fall back to tdl defaults.
+		threads := item.Threads
+		if threads < 1 {
+			threads = 4
+		}
+		poolSize := item.Pool
+		if poolSize < 1 {
+			poolSize = 8
+		}
+		limit := item.Limit
+		if limit < 1 {
+			limit = 2
 		}
 		tasks[item.ID] = &downloadTask{
 			dto:        dto,
 			chatID:     item.ChatID,
 			messageID:  item.MessageID,
+			mediaKind:  item.MediaKind,
 			dir:        item.Dir,
 			template:   item.Template,
-			threads:    item.Threads,
+			threads:    threads,
+			poolSize:   poolSize,
+			limit:      limit,
+			skipSame:   item.SkipSame,
+			rewriteExt: item.RewriteExt,
+			takeout:    item.Takeout,
+			reconnect:  time.Duration(reconnect) * time.Second,
 			total:      total,
 			downloaded: downloaded,
 			tempPath:   tempPath,
@@ -157,6 +191,9 @@ func (s *Service) persistDownloadsLocked(force bool) {
 			ID:         task.dto.ID,
 			Name:       task.dto.Name,
 			Chat:       task.dto.Chat,
+			ChatID:     task.chatID,
+			MessageID:  task.messageID,
+			MediaKind:  task.dto.MediaKind,
 			Size:       task.dto.Size,
 			Status:     task.dto.Status,
 			Ext:        task.dto.Ext,
@@ -165,11 +202,15 @@ func (s *Service) persistDownloadsLocked(force bool) {
 			Path:       task.dto.Path,
 			TempPath:   task.tempPath,
 			Progress:   task.dto.Progress,
-			ChatID:     task.chatID,
-			MessageID:  task.messageID,
 			Dir:        task.dir,
 			Template:   task.template,
 			Threads:    task.threads,
+			Pool:       task.poolSize,
+			Limit:      task.limit,
+			SkipSame:   task.skipSame,
+			RewriteExt: task.rewriteExt,
+			Takeout:    task.takeout,
+			Reconnect:  int(task.reconnect / time.Second),
 			Total:      task.total,
 			Downloaded: task.downloaded,
 			Created:    task.created,

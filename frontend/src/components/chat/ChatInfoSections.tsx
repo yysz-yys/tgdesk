@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Browser } from "@wailsio/runtime";
 import { useTranslation } from "react-i18next";
-import type { Message, MessageMedia } from "../../types";
+import type { DownloadTask, Message, MessageMedia } from "../../types";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -32,6 +32,9 @@ export function InfoEmpty({ text }: { text: string }) {
 /** Actions the chat-info lists can trigger from rows and context menus. */
 export interface SectionActions {
   onDownload?: (ids: number[]) => void;
+  onDownloadInline?: (ids: number[]) => void;
+  onOpenDownloaded?: (task: DownloadTask) => void;
+  downloads?: Map<number, DownloadTask>;
   onForward?: (message: Message) => void;
   onDelete?: (message: Message) => void;
   onJumpToMessage?: (messageID: number) => void;
@@ -234,6 +237,88 @@ function selectionActive(actions: SectionActions) {
   return Boolean(actions.selectedIds && actions.selectedIds.size > 0);
 }
 
+/**
+ * Inline download affordance used by every shared-media list: a transparent
+ * round button that becomes a progress ring while the transfer runs and a
+ * check once it has been delivered. It never navigates away from the panel.
+ */
+function DownloadBadge({
+  message,
+  task,
+  onStart,
+  onOpen,
+  variant,
+}: {
+  message: Message;
+  task?: DownloadTask;
+  onStart?: (ids: number[]) => void;
+  onOpen?: (task: DownloadTask) => void;
+  variant: "corner" | "file" | "row";
+}) {
+  const { t } = useTranslation();
+  const status = task?.status;
+  const done = status === "done";
+  const progress = Math.max(0, Math.min(100, task?.progress ?? 0));
+  const active = Boolean(task && !done);
+  const label = done
+    ? t("downloads.downloaded")
+    : status === "paused"
+      ? t("downloads.paused", { progress })
+      : status === "failed"
+        ? t("downloads.retry")
+        : active
+          ? t("downloads.progressLabel", { progress })
+          : t("common.download");
+  return (
+    <button
+      type="button"
+      className="f-info-download"
+      data-variant={variant}
+      data-status={status ?? "idle"}
+      aria-label={label}
+      title={label}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (done && task) {
+          onOpen?.(task);
+        } else if (!task || status === "failed") {
+          onStart?.([message.id]);
+        }
+      }}
+    >
+      {active ? (
+        <svg className="f-info-download-ring" viewBox="0 0 36 36" aria-hidden>
+          <circle className="f-info-download-ring-track" cx="18" cy="18" r="16" />
+          <circle
+            className="f-info-download-ring-bar"
+            cx="18"
+            cy="18"
+            r="16"
+            pathLength={100}
+            strokeDasharray={`${progress} 100`}
+            transform="rotate(-90 18 18)"
+          />
+        </svg>
+      ) : null}
+      <Icon
+        name={
+          done
+            ? "check"
+            : status === "failed"
+              ? "refresh"
+              : status === "paused"
+                ? "pause"
+                : status === "active" || status === "queued"
+                  ? "download"
+                  : "download"
+        }
+        size={variant === "file" ? 14 : 15}
+      />
+    </button>
+  );
+}
+
 /** Telegram Web renders shared photos, videos and GIFs in a 3-column grid. */
 export function MediaGrid({
   items,
@@ -241,6 +326,9 @@ export function MediaGrid({
   onOpenPhoto,
   onPlayVideo,
   onDownload,
+  onDownloadInline,
+  onOpenDownloaded,
+  downloads,
   onForward,
   onDelete,
   onJumpToMessage,
@@ -324,6 +412,15 @@ export function MediaGrid({
                 </span>
               ) : null
             ) : null}
+            {!selecting ? (
+              <DownloadBadge
+                variant="corner"
+                message={message}
+                task={downloads?.get(message.id)}
+                onStart={onDownloadInline}
+                onOpen={onOpenDownloaded}
+              />
+            ) : null}
             {selecting ? (
               <span className="f-info-select-check" aria-hidden>
                 {selected ? <Icon name="check" size={14} /> : null}
@@ -341,6 +438,9 @@ export function MediaGrid({
 export function FileList({
   items,
   onDownload,
+  onDownloadInline,
+  onOpenDownloaded,
+  downloads,
   onForward,
   onDelete,
   onJumpToMessage,
@@ -365,6 +465,7 @@ export function FileList({
       {items.map((message) => {
         const media = message.media;
         const ext = (media?.ext || "FILE").slice(0, 5).toUpperCase();
+        const task = downloads?.get(message.id);
         return withContextMenu(
           message,
           actions,
@@ -376,16 +477,27 @@ export function FileList({
               if (selecting) {
                 onToggleSelect?.(message);
               } else {
-                onDownload?.([message.id]);
+                onDownloadInline?.([message.id]);
               }
             }}
           >
-            <span
-              className="f-info-file-icon"
-              style={{ background: media?.color || "#f0a04b" }}
-              aria-hidden
-            >
-              {ext}
+            <span className="f-info-file-icon-wrap">
+              <span
+                className="f-info-file-icon"
+                style={{ background: media?.color || "#f0a04b" }}
+                aria-hidden
+              >
+                {ext}
+              </span>
+              {!selecting ? (
+                <DownloadBadge
+                  variant="file"
+                  message={message}
+                  task={task}
+                  onStart={onDownloadInline}
+                  onOpen={onOpenDownloaded}
+                />
+              ) : null}
             </span>
             <span className="f-info-row-copy">
               <b>{media?.name || message.text || "File"}</b>
@@ -400,9 +512,15 @@ export function FileList({
                   <Icon name="check" size={14} />
                 ) : null}
               </span>
+            ) : task && task.status !== "done" ? (
+              <span className="f-info-row-progress" aria-hidden>
+                {task.progress}%
+              </span>
             ) : (
               <span className="f-info-row-action" aria-hidden>
-                <Icon name="download" size={16} />
+                {task?.status === "done" ? (
+                  <Icon name="check" size={16} />
+                ) : null}
               </span>
             )}
           </button>,
@@ -611,6 +729,9 @@ export function AudioList({
   items,
   voice,
   onDownload,
+  onDownloadInline,
+  onOpenDownloaded,
+  downloads,
   onForward,
   onDelete,
   onJumpToMessage,
@@ -715,8 +836,15 @@ export function AudioList({
                 ) : null}
               </span>
             ) : (
-              <span className="f-info-row-action" aria-hidden>
-                {media?.duration ? formatMediaDuration(media.duration) : ""}
+              <span className="f-info-row-action f-info-audio-actions">
+                <span>{media?.duration ? formatMediaDuration(media.duration) : ""}</span>
+                <DownloadBadge
+                  variant="row"
+                  message={message}
+                  task={downloads?.get(message.id)}
+                  onStart={onDownloadInline}
+                  onOpen={onOpenDownloaded}
+                />
               </span>
             )}
           </button>,

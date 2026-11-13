@@ -4,6 +4,7 @@ import type {
   Chat,
   ChatInfo,
   ChatMembersPage,
+  DownloadTask,
   Message,
   SharedMediaPage,
   SharedMediaSection,
@@ -37,7 +38,10 @@ interface ChatViewProps {
     beforeID: number,
   ) => Promise<SharedMediaPage>;
   liveVersion?: number;
+  downloads: DownloadTask[];
   onDownloadMessage: (ids: number[]) => void;
+  onDownloadInline: (ids: number[]) => void;
+  onOpenDownloaded: (task: DownloadTask) => void;
   onDownloadAll: () => void;
   onTogglePin: (id: string) => void;
   onToggleMute: (id: string) => void;
@@ -75,7 +79,10 @@ export function ChatView({
   onLoadMembersPage,
   onLoadSharedMedia,
   liveVersion,
+  downloads,
   onDownloadMessage,
+  onDownloadInline,
+  onOpenDownloaded,
   onDownloadAll,
   onTogglePin,
   onToggleMute,
@@ -457,9 +464,11 @@ export function ChatView({
           onLoadMembersPage={onLoadMembersPage}
           onLoadSharedMedia={onLoadSharedMedia}
           liveVersion={liveVersion}
+          downloads={downloads}
+          onDownloadInline={onDownloadInline}
+          onOpenDownloaded={onOpenDownloaded}
           onOpenPhoto={setViewingPhoto}
           onPlayVideo={setPlayingVideo}
-          onDownloadMessage={onDownloadMessage}
           onForwardMessage={(message) =>
             setForwarding({ message, ids: [message.id] })
           }

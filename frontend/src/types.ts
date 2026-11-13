@@ -319,6 +319,9 @@ export interface DownloadTask {
   id: string;
   name: string;
   chat: string;
+  chatId: string;
+  messageId: number;
+  mediaKind?: string;
   size: string;
   progress: number;
   speed?: string;

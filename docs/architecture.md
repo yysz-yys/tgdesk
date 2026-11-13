@@ -266,11 +266,16 @@ sync.
 `internal/kernel/downloads.go` + `download_store.go`:
 
 - Resolve the selected message, extract media with `core/tmedia`.
-- Fresh files use tdl's multi-connection `core/downloader` (the user's thread
-  setting) through an 8-connection tdl DC pool, matching tdl's own defaults.
+- Fresh files use tdl's multi-connection `core/downloader` through the
+  configurable tdl DC pool (`--pool`, default 8); per-file threads (`--threads`,
+  default 4), concurrent items (`--limit`, default 2), reconnect window
+  (`--reconnect-timeout`, default 5 min), takeout clients (`--takeout`) and
+  `--skip-same` / `--rewrite-ext` are wired from Settings → Downloads.
 - Write to `<name>.tmp`, verify the final byte count and rename on success.
 - Persist task metadata to `<root>/data/downloads.json`.
-- Emit `download:event` for progress/speed/ETA/state.
+- Emit `download:event` for progress/speed/ETA/state; each task carries its
+  chat/message ids and media kind so the chat-info panel can draw inline
+  progress badges and a downloaded-only filter without changing views.
 - A paused file keeps its `.tmp`; resume aligns to a 4 KiB boundary and fetches
   the missing tail as parallel 1 MiB `upload.getFile` ranges through the same
   tdl pool (the old sequential range loop was the slow path). CDN locations fall
@@ -281,9 +286,10 @@ sync.
 - Starting a download for a message that already has an active/queued/paused
   task returns that task instead of opening the same `.tmp` twice.
 - On restart, active/queued tasks become paused; the user resumes from the stored
-  byte offset. The UI offers Pause all and Resume all.
+  byte offset. The UI offers one Pause all / Resume all toggle.
 - The default destination is `<root>/downloads`; the Settings template is
-  evaluated with tdl `tplfunc`.
+  evaluated with tdl `tplfunc`. Files are grouped below it by Telegram mobile
+  categories (`图片`, `视频`, `动图`, `音频`, `语音`, `贴纸`, `文件`).
 
 ## Frontend architecture
 

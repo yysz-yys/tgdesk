@@ -228,9 +228,16 @@ body {
 
 .f-dialog-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 20px;
+}
+
+.f-dialog-actions .rt-Button {
+  height: 32px;
+  min-height: 32px;
+  padding-block: 0;
 }
 
 /* ----------------------------------------------------------------- menus */

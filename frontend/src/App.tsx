@@ -50,6 +50,9 @@ function toDownloadTask(task: DownloadTaskDTO): DownloadTask {
     id: task.id,
     name: task.name,
     chat: task.chat,
+    chatId: task.chatId,
+    messageId: task.messageId,
+    mediaKind: task.mediaKind || undefined,
     size: task.size,
     progress: task.progress,
     speed: task.speed || undefined,
@@ -697,10 +700,11 @@ export default function App() {
     void markChatsRead(ids);
   };
 
-  const queueDownloads = async (
+  const startDownloads = async (
     chat: Chat,
     ids: number[],
-    onlyLoadedMedia = false,
+    onlyLoadedMedia: boolean,
+    openDownloadsPage: boolean,
   ) => {
     const mediaIds = onlyLoadedMedia
       ? messages
@@ -720,14 +724,32 @@ export default function App() {
         settings.ntp,
         settings.downloadDir,
         settings.template,
-        settings.threads,
+        {
+          threads: settings.threads,
+          pool: settings.pool,
+          limit: settings.limit,
+          skipSame: settings.skipSame,
+          rewriteExt: settings.rewriteExt,
+          takeout: settings.takeout,
+          reconnectSeconds: settings.reconnectSeconds,
+        },
       );
       setDownloads(((await AppService.GetDownloads()) ?? []).map(toDownloadTask));
-      setView("downloads");
+      if (openDownloadsPage) {
+        setView("downloads");
+      }
     } catch {
       showToast(t("toasts.downloadStartFailed"));
     }
   };
+
+  const queueDownloads = (chat: Chat, ids: number[], onlyLoadedMedia = false) =>
+    startDownloads(chat, ids, onlyLoadedMedia, true);
+
+  // Chat-info downloads stay on the conversation: the tile/row shows its own
+  // progress ring instead of taking the user to the Downloads page.
+  const downloadInline = (chat: Chat, ids: number[]) =>
+    startDownloads(chat, ids, false, false);
 
   const downloadAll = (chat: Chat) => {
     if (chat.id !== selectedChatId) {
@@ -765,6 +787,12 @@ export default function App() {
 
   const openDownloadFolder = () => {
     void AppService.OpenDownloadFolder(settings.downloadDir).catch(() => {
+      showToast(t("toasts.downloadActionFailed"));
+    });
+  };
+
+  const openDownloadedTask = (task: DownloadTask) => {
+    void AppService.OpenDownloadFolder(task.path ?? settings.downloadDir).catch(() => {
       showToast(t("toasts.downloadActionFailed"));
     });
   };
@@ -1362,11 +1390,18 @@ export default function App() {
                 chat={selectedChat}
                 chats={chatState}
                 messages={messages}
+                downloads={downloads}
                 onDownloadMessage={(ids) => {
                   if (selectedChat) {
                     void queueDownloads(selectedChat, ids);
                   }
                 }}
+                onDownloadInline={(ids) => {
+                  if (selectedChat) {
+                    void downloadInline(selectedChat, ids);
+                  }
+                }}
+                onOpenDownloaded={openDownloadedTask}
                 onLoadVideo={loadMessageVideo}
                 onLoadChatInfo={loadChatInfo}
                 onLoadMembersPage={loadChatMembersPage}

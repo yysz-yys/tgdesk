@@ -6,6 +6,7 @@ import type {
   ChatInfo,
   ChatMember,
   ChatMembersPage,
+  DownloadTask,
   Message,
   SharedMediaPage,
   SharedMediaSection,
@@ -42,7 +43,9 @@ interface ChatInfoPanelProps {
   ) => Promise<SharedMediaPage>;
   onOpenPhoto?: (message: Message) => void;
   onPlayVideo?: (message: Message) => void;
-  onDownloadMessage?: (ids: number[]) => void;
+  downloads: DownloadTask[];
+  onDownloadInline: (ids: number[]) => void;
+  onOpenDownloaded: (task: DownloadTask) => void;
   onForwardMessage?: (message: Message) => void;
   onDeleteMessage?: (message: Message) => void;
   onForwardMessages?: (messages: Message[]) => void;
@@ -193,7 +196,9 @@ export function ChatInfoPanel({
   onLoadSharedMedia,
   onOpenPhoto,
   onPlayVideo,
-  onDownloadMessage,
+  downloads,
+  onDownloadInline,
+  onOpenDownloaded,
   onForwardMessage,
   onDeleteMessage,
   onForwardMessages,
@@ -208,6 +213,7 @@ export function ChatInfoPanel({
   const [infoFailed, setInfoFailed] = useState(false);
   const [active, setActive] = useState<InfoTab | null>(null);
   const [mediaFilter, setMediaFilter] = useState<MediaFilter>("all");
+  const [downloadedOnly, setDownloadedOnly] = useState(false);
   const [selection, setSelection] = useState<Map<number, Message>>(new Map());
   const [sections, setSections] =
     useState<Record<SharedMediaSection, SectionState>>(createSections);
@@ -251,6 +257,24 @@ export function ChatInfoPanel({
   }, [active, mediaFilter]);
 
   const selectedIds = useMemo(() => new Set(selection.keys()), [selection]);
+
+  /** Latest local download task keyed by the message it belongs to. */
+  const downloadsByMessage = useMemo(() => {
+    const map = new Map<number, DownloadTask>();
+    for (const task of downloads) {
+      if (task.chatId === chat.id && task.messageId > 0) {
+        map.set(task.messageId, task);
+      }
+    }
+    return map;
+  }, [chat.id, downloads]);
+
+  const downloadableSection =
+    activeSection !== null && activeSection !== "links";
+
+  useEffect(() => {
+    setDownloadedOnly(false);
+  }, [chat.id]);
   const toggleSelect = useCallback((message: Message) => {
     setSelection((current) => {
       const next = new Map(current);
@@ -671,7 +695,10 @@ export function ChatInfoPanel({
   };
 
   const sectionActions = {
-    onDownload: onDownloadMessage,
+    onDownload: onDownloadInline,
+    onDownloadInline,
+    onOpenDownloaded,
+    downloads: downloadsByMessage,
     onForward: onForwardMessage,
     onDelete: onDeleteMessage,
     onJumpToMessage,
@@ -704,6 +731,21 @@ export function ChatInfoPanel({
         <InfoEmpty text={t(SECTION_EMPTY[section])} />
       );
     }
+    const items =
+      downloadedOnly && section !== "links"
+        ? state.items.filter(
+            (message) => downloadsByMessage.get(message.id)?.status === "done",
+          )
+        : state.items;
+    if (downloadedOnly && section !== "links" && items.length === 0) {
+      return state.loading ? (
+        <div className="f-info-status">
+          <Spinner size={18} />
+        </div>
+      ) : (
+        <InfoEmpty text={t("rightPanel.downloadedFilterEmpty")} />
+      );
+    }
 
     let list;
     switch (section) {
@@ -712,7 +754,7 @@ export function ChatInfoPanel({
       case "videos":
         list = (
           <MediaGrid
-            items={state.items}
+            items={items}
             onOpenPhoto={onOpenPhoto}
             onPlayVideo={onPlayVideo}
             {...sectionActions}
@@ -723,7 +765,7 @@ export function ChatInfoPanel({
         list = (
           <MediaGrid
             gifs
-            items={state.items}
+            items={items}
             onOpenPhoto={onOpenPhoto}
             onPlayVideo={onPlayVideo}
             {...sectionActions}
@@ -731,16 +773,16 @@ export function ChatInfoPanel({
         );
         break;
       case "files":
-        list = <FileList items={state.items} {...sectionActions} />;
+        list = <FileList items={items} {...sectionActions} />;
         break;
       case "links":
-        list = <LinkList items={state.items} {...sectionActions} />;
+        list = <LinkList items={items} {...sectionActions} />;
         break;
       case "music":
-        list = <AudioList items={state.items} {...sectionActions} />;
+        list = <AudioList items={items} {...sectionActions} />;
         break;
       case "voice":
-        list = <AudioList voice items={state.items} {...sectionActions} />;
+        list = <AudioList voice items={items} {...sectionActions} />;
         break;
       default:
         list = null;
@@ -818,6 +860,16 @@ export function ChatInfoPanel({
               </DropdownMenu.CheckboxItem>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
+        ) : null}
+        {downloadableSection ? (
+          <IconButton
+            label={t("rightPanel.downloadedFilter")}
+            icon="check_circle"
+            size="1"
+            iconSize={17}
+            className={downloadedOnly ? "f-info-filter-on" : undefined}
+            onClick={() => setDownloadedOnly((current) => !current)}
+          />
         ) : null}
       </header>
 
@@ -932,7 +984,7 @@ export function ChatInfoPanel({
             icon="download"
             size="1"
             iconSize={17}
-            onClick={() => onDownloadMessage?.(Array.from(selection.keys()))}
+            onClick={() => onDownloadInline(Array.from(selection.keys()))}
           />
           <IconButton
             label={t("chat.delete")}

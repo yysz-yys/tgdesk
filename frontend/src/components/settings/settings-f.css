@@ -218,11 +218,12 @@
 }
 
 .f-settings-slider-value {
-  width: 22px;
+  min-width: 22px;
   color: var(--f-muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   text-align: right;
+  white-space: nowrap;
 }
 
 @media (max-height: 640px) {
