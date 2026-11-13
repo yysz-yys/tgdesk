@@ -1,5 +1,11 @@
+import type { ElementType } from "react";
+import "@material/web/labs/segmentedbuttonset/outlined-segmented-button-set.js";
+import "@material/web/labs/segmentedbutton/outlined-segmented-button.js";
 import { cn } from "../../lib/cn";
 import { Icon } from "./Icon";
+
+const MdSegmentedButtonSet = "md-outlined-segmented-button-set" as unknown as ElementType;
+const MdSegmentedButton = "md-outlined-segmented-button" as unknown as ElementType;
 
 export interface SegmentedOption<T extends string> {
   value: T;
@@ -15,11 +21,7 @@ export interface SegmentedControlProps<T extends string> {
   className?: string;
 }
 
-/**
- * Material 3 segmented button. Each segment is a native button with
- * `aria-pressed`, so keyboard and screen-reader behaviour stays predictable;
- * the selected segment receives a check icon and the tonal container.
- */
+/** Google's official outlined segmented button set. */
 export function SegmentedControl<T extends string>({
   value,
   options,
@@ -28,27 +30,20 @@ export function SegmentedControl<T extends string>({
   className,
 }: SegmentedControlProps<T>) {
   return (
-    <div className={cn("g-segmented", className)} role="group" aria-label={label}>
-      {options.map((option) => {
-        const selected = option.value === value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            className="g-segmented-item"
-            data-selected={selected || undefined}
-            aria-pressed={selected}
-            onClick={() => onChange(option.value)}
-          >
-            {selected ? (
-              <Icon name="check" size={16} />
-            ) : option.icon ? (
-              <Icon name={option.icon} size={16} />
-            ) : null}
-            <span>{option.label}</span>
-          </button>
-        );
-      })}
-    </div>
+    <MdSegmentedButtonSet
+      className={cn("g-segmented", className)}
+      aria-label={label}
+    >
+      {options.map((option) => (
+        <MdSegmentedButton
+          key={option.value}
+          label={option.label}
+          selected={option.value === value}
+          onClick={() => onChange(option.value)}
+        >
+          {option.icon ? <Icon slot="icon" name={option.icon} size={16} /> : null}
+        </MdSegmentedButton>
+      ))}
+    </MdSegmentedButtonSet>
   );
 }

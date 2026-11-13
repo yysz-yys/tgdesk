@@ -31,6 +31,7 @@ interface ChatAvatarProps {
   chat: Chat;
   size?: number;
   className?: string;
+  slot?: string;
   loader: ChatAvatarLoader;
 }
 
@@ -39,7 +40,7 @@ interface ChatAvatarProps {
  * near the viewport, so long dialog lists do not fan out dozens of Telegram
  * calls at once. Initials stay visible if the peer has no photo.
  */
-export function ChatAvatar({ chat, size = 42, className, loader }: ChatAvatarProps) {
+export function ChatAvatar({ chat, size = 42, className, slot, loader }: ChatAvatarProps) {
   const hostRef = useRef<HTMLSpanElement>(null);
   const [photo, setPhoto] = useState(() => photoCache.get(chat.id) ?? "");
 
@@ -85,7 +86,7 @@ export function ChatAvatar({ chat, size = 42, className, loader }: ChatAvatarPro
   }, [chat.id, loader, photo]);
 
   return (
-    <span ref={hostRef} className="g-chat-avatar">
+    <span ref={hostRef} className="g-chat-avatar" slot={slot}>
       <Avatar
         title={chat.title}
         initials={chat.initials}

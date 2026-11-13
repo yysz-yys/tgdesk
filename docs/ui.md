@@ -215,32 +215,36 @@ Automatic tdata lifecycle:
 
 ### Conversation list
 
-- 66px flat rows with 42px avatars; hover uses the 8% state layer and the
-  selected row uses `primary-container`. Real photos load lazily and fall back to
-  initials.
+- Built from Google's `md-list` + `md-list-item` (`type="button"`), not a
+  hand-styled button. Rows use the official avatar slot, headline, supporting
+  text, trailing meta and ripple/focus ring.
+- 68px two-line rows; hover/selection use the Material state layer and
+  `primary-container`. Real photos load lazily and fall back to initials.
 - Unread: preview weight 500, unread badge only on non-selected rows.
 - Pin/mute are quiet 13px icons before the preview, not inline with the title.
-- A hamburger + search pill form the top row; the hamburger opens the navigation
-  drawer with Chats, Downloads, Settings and Log out.
+- A hamburger + official `md-filled-text-field` search form the top row; the
+  hamburger opens the navigation drawer with Chats, Downloads, Settings and Log
+  out.
 - “全部 / 未读 / 归档” filter chips show counts; official Telegram folders
   from `messages.getDialogFilters` follow in the same horizontally scrollable
   row, using their title and emoticon.
 - Archived dialogs come from `messages.getDialogs(folder_id=1)`. Selecting a
   folder or Archive switches the active chat to the first matching row. The
   context menu can archive/unarchive a peer; folder definitions are read-only.
-- The floating pencil FAB opens the new-message picker.
+- The compose action is an official `md-fab` with the Material primary variant.
 - Loading uses skeleton rows with the same geometry as real rows.
 - No footer count and no permanent rail.
 
 ### Chat
 
 - App bar: 38px avatar, 18px conversation name, 12px presence/member line,
-  40px search/menu actions. It is a floating rounded surface bubble over the
-  wallpaper; clicking the avatar/title opens the chat-info dialog.
-- Clicking search replaces the bubble contents with an inline search field
-  (auto-focus, result count, clear and close); there is no separate search row.
-- The chat pane is full-bleed, with an original low-opacity Material outline
-  wallpaper; there is no outer rounded card.
+  40px search/menu actions. It is a flat Google Chat-style surface header with a
+  divider; clicking the avatar/title opens the chat-info dialog.
+- Clicking search replaces the header contents with an official
+  `md-filled-text-field` (auto-focus, result count, clear and close); there is no
+  separate search row.
+- The chat pane is full-bleed on a clean Material surface; no Telegram-style
+  doodle wallpaper or outer rounded card.
 - Incoming bubbles are white with a subtle M3 shadow in light mode and
   `#1f1f1f` on the darker canvas in dark mode; outgoing bubbles remain
   `primary-container`. Date labels are compact tonal pills, not full-width rules.
@@ -296,9 +300,14 @@ Automatic tdata lifecycle:
   no internal rules; spacing and typography group the controls.
 - Controls align to a 184px rail; stack below the label when the sheet is
   narrow or the control needs the full width (theme segments).
-- Theme is a three-segment M3 control; language, proxy type and NTP use outlined
-  selects; threads use a slider with a numeric chip.
+- Theme is Google's official `md-outlined-segmented-button-set`; language, proxy
+  type and NTP use outlined selects; threads use a slider with a numeric chip.
 - The sheet scrolls independently; the header and close action stay fixed.
+- This build pins `@material/web@2.5.0` (latest stable) and uses its list, chip,
+  FAB, filled text field, segmented button, tabs, switch, slider, select and
+  button elements. Chat bubbles, composer, message timeline, drawer and modal
+  surfaces have no one-to-one Material Web component and remain app-specific
+  layout; their standard controls are still the official elements above.
 
 ## 5. Interaction and accessibility
 
@@ -311,8 +320,9 @@ Automatic tdata lifecycle:
   focus returns to the trigger. An open Material select consumes Escape before
   its containing dialog. Enter submits forms; Enter sends a message only when
   the setting is on; Shift+Enter inserts a newline.
-- Chat list rows are real buttons (no `role="listitem"` override). Search inputs
-  are `type="search"`.
+- Chat list items are official `md-list-item type="button"` elements, so ripple,
+  focus ring and keyboard navigation come from Google's implementation. Search
+  fields are official filled text fields.
 - Message selection uses a selected state plus a visible check; hidden selection
   controls are removed from the tab order.
 - Lists scroll independently and use `overscroll-behavior: contain`.

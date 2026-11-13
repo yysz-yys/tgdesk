@@ -1,4 +1,6 @@
 import { useTranslation } from "react-i18next";
+import type { ElementType } from "react";
+import "@material/web/list/list-item.js";
 import type { Chat } from "../../types";
 import { Badge } from "../ui/Badge";
 import { Icon } from "../ui/Icon";
@@ -10,6 +12,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "../ui/ContextMenu";
+
+const MdListItem = "md-list-item" as unknown as ElementType;
 
 interface ChatRowProps {
   chat: Chat;
@@ -53,45 +57,46 @@ export function ChatRow({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <button
+        <MdListItem
           type="button"
-          className="g-chat-row"
+          className="g-chat-item"
           data-active={active || undefined}
           data-unread={(Boolean(chat.unread) && !active) || undefined}
           aria-current={active ? "page" : undefined}
           onClick={() => onSelect(chat.id)}
         >
-          <ChatAvatar chat={chat} size={42} loader={onLoadAvatar} />
+          <ChatAvatar slot="start" chat={chat} size={42} loader={onLoadAvatar} />
 
-          <span className="g-chat-body">
-            <span className="g-chat-topline">
-              <span className="g-chat-title">{chat.title}</span>
-              {chat.verified ? (
-                <Icon
-                  className="g-chat-verified"
-                  name="verified"
-                  size={15}
-                  filled
-                  label={t("chat.verified")}
-                />
-              ) : null}
-            </span>
-            <span className="g-chat-bottomline">
-              {chat.muted || chat.pinned ? (
-                <span className="g-chat-flags" aria-hidden="true">
-                  {chat.muted ? <Icon name="notifications_off" size={13} /> : null}
-                  {chat.pinned ? <Icon name="keep" size={13} filled /> : null}
-                </span>
-              ) : null}
-              <span className="g-chat-preview">{chat.preview}</span>
-            </span>
+          <span slot="headline" className="g-chat-headline">
+            <span className="g-chat-title">{chat.title}</span>
+            {chat.verified ? (
+              <Icon
+                className="g-chat-verified"
+                name="verified"
+                size={15}
+                filled
+                label={t("chat.verified")}
+              />
+            ) : null}
           </span>
 
-          <span className="g-chat-side">
+          <span slot="supporting-text" className="g-chat-preview-line">
+            {chat.muted || chat.pinned ? (
+              <span className="g-chat-flags" aria-hidden="true">
+                {chat.muted ? <Icon name="notifications_off" size={13} /> : null}
+                {chat.pinned ? <Icon name="keep" size={13} filled /> : null}
+              </span>
+            ) : null}
+            <span className="g-chat-preview">{chat.preview}</span>
+          </span>
+
+          <span slot="end" className="g-chat-side">
             <span className="g-chat-time">{chat.time}</span>
-            {chat.unread && !active ? <Badge count={chat.unread} muted={chat.muted} /> : null}
+            {chat.unread && !active ? (
+              <Badge count={chat.unread} muted={chat.muted} />
+            ) : null}
           </span>
-        </button>
+        </MdListItem>
       </ContextMenuTrigger>
 
       <ContextMenuContent>
@@ -123,7 +128,7 @@ export function ChatRow({
         >
           {t("chatMenu.downloadAll")}
         </ContextMenuItem>
-        <ContextMenuItem icon={<Icon name="link" size={18} />} onSelect={() => void copyLink()}>
+        <ContextMenuItem icon={<Icon name="link" size={18} />} onSelect={copyLink}>
           {t("chatMenu.copyLink")}
         </ContextMenuItem>
       </ContextMenuContent>

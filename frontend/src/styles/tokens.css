@@ -1,4 +1,4 @@
-﻿/* tgdesk design tokens.
+/* tgdesk design tokens.
  *
  * The values follow the Google Material 3 colour roles and the type/state
  * system used by Google Workspace (Gmail, Chat, Drive). Every @material/web
@@ -129,7 +129,7 @@
   --app-hover: rgba(227, 227, 227, 0.08);
   --app-active: rgba(227, 227, 227, 0.12);
   --app-scrim: rgba(0, 0, 0, 0.55);
-  --app-chat-canvas: #0e0e0e;
+  --app-chat-canvas: #131314;
   --app-chat-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='280' viewBox='0 0 280 280'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round' opacity='.04'%3E%3Cpath d='M26 30h48a12 12 0 0 1 12 12v24a12 12 0 0 1-12 12H52l-14 12V78h-12a12 12 0 0 1-12-12V42a12 12 0 0 1 12-12z'/%3E%3Cpath d='M122 24l7 16 17 2-13 12 3 17-14-9-15 9 3-17-12-12 17-2z'/%3E%3Cpath d='M232 38c-8-9-23-3-23 8 0 9 14 17 23 24 9-7 23-15 23-24 0-11-15-17-23-8z'/%3E%3Cpath d='M30 130l38-14-13 38-7-16z'/%3E%3Ccircle cx='116' cy='142' r='16'/%3E%3Crect x='180' y='124' width='38' height='32' rx='8'/%3E%3Cpath d='M40 226c11-16 29-16 38 0 9 16-13 25-19 34-6-9-28-18-19-34z'/%3E%3Cpath d='M136 220v38m0-34c0-8 11-10 16-3m-16 15c0-8 11-10 16-3'/%3E%3Cpath d='M220 226h40v28h-40zM228 226v-9h24v9'/%3E%3Cpath d='M238 130c0-8 9-14 17-14s17 6 17 14-9 14-17 14-17-6-17-14z'/%3E%3C/g%3E%3C/svg%3E");
   --app-incoming: #1f1f1f;
   --app-outgoing: #0842a0;

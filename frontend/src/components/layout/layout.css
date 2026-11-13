@@ -452,24 +452,9 @@
   right: var(--app-space-5);
   bottom: var(--app-space-5);
   z-index: 2;
-  display: grid;
-  width: 52px;
-  height: 52px;
-  place-items: center;
-  border: 0;
-  border-radius: 18px;
-  background: var(--app-primary);
-  color: var(--app-on-primary);
-  box-shadow: var(--app-elevation-2);
-  cursor: pointer;
-  transition:
-    background-color var(--app-motion-fast),
-    box-shadow var(--app-motion-fast);
-}
-
-.g-compose-fab:hover {
-  background: color-mix(in srgb, var(--app-primary) 90%, var(--app-on-primary));
-  box-shadow: var(--app-elevation-3);
+  --md-fab-primary-container-color: var(--app-primary);
+  --md-fab-primary-icon-color: var(--app-on-primary);
+  --md-fab-container-shape: 16px;
 }
 
 .g-list-head {
@@ -482,14 +467,14 @@
 }
 
 .g-list-head .g-search {
-  background: var(--app-surface);
+  background: transparent;
 }
 
 .g-list-filters {
   display: flex;
   flex: 0 0 auto;
-  align-items: center;
-  gap: var(--app-space-1);
+  flex-wrap: nowrap;
+  gap: 8px;
   overflow-x: auto;
   padding: 0 var(--app-space-3) var(--app-space-2);
   scrollbar-width: none;
@@ -499,45 +484,10 @@
   display: none;
 }
 
-.g-list-filters button {
-  display: inline-flex;
-  min-height: 30px;
+.g-list-filters md-filter-chip {
   flex: 0 0 auto;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  border-radius: var(--app-radius-pill);
-  background: transparent;
-  padding: 0 10px;
-  color: var(--app-on-surface-variant);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.g-folder-emoticon {
-  font-size: 13px;
-}
-
-.g-list-filters button:hover {
-  background: var(--app-hover);
-  color: var(--app-on-surface);
-}
-
-.g-list-filters button[data-active] {
-  background: var(--app-primary-container);
-  color: var(--app-on-primary-container);
-}
-
-.g-list-filters button > span {
-  display: inline-grid;
-  min-width: 18px;
-  height: 18px;
-  place-items: center;
-  border-radius: var(--app-radius-pill);
-  background: color-mix(in srgb, currentColor 10%, transparent);
-  padding: 0 5px;
-  font-size: 10px;
+  --md-filter-chip-label-text-size: 12px;
+  --md-filter-chip-container-height: 32px;
 }
 
 .g-sidebar-scroll {
@@ -550,72 +500,62 @@
 }
 
 .g-chat-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: block;
   padding: 0 var(--app-space-2) var(--app-space-2);
 }
 
-.g-chat-row {
-  display: flex;
-  width: 100%;
-  min-height: 66px;
-  align-items: center;
-  gap: var(--app-space-3);
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  padding: var(--app-space-2) var(--app-space-3);
-  color: var(--app-on-surface);
-  text-align: left;
-  cursor: pointer;
-  transition: background-color var(--app-motion-fast);
+md-list-item.g-chat-item {
+  margin: 2px 0;
+  border-radius: 14px;
+  --md-list-item-one-line-container-height: 64px;
+  --md-list-item-two-line-container-height: 68px;
+  --md-list-item-top-space: 10px;
+  --md-list-item-bottom-space: 10px;
+  --md-list-item-leading-space: 10px;
+  --md-list-item-trailing-space: 12px;
+  --md-list-item-label-text-font: var(--app-font-body);
+  --md-list-item-label-text-size: 14px;
+  --md-list-item-label-text-weight: 500;
+  --md-list-item-supporting-text-size: 12px;
+  --md-list-item-supporting-text-line-height: 17px;
+  --md-list-item-supporting-text-color: var(--app-on-surface-variant);
 }
 
-.g-chat-row:hover {
-  background: var(--app-hover);
-}
-
-.g-chat-row:active {
-  background: var(--app-active);
-}
-
-.g-chat-row[data-active] {
+md-list-item.g-chat-item[data-active] {
+  --md-list-item-label-text-color: var(--app-on-primary-container);
+  --md-list-item-supporting-text-color: color-mix(
+    in srgb,
+    var(--app-on-primary-container) 78%,
+    transparent
+  );
   background: var(--app-primary-container);
+}
+
+md-list-item.g-chat-item[data-active] .g-chat-headline,
+md-list-item.g-chat-item[data-active] .g-chat-preview-line,
+md-list-item.g-chat-item[data-active] .g-chat-side {
   color: var(--app-on-primary-container);
 }
 
-.g-chat-row[data-active]:hover {
-  background: color-mix(
-    in srgb,
-    var(--app-primary-container) 92%,
-    var(--app-on-primary-container)
-  );
+md-list-item.g-chat-item[data-active] .g-chat-preview {
+  color: color-mix(in srgb, var(--app-on-primary-container) 78%, transparent);
 }
 
-.g-chat-body {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 1px;
+md-list-item.g-chat-item[data-unread] {
+  --md-list-item-label-text-weight: 700;
 }
 
-.g-chat-topline {
+.g-chat-headline {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: var(--app-space-1);
+  gap: 4px;
 }
 
 .g-chat-title {
   min-width: 0;
   overflow: hidden;
   flex: 0 1 auto;
-  font-size: var(--app-font-size-body);
-  font-weight: 500;
-  letter-spacing: 0.1px;
-  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -625,8 +565,15 @@
   color: var(--app-primary);
 }
 
-.g-chat-row[data-active] .g-chat-verified {
+md-list-item.g-chat-item[data-active] .g-chat-verified {
   color: var(--app-on-primary-container);
+}
+
+.g-chat-preview-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
 }
 
 .g-chat-flags {
@@ -637,15 +584,8 @@
   color: var(--app-on-surface-variant);
 }
 
-.g-chat-row[data-active] .g-chat-flags {
+md-list-item.g-chat-item[data-active] .g-chat-flags {
   color: var(--app-on-primary-container);
-}
-
-.g-chat-bottomline {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--app-space-1);
 }
 
 .g-chat-preview {
@@ -653,17 +593,15 @@
   overflow: hidden;
   flex: 1;
   color: var(--app-on-surface-variant);
-  font-size: 13px;
-  line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.g-chat-row[data-active] .g-chat-preview {
+md-list-item.g-chat-item[data-active] .g-chat-preview {
   color: color-mix(in srgb, var(--app-on-primary-container) 78%, transparent);
 }
 
-.g-chat-row[data-unread] .g-chat-preview {
+md-list-item.g-chat-item[data-unread] .g-chat-preview {
   color: var(--app-on-surface);
   font-weight: 500;
 }
@@ -673,7 +611,7 @@
   flex: 0 0 auto;
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--app-space-1);
+  gap: 4px;
   align-self: stretch;
   justify-content: center;
 }
@@ -686,7 +624,7 @@
   white-space: nowrap;
 }
 
-.g-chat-row[data-active] .g-chat-time {
+md-list-item.g-chat-item[data-active] .g-chat-time {
   color: color-mix(in srgb, var(--app-on-primary-container) 72%, transparent);
 }
 
@@ -823,8 +761,8 @@
     padding-inline: var(--app-space-1);
   }
 
-  .g-chat-row {
-    padding-inline: var(--app-space-2);
+  md-list-item.g-chat-item {
+    --md-list-item-leading-space: 8px;
   }
 }
 

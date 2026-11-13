@@ -1,5 +1,9 @@
-import { useState } from "react";
+import { useState, type ElementType } from "react";
 import { useTranslation } from "react-i18next";
+import "@material/web/chips/chip-set.js";
+import "@material/web/chips/filter-chip.js";
+import "@material/web/fab/fab.js";
+import "@material/web/list/list.js";
 import type { Chat, ChatFolder } from "../../types";
 import { chatMatchesFolder } from "../../data/folders";
 import { Icon } from "../ui/Icon";
@@ -7,6 +11,11 @@ import { IconButton } from "../ui/IconButton";
 import { SearchField } from "../ui/SearchField";
 import { ChatRow } from "../chat/ChatRow";
 import type { ChatAvatarLoader } from "../chat/ChatAvatar";
+
+const MdChipSet = "md-chip-set" as unknown as ElementType;
+const MdFilterChip = "md-filter-chip" as unknown as ElementType;
+const MdList = "md-list" as unknown as ElementType;
+const MdFab = "md-fab" as unknown as ElementType;
 
 interface SidebarProps {
   chats: Chat[];
@@ -113,56 +122,35 @@ export function Sidebar({
         />
       </div>
 
-      <div className="g-list-filters" role="tablist" aria-label={t("sidebar.chats")}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={filter === "all"}
-          data-active={filter === "all" || undefined}
+      <MdChipSet className="g-list-filters" aria-label={t("sidebar.chats")}>
+        <MdFilterChip
+          label={`${t("sidebar.all")} ${normalChats.length}`}
+          selected={filter === "all"}
           onClick={() => changeFilter("all")}
-        >
-          {t("sidebar.all")}
-          <span>{normalChats.length}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={filter === "unread"}
-          data-active={filter === "unread" || undefined}
+        />
+        <MdFilterChip
+          label={`${t("sidebar.unread")} ${unreadCount}`}
+          selected={filter === "unread"}
           onClick={() => changeFilter("unread")}
-        >
-          {t("sidebar.unread")}
-          <span>{unreadCount}</span>
-        </button>
+        />
         {archivedCount > 0 ? (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={filter === "archive"}
-            data-active={filter === "archive" || undefined}
+          <MdFilterChip
+            label={`${t("sidebar.archived")} ${archivedCount}`}
+            selected={filter === "archive"}
             onClick={() => changeFilter("archive")}
-          >
-            {t("sidebar.archived")}
-            <span>{archivedCount}</span>
-          </button>
+          />
         ) : null}
         {folders.map((folder) => (
-          <button
+          <MdFilterChip
             key={folder.id}
-            type="button"
-            role="tab"
-            aria-selected={filter === `folder:${folder.id}`}
-            data-active={filter === `folder:${folder.id}` || undefined}
+            label={`${folder.emoticon ? `${folder.emoticon} ` : ""}${folder.title} ${
+              chats.filter((chat) => chatMatchesFolder(folder, chat)).length
+            }`}
+            selected={filter === `folder:${folder.id}`}
             onClick={() => changeFilter(`folder:${folder.id}`)}
-          >
-            {folder.emoticon ? <span className="g-folder-emoticon">{folder.emoticon}</span> : null}
-            {folder.title}
-            <span>
-              {chats.filter((chat) => chatMatchesFolder(folder, chat)).length}
-            </span>
-          </button>
+          />
         ))}
-      </div>
+      </MdChipSet>
 
       {accountRestricted ? (
         <button
@@ -192,7 +180,7 @@ export function Sidebar({
             ))}
           </div>
         ) : visibleChats.length > 0 ? (
-          <div className="g-chat-list">
+          <MdList className="g-chat-list" aria-label={t("sidebar.chats")}>
             {visibleChats.map((chat) => (
               <ChatRow
                 key={chat.id}
@@ -208,7 +196,7 @@ export function Sidebar({
                 onLoadAvatar={onLoadAvatar}
               />
             ))}
-          </div>
+          </MdList>
         ) : (
           <div className="g-sidebar-empty">
             <Icon
@@ -232,14 +220,14 @@ export function Sidebar({
         )}
       </div>
 
-      <button
-        type="button"
+      <MdFab
         className="g-compose-fab"
+        variant="primary"
         aria-label={t("chat.newMessage")}
         onClick={onCompose}
       >
-        <Icon name="edit" size={23} />
-      </button>
+        <Icon slot="icon" name="edit" size={24} />
+      </MdFab>
     </aside>
   );
 }

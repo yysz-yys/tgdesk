@@ -7,10 +7,7 @@
   flex: 1;
   flex-direction: column;
   overflow: hidden;
-  background-color: var(--app-chat-canvas);
-  background-image: var(--app-chat-pattern);
-  background-repeat: repeat;
-  background-size: 200px 200px;
+  background: var(--app-chat-canvas);
 }
 
 /* ── Top app bar ─────────────────────────────────────────────────────────── */
@@ -21,15 +18,16 @@
   flex: 0 0 64px;
   align-items: center;
   gap: var(--app-space-1);
-  margin: var(--app-space-2) var(--app-space-2) 0;
-  border-radius: 20px;
+  margin: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--app-outline-variant);
   background: var(--app-surface);
-  padding: 0 var(--app-space-2) 0 var(--app-space-2);
-  box-shadow: var(--app-elevation-2);
+  padding: 0 var(--app-space-2);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .g-chat-header {
-  background: var(--app-surface-container);
+  background: var(--app-surface);
 }
 
 .g-chat-search-inline {
@@ -42,7 +40,7 @@
 
 .g-chat-search-inline .g-search {
   flex: 1;
-  background: var(--app-surface-container-low);
+  background: transparent;
 }
 
 .g-chat-search-inline .g-chat-search-count {

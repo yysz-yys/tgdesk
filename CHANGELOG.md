@@ -63,6 +63,14 @@
 - A tonal “jump to latest” button floats above the composer and replaces the old
   sticky FAB. The button is now a true circular control rather than a Material
   host square.
+- Replaced hand-styled chat rows, filter buttons, search input, compose FAB and
+  theme segmented control with Google's latest stable Material Web components
+  (`@material/web@2.5.0`): `md-list`/`md-list-item`, `md-chip-set`/
+  `md-filter-chip`, `md-filled-text-field`, `md-fab` and
+  `md-outlined-segmented-button-set`.
+- Removed the Telegram-style doodle wallpaper and floating header bubble; the
+  chat surface is now a flat Google Chat-style surface with a divider and a clean
+  Material canvas.
 - Video playback is now progressive: the default mode serves
   `upload.getFile` byte ranges through the loopback server without downloading
   the whole file first. The new **Use tdl streaming** setting runs tdl's

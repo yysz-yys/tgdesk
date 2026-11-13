@@ -84,7 +84,7 @@
   width: 100%;
 }
 
-.g-settings-row[data-stack] .g-segmented-item {
+.g-settings-row[data-stack] md-outlined-segmented-button {
   flex: 1;
 }
 
