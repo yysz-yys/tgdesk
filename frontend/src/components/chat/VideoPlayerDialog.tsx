@@ -71,6 +71,8 @@ export function VideoPlayerDialog({
             controls
             autoPlay
             playsInline
+            preload="metadata"
+            onError={() => setFailed(true)}
           />
         ) : (
           <div className="g-video-player-status">

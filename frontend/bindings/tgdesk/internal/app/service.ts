@@ -75,6 +75,10 @@ export function GetPaths(): $CancellablePromise<kernel$0.PortablePaths> {
     return $Call.ByID(119407144);
 }
 
+export function GetVideoStream(chatID: string, messageID: number, proxy: string, ntp: string, useTDL: boolean): $CancellablePromise<string> {
+    return $Call.ByID(231628327, chatID, messageID, proxy, ntp, useTDL);
+}
+
 export function Logout(): $CancellablePromise<void> {
     return $Call.ByID(2555236166);
 }

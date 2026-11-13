@@ -34,6 +34,16 @@ each package/module remains authoritative.
 The Roboto and Material Symbols files are shipped inside `frontend/public/fonts`
 and are included in the production bundle. They are not fetched from a CDN.
 
+## Protocol implementation
+
+The video streaming implementation is original tgdesk Go/TypeScript code built
+on the gotd/td and tdl dependencies listed above. It calls the public Telegram
+MTProto methods (`upload.getFile`, `messages.getHistory`,
+`messages.getDialogFilters`, `messages.getDialogs`,
+`folders.editPeerFolders`). No source code from Telegram Web/tweb, Telegram
+Desktop, or the official mobile clients is copied into this repository. Public
+protocol/method descriptions and architecture notes are used only as references.
+
 ## Brand and documentation
 
 The tgdesk name and logo identify this project. The Telegram name and logo are

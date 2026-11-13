@@ -139,6 +139,17 @@ export function SettingsDialog({
             </div>
           </SettingRow>
 
+          <SettingRow
+            title={t("settings.downloads.tdlStreaming")}
+            description={t("settings.downloads.tdlStreamingDesc")}
+          >
+            <Switch
+              label={t("settings.downloads.tdlStreaming")}
+              checked={settings.tdlStreaming}
+              onCheckedChange={(value) => onUpdate("tdlStreaming", value)}
+            />
+          </SettingRow>
+
           <div className="g-settings-stack">
             <TextField
               value={settings.template}

@@ -101,40 +101,73 @@ func (s *Service) mediaHTTPURL(name string) (string, error) {
 	s.mediaServerMu.Lock()
 	defer s.mediaServerMu.Unlock()
 
-	if s.mediaBaseURL == "" {
-		dir := filepath.Join(paths.Data(), "media")
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return "", err
-		}
-		token, err := randomToken()
-		if err != nil {
-			return "", err
-		}
-		listener, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			return "", err
-		}
-		prefix := "/media/" + token + "/"
-		mux := http.NewServeMux()
-		mux.HandleFunc(prefix, func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			relative := strings.TrimPrefix(r.URL.Path, prefix)
-			if relative == "" || strings.Contains(relative, "/") || strings.Contains(relative, "\\") {
-				http.NotFound(w, r)
-				return
-			}
-			http.ServeFile(w, r, filepath.Join(dir, relative))
-		})
-		server := &http.Server{
-			ReadHeaderTimeout: 10 * time.Second,
-			Handler:           mux,
-		}
-		go func() {
-			_ = server.Serve(listener)
-		}()
-		s.mediaBaseURL = "http://" + listener.Addr().String() + prefix
+	if err := s.startMediaServerLocked(); err != nil {
+		return "", err
 	}
 	return s.mediaBaseURL + name, nil
+}
+
+func (s *Service) mediaStreamURL(id string) (string, error) {
+	s.mediaServerMu.Lock()
+	defer s.mediaServerMu.Unlock()
+
+	if err := s.startMediaServerLocked(); err != nil {
+		return "", err
+	}
+	return s.mediaStreamBase + id, nil
+}
+
+func (s *Service) startMediaServerLocked() error {
+	if s.mediaBaseURL != "" {
+		return nil
+	}
+	dir := filepath.Join(paths.Data(), "media")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	token, err := randomToken()
+	if err != nil {
+		return err
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	mediaPrefix := "/media/" + token + "/"
+	streamPrefix := "/stream/" + token + "/"
+	mux := http.NewServeMux()
+	mux.HandleFunc(mediaPrefix, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		relative := strings.TrimPrefix(r.URL.Path, mediaPrefix)
+		if relative == "" || strings.Contains(relative, "/") || strings.Contains(relative, "\\") {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, filepath.Join(dir, relative))
+	})
+	mux.HandleFunc(streamPrefix, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		id := strings.TrimPrefix(r.URL.Path, streamPrefix)
+		if id == "" || strings.Contains(id, "/") || strings.Contains(id, "\\") {
+			http.NotFound(w, r)
+			return
+		}
+		s.serveVideoStream(id, w, r)
+	})
+	server := &http.Server{
+		ReadHeaderTimeout: 10 * time.Second,
+		Handler:           mux,
+	}
+	go func() {
+		_ = server.Serve(listener)
+	}()
+	origin := "http://" + listener.Addr().String()
+	s.mediaBaseURL = origin + mediaPrefix
+	s.mediaStreamBase = origin + streamPrefix
+	if s.videoStreams == nil {
+		s.videoStreams = make(map[string]*videoStreamSession)
+	}
+	return nil
 }
 
 func randomToken() (string, error) {

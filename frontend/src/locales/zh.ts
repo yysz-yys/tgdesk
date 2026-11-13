@@ -606,6 +606,9 @@ export default {
       concurrentDesc: "同时下载 {{count}} 个文件。",
       threads: "单文件线程数",
       threadsDesc: "每个文件 {{count}} 个并行连接。",
+      tdlStreaming: "使用 tdl 边下边看",
+      tdlStreamingDesc:
+        "播放时使用 tdl 的并行下载器写入缓存。关闭时走 Telegram 官方 Range 流式读取，官方可能限速。",
       files: "文件",
       template: "文件名模板",
       templateDesc: "Go 模板；支持 tdl 的 tplfunc 辅助函数。",

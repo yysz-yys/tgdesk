@@ -608,8 +608,14 @@ export default function App() {
 
   const loadMessageVideo = useCallback(
     (chatID: string, messageID: number) =>
-      AppService.GetMessageMedia(chatID, messageID, proxyUrl, settings.ntp),
-    [proxyUrl, settings.ntp],
+      AppService.GetVideoStream(
+        chatID,
+        messageID,
+        proxyUrl,
+        settings.ntp,
+        settings.tdlStreaming,
+      ),
+    [proxyUrl, settings.ntp, settings.tdlStreaming],
   );
 
   const sendMessage = async (text: string) => {

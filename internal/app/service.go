@@ -100,6 +100,15 @@ func (s *Service) GetMessageMedia(
 	return s.kernel.GetMessageMedia(chatID, messageID, proxy, ntp)
 }
 
+func (s *Service) GetVideoStream(
+	chatID string,
+	messageID int,
+	proxy, ntp string,
+	useTDL bool,
+) (string, error) {
+	return s.kernel.GetVideoStream(chatID, messageID, proxy, ntp, useTDL)
+}
+
 func (s *Service) GetDownloads() []kernel.DownloadTaskDTO {
 	return s.kernel.GetDownloads()
 }

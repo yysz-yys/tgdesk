@@ -68,8 +68,9 @@ and sent/read ticks sit inside the same bubble.
 
 ## Known boundaries
 
-- Media playback: video/video-note are playable via the cached loopback player;
-  photo/video/sticker/GIF thumbnails are shown inline, and voice/audio/file items
+- Media playback: video/video-note use progressive range streaming by default,
+  or tdl's parallel download-while-watching when the setting is enabled.
+  Photo/video/sticker/GIF thumbnails are shown inline, and voice/audio/file items
   remain metadata cards. There is no upload flow yet.
 - Paid media, story bodies, giveaway details and live-location updates are
   represented but not expanded into their dedicated viewers.
@@ -78,9 +79,30 @@ and sent/read ticks sit inside the same bubble.
 - A history call returns the latest 50 messages. The user can load earlier pages
   from the top of the timeline (`GetOlderMessages` with `OffsetID`); the UI keeps
   the previous first message anchored while prepending the older page.
-- Videos are cached under `data/media/` and served to the WebView through a
-  random loopback-only HTTP token with Range support. The video dialog shows a
-  preparation spinner while the first download runs.
+- Videos are never fully downloaded before the player opens.
+  - **Default / Telegram mode:** the local loopback server exposes
+    `/stream/<token>/<session>` and fetches `upload.getFile` byte ranges on
+    demand with `precise` and `cdn_supported=false`, so the browser can start
+    playing as soon as the first chunks arrive. This mirrors the Telegram Web
+    approach of a service-worker range endpoint; the implementation here is
+    original and uses gotd directly.
+  - **tdl mode (setting):** tdl's multi-connection downloader writes a growing
+    cache file under `data/media/stream_*`; the same loopback server waits for
+    each requested byte range and streams it as soon as it is written. Playback
+    starts while the rest downloads in parallel, bypassing Telegram's official
+    range throttle.
+  - Scrub/seek requests re-enter the same range handler and are satisfied from
+    MTProto or the growing file.
+  - The video dialog shows a preparation spinner only while message metadata is
+    resolved; the actual transfer happens while the native player is open.
+
+## License note
+
+The streaming implementation is original Go/TypeScript code built on gotd and
+tdl, both consumed as dependencies. No source code is copied from Telegram Web
+(tweb, GPL-3.0), Telegram Desktop or the official mobile clients. The protocol
+behaviour was researched from the public `upload.getFile` method description and
+public tweb architecture notes; only the wire-level API shape is used.
 
 ## Research references
 

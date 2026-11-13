@@ -606,6 +606,9 @@ export default {
       concurrentDesc: "同時に {{count}} 件。",
       threads: "ファイルごとのスレッド数",
       threadsDesc: "ファイルごとに {{count}} 本の並列接続。",
+      tdlStreaming: "tdl ストリーミングを使う",
+      tdlStreamingDesc:
+        "再生しながら tdl の並列ダウンローダーでキャッシュします。オフの場合は Telegram 公式の Range ストリーミングを使用し、速度制限される場合があります。",
       files: "ファイル",
       template: "ファイル名テンプレート",
       templateDesc: "Go テンプレート。tdl の tplfunc ヘルパーに対応。",

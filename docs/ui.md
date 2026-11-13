@@ -119,6 +119,8 @@ original low-opacity Material outline pattern, not Telegram artwork.
 
 ![Archive and official folders](assets/ui-archive-folders.png)
 
+![Streaming setting](assets/ui-settings-streaming.png)
+
 ## 3. Shared component layer
 
 Everything under `frontend/src/components/ui` is the base layer. Feature
@@ -252,9 +254,10 @@ Automatic tdata lifecycle:
   game, invoice, story, giveaway, paid media, checklist and an explicit
   unsupported fallback. Reply quotes and forwarded headers sit inside the
   bubble. See [messages.md](messages.md) for the mapping table.
-- Clicking a video/video-note card caches the file and opens the native HTML5
-  player with a preparation spinner; a full-screen video is never embedded in
-  the timeline.
+- Clicking a video/video-note card opens the native HTML5 player immediately.
+  The default mode range-streams `upload.getFile` chunks through the loopback
+  server; the Download settings switch **Use tdl streaming** instead feeds the
+  player from tdl's parallel download-while-watching cache.
 - The top of the timeline offers “加载更早的消息” when more history exists; the
   button uses `GetOlderMessages(OffsetID)` and keeps the previous first message
   anchored.

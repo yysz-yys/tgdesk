@@ -14,6 +14,7 @@ export interface AppSettings {
   proxyPass: string;
   ntp: string;
   enterToSend: boolean;
+  tdlStreaming: boolean;
 }
 
 export const defaultSettings: AppSettings = {
@@ -29,6 +30,7 @@ export const defaultSettings: AppSettings = {
   proxyPass: "",
   ntp: "",
   enterToSend: true,
+  tdlStreaming: false,
 };
 
 const STORAGE_KEY = "tgdesk.settings";

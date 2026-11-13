@@ -121,9 +121,9 @@ Do not commit or share it; it may contain private draft text.
 - `data/avatars/` contains cached profile-photo thumbnails for chats and message
   senders. It is also safe to delete; the UI falls back to initials until the
   next lazy fetch.
-- `data/media/` contains complete video files requested for playback. A random
-  loopback-only HTTP token is used for Range playback; deleting the folder is
-  safe and the next play re-downloads the file.
+- `data/media/` contains video cache files. Default range streaming does not
+  retain the video; tdl download-while-watching keeps `stream_*` files here.
+  A random loopback-only HTTP token is used; deleting the folder is safe.
 - `downloads/` is the default output directory and may contain private media.
 
 ## Legacy migration

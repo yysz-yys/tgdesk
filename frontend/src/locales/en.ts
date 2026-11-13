@@ -606,6 +606,9 @@ export default {
       concurrentDesc: "{{count}} at a time.",
       threads: "Threads per file",
       threadsDesc: "{{count}} parallel connections per file.",
+      tdlStreaming: "Use tdl streaming",
+      tdlStreamingDesc:
+        "Download with tdl's parallel downloader while the video plays. Off uses Telegram's official range streaming, which may be rate-limited.",
       files: "Files",
       template: "File name template",
       templateDesc: "Go template; supports tdl's tplfunc helpers.",

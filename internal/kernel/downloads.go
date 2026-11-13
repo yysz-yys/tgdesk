@@ -681,7 +681,7 @@ func cloneTask(task DownloadTaskDTO) *DownloadTaskDTO {
 
 type downloadElement struct {
 	media *tmedia.Media
-	to    *os.File
+	to    io.WriterAt
 }
 
 func (d *downloadElement) File() downloader.File { return d }

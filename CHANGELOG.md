@@ -63,6 +63,11 @@
 - A tonal “jump to latest” button floats above the composer and replaces the old
   sticky FAB. The button is now a true circular control rather than a Material
   host square.
+- Video playback is now progressive: the default mode serves
+  `upload.getFile` byte ranges through the loopback server without downloading
+  the whole file first. The new **Use tdl streaming** setting runs tdl's
+  multi-connection downloader into a growing cache and feeds the player as bytes
+  arrive, avoiding the official range throttle.
 - Telegram archive and official dialog folders are loaded: archived dialogs use
   `messages.getDialogs(folder_id=1)`, and `messages.getDialogFilters` contributes
   folder titles, emoticons, explicit peer lists and the common category flags to
