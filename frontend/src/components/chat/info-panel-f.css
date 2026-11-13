@@ -688,3 +688,25 @@
   background: var(--accent-a3);
   color: var(--accent-11);
 }
+
+/* Inline download badges also sit on message media and file cards. */
+.g-media-card > .f-info-download,
+.g-album-cell > .f-info-download {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+}
+
+.g-file-icon-wrap {
+  position: relative;
+  display: block;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+}
+
+.g-file-icon-wrap > .g-file-icon {
+  width: 100%;
+  height: 100%;
+}

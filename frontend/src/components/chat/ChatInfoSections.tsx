@@ -12,6 +12,7 @@ import {
   IconButton,
 } from "../../ui";
 import { MediaThumb } from "./MediaThumb";
+import { DownloadBadge } from "./DownloadBadge";
 
 /** mm:ss for the duration pills and audio rows, like Telegram Web. */
 export function formatMediaDuration(seconds?: number) {
@@ -237,88 +238,6 @@ function selectionActive(actions: SectionActions) {
   return Boolean(actions.selectedIds && actions.selectedIds.size > 0);
 }
 
-/**
- * Inline download affordance used by every shared-media list: a transparent
- * round button that becomes a progress ring while the transfer runs and a
- * check once it has been delivered. It never navigates away from the panel.
- */
-function DownloadBadge({
-  message,
-  task,
-  onStart,
-  onOpen,
-  variant,
-}: {
-  message: Message;
-  task?: DownloadTask;
-  onStart?: (ids: number[]) => void;
-  onOpen?: (task: DownloadTask) => void;
-  variant: "corner" | "file" | "row";
-}) {
-  const { t } = useTranslation();
-  const status = task?.status;
-  const done = status === "done";
-  const progress = Math.max(0, Math.min(100, task?.progress ?? 0));
-  const active = Boolean(task && !done);
-  const label = done
-    ? t("downloads.downloaded")
-    : status === "paused"
-      ? t("downloads.paused", { progress })
-      : status === "failed"
-        ? t("downloads.retry")
-        : active
-          ? t("downloads.progressLabel", { progress })
-          : t("common.download");
-  return (
-    <button
-      type="button"
-      className="f-info-download"
-      data-variant={variant}
-      data-status={status ?? "idle"}
-      aria-label={label}
-      title={label}
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (done && task) {
-          onOpen?.(task);
-        } else if (!task || status === "failed") {
-          onStart?.([message.id]);
-        }
-      }}
-    >
-      {active ? (
-        <svg className="f-info-download-ring" viewBox="0 0 36 36" aria-hidden>
-          <circle className="f-info-download-ring-track" cx="18" cy="18" r="16" />
-          <circle
-            className="f-info-download-ring-bar"
-            cx="18"
-            cy="18"
-            r="16"
-            pathLength={100}
-            strokeDasharray={`${progress} 100`}
-            transform="rotate(-90 18 18)"
-          />
-        </svg>
-      ) : null}
-      <Icon
-        name={
-          done
-            ? "check"
-            : status === "failed"
-              ? "refresh"
-              : status === "paused"
-                ? "pause"
-                : status === "active" || status === "queued"
-                  ? "download"
-                  : "download"
-        }
-        size={variant === "file" ? 14 : 15}
-      />
-    </button>
-  );
-}
-
 /** Telegram Web renders shared photos, videos and GIFs in a 3-column grid. */
 export function MediaGrid({
   items,
@@ -415,7 +334,7 @@ export function MediaGrid({
             {!selecting ? (
               <DownloadBadge
                 variant="corner"
-                message={message}
+                messageID={message.id}
                 task={downloads?.get(message.id)}
                 onStart={onDownloadInline}
                 onOpen={onOpenDownloaded}
@@ -492,7 +411,7 @@ export function FileList({
               {!selecting ? (
                 <DownloadBadge
                   variant="file"
-                  message={message}
+                  messageID={message.id}
                   task={task}
                   onStart={onDownloadInline}
                   onOpen={onOpenDownloaded}
@@ -840,7 +759,7 @@ export function AudioList({
                 <span>{media?.duration ? formatMediaDuration(media.duration) : ""}</span>
                 <DownloadBadge
                   variant="row"
-                  message={message}
+                  messageID={message.id}
                   task={downloads?.get(message.id)}
                   onStart={onDownloadInline}
                   onOpen={onOpenDownloaded}

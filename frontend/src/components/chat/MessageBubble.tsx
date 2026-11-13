@@ -2,7 +2,7 @@ import { Fragment, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Browser } from "@wailsio/runtime";
-import type { Message, Reaction } from "../../types";
+import type { DownloadTask, Message, Reaction } from "../../types";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -39,6 +39,9 @@ interface MessageBubbleProps {
   onDelete?: (message: Message, revoke: boolean, group?: Message[]) => void;
   onJumpToMessage?: (id: number) => void;
   onDownloadMessage?: (ids: number[]) => void;
+  downloads?: Map<number, DownloadTask>;
+  onDownloadInline?: (ids: number[]) => void;
+  onOpenDownloaded?: (task: DownloadTask) => void;
   onReact?: (message: Message, reaction: Reaction | null) => void;
   onOpenReactions?: (message: Message) => void;
   onToast: (message: string) => void;
@@ -71,6 +74,9 @@ export function MessageBubble({
   onDelete,
   onJumpToMessage,
   onDownloadMessage,
+  downloads,
+  onDownloadInline,
+  onOpenDownloaded,
   onReact,
   onOpenReactions,
   onToast,
@@ -298,6 +304,9 @@ export function MessageBubble({
                   onOpenPhoto={onOpenPhoto}
                   onPlayVideo={onPlayVideo}
                   onToast={onToast}
+                  downloads={downloads}
+                  onDownloadInline={onDownloadInline}
+                  onOpenDownloaded={onOpenDownloaded}
                 />
               ) : null}
 
@@ -317,6 +326,9 @@ export function MessageBubble({
                   onOpenPhoto={onOpenPhoto}
                   onPlayVideo={onPlayVideo}
                   onToast={onToast}
+                  downloads={downloads}
+                  onDownloadInline={onDownloadInline}
+                  onOpenDownloaded={onOpenDownloaded}
                 />
               ) : null}
 

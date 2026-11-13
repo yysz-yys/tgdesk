@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, MouseEvent } from "react";
+import type { CSSProperties, MouseEvent, ReactNode } from "react";
 import { Browser } from "@wailsio/runtime";
-import type { Message, MessageMedia } from "../../types";
+import type { DownloadTask, Message, MessageMedia } from "../../types";
 import { Icon } from "../../ui";
+import { DownloadBadge } from "./DownloadBadge";
 import { MediaThumb } from "./MediaThumb";
 import { LocationPreview } from "./LocationPreview";
 
@@ -12,6 +13,9 @@ interface MessageMediaViewProps {
   onOpenPhoto?: (message: Message) => void;
   onPlayVideo?: (message: Message) => void;
   onToast?: (message: string) => void;
+  downloads?: Map<number, DownloadTask>;
+  onDownloadInline?: (ids: number[]) => void;
+  onOpenDownloaded?: (task: DownloadTask) => void;
 }
 
 const BLEED_KINDS = new Set(["photo", "video", "video_note", "animation"]);
@@ -75,14 +79,33 @@ export function MessageMediaView({
   onOpenPhoto,
   onPlayVideo,
   onToast,
+  downloads,
+  onDownloadInline,
+  onOpenDownloaded,
 }: MessageMediaViewProps) {
   const media = message.media;
+  const downloadBadge = (
+    id: number,
+    variant: "corner" | "file" = "corner",
+  ): ReactNode => (
+    <DownloadBadge
+      asSpan
+      variant={variant}
+      messageID={id}
+      task={downloads?.get(id)}
+      onStart={onDownloadInline}
+      onOpen={onOpenDownloaded}
+    />
+  );
   if (album && album.length > 1) {
     return (
       <AlbumGrid
         items={album}
         onOpenPhoto={onOpenPhoto}
         onPlayVideo={onPlayVideo}
+        downloads={downloads}
+        onDownloadInline={onDownloadInline}
+        onOpenDownloaded={onOpenDownloaded}
       />
     );
   }
@@ -96,6 +119,7 @@ export function MessageMediaView({
         <PhotoCard
           media={media}
           label="Photo"
+          downloadBadge={downloadBadge(message.id)}
           onClick={() => onOpenPhoto?.(message)}
         />
       );
@@ -105,11 +129,18 @@ export function MessageMediaView({
         <VideoCard
           media={media}
           round={media.kind === "video_note"}
+          downloadBadge={downloadBadge(message.id)}
           onClick={() => onPlayVideo?.(message)}
         />
       );
     case "animation":
-      return <AnimationCard media={media} onClick={() => onPlayVideo?.(message)} />;
+      return (
+        <AnimationCard
+          media={media}
+          downloadBadge={downloadBadge(message.id)}
+          onClick={() => onPlayVideo?.(message)}
+        />
+      );
     case "sticker":
       return <StickerView media={media} />;
     case "voice":
@@ -199,7 +230,8 @@ export function MessageMediaView({
       return (
         <FileCard
           media={media}
-          onDownload={() => onToast?.("Use the message menu to download")}
+          downloadBadge={downloadBadge(message.id, "file")}
+          onDownload={() => onDownloadInline?.([message.id])}
         />
       );
   }
@@ -208,10 +240,12 @@ export function MessageMediaView({
 function PhotoCard({
   media,
   label,
+  downloadBadge,
   onClick,
 }: {
   media: MessageMedia;
   label: string;
+  downloadBadge?: ReactNode;
   onClick?: () => void;
 }) {
   const layout = aspectFor(media);
@@ -252,6 +286,7 @@ function PhotoCard({
         alt={media.name}
         className="g-media-thumb g-media-main"
       />
+      {downloadBadge}
       {media.spoiler && !revealed ? <span className="g-media-spoiler">Spoiler</span> : null}
     </button>
   );
@@ -260,10 +295,12 @@ function PhotoCard({
 function VideoCard({
   media,
   round,
+  downloadBadge,
   onClick,
 }: {
   media: MessageMedia;
   round?: boolean;
+  downloadBadge?: ReactNode;
   onClick?: () => void;
 }) {
   const layout = aspectFor(media);
@@ -279,6 +316,7 @@ function VideoCard({
       <span className="g-media-play" aria-hidden="true">
         <Icon name="play_arrow" size={22} filled />
       </span>
+      {downloadBadge}
       {media.duration ? (
         <span className="g-media-duration">{formatDuration(media.duration)}</span>
       ) : null}
@@ -289,9 +327,11 @@ function VideoCard({
 
 function AnimationCard({
   media,
+  downloadBadge,
   onClick,
 }: {
   media: MessageMedia;
+  downloadBadge?: ReactNode;
   onClick?: () => void;
 }) {
   const layout = aspectFor(media);
@@ -304,6 +344,7 @@ function AnimationCard({
       onClick={onClick}
     >
       <LazyVideo src={media.streamUrl} poster={media.thumbUrl} />
+      {downloadBadge}
       <span className="g-media-badge">GIF</span>
     </button>
   );
@@ -747,9 +788,11 @@ function RichCard({
 
 function FileCard({
   media,
+  downloadBadge,
   onDownload,
 }: {
   media: MessageMedia;
+  downloadBadge?: ReactNode;
   onDownload?: () => void;
 }) {
   const icon =
@@ -760,8 +803,11 @@ function FileCard({
         : "description";
   return (
     <button type="button" className="g-file" onClick={onDownload}>
-      <span className="g-file-icon" style={{ background: media.color || "#7c9cf5" }}>
-        <Icon name={icon} size={20} />
+      <span className="g-file-icon-wrap">
+        <span className="g-file-icon" style={{ background: media.color || "#7c9cf5" }}>
+          <Icon name={icon} size={20} />
+        </span>
+        {downloadBadge}
       </span>
       <span className="g-file-copy">
         <span className="g-file-name">{media.name}</span>
@@ -771,7 +817,6 @@ function FileCard({
             .join(" · ")}
         </span>
       </span>
-      <Icon name="download" size={18} className="g-file-download" />
     </button>
   );
 }
@@ -780,10 +825,16 @@ function AlbumGrid({
   items,
   onOpenPhoto,
   onPlayVideo,
+  downloads,
+  onDownloadInline,
+  onOpenDownloaded,
 }: {
   items: Message[];
   onOpenPhoto?: (message: Message) => void;
   onPlayVideo?: (message: Message) => void;
+  downloads?: Map<number, DownloadTask>;
+  onDownloadInline?: (ids: number[]) => void;
+  onOpenDownloaded?: (task: DownloadTask) => void;
 }) {
   return (
     <div className="g-album" data-count={items.length}>
@@ -794,11 +845,21 @@ function AlbumGrid({
         }
         const isVideo = media.kind === "video" || media.kind === "video_note";
         const isPhoto = media.kind === "photo";
+        const badge = (
+          <DownloadBadge
+            asSpan
+            messageID={item.id}
+            task={downloads?.get(item.id)}
+            onStart={onDownloadInline}
+            onOpen={onOpenDownloaded}
+          />
+        );
         const content = <MediaThumb src={media.thumbUrl || media.photoUrl} alt={media.name} />;
         if (!isVideo && !isPhoto) {
           return (
             <div key={item.id} className="g-album-cell">
               {content}
+              {badge}
             </div>
           );
         }
@@ -811,6 +872,7 @@ function AlbumGrid({
             onClick={() => (isVideo ? onPlayVideo?.(item) : onOpenPhoto?.(item))}
           >
             {content}
+            {badge}
             {isVideo ? (
               <span className="g-album-play" aria-hidden="true">
                 <Icon name="play_arrow" size={20} filled />

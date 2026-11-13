@@ -324,6 +324,9 @@ export function ChatView({
               onDelete={requestDelete}
               onJumpToMessage={jumpToMessage}
               onDownloadMessage={onDownloadMessage}
+              downloads={downloads}
+              onDownloadInline={onDownloadInline}
+              onOpenDownloaded={onOpenDownloaded}
               onReact={(message, reaction) => {
                 void onReactMessage(
                   message.id,

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { Message, Reaction } from "../../types";
+import type { DownloadTask, Message, Reaction } from "../../types";
 import { chatColor, chatInitials } from "../../data/telegram";
 import { Icon, Spinner } from "../../ui";
 import { MessageBubble, type MessageAuthor } from "./MessageBubble";
@@ -31,6 +31,9 @@ interface MessageListProps {  chatId: string;
   onDelete?: (message: Message, revoke: boolean, group?: Message[]) => void;
   onJumpToMessage?: (id: number) => void;
   onDownloadMessage?: (ids: number[]) => void;
+  downloads?: DownloadTask[];
+  onDownloadInline?: (ids: number[]) => void;
+  onOpenDownloaded?: (task: DownloadTask) => void;
   onReact?: (message: Message, reaction: Reaction | null) => void;
   onOpenReactions?: (message: Message) => void;
   onToast: (message: string) => void;
@@ -60,6 +63,9 @@ export function MessageList({
   onDelete,
   onJumpToMessage,
   onDownloadMessage,
+  downloads,
+  onDownloadInline,
+  onOpenDownloaded,
   onReact,
   onOpenReactions,
   onToast,
@@ -71,6 +77,15 @@ export function MessageList({
   const stickToBottom = useRef(true);
   const loadingOlder = useRef(false);
   const [showJump, setShowJump] = useState(false);
+  const downloadsByMessage = useMemo(() => {
+    const map = new Map<number, DownloadTask>();
+    for (const task of downloads ?? []) {
+      if (task.chatId === chatId && task.messageId > 0) {
+        map.set(task.messageId, task);
+      }
+    }
+    return map;
+  }, [chatId, downloads]);
 
   // Telegram Web loads older history from the scroll position itself: reaching
   // the top starts the next page, and short histories keep filling until the
@@ -285,6 +300,9 @@ export function MessageList({
           onDelete={onDelete}
           onJumpToMessage={onJumpToMessage}
           onDownloadMessage={onDownloadMessage}
+          downloads={downloadsByMessage}
+          onDownloadInline={onDownloadInline}
+          onOpenDownloaded={onOpenDownloaded}
           onReact={onReact}
           onOpenReactions={onOpenReactions}
           onToast={onToast}

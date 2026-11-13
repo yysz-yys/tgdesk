@@ -68,6 +68,13 @@
 
 ### Chat-info downloads and tdl settings
 
+- Message bubbles get the same inline download affordance as the chat-info
+  pane: photos, videos, GIFs and album cells carry a small round download
+  control in their top-right corner, and document rows show it centered on the
+  file icon. It becomes the familiar progress ring / green check, downloads
+  without opening the Downloads page, and does not trigger the photo/video
+  viewer.
+
 - Shared-media downloads no longer jump to the Downloads page: photos, GIFs,
   videos, files, music and voice rows carry an inline download control. Media
   tiles show a transparent round button in the top-right corner, file rows show
