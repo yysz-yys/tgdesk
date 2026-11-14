@@ -10,12 +10,12 @@ import type {
   SharedMediaSection,
   UploadProgress,
 } from "../../types";
+import { Events } from "@wailsio/runtime";
 import { chatColor, chatInitials } from "../../data/telegram";
 import { Button, Dialog, EmptyState, Spinner } from "../../ui";
-import { MediaViewer } from "../media/MediaViewer";
 import type {
+  OpenMediaViewerPayload,
   ViewerAuthor,
-  ViewerItem,
   ViewerSource,
 } from "../media/types";
 import { viewerItemFor, viewerItemsFrom } from "../media/types";
@@ -32,7 +32,8 @@ interface ChatViewProps {
   chat: Chat;
   chats: Chat[];
   messages: Message[];
-  onLoadVideo: (chatID: string, messageID: number) => Promise<string>;
+  /** Opens the detached viewer window with the given media session. */
+  onOpenMediaViewer: (payload: OpenMediaViewerPayload) => Promise<void>;
   onLoadChatInfo: (chatID: string, kind: Chat["kind"]) => Promise<ChatInfo | null>;
   onLoadMembersPage: (
     chatID: string,
@@ -83,7 +84,7 @@ export function ChatView({
   chat,
   chats,
   messages,
-  onLoadVideo,
+  onOpenMediaViewer,
   onLoadChatInfo,
   onLoadMembersPage,
   onLoadSharedMedia,
@@ -122,13 +123,6 @@ export function ChatView({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [infoOpen, setInfoOpen] = useState(false);
-  const [viewer, setViewer] = useState<{
-    items: ViewerItem[];
-    activeId: number;
-    source?: ViewerSource;
-    /** Chat-history media follows the live message list (deletes advance it). */
-    fromChat: boolean;
-  } | null>(null);
   const [forwarding, setForwarding] = useState<{
     message: Message;
     ids: number[];
@@ -147,7 +141,6 @@ export function ChatView({
     setSearchOpen(false);
     setSearchQuery("");
     setInfoOpen(false);
-    setViewer(null);
     setForwarding(null);
     setReplyingTo(null);
     setEditing(null);
@@ -185,43 +178,6 @@ export function ChatView({
     );
   }, [messages, query]);
 
-  // The viewer pages through the loaded chat media, oldest first. Opening from
-  // the info pane instead pages through that tab's list (newest first → reverse).
-  const chatViewerItems = useMemo(() => viewerItemsFrom(messages), [messages]);
-
-  const closeViewer = useCallback(() => setViewer(null), []);
-
-  const openViewer = useCallback(
-    (message: Message, source?: ViewerSource, mediaItems?: Message[]) => {
-      const list = mediaItems
-        ? viewerItemsFrom([...mediaItems].reverse())
-        : chatViewerItems;
-      const fromChat = !mediaItems;
-      if (list.some((entry) => entry.message.id === message.id)) {
-        setViewer({ items: list, activeId: message.id, source, fromChat });
-        return;
-      }
-      const single = viewerItemFor(message);
-      if (single) {
-        setViewer({ items: [single], activeId: message.id, source, fromChat });
-      }
-    },
-    [chatViewerItems],
-  );
-
-  const viewerItems = useMemo(() => {
-    if (!viewer) {
-      return [];
-    }
-    if (!viewer.fromChat) {
-      return viewer.items;
-    }
-    const byId = new Map(messages.map((message) => [message.id, message]));
-    return viewer.items
-      .filter((entry) => byId.has(entry.message.id))
-      .map((entry) => viewerItemFor(byId.get(entry.message.id)!) ?? entry);
-  }, [messages, viewer]);
-
   const authorFor = useCallback(
     (message: Message): ViewerAuthor => {
       if (message.out) {
@@ -249,6 +205,38 @@ export function ChatView({
       selfInitials,
       selfName,
     ],
+  );
+
+  // The detached window pages through the loaded chat media, oldest first.
+  // Opening from the info pane pages through that tab's list instead.
+  const chatViewerItems = useMemo(() => viewerItemsFrom(messages), [messages]);
+
+  const openViewer = useCallback(
+    (message: Message, _source?: ViewerSource, mediaItems?: Message[]) => {
+      const list = mediaItems
+        ? viewerItemsFrom([...mediaItems].reverse())
+        : chatViewerItems;
+      const items = list.some((entry) => entry.message.id === message.id)
+        ? list
+        : (() => {
+            const single = viewerItemFor(message);
+            return single ? [single] : [];
+          })();
+      if (items.length === 0) {
+        return;
+      }
+      const authors: Record<string, ViewerAuthor> = {};
+      for (const entry of items) {
+        authors[String(entry.message.id)] = authorFor(entry.message);
+      }
+      void onOpenMediaViewer({
+        items,
+        initialId: message.id,
+        authors,
+        chat: { id: chat.id, title: chat.title },
+      }).catch(() => onToast(t("chat.loadMessagesFailed")));
+    },
+    [authorFor, chat.id, chat.title, chatViewerItems, onOpenMediaViewer, onToast, t],
   );
 
   const sendOrEdit = async (text: string) => {
@@ -302,6 +290,41 @@ export function ChatView({
     node.classList.add("g-message-flash");
     window.setTimeout(() => node.classList.remove("g-message-flash"), 1400);
   };
+
+  // Actions taken in the detached viewer window come back as Wails events so
+  // forwarding/deleting still use the chat's own pickers and confirmations.
+  useEffect(() => {
+    const off = Events.On("mediaViewer:action", (event) => {
+      const data = event.data as
+        | {
+            kind?: "forward" | "delete" | "showInChat";
+            chatId?: string;
+            messageIds?: number[];
+          }
+        | undefined;
+      if (!data || data.chatId !== chat.id || !data.messageIds?.length) {
+        return;
+      }
+      const selected = data.messageIds
+        .map((id) => messages.find((message) => message.id === id))
+        .filter((message): message is Message => Boolean(message));
+      if (data.kind === "showInChat") {
+        jumpToMessage(data.messageIds[0]);
+        return;
+      }
+      const first = selected[0];
+      if (!first) {
+        return;
+      }
+      if (data.kind === "forward") {
+        setForwarding({ message: first, ids: data.messageIds });
+      } else if (data.kind === "delete") {
+        requestDelete(first, first.out);
+      }
+    });
+    return off;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chat.id, messages]);
 
   // Chat-info multi-selection reuses the same forward/delete flows as bubbles.
   const forwardSharedMedia = (selected: Message[]) => {
@@ -447,25 +470,6 @@ export function ChatView({
             enterToSend={enterToSend}
           />
         )}
-
-        {viewer ? (
-          <MediaViewer
-            items={viewerItems}
-            initialId={viewer.activeId}
-            source={viewer.source}
-            authorOf={authorFor}
-            onLoadVideo={onLoadVideo}
-            onClose={closeViewer}
-            onDownload={(message) => onDownloadInline([message.id])}
-            onForward={(message) => setForwarding({ message, ids: [message.id] })}
-            onDelete={(message) => requestDelete(message, message.out)}
-            onShowInChat={(message) => {
-              setViewer(null);
-              jumpToMessage(message.id);
-            }}
-            onToast={onToast}
-          />
-        ) : null}
 
         <ForwardDialog
           open={Boolean(forwarding)}

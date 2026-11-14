@@ -163,6 +163,14 @@ export function OpenDownloadFolder(path: string): $CancellablePromise<void> {
     return $Call.ByID(1222918316, path);
 }
 
+/**
+ * OpenMediaViewer opens the media viewer in its own window, or reuses the open
+ * window by pointing it at the new session. The main window is never touched.
+ */
+export function OpenMediaViewer(payload: string): $CancellablePromise<void> {
+    return $Call.ByID(4077101510, payload);
+}
+
 export function PauseDownload(id: string): $CancellablePromise<void> {
     return $Call.ByID(629438258, id);
 }
@@ -213,6 +221,15 @@ export function SubmitCode(code: string): $CancellablePromise<void> {
 
 export function SubmitPassword(password: string): $CancellablePromise<void> {
     return $Call.ByID(3314132097, password);
+}
+
+/**
+ * TakeMediaViewerState returns the serialized viewer state for a session. The
+ * viewer page calls it once on load; the entry stays until the window closes so
+ * a reload (dev/HMR) can still restore the slide.
+ */
+export function TakeMediaViewerState(session: string): $CancellablePromise<string> {
+    return $Call.ByID(1447354160, session);
 }
 
 export function ValidateDownload(id: string): $CancellablePromise<boolean> {

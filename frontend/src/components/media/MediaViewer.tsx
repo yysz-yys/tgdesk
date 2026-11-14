@@ -10,6 +10,7 @@ import { Icon, Menu, MenuItem, Spinner } from "../../ui";
 import { copyImageToClipboard } from "../../lib/mediaClipboard";
 import { RichText } from "../chat/MessageBubble";
 import { VideoStage } from "./VideoStage";
+import { DesktopVideoControls } from "./DesktopVideoControls";
 import type { ViewerAuthor, ViewerItem, ViewerSource } from "./types";
 import "./media-viewer.css";
 
@@ -27,12 +28,11 @@ export interface MediaViewerProps {
   onToast?: (message: string) => void;
 }
 
-/* tweb's viewer geometry: the top bar is 3.5rem, the media keeps 80px above
- * and 110px (+ the 72px album strip) below itself free for chrome. */
-const RESERVE_TOP = 80;
-const RESERVE_BOTTOM = 110;
-const ALBUM_HEIGHT = 72;
-const SIDE_GAP = 28;
+/* Telegram Desktop's viewer geometry: the media sits under a slim top gap and
+ * above the measured bottom chrome (caption / album strip / video controls /
+ * file info row). */
+const VIEWER_TOP_GAP = 12;
+const SIDE_GAP = 24;
 const MAX_WIDTH_PHOTO = 2400;
 const OPEN_DURATION = 200;
 const CLOSE_DURATION = 200;
@@ -43,7 +43,6 @@ const SWIPE_NAV_PERCENT = 0.2;
 const SWIPE_NAV_PX = 125;
 const SWIPE_CLOSE_PERCENT = 0.2;
 const SWIPE_CLOSE_PX = 125;
-const CLICK_CLOSE_DELAY = 220;
 
 interface Box {
   left: number;
@@ -113,6 +112,8 @@ export function MediaViewer({
   const suppressClickRef = useRef(false);
   const clickTimerRef = useRef<number | undefined>(undefined);
   const closeTimerRef = useRef<number | undefined>(undefined);
+  const bottomRef = useRef<HTMLElement>(null);
+  const chromeTimerRef = useRef<number | undefined>(undefined);
 
   const [activeId, setActiveId] = useState(initialId);
   const [viewport, setViewport] = useState(() => ({
@@ -120,7 +121,9 @@ export function MediaViewer({
     height: window.innerHeight,
   }));
   const [rootOrigin, setRootOrigin] = useState({ x: 0, y: 0 });
-  const [rootEl, setRootEl] = useState<HTMLElement | null>(null);
+  // Fullscreen the whole window document so the window caption bar is hidden.
+  const viewerFullscreenTarget =
+    typeof document === "undefined" ? null : document.documentElement;
   const [opened, setOpened] = useState(false);
   const [closing, setClosing] = useState(false);
   const [closeBox, setCloseBox] = useState<Box | null>(null);
@@ -137,6 +140,10 @@ export function MediaViewer({
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [videoRetry, setVideoRetry] = useState(0);
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const [bottomHeight, setBottomHeight] = useState(0);
+  const [chromeHidden, setChromeHidden] = useState(false);
 
   const index = useMemo(
     () => items.findIndex((entry) => entry.message.id === activeId),
@@ -164,6 +171,9 @@ export function MediaViewer({
     setPhotoFailed(false);
     setNaturalSize(null);
     setVideoFailed(false);
+    setVideoEl(null);
+    setVideoPlaying(false);
+    setChromeHidden(false);
   }, [activeId]);
 
   // The viewer starts below the window caption bar (drag + minimize + close must
@@ -193,7 +203,6 @@ export function MediaViewer({
   }, []);
 
   useLayoutEffect(() => {
-    setRootEl(rootRef.current);
     restoreFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     rootRef.current?.focus({ preventScroll: true });
@@ -239,16 +248,59 @@ export function MediaViewer({
   }, [index, item, items]);
 
   const stageBox = useMemo(
-    () =>
-      computeBox(
-        item,
-        viewport,
-        album ? ALBUM_HEIGHT : 0,
-        active ? rotation : 0,
-        naturalSize,
-      ),
-    [active, album, item, naturalSize, rotation, viewport],
+    () => computeBox(item, viewport, bottomHeight, rotation, naturalSize),
+    [bottomHeight, item, naturalSize, rotation, viewport],
   );
+
+  // The bottom chrome overlays the media, so measure it whenever the caption,
+  // album strip or video controls change and fit the media above it.
+  useLayoutEffect(() => {
+    const node = bottomRef.current;
+    if (!node) {
+      setBottomHeight(0);
+      return;
+    }
+    const measure = () => setBottomHeight(node.getBoundingClientRect().height);
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  // Telegram Desktop fades the chrome while a video plays and the mouse idles.
+  const wakeChrome = useCallback(() => {
+    setChromeHidden(false);
+    if (chromeTimerRef.current) {
+      window.clearTimeout(chromeTimerRef.current);
+      chromeTimerRef.current = undefined;
+    }
+    if (videoPlaying) {
+      chromeTimerRef.current = window.setTimeout(() => setChromeHidden(true), 2600);
+    }
+  }, [videoPlaying]);
+
+  useEffect(() => {
+    wakeChrome();
+    return () => {
+      if (chromeTimerRef.current) {
+        window.clearTimeout(chromeTimerRef.current);
+      }
+    };
+  }, [wakeChrome]);
+
+  useEffect(() => {
+    if (videoPlaying) {
+      return;
+    }
+    setChromeHidden(false);
+    if (chromeTimerRef.current) {
+      window.clearTimeout(chromeTimerRef.current);
+      chromeTimerRef.current = undefined;
+    }
+  }, [videoPlaying]);
 
   useLayoutEffect(() => {
     if (!source || prefersReducedMotion()) {
@@ -350,26 +402,6 @@ export function MediaViewer({
       };
     },
     [stageBox.height, stageBox.width],
-  );
-
-  const zoomAt = useCallback(
-    (nextScale: number, originX?: number, originY?: number) => {
-      setZoom((current) => {
-        const scale = clamp(nextScale, ZOOM_MIN, ZOOM_MAX);
-        const ratio = scale / current.scale;
-        const cx = originX ?? 0;
-        const cy = originY ?? 0;
-        if (Math.abs(scale - 1) < 0.001) {
-          return { scale: 1, x: 0, y: 0 };
-        }
-        return clampPan({
-          scale,
-          x: cx - (cx - current.x) * ratio,
-          y: cy - (cy - current.y) * ratio,
-        });
-      });
-    },
-    [clampPan],
   );
 
   const zoomStep = useCallback(
@@ -572,16 +604,6 @@ export function MediaViewer({
   const closeRef = useRef(close);
   closeRef.current = close;
 
-  const scheduleClose = () => {
-    if (clickTimerRef.current) {
-      window.clearTimeout(clickTimerRef.current);
-    }
-    clickTimerRef.current = window.setTimeout(() => {
-      clickTimerRef.current = undefined;
-      closeRef.current();
-    }, CLICK_CLOSE_DELAY);
-  };
-
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!active || closing || event.button !== 0) {
       return;
@@ -761,183 +783,56 @@ export function MediaViewer({
     return null;
   }
 
-  const position = `${index + 1} / ${items.length}`;
   const isFirst = index <= 0;
   const isLast = index >= items.length - 1;
+
+  // Telegram Desktop's bottom-left copy: a bold header (file name for videos,
+  // "N / M" for photo lists) and the sender + date line under it.
+  const headerText =
+    isVideo || isAnimation || isNote
+      ? item.name || (item.duration ? clock(item.duration) : "")
+      : items.length > 1
+        ? t("viewer.position", { position: index + 1, count: items.length })
+        : item.name || t("media.photo");
+  const dateLine = `${item.message.date} ${item.message.time}`;
+
+  const copyImage = () => {
+    const media = item.message.media;
+    const url = media?.photoUrl || media?.thumbUrl;
+    if (!url) {
+      onToast?.(t("viewer.copyFailed"));
+      return;
+    }
+    void copyImageToClipboard(url).then((copied) =>
+      onToast?.(copied ? t("viewer.copiedImage") : t("viewer.copyFailed")),
+    );
+  };
+
+  const copyCaption = () => {
+    if (!captionText) {
+      return;
+    }
+    void navigator.clipboard
+      .writeText(captionText)
+      .then(() => onToast?.(t("viewer.copiedText")))
+      .catch(() => onToast?.(t("viewer.copyFailed")));
+  };
 
   const content = (
     <div
       ref={rootRef}
       className="mv-root"
+      data-chrome={chromeHidden || undefined}
       data-opening={!opened || undefined}
       data-closing={closing || undefined}
       role="dialog"
       aria-modal="true"
       aria-label={t("viewer.title")}
       tabIndex={-1}
+      onMouseMove={wakeChrome}
+      onPointerDown={wakeChrome}
     >
       <div className="mv-backdrop" onClick={close} aria-hidden="true" />
-
-      <header className="mv-topbar">
-        {author ? (
-          <button
-            type="button"
-            className="mv-author"
-            onClick={() => {
-              if (onShowInChat) {
-                onShowInChat(item.message);
-              }
-            }}
-            disabled={!onShowInChat}
-            title={onShowInChat ? t("viewer.showInChat") : undefined}
-          >
-            {author.avatarUrl ? (
-              <img className="mv-avatar" src={author.avatarUrl} alt="" draggable={false} />
-            ) : (
-              <span
-                className="mv-avatar mv-avatar--initials"
-                style={{ background: author.color }}
-                aria-hidden="true"
-              >
-                {author.initials}
-              </span>
-            )}
-            <span className="mv-author-copy">
-              <span className="mv-author-name" dir="auto">
-                {author.name}
-              </span>
-              <span className="mv-author-date">
-                {items.length > 1 ? (
-                  <>
-                    <span className="mv-counter">{position}</span>
-                    <span className="mv-date-dot" aria-hidden="true">
-                      •                    </span>
-                  </>
-                ) : null}
-                <span className="mv-date">
-                  {item.message.date} {item.message.time}
-                </span>
-              </span>
-            </span>
-          </button>
-        ) : (
-          <span />
-        )}
-
-        <div className="mv-actions">
-          {onDelete ? (
-            <button
-              type="button"
-              className="mv-icon-btn"
-              onClick={() => onDelete(item.message)}
-              aria-label={t("viewer.delete")}
-              title={t("viewer.delete")}
-            >
-              <Icon name="delete" size={22} />
-            </button>
-          ) : null}
-          {onForward && !item.message.noForwards ? (
-            <button
-              type="button"
-              className="mv-icon-btn"
-              onClick={() => onForward(item.message)}
-              aria-label={t("viewer.forward")}
-              title={t("viewer.forward")}
-            >
-              <Icon name="forward" size={22} />
-            </button>
-          ) : null}
-          {active ? (
-            <button
-              type="button"
-              className="mv-icon-btn"
-              onClick={() => {
-                const media = item.message.media;
-                const url = media?.photoUrl || media?.thumbUrl;
-                if (!url) {
-                  onToast?.(t("viewer.copyFailed"));
-                  return;
-                }
-                void copyImageToClipboard(url).then((copied) =>
-                  onToast?.(copied ? t("viewer.copiedImage") : t("viewer.copyFailed")),
-                );
-              }}
-              aria-label={t("viewer.copyImage")}
-              title={t("viewer.copyImage")}
-            >
-              <Icon name="content_copy" size={22} />
-            </button>
-          ) : null}
-          {onDownload ? (
-            <button
-              type="button"
-              className="mv-icon-btn"
-              onClick={() => onDownload(item.message)}
-              aria-label={t("viewer.download")}
-              title={t("viewer.download")}
-            >
-              <Icon name="download" size={22} />
-            </button>
-          ) : null}
-          {active || isVideo || isAnimation ? (
-            <button
-              type="button"
-              className="mv-icon-btn"
-              onClick={() => {
-                setRotation((value) => value - 90);
-                resetZoom();
-              }}
-              aria-label={t("viewer.rotate")}
-              title={t("viewer.rotate")}
-              data-hidden={(isVideo || isAnimation) || undefined}
-            >
-              <Icon name="rotate_left" size={22} />
-            </button>
-          ) : null}
-          {active ? (
-            <button
-              type="button"
-              className="mv-icon-btn"
-              onClick={() => (isZoomed ? resetZoom() : zoomStep(1))}
-              aria-label={isZoomed ? t("viewer.resetZoom") : t("viewer.zoomIn")}
-              title={isZoomed ? t("viewer.resetZoom") : t("viewer.zoomIn")}
-            >
-              <Icon name={isZoomed ? "zoom_out" : "zoom_in"} size={22} />
-            </button>
-          ) : null}
-          {captionText && (isVideo || isNote) ? (
-            <Menu
-              trigger={<Icon name="more_vert" size={22} />}
-              triggerClassName="mv-icon-btn mv-more-trigger"
-              side="bottom"
-              align="end"
-            >
-              <MenuItem
-                onSelect={() => {
-                  void navigator.clipboard
-                    .writeText(captionText)
-                    .then(() => onToast?.(t("viewer.copiedText")))
-                    .catch(() => onToast?.(t("viewer.copyFailed")));
-                }}
-              >
-                <span className="mv-menu-item">
-                  <Icon name="content_copy" size={17} />
-                  {t("viewer.copyText")}
-                </span>
-              </MenuItem>
-            </Menu>
-          ) : null}
-          <button
-            type="button"
-            className="mv-icon-btn mv-close"
-            onClick={close}
-            aria-label={t("viewer.close")}
-            title={t("viewer.close")}
-          >
-            <Icon name="close" size={24} />
-          </button>
-        </div>
-      </header>
 
       {!isFirst ? (
         <button
@@ -948,7 +843,7 @@ export function MediaViewer({
           title={t("viewer.previous")}
           data-hidden={isZoomed || undefined}
         >
-          <Icon name="chevron_left" size={40} />
+          <Icon name="chevron_left" size={54} />
         </button>
       ) : null}
       {!isLast ? (
@@ -960,7 +855,7 @@ export function MediaViewer({
           title={t("viewer.next")}
           data-hidden={isZoomed || undefined}
         >
-          <Icon name="chevron_right" size={40} />
+          <Icon name="chevron_right" size={54} />
         </button>
       ) : null}
 
@@ -971,7 +866,7 @@ export function MediaViewer({
           className="mv-stage"
           data-kind={item.kind}
           data-slide={slideDirection === 1 ? "next" : slideDirection === -1 ? "prev" : undefined}
-          data-dragging={dragOffset ? true : undefined}
+          data-dragging={dragOffset ? "true" : undefined}
           data-round={isNote || undefined}
           data-zoomed={isZoomed || undefined}
           style={stageStyle}
@@ -980,15 +875,6 @@ export function MediaViewer({
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           onDoubleClick={onDoubleClick}
-          onClick={() => {
-            if (suppressClickRef.current) {
-              suppressClickRef.current = false;
-              return;
-            }
-            if (active && !isZoomed && !closing) {
-              scheduleClose();
-            }
-          }}
         >
           {!active && item.thumbUrl ? (
             <img
@@ -1043,34 +929,42 @@ export function MediaViewer({
           ) : null}
 
           {isVideo && videoUrl ? (
-            <VideoStage
-              key={`${item.message.id}:${videoRetry}`}
-              src={videoUrl}
-              poster={item.thumbUrl}
-              width={item.width}
-              height={item.height}
-              duration={item.duration}
-              autoPlay
-              loop={isNote || (item.duration ?? 0) < 60}
-              chromeless={isNote}
-              fullscreenTarget={rootEl}
-              onToast={onToast}
-            />
+            <div
+              className="mv-rotator"
+              style={{ transform: rotation !== 0 ? `rotate(${rotation}deg)` : undefined }}
+            >
+              <VideoStage
+                key={`${item.message.id}:${videoRetry}`}
+                src={videoUrl}
+                poster={item.thumbUrl}
+                width={item.width}
+                height={item.height}
+                duration={item.duration}
+                autoPlay
+                loop={isNote || (item.duration ?? 0) < 60}
+                chromeless
+                fullscreenTarget={viewerFullscreenTarget}
+                onToast={onToast}
+                onVideoElement={setVideoEl}
+              />
+            </div>
           ) : null}
           {isAnimation && item.streamUrl ? (
-            <VideoStage
-              key={item.message.id}
-              src={item.streamUrl}
-              poster={item.thumbUrl}
-              width={item.width}
-              height={item.height}
-              duration={item.duration}
-              autoPlay
-              loop
-              isAnimation
-              fullscreenTarget={rootEl}
-              onToast={onToast}
-            />
+            <div className="mv-rotator">
+              <VideoStage
+                key={item.message.id}
+                src={item.streamUrl}
+                poster={item.thumbUrl}
+                width={item.width}
+                height={item.height}
+                duration={item.duration}
+                autoPlay
+                loop
+                isAnimation
+                fullscreenTarget={viewerFullscreenTarget}
+                onToast={onToast}
+              />
+            </div>
           ) : null}
 
           {isVideo && (videoLoading || !videoUrl) && !videoFailed ? (
@@ -1113,42 +1007,12 @@ export function MediaViewer({
         </div>
       </div>
 
-      {active && isZoomed ? (
-        <div className="mv-zoombar">
-          <button
-            type="button"
-            className="mv-icon-btn"
-            onClick={() => zoomStep(-1)}
-            aria-label={t("viewer.zoomOut")}
-            title={t("viewer.zoomOut")}
-            disabled={zoom.scale <= ZOOM_MIN + 0.001}
-          >
-            <Icon name="zoom_out" size={18} />
-          </button>
-          <input
-            className="mv-zoombar-range"
-            type="range"
-            min={ZOOM_MIN}
-            max={ZOOM_MAX}
-            step={0.01}
-            value={zoom.scale}
-            aria-label={t("viewer.zoom")}
-            onChange={(event) => zoomAt(Number(event.target.value))}
-          />
-          <button
-            type="button"
-            className="mv-icon-btn"
-            onClick={() => zoomStep(1)}
-            aria-label={t("viewer.zoomIn")}
-            title={t("viewer.zoomIn")}
-            disabled={zoom.scale >= ZOOM_MAX - 0.001}
-          >
-            <Icon name="zoom_in" size={18} />
-          </button>
-        </div>
-      ) : null}
-
-      <footer className="mv-bottom" data-has-album={album ? true : undefined}>
+      <footer className="mv-bottom" ref={bottomRef} data-hidden={chromeHidden || undefined}>
+        {captionText ? (
+          <div className="mv-caption" dir="auto">
+            <RichText text={captionText} entities={captionEntry?.message.entities} />
+          </div>
+        ) : null}
         {album ? (
           <div className="mv-album">
             {album.entries.map((entry, entryIndex) => {
@@ -1176,17 +1040,111 @@ export function MediaViewer({
             })}
           </div>
         ) : null}
-        {captionText ? (
-          <div className="mv-caption" dir="auto">
-            <RichText text={captionText} entities={captionEntry?.message.entities} />
-          </div>
-        ) : (isVideo || isAnimation) && !isNote ? (
-          <div className="mv-caption mv-caption--file">
-            <span className="mv-filename" dir="auto">
-              {item.name || (item.duration ? clock(item.duration) : "")}
-            </span>
-          </div>
+        {item.kind === "video" && videoEl ? (
+          <DesktopVideoControls
+            video={videoEl}
+            hidden={chromeHidden}
+            fullscreenTarget={viewerFullscreenTarget}
+            onPlayingChange={setVideoPlaying}
+            onToast={onToast}
+          />
         ) : null}
+        <div className="mv-info">
+          <div className="mv-info-copy">
+            <div className="mv-info-title" dir="auto">
+              {headerText}
+            </div>
+            <button
+              type="button"
+              className="mv-info-sub"
+              onClick={() => onShowInChat?.(item.message)}
+              disabled={!onShowInChat}
+              title={onShowInChat ? t("viewer.showInChat") : undefined}
+            >
+              <span className="mv-info-author" dir="auto">
+                {author?.name ?? ""}
+              </span>
+              <span className="mv-info-dot" aria-hidden="true">
+                •
+              </span>
+              <span className="mv-info-date">{dateLine}</span>
+            </button>
+          </div>
+          <div className="mv-info-actions">
+            {onDownload ? (
+              <button
+                type="button"
+                className="mv-info-btn"
+                onClick={() => onDownload(item.message)}
+                aria-label={t("viewer.download")}
+                title={t("viewer.download")}
+              >
+                <Icon name="download" size={26} />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="mv-info-btn"
+              onClick={() => {
+                setRotation((value) => value - 90);
+                resetZoom();
+              }}
+              aria-label={t("viewer.rotate")}
+              title={t("viewer.rotate")}
+            >
+              <Icon name="rotate_left" size={26} />
+            </button>
+            {onForward || onDelete || onShowInChat || captionText || active ? (
+              <Menu
+                trigger={<Icon name="more_vert" size={26} />}
+                triggerClassName="mv-info-btn mv-more-trigger"
+                side="top"
+                align="end"
+              >
+                {active ? (
+                  <MenuItem onSelect={copyImage}>
+                    <span className="mv-menu-row">
+                      <Icon name="content_copy" size={17} />
+                      {t("viewer.copyImage")}
+                    </span>
+                  </MenuItem>
+                ) : null}
+                {captionText ? (
+                  <MenuItem onSelect={copyCaption}>
+                    <span className="mv-menu-row">
+                      <Icon name="content_copy" size={17} />
+                      {t("viewer.copyText")}
+                    </span>
+                  </MenuItem>
+                ) : null}
+                {onShowInChat ? (
+                  <MenuItem onSelect={() => onShowInChat(item.message)}>
+                    <span className="mv-menu-row">
+                      <Icon name="chat_bubble" size={17} />
+                      {t("viewer.showInChat")}
+                    </span>
+                  </MenuItem>
+                ) : null}
+                {onForward && !item.message.noForwards ? (
+                  <MenuItem onSelect={() => onForward(item.message)}>
+                    <span className="mv-menu-row">
+                      <Icon name="forward" size={17} />
+                      {t("viewer.forward")}
+                    </span>
+                  </MenuItem>
+                ) : null}
+                {onDelete ? (
+                  <MenuItem onSelect={() => onDelete(item.message)}>
+                    <span className="mv-menu-row">
+                      <Icon name="delete" size={17} />
+                      {t("viewer.delete")}
+                    </span>
+                  </MenuItem>
+                ) : null}
+              </Menu>
+            ) : null}
+          </div>
+        </div>
       </footer>
     </div>
   );
@@ -1202,7 +1160,7 @@ function AlbumThumb({ entry, current }: { entry: ViewerItem; current: boolean })
       : current
         ? 1.5
         : 0.72;
-  const height = current ? 48 : 34;
+  const height = current ? 56 : 40;
   const width = Math.round(height * ratio);
   return (
     <span className="mv-album-media" style={{ width, height }}>
@@ -1211,25 +1169,25 @@ function AlbumThumb({ entry, current }: { entry: ViewerItem; current: boolean })
   );
 }
 
-/** Fits the media between the top bar and the caption strip, like tweb does. */
+/** Fits the media under the slim top gap and above the measured bottom chrome. */
 function computeBox(
   item: ViewerItem | undefined,
   viewport: { width: number; height: number },
-  albumHeight: number,
+  bottomHeight: number,
   rotation: number,
   naturalSize: { width: number; height: number } | null,
 ): Box {
   const availableWidth = Math.max(160, viewport.width - SIDE_GAP * 2);
   const availableHeight = Math.max(
     120,
-    viewport.height - RESERVE_TOP - RESERVE_BOTTOM - albumHeight,
+    viewport.height - VIEWER_TOP_GAP - bottomHeight - 8,
   );
 
   if (item?.kind === "video_note") {
     const size = Math.min(availableWidth, availableHeight, 560);
     return {
       left: (viewport.width - size) / 2,
-      top: RESERVE_TOP + (availableHeight - size) / 2,
+      top: VIEWER_TOP_GAP + (availableHeight - size) / 2,
       width: size,
       height: size,
       radius: size / 2,
@@ -1257,7 +1215,11 @@ function computeBox(
     boxHeight = availableHeight;
     boxWidth = boxHeight * ratio;
   }
-  const left = (viewport.width - boxWidth) / 2;
-  const top = RESERVE_TOP + (availableHeight - boxHeight) / 2;
-  return { left, top, width: boxWidth, height: boxHeight, radius: 0 };
+  return {
+    left: (viewport.width - boxWidth) / 2,
+    top: VIEWER_TOP_GAP + (availableHeight - boxHeight) / 2,
+    width: boxWidth,
+    height: boxHeight,
+    radius: 0,
+  };
 }

@@ -63,6 +63,21 @@ The caption bar is `frontend/src/components/layout/TitleBar.tsx`; it uses the
 Wails runtime `Window` API for minimise/maximise/close and CSS
 `--wails-draggable` for dragging.
 
+### Detached media viewer window
+
+- `app.Service.OpenMediaViewer(payload)` stores the serialized viewer session in
+  memory and opens (or reuses) a second frameless Wails window named
+  `media-viewer` that loads `/viewer.html?session=...`; the page reads the
+  session through `TakeMediaViewerState`.
+- Window size follows the media aspect ratio, capped at 86% of the primary work
+  area, and the last used size is reused. The window is centred on open.
+- Closing the main window closes the viewer; closing the viewer focuses the main
+  window again.
+- The viewer has no chat state. It loads video stream URLs and starts downloads
+  itself through the same bindings, and reports forward/delete/show-in-chat
+  through the `mediaViewer:action` event so the chat window runs its own
+  dialogs.
+
 ## Kernel state and concurrency
 
 `internal/kernel.Service` owns:
@@ -325,10 +340,12 @@ Component layers:
 - `components/chat` — conversation is split into header, search, list, bubble
   with hover/context actions, media thumbnail, forward picker, composer with
   reply/edit banner, channel bar and the right info pane.
-- `components/media` — the full-window media viewer: photo stage with
-  zoom/pan/rotate and open/close flight, album strip and caption, tweb-style
-  video player surface (custom controls, PiP, fullscreen) and the message
-  author/top bar chrome.
+- `components/media` — the detached media viewer: Telegram Desktop style photo
+  stage with zoom/pan/rotate and open/close flight, caption plate, album strip,
+  file info/action row and the tdesktop video controls (volume, play/pause,
+  speed, PiP, fullscreen, seek); `src/viewer` hosts the viewer window entry
+  (`viewer.html`, dark tdesktop caption bar, `ViewerWindow`) that loads the
+  session handed over by the backend.
 - `components/layout` — caption bar, shared app menu and conversation list.
 - `components/settings` — the F settings dialog, composed from `src/ui` fields,
   segmented control, switch, slider and select.
@@ -360,6 +377,8 @@ Styling:
 - `download:event` — task updates/removal.
 - `chat:event` — live message/edit/delete/reaction/read/resync events.
 - `upload:event` — attachment upload progress/completion/failure.
+- `mediaViewer:action` — forwarded from the detached viewer window to the chat
+  window (`kind`: forward/delete/showInChat, `chatId`, `messageIds`).
 
 Generated event bindings live under `frontend/bindings`. If an event payload or
 name changes, update both Go and the frontend subscription and regenerate.

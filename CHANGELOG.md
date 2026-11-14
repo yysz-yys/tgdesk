@@ -5,30 +5,33 @@
 ### Media viewer
 
 - Chat photos, videos, GIFs, round video notes and albums now open in a
-  full-window media viewer copied from Telegram Web K, replacing the small
-  photo/video dialogs. The media grows out of the clicked thumbnail, returns to
-  its bubble when the viewer closes, and prev/next pages through the
-  conversation (or through the info pane tab it was opened from) with the arrow
-  keys, the side arrows or a horizontal drag.
-- Photos zoom with the wheel, double click, the zoom bar or Ctrl +/- and can be
-  panned and rotated; Escape closes the viewer, a click on the picture or the
-  backdrop returns to the chat, and the caption can be selected.
-- Videos play in Telegram's own player chrome instead of the browser controls:
-  a seek line with buffered fill and a hover time bubble, play/pause, an
-  expanding volume slider, current and total time, a playback-speed menu,
-  picture-in-picture and fullscreen, with the controls fading out while the
-  video plays. Short videos loop, GIFs autoplay muted, round video notes stay
-  round and chromeless. The stream URL is cached per message so reopening a
-  video does not start a second transfer session.
-- The top bar shows the sender (avatar, name, position in the album/chat and the
-  message date) and acts on the media: delete, forward, copy image, download,
-  rotate, zoom, ⋮ and close. Forward and delete keep using the chat's existing
-  pickers and confirmation dialogs, which now sit above the viewer.
-- The viewer has a backend-free dev preview at `/media-preview.html` with
-  photo, album, video and round-video states, in light and dark themes.
-- The viewer now covers only the app body: the window caption bar stays visible
-  and usable while media is open, so the window can still be dragged, minimized
-  or closed (and video fullscreen still takes the whole screen).
+  **detached viewer window**, like Telegram Desktop's viewer: the chat window is
+  never covered and keeps working (drag/minimize/browse) while the viewer is
+  open. The viewer has its own dark caption bar with window controls, and
+  closing it returns focus to the chat.
+- The window is modelled on Telegram Desktop's media viewer, with geometry and
+  layout read from the official tdesktop sources (`media_view.style`,
+  `media_view_playback_controls.cpp`): black surface, media fitted above the
+  bottom chrome, side arrows, a rounded caption plate, tdesktop's group thumb
+  strip for albums, and a bottom info row with the bold file name / "N / M"
+  counter plus sender • date on the left and download / rotate / ⋮ on the
+  right.
+- Videos use tdesktop's playback block: volume slider, play/pause, speed menu,
+  picture-in-picture and fullscreen on the first row, current time / seek line /
+  remaining time below, fading out while the video plays. Short videos loop,
+  GIFs autoplay muted, round video notes stay round and chromeless. The stream
+  URL is cached per message so reopening a video does not start a second
+  transfer session.
+- Photos keep wheel and double-click zoom (0.5–4×), pan, rotate and drag
+  paging/close; Escape closes the window; arrows page through the conversation
+  or through the info pane tab the viewer was opened from.
+- Forward, delete, copy and show-in-chat keep running in the chat window: the
+  viewer emits `mediaViewer:action` events, the chat opens its existing pickers
+  and confirmation dialogs (and is brought to the front for them).
+- The viewer is a second Wails webview (`/viewer.html`): `OpenMediaViewer` stores
+  the serialized media session in memory and opens/reuses the window,
+  `TakeMediaViewerState` hands it to the page. It has a backend-free dev preview
+  at `/media-preview.html` with photo, album, video and round-video states.
 
 ### Window and archive polish
 

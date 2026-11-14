@@ -211,12 +211,13 @@ without a rewrite.
 ```
 
 States: `photo`, `album`, `video`, `note`, plus `theme=light|dark` and
-`zoom=1` (dispatches a wheel zoom after mount so the zoom bar can be
-screenshot). Photos are drawn on a canvas at runtime and the video state
-streams a public sample clip, so the viewer can be checked without the Go
-backend. The real chat flow — opening from a bubble or the info pane, paging,
-zooming, the video chrome, the overlaid forward/delete dialogs and closing —
-can be exercised on `/shell-preview.html` with Chrome's DevTools protocol.
+`zoom=1` (dispatches a wheel zoom after mount). Photos are drawn on a canvas at
+runtime and the video state streams a public sample clip, so the viewer chrome
+can be checked without the Go backend. The detached window itself needs the
+backend (`/viewer.html` is loaded by `OpenMediaViewer`); the real chat flow —
+opening from a bubble or the info pane, paging, zooming, video controls, the
+bridged forward/delete dialogs and closing — can be exercised on
+`/shell-preview.html` or in the packaged app.
 
 ### Shell preview
 
@@ -245,22 +246,23 @@ right info pane; the archived row opens the archived view.
   sidebar search (and in the downloads header); it opens a dropdown with the
   account name, chats, downloads/count, settings and logout.
 - **Media viewer**: message photos, videos, GIFs, round video notes and albums
-  open in a full-window Telegram Web K style viewer (`components/media`). It
-  covers the app body only — the 34 px caption bar stays usable for dragging,
-  minimizing and closing the window (video fullscreen still fills the screen).
-  The
-  media grows out of the clicked thumbnail, the top bar carries the sender
-  avatar, name, position counter, message date/time and the right-hand action
-  row (delete, forward, copy image, download, rotate, zoom, ⋮, close), and the
-  caption/album strip sits under the media. Photos support wheel and
-  double-click zoom (0.5–4×), pan, rotate and drag paging/close; videos use
-  tweb's custom chrome — seek line with buffered fill and hover time,
-  play/pause, expanding volume slider, current/total time, playback-rate menu,
-  picture-in-picture and fullscreen with 3 s auto-hide — streamed from the
-  loopback range endpoint. Escape closes, arrow keys page, Ctrl +/- and 0 zoom.
-  Opening from the info pane pages through that tab's media instead of the
-  conversation. The old F photo/video dialogs, their CSS and their i18n strings
-  were removed. Chat info remains the right-hand pane described above.
+  open in a **detached viewer window** (`components/media` + `src/viewer`),
+  styled after Telegram Desktop's media viewer — its geometry and bottom chrome
+  were taken from the official tdesktop sources (`media_view.style` and
+  `media_view_playback_controls.cpp`). The separate Wails window has its own
+  slim dark caption bar (drag, minimize, maximize, close) so the chat window is
+  never covered and keeps working; closing the viewer returns focus to the chat.
+  Inside, the media is fitted between a small top gap and the measured bottom
+  chrome: rounded caption plate, tdesktop album thumb strip, video playback
+  block (volume, play/pause, speed menu, PiP, fullscreen; current time / seek
+  line / remaining time, fading out while playing) and the file info row —
+  bold file name / "N / M" plus sender • date on the left, download / rotate /
+  ⋮ on the right. Photos support wheel and double-click zoom (0.5–4×), pan,
+  rotate and drag paging/close; Escape closes the window; arrows page through
+  the conversation or the info pane tab the viewer was opened from. Forward,
+  delete, copy and show-in-chat run in the chat window through
+  `mediaViewer:action` events so the existing pickers/dialogs are reused. The
+  old F photo/video dialogs, their CSS and their i18n strings were removed.
 - **Settings** is a 560 px centred F `Dialog` with a scrollable body of grouped
   cards. There is no visible subtitle and no footer button: the header close
   button is the only dismiss action.
@@ -307,7 +309,7 @@ The Material layer was removed once every surface had an F equivalent:
 | Chat header + search + menu | done |
 | Chat composer + channel bar | done |
 | Message actions, reply/edit banner and forward picker | done |
-| Media viewer: photos, videos, GIFs, albums, round notes | done (Telegram Web K port) |
+| Media viewer: photos, videos, GIFs, albums, round notes | done (detached window, Telegram Desktop style) |
 | Message list, bubbles, dates, service rows | done |
 | Message media cards + context menu | done (F palette; legacy structural CSS) |
 | Right chat info pane | done |

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"tgdesk/internal/app"
 	"tgdesk/internal/kernel"
@@ -156,7 +157,8 @@ func main() {
 
 	width, height := initialWindowSize(wailsApp)
 
-	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
+	mainWindow := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:             "main",
 		Title:            "tgdesk",
 		Frameless:        true,
 		Width:            width,
@@ -167,6 +169,13 @@ func main() {
 		StartState:       application.WindowStateNormal,
 		BackgroundColour: application.NewRGB(14, 16, 22),
 		URL:              "/",
+	})
+	// The detached media viewer outlives the chat window for as long as it is
+	// open; closing the main window closes it too so the app can quit.
+	mainWindow.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
+		if viewer, ok := wailsApp.Window.Get(app.MediaViewerWindowName); ok {
+			viewer.Close()
+		}
 	})
 
 	if err := wailsApp.Run(); err != nil {

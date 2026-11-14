@@ -1,0 +1,202 @@
+/* Telegram Desktop video controls for the detached media viewer. */
+
+.dvc {
+  position: relative;
+  width: min(480px, calc(100vw - 24px));
+  height: 72px;
+  margin: 0 auto;
+  color: #fff;
+  transition: opacity 160ms ease;
+}
+
+.dvc[data-hidden] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dvc-btn {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.dvc-btn:hover,
+.dvc-btn[data-active] {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.dvc-volume {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.dvc-volume-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.dvc-volume-range {
+  width: 75px;
+  height: 3px;
+  margin: 0;
+  accent-color: #fff;
+  cursor: pointer;
+}
+
+.dvc-play {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  transform: translateX(-50%);
+}
+
+.dvc-play .f-icon {
+  stroke-width: 1.6;
+}
+
+.dvc-right {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dvc-seek {
+  position: absolute;
+  top: 38px;
+  right: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dvc-time {
+  flex: none;
+  min-width: 34px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.dvc-time-right {
+  text-align: right;
+}
+
+.dvc-seek-track {
+  position: relative;
+  display: block;
+  height: 12px;
+  flex: 1;
+  cursor: pointer;
+}
+
+.dvc-seek-track::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-50%);
+}
+
+.dvc-seek-buffer,
+.dvc-seek-played {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  transform: translateY(-50%);
+}
+
+.dvc-seek-buffer {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.dvc-seek-played {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.dvc-seek-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 12px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.dvc-seek-track::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 12px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.dvc-menu {
+  position: absolute;
+  right: 8px;
+  bottom: 54px;
+  z-index: 3;
+  min-width: 118px;
+  border-radius: 8px;
+  background: #26262b;
+  padding: 4px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+.dvc-menu-item {
+  display: flex;
+  width: 100%;
+  height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  padding: 0 9px;
+  color: #fff;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.dvc-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dvc-menu-item[data-active] {
+  color: var(--app-primary, #8b95ff);
+}
+
+.dvc-menu-check {
+  font-size: 12px;
+}

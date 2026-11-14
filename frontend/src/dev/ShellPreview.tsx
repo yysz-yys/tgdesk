@@ -155,8 +155,6 @@ function previewPhotoDataUrl(
 const previewLandscapePhoto = previewPhotoDataUrl("Preview photo", "#1f3b73", "#0d1b33", 900, 560);
 const previewPortraitPhoto = previewPhotoDataUrl("Portrait", "#5b2c6f", "#1b0a21", 620, 930);
 const previewVideoPoster = previewPhotoDataUrl("Screen recording", "#2c3e50", "#0b1520", 960, 540);
-const previewVideoUrl =
-  "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
 
 const messages: Message[] = [
   {
@@ -556,7 +554,7 @@ function Shell() {
           onOpenDownloaded={noop}
           onPauseDownload={noop}
           onResumeDownload={noop}
-          onLoadVideo={() => Promise.resolve(previewVideoUrl)}
+          onOpenMediaViewer={() => Promise.resolve()}
           onLoadChatInfo={() =>
             Promise.resolve({
               members: previewMembers.length,

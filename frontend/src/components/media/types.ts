@@ -63,6 +63,24 @@ export interface ViewerAuthor {
   peerId?: string;
 }
 
+/** Serialized state handed from the chat window to the detached viewer window. */
+export interface MediaViewerWindowState {
+  items: ViewerItem[];
+  initialId: number;
+  /** Authors keyed by message id (`authors[String(messageId)]`). */
+  authors: Record<string, ViewerAuthor>;
+  chat: { id: string; title: string };
+  /** Network/download parameters resolved in the main window. */
+  network: {
+    proxy: string;
+    ntp: string;
+    tdlStreaming: boolean;
+  };
+}
+
+/** Payload the chat window builds; App adds the network part. */
+export type OpenMediaViewerPayload = Omit<MediaViewerWindowState, "network">;
+
 const VIEWABLE_KINDS = new Set<ViewerKind>([
   "photo",
   "video",

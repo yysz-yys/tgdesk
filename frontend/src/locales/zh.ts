@@ -385,6 +385,8 @@ export default {
     videoLoading: "正在准备视频…",
     loading: "正在加载…",
     retry: "重试",
+    windowLoadFailed: "媒体窗口加载失败。",
+    downloadStarted: "已开始下载",
     position: "{{position}} / {{count}}",
     rate: "{{rate}}X",
   },

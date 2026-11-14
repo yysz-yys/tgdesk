@@ -966,18 +966,6 @@ export default function App() {
       .catch(() => showToast(t("toasts.downloadActionFailed")));
   };
 
-  const loadMessageVideo = useCallback(
-    (chatID: string, messageID: number) =>
-      AppService.GetVideoStream(
-        chatID,
-        messageID,
-        proxyUrl,
-        settings.ntp,
-        settings.tdlStreaming,
-      ),
-    [proxyUrl, settings.ntp, settings.tdlStreaming],
-  );
-
   const refreshMessages = useCallback(async () => {
     if (!selectedChatId) {
       return;
@@ -1530,7 +1518,18 @@ export default function App() {
                 onOpenDownloaded={openDownloadedTask}
                 onPauseDownload={(task) => pauseTask(task.id)}
                 onResumeDownload={(task) => resumeTask(task.id)}
-                onLoadVideo={loadMessageVideo}
+                onOpenMediaViewer={async (payload) => {
+                  await AppService.OpenMediaViewer(
+                    JSON.stringify({
+                      ...payload,
+                      network: {
+                        proxy: proxyUrl,
+                        ntp: settings.ntp,
+                        tdlStreaming: settings.tdlStreaming,
+                      },
+                    }),
+                  );
+                }}
                 onLoadChatInfo={loadChatInfo}
                 onLoadMembersPage={loadChatMembersPage}
                 onLoadSharedMedia={loadSharedMedia}

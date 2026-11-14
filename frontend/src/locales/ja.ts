@@ -385,6 +385,8 @@ export default {
     videoLoading: "動画を準備しています…",
     loading: "読み込み中…",
     retry: "再試行",
+    windowLoadFailed: "メディアウィンドウを読み込めませんでした。",
+    downloadStarted: "ダウンロードを開始しました",
     position: "{{position}} / {{count}}",
     rate: "{{rate}}X",
   },

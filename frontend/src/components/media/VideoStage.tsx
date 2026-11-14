@@ -35,6 +35,8 @@ export interface VideoStageProps {
   fullscreenTarget?: HTMLElement | null;
   /** Optional error toast; the message is already localized by the caller. */
   onToast?: (message: string) => void;
+  /** Reports the live `<video>` element (or null on unmount) to the viewer. */
+  onVideoElement?: (element: HTMLVideoElement | null) => void;
 }
 
 const PLAYBACK_RATES = [0.5, 1, 1.5, 2, 3];
@@ -127,10 +129,17 @@ export function VideoStage({
   chromeless = false,
   fullscreenTarget,
   onToast,
+  onVideoElement,
 }: VideoStageProps) {
   const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const onVideoElementRef = useRef(onVideoElement);
+  onVideoElementRef.current = onVideoElement;
+  useEffect(() => {
+    onVideoElementRef.current?.(videoRef.current);
+    return () => onVideoElementRef.current?.(null);
+  }, []);
   const progressRef = useRef<HTMLDivElement>(null);
   const volumeRef = useRef<HTMLDivElement>(null);
   const rateMenuRef = useRef<HTMLDivElement>(null);

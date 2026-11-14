@@ -12,9 +12,11 @@ import (
 // kernel calls; Telegram, storage and task logic must stay out of this package.
 type Service struct {
 	kernel *kernel.Service
+	viewer *mediaViewerManager
 }
 
 func New(k *kernel.Service) *Service {
+	service := &Service{kernel: k, viewer: newMediaViewerManager()}
 	k.SetEventSink(func(event kernel.AuthEvent) {
 		app := application.Get()
 		if app == nil {
@@ -43,7 +45,7 @@ func New(k *kernel.Service) *Service {
 		}
 		app.Event.Emit("upload:event", event)
 	})
-	return &Service{kernel: k}
+	return service
 }
 
 func (s *Service) GetPaths() kernel.PortablePaths {

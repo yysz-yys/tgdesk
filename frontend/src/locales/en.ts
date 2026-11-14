@@ -387,6 +387,8 @@ export default {
     videoLoading: "Preparing the video…",
     loading: "Loading…",
     retry: "Retry",
+    windowLoadFailed: "Could not load the media window.",
+    downloadStarted: "Download started",
     position: "{{position}} / {{count}}",
     rate: "{{rate}}X",
   },
