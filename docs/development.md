@@ -47,6 +47,19 @@ wails3 build
 Output: `bin/tgdesk.exe`. Run it from `bin/` so portable data stays in
 `bin/data`, `bin/tdata` and `bin/downloads`.
 
+`bin/tgdesk.exe` embeds `frontend/dist` at compile time (`//go:embed all:frontend/dist`
+in `main.go`). Editing React/CSS and then starting the existing binary keeps
+showing the old UI: rebuild with `wails3 build` (or `task build`, which runs the
+same Wails tasks plus the production frontend build) and relaunch. The binary
+also rewrites `data/webview-cache.version` from its own timestamp and size and
+clears WebView2's HTTP/JS cache when it changes, so a rebuilt exe is never
+shadowed by cached `index.html`/assets.
+
+Wails and `task` are installed under `$(go env GOPATH)\bin`; when that directory
+is not on `PATH`, call `wails3.exe` / `task.exe` with the full path or prepend it
+for the build shell. `task build` also regenerates the frontend bindings before
+the production Vite build.
+
 ### Windows build exit-code gotcha
 
 Wails 3.1.0 on Windows may print:
