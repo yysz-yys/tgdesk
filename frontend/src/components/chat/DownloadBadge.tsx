@@ -7,14 +7,14 @@ export type DownloadBadgeVariant = "corner" | "file" | "row";
 /**
  * Inline download affordance shared by the chat-info lists and message bubbles:
  * a transparent round button that becomes a progress ring while the transfer
- * runs and a green check once it has been delivered. Clicking it never leaves
- * the current view.
+ * runs. Completed downloads draw nothing at all — the delivered file is
+ * reachable from Downloads, and Telegram Desktop does not mark finished media
+ * in the conversation either.
  */
 export function DownloadBadge({
   messageID,
   task,
   onStart,
-  onOpen,
   onPause,
   onResume,
   variant = "corner",
@@ -23,6 +23,7 @@ export function DownloadBadge({
   messageID: number;
   task?: DownloadTask;
   onStart?: (ids: number[]) => void;
+  /** Accepted for compatibility; completed downloads no longer render a badge. */
   onOpen?: (task: DownloadTask) => void;
   onPause?: (task: DownloadTask) => void;
   onResume?: (task: DownloadTask) => void;
@@ -32,12 +33,14 @@ export function DownloadBadge({
 }) {
   const { t } = useTranslation();
   const status = task?.status;
-  const done = status === "done";
+  if (status === "done") {
+    // A finished transfer shows no badge in the chat at all.
+    return null;
+  }
   const progress = Math.max(0, Math.min(100, task?.progress ?? 0));
-  const active = Boolean(task && !done);
-  const label = done
-    ? t("downloads.downloaded")
-    : status === "paused"
+  const active = Boolean(task);
+  const label =
+    status === "paused"
       ? t("downloads.pausedResumeLabel", { progress })
       : status === "failed"
         ? t("downloads.failedRetryLabel")
@@ -46,9 +49,7 @@ export function DownloadBadge({
           : t("common.download");
 
   const activate = () => {
-    if (done && task) {
-      onOpen?.(task);
-    } else if (task?.status === "active" || task?.status === "queued") {
+    if (task?.status === "active" || task?.status === "queued") {
       onPause?.(task);
     } else if (task?.status === "paused") {
       onResume?.(task);
@@ -75,13 +76,7 @@ export function DownloadBadge({
       ) : null}
       <Icon
         name={
-          done
-            ? "check"
-            : status === "failed"
-              ? "refresh"
-              : status === "paused"
-                ? "pause"
-                : "download"
+          status === "failed" ? "refresh" : status === "paused" ? "pause" : "download"
         }
         size={variant === "file" ? 14 : 15}
       />

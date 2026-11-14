@@ -102,9 +102,10 @@
 - Message bubbles get the same inline download affordance as the chat-info
   pane: photos, videos, GIFs and album cells carry a small round download
   control in their top-right corner, and document rows show it centered on the
-  file icon. It becomes the familiar progress ring / green check, downloads
-  without opening the Downloads page, and does not trigger the photo/video
-  viewer.
+  file icon. It becomes the familiar progress ring while the transfer runs,
+  downloads without opening the Downloads page, and does not trigger the
+  photo/video viewer. Completed transfers leave no badge, so a delivered media
+  item shows no mark in the conversation (open the Downloads page for the file).
 - Inline download badges now toggle like the Downloads page: first click starts
   the transfer, clicking the progress ring pauses it, clicking the paused ring
   resumes it, and a failed ring retries. Tooltips state the action
@@ -114,8 +115,8 @@
   videos, files, music and voice rows carry an inline download control. Media
   tiles show a transparent round button in the top-right corner, file rows show
   it over the file icon, and the button becomes a circular progress ring while
-  the transfer runs, then a green check when the file is delivered. Clicking a
-  finished badge opens the containing folder.
+  the transfer runs. Finished downloads show no badge at all; paused and failed
+  states keep their ring so they can be resumed or retried.
 - The chat-info header has a "Downloaded only" filter for every downloadable
   tab; it keeps only items whose local task is done.
 - Downloads are grouped under the configured folder by Telegram's own mobile
@@ -129,15 +130,13 @@
   tasks (pool size, tdl `--limit`, tdl `--skip-same`, takeout clients,
   extension sniffing, and tdl's reconnect middleware window).
 - The delete-message dialog buttons are baseline-aligned again (both 32 px).
-- Clicking a downloaded badge now re-checks the file first: if it still exists
-  the containing folder opens, but if it was deleted or moved the stale "done"
-  record is forgotten and the message starts a fresh download, like Telegram
-  Desktop's downloaded-path behaviour. Message bubbles refresh that state when
-  the conversation is opened or the window regains focus, so a file deleted in
-  Explorer cannot leave a stale green check there either. `GetDownloads`
-  applies the same cleanup, so no fake completed row survives. If an unrelated
-  file already occupies the rendered name, the new download is saved as
-  `name (2).ext` instead of overwriting it.
+- Downloaded rows are re-checked against disk when the conversation is opened
+  or the window regains focus: if the file was deleted or moved the stale
+  "done" record is forgotten and the message can start a fresh download, like
+  Telegram Desktop's downloaded-path behaviour. `GetDownloads` applies the same
+  cleanup, so no fake completed row survives. If an unrelated file already
+  occupies the rendered name, the new download is saved as `name (2).ext`
+  instead of overwriting it.
 
 ### Chat info and history loading
 

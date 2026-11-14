@@ -595,10 +595,6 @@
   transform: scale(1.05);
 }
 
-.f-info-download[data-status="done"] {
-  background: rgba(43, 158, 66, 0.9);
-}
-
 .f-info-download[data-status="failed"] {
   background: rgba(214, 64, 64, 0.92);
 }
