@@ -15,7 +15,10 @@
   overflow: hidden;
   background: #000;
   color: #fff;
-  outline: none;
+  /* The global [tabindex]:focus-visible ring in base.css would paint a 2px
+   * light line above the viewer (in the window caption bar). The viewer is a
+   * programmatically focused container, so it must not draw a focus ring. */
+  outline: none !important;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
