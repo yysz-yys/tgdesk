@@ -457,12 +457,6 @@ html:fullscreen .mv-root,
   place-items: center;
 }
 
-.mv-menu-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 /* ------------------------------------------------------------------ */
 /* open / close / slide animation                                      */
 /* ------------------------------------------------------------------ */

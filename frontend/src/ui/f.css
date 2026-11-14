@@ -433,6 +433,13 @@ body {
   font-size: 12.5px;
 }
 
+/* Keyboard navigation shows the highlighted background; the global
+ * [tabindex]:focus-visible outline would draw a ring inside the menu. */
+.f-menu-content [role="menuitem"]:focus,
+.f-menu-content [role="menuitem"]:focus-visible {
+  outline: none !important;
+}
+
 .f-menu-item {
   display: flex;
   height: 32px;

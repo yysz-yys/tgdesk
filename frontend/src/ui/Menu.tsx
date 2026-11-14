@@ -5,6 +5,7 @@ import { cn } from "../lib/cn";
 export interface MenuProps {
   trigger: ReactNode;
   triggerClassName?: string;
+  contentClassName?: string;
   children: ReactNode;
   side?: "top" | "right" | "bottom" | "left";
   align?: "start" | "center" | "end";
@@ -17,6 +18,7 @@ export interface MenuProps {
 export function Menu({
   trigger,
   triggerClassName,
+  contentClassName,
   children,
   side = "bottom",
   align = "start",
@@ -28,7 +30,12 @@ export function Menu({
           {trigger}
         </button>
       </RadixMenu.Trigger>
-      <RadixMenu.Content className="f-menu-content" side={side} align={align} sideOffset={6}>
+      <RadixMenu.Content
+        className={cn("f-menu-content", contentClassName)}
+        side={side}
+        align={align}
+        sideOffset={6}
+      >
         {children}
       </RadixMenu.Content>
     </RadixMenu.Root>

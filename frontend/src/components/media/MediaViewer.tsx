@@ -1098,47 +1098,57 @@ export function MediaViewer({
               <Menu
                 trigger={<Icon name="more_vert" size={26} />}
                 triggerClassName="mv-info-btn mv-more-trigger"
+                contentClassName="f-menu"
                 side="top"
                 align="end"
               >
                 {active ? (
-                  <MenuItem onSelect={copyImage}>
-                    <span className="mv-menu-row">
+                  <MenuItem className="f-menu-item" onSelect={copyImage}>
+                    <span className="f-menu-icon">
                       <Icon name="content_copy" size={17} />
-                      {t("viewer.copyImage")}
                     </span>
+                    <span className="f-menu-label">{t("viewer.copyImage")}</span>
                   </MenuItem>
                 ) : null}
                 {captionText ? (
-                  <MenuItem onSelect={copyCaption}>
-                    <span className="mv-menu-row">
+                  <MenuItem className="f-menu-item" onSelect={copyCaption}>
+                    <span className="f-menu-icon">
                       <Icon name="content_copy" size={17} />
-                      {t("viewer.copyText")}
                     </span>
+                    <span className="f-menu-label">{t("viewer.copyText")}</span>
                   </MenuItem>
                 ) : null}
                 {onShowInChat ? (
-                  <MenuItem onSelect={() => onShowInChat(item.message)}>
-                    <span className="mv-menu-row">
+                  <MenuItem
+                    className="f-menu-item"
+                    onSelect={() => onShowInChat(item.message)}
+                  >
+                    <span className="f-menu-icon">
                       <Icon name="chat_bubble" size={17} />
-                      {t("viewer.showInChat")}
                     </span>
+                    <span className="f-menu-label">{t("viewer.showInChat")}</span>
                   </MenuItem>
                 ) : null}
                 {onForward && !item.message.noForwards ? (
-                  <MenuItem onSelect={() => onForward(item.message)}>
-                    <span className="mv-menu-row">
+                  <MenuItem
+                    className="f-menu-item"
+                    onSelect={() => onForward(item.message)}
+                  >
+                    <span className="f-menu-icon">
                       <Icon name="forward" size={17} />
-                      {t("viewer.forward")}
                     </span>
+                    <span className="f-menu-label">{t("viewer.forward")}</span>
                   </MenuItem>
                 ) : null}
                 {onDelete ? (
-                  <MenuItem onSelect={() => onDelete(item.message)}>
-                    <span className="mv-menu-row">
+                  <MenuItem
+                    className="f-menu-item"
+                    onSelect={() => onDelete(item.message)}
+                  >
+                    <span className="f-menu-icon">
                       <Icon name="delete" size={17} />
-                      {t("viewer.delete")}
                     </span>
+                    <span className="f-menu-label">{t("viewer.delete")}</span>
                   </MenuItem>
                 ) : null}
               </Menu>
