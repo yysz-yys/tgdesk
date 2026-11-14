@@ -114,6 +114,31 @@ func (s *Service) GetChatMembers(
 	return s.kernel.GetChatMembers(chatID, proxy, ntp, limit)
 }
 
+// ------------------------------------------------- contacts and new chats
+
+// SearchContacts searches the account's contacts and global Telegram users for
+// the new-chat/new-group member pickers.
+func (s *Service) SearchContacts(proxy, ntp, query string, limit int) ([]kernel.ContactDTO, error) {
+	return s.kernel.SearchContacts(proxy, ntp, query, limit)
+}
+
+// CreateChannel creates a broadcast channel and returns its opaque chat id.
+func (s *Service) CreateChannel(proxy, ntp, title, about string) (string, error) {
+	return s.kernel.CreateChannel(proxy, ntp, title, about)
+}
+
+// CreateGroup creates a basic group with the picked members and returns its
+// opaque chat id. userIDs may be empty.
+func (s *Service) CreateGroup(proxy, ntp, title string, userIDs []int64) (string, error) {
+	return s.kernel.CreateGroup(proxy, ntp, title, userIDs)
+}
+
+// InviteToChannel adds the picked members to a channel/supergroup (or basic
+// group) created a moment earlier.
+func (s *Service) InviteToChannel(proxy, ntp, chatID string, userIDs []int64) error {
+	return s.kernel.InviteToChannel(proxy, ntp, chatID, userIDs)
+}
+
 // GetChatInfo resolves which chat-info tabs a peer has using the same
 // messages.getSearchCounters call as Telegram Web.
 func (s *Service) GetChatInfo(
@@ -373,6 +398,12 @@ func (s *Service) CancelLogin() error {
 
 func (s *Service) Logout() error {
 	return s.kernel.Logout()
+}
+
+// GetActiveSessionCount returns the number of devices logged into the account
+// (the Settings "Devices" row).
+func (s *Service) GetActiveSessionCount(proxy, ntp string) (int, error) {
+	return s.kernel.GetActiveSessionCount(proxy, ntp)
 }
 
 // ------------------------------------------------------- stickers / GIFs

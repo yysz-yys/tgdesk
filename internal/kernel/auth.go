@@ -66,6 +66,8 @@ type AuthUser struct {
 	Restriction string `json:"restriction,omitempty"`
 	Initials    string `json:"initials"`
 	Color       string `json:"color"`
+	// ColorIndex is the Web K avatar gradient index (abs(user id) % 7).
+	ColorIndex int `json:"colorIndex"`
 }
 
 // AuthStatus is returned on app startup. It checks the tdl bolt session
@@ -1026,6 +1028,9 @@ func loadAuthUser(ns storage.Storage) *AuthUser {
 	if err := json.Unmarshal(data, &user); err != nil {
 		return nil
 	}
+	// ColorIndex is derived from the user id; backfill records written before the
+	// field existed.
+	user.ColorIndex = contactColorIndex(user.ID)
 	return &user
 }
 
@@ -1067,6 +1072,7 @@ func makeAuthUser(user *tg.User) AuthUser {
 		DisplayName: display,
 		Initials:    strings.ToUpper(initials),
 		Color:       colors[index],
+		ColorIndex:  contactColorIndex(user.ID),
 		Restricted:  user.Restricted,
 		Restriction: restriction,
 	}

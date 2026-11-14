@@ -61,6 +61,21 @@ export function ClearRecentStickers(proxy: string, ntp: string): $CancellablePro
     return $Call.ByID(3650590254, proxy, ntp);
 }
 
+/**
+ * CreateChannel creates a broadcast channel and returns its opaque chat id.
+ */
+export function CreateChannel(proxy: string, ntp: string, title: string, about: string): $CancellablePromise<string> {
+    return $Call.ByID(2689556199, proxy, ntp, title, about);
+}
+
+/**
+ * CreateGroup creates a basic group with the picked members and returns its
+ * opaque chat id. userIDs may be empty.
+ */
+export function CreateGroup(proxy: string, ntp: string, title: string, userIDs: number[] | null): $CancellablePromise<string> {
+    return $Call.ByID(592900999, proxy, ntp, title, userIDs);
+}
+
 export function DeleteMessages(chatID: string, messageIDs: number[] | null, revoke: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(1448502483, chatID, messageIDs, revoke, proxy, ntp);
 }
@@ -75,6 +90,14 @@ export function ExportTData(): $CancellablePromise<kernel$0.TDataExport | null> 
 
 export function ForwardMessages(fromChatID: string, toChatID: string, messageIDs: number[] | null, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(1693371933, fromChatID, toChatID, messageIDs, proxy, ntp);
+}
+
+/**
+ * GetActiveSessionCount returns the number of devices logged into the account
+ * (the Settings "Devices" row).
+ */
+export function GetActiveSessionCount(proxy: string, ntp: string): $CancellablePromise<number> {
+    return $Call.ByID(3927242617, proxy, ntp);
 }
 
 export function GetArchivedChats(proxy: string, ntp: string, limit: number, force: boolean): $CancellablePromise<kernel$0.ChatDTO[] | null> {
@@ -253,6 +276,14 @@ export function InstallStickerSet(ref: string, proxy: string, ntp: string): $Can
 }
 
 /**
+ * InviteToChannel adds the picked members to a channel/supergroup (or basic
+ * group) created a moment earlier.
+ */
+export function InviteToChannel(proxy: string, ntp: string, chatID: string, userIDs: number[] | null): $CancellablePromise<void> {
+    return $Call.ByID(1546830595, proxy, ntp, chatID, userIDs);
+}
+
+/**
  * JoinByInvite joins a private chat through its invite hash and returns it.
  */
 export function JoinByInvite(hash: string, proxy: string, ntp: string): $CancellablePromise<kernel$0.ChatDTO | null> {
@@ -329,6 +360,14 @@ export function ResolveTelegramLink(rawURL: string, proxy: string, ntp: string):
 
 export function ResumeDownload(id: string, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(2763229687, id, proxy, ntp);
+}
+
+/**
+ * SearchContacts searches the account's contacts and global Telegram users for
+ * the new-chat/new-group member pickers.
+ */
+export function SearchContacts(proxy: string, ntp: string, query: string, limit: number): $CancellablePromise<kernel$0.ContactDTO[] | null> {
+    return $Call.ByID(3811863993, proxy, ntp, query, limit);
 }
 
 /**

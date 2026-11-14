@@ -100,6 +100,11 @@ export interface AuthUser {
     "restriction"?: string;
     "initials": string;
     "color": string;
+
+    /**
+     * ColorIndex is the Web K avatar gradient index (abs(user id) % 7).
+     */
+    "colorIndex": number;
 }
 
 /**
@@ -464,6 +469,20 @@ export interface ChatThemeDTO {
 export interface ChecklistItemDTO {
     "text": string;
     "done": boolean;
+}
+
+/**
+ * ContactDTO is one user row for the new-chat/new-group pickers. ID is the raw
+ * Telegram user id (not an opaque peer id) because the pickers send the selected
+ * ids back to CreateGroup/InviteToChannel. ColorIndex is the Web K avatar
+ * gradient index (abs(user id) % 7).
+ */
+export interface ContactDTO {
+    "id": number;
+    "name": string;
+    "username"?: string;
+    "avatarUrl"?: string;
+    "colorIndex": number;
 }
 
 export interface DownloadEvent {

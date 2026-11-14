@@ -20,6 +20,7 @@ export type {
     ChatProfileDTO,
     ChatThemeDTO,
     ChecklistItemDTO,
+    ContactDTO,
     DownloadEvent,
     DownloadOptions,
     DownloadTaskDTO,
