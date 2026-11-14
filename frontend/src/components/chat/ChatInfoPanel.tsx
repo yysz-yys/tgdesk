@@ -12,18 +12,23 @@ import { Browser } from "@wailsio/runtime";
 import { useTranslation } from "react-i18next";
 import type {
   Chat,
+  ChatGiftsPage,
   ChatInfo,
   ChatMember,
   ChatMembersPage,
   ChatProfile,
   ChatProfileType,
   DownloadTask,
+  GiftInfo,
   Message,
+  SavedChats,
   SharedMediaPage,
   SharedMediaSection,
 } from "../../types";
 import { Avatar, Button, Icon, IconButton, Spinner } from "../../ui";
-import { chatColor, chatInitials } from "../../data/telegram";
+import { chatColor, chatInitials, mapChat } from "../../data/telegram";
+import type { KernelChat } from "../../data/telegram";
+import { Service as AppService } from "../../../bindings/tgdesk/internal/app";
 import type { ViewerSource } from "../media/types";
 import { ChatAvatar } from "./ChatAvatar";
 import { RichText } from "./MessageBubble";
@@ -34,6 +39,8 @@ import {
   LinkList,
   MediaGrid,
 } from "./ChatInfoSections";
+import { GiftList } from "./info/GiftList";
+import { SavedChatList } from "./info/SavedChatList";
 import { PeerQrDialog, QrCodeIcon } from "./PeerQrDialog";
 
 interface ChatInfoPanelProps {
@@ -100,13 +107,35 @@ interface ChatInfoPanelProps {
    * backend call; the tile only exists when this prop is wired.
    */
   onLeaveChat?: () => void;
-  /** Opens the linked discussion group of a channel (its linked_chat_id). */
-  onOpenDiscussion?: (chatID: string) => void;
+  /**
+   * Opens the linked discussion group of a channel. The full `Chat` entity is
+   * passed when the kernel resolved it (`profile.linkedChat`), which lets the
+   * shell open discussions that are not part of the loaded dialog list.
+   */
+  onOpenDiscussion?: (chatID: string, chat?: Chat) => void;
   /** Routes a t.me link through the app's in-app navigator (Lead wires it). */
   onOpenLink?: (url: string) => void;
+  /**
+   * Loads the source chats of Saved Messages (Telegram Web K's "Chats" tab).
+   * When omitted the panel asks `AppService.GetSavedChats` directly through the
+   * typed binding cast below, so the tab also works before App.tsx wires it.
+   */
+  onLoadSavedChats?: () => Promise<SavedChats | null>;
+  /** Opens one source chat of Saved Messages (Lead wires in-app navigation). */
+  onOpenSavedChat?: (chatID: string) => void;
+  /**
+   * Loads one page of the profile's star gifts (user/channel Gifts tab).
+   * When omitted the panel asks `AppService.GetChatGifts` through the cast.
+   */
+  onLoadChatGifts?: (offset?: string) => Promise<ChatGiftsPage | null>;
+  /**
+   * Network params (`proxyUrl` + `settings.ntp`) used by the AppService
+   * fallbacks; the shell should pass the same pair it gives the composer.
+   */
+  network?: { proxy: string; ntp: string };
 }
 
-type InfoTab = "members" | SharedMediaSection;
+type InfoTab = "members" | "chats" | "gifts" | SharedMediaSection;
 
 /** Telegram Web's Media tab can list photos and videos together or alone. */
 type MediaFilter = "all" | "photos" | "videos";
@@ -127,6 +156,17 @@ interface MembersState {
   failed: boolean;
   hasMore: boolean;
   nextOffset: number;
+  total: number;
+}
+
+/** Paged state of the Gifts tab (payments.getSavedStarGifts). */
+interface GiftsState {
+  items: GiftInfo[];
+  loading: boolean;
+  loaded: boolean;
+  failed: boolean;
+  hasMore: boolean;
+  nextOffset: string;
   total: number;
 }
 
@@ -205,6 +245,18 @@ function createMembers(): MembersState {
   };
 }
 
+function createGifts(): GiftsState {
+  return {
+    items: [],
+    loading: false,
+    loaded: false,
+    failed: false,
+    hasMore: false,
+    nextOffset: "",
+    total: 0,
+  };
+}
+
 function mergeMedia(current: Message[], incoming: Message[]): Message[] {
   if (incoming.length === 0) {
     return current;
@@ -235,6 +287,25 @@ function mergeMembers(current: ChatMember[], incoming: ChatMember[]): ChatMember
   return next;
 }
 
+/** Appends one Gifts page, skipping ids that were already rendered. */
+function mergeGifts(current: GiftInfo[], incoming: GiftInfo[]): GiftInfo[] {
+  if (incoming.length === 0) {
+    return current;
+  }
+  const key = (gift: GiftInfo) =>
+    `${gift.id}|${gift.date ?? 0}|${gift.title}|${gift.count ?? 0}`;
+  const known = new Set(current.map(key));
+  const next = current.slice();
+  for (const gift of incoming) {
+    const id = key(gift);
+    if (!known.has(id)) {
+      known.add(id);
+      next.push(gift);
+    }
+  }
+  return next;
+}
+
 /* --------------------------------------------------------------------------
  * Telegram-style "personal info" details: bio card, username / link / phone
  * rows, member counters and the bot extras. Values come from the optional
@@ -248,6 +319,75 @@ const PROFILE_TITLE_KEYS: Record<ChatProfileType, string> = {
   channel: "profile.channelInfo",
   saved: "profile.savedMessages",
 };
+
+/* --------------------------------------------------------------------------
+ * Round-3 kernel calls (Saved Messages source chats, profile gifts). The Wails
+ * bindings are regenerated by the Lead, so the generated service is cast to a
+ * minimal local shape. If the shell passes a loader prop the cast is not used.
+ */
+
+/** Minimal DTO shape of `kernel.GetSavedChats` before the bindings regenerate. */
+interface SavedChatsDTO {
+  chats?: KernelChat[] | null;
+  count?: number;
+}
+
+/** Minimal shape of `kernel.StarGiftDTO`; `GiftInfo` mirrors it. */
+interface GiftInfoDTO {
+  id?: string;
+  title?: string;
+  from?: string;
+  date?: number;
+  stars?: number;
+  count?: number;
+  thumbUrl?: string;
+  unique?: boolean;
+  soldOut?: boolean;
+}
+
+/** Minimal DTO shape of `kernel.GetChatGifts` before the bindings regenerate. */
+interface ChatGiftsDTO {
+  gifts?: GiftInfoDTO[] | null;
+  nextOffset?: string;
+  total?: number;
+}
+
+interface ChatInfoServiceExtras {
+  GetSavedChats?: (
+    proxy: string,
+    ntp: string,
+  ) => Promise<SavedChatsDTO | null>;
+  GetChatGifts?: (
+    chatID: string,
+    offset: string,
+    limit: number,
+    proxy: string,
+    ntp: string,
+  ) => Promise<ChatGiftsDTO | null>;
+}
+
+const infoService = AppService as unknown as ChatInfoServiceExtras;
+
+/** Page size of the profile Gifts tab (Web K loads small pages too). */
+const GIFTS_PAGE_SIZE = 40;
+
+/** Normalises the star-gift DTO into the panel's `GiftInfo` rows. */
+function mapGiftInfo(gift: GiftInfoDTO): GiftInfo | null {
+  if (!gift || (!gift.title && !gift.thumbUrl)) {
+    return null;
+  }
+  return {
+    id: gift.id ?? "",
+    title: gift.title ?? "",
+    from: gift.from || undefined,
+    date: gift.date || undefined,
+    stars: gift.stars || undefined,
+    count: gift.count || undefined,
+    thumbUrl: gift.thumbUrl || undefined,
+    unique: Boolean(gift.unique),
+    soldOut: Boolean(gift.soldOut),
+  };
+}
 
 /** Adds the scheme Wails' Browser.OpenURL expects to bare t.me links. */
 function normalizeProfileUrl(value: string): string {
@@ -423,6 +563,10 @@ export function ChatInfoPanel({
   onLeaveChat,
   onOpenDiscussion,
   onOpenLink,
+  onLoadSavedChats,
+  onOpenSavedChat,
+  onLoadChatGifts,
+  network,
 }: ChatInfoPanelProps) {
   const { t, i18n } = useTranslation();
   const [info, setInfo] = useState<ChatInfo | null>(null);
@@ -436,6 +580,9 @@ export function ChatInfoPanel({
   const [sections, setSections] =
     useState<Record<SharedMediaSection, SectionState>>(createSections);
   const [members, setMembers] = useState<MembersState>(createMembers);
+  const [savedChats, setSavedChats] = useState<SavedChats | null>(null);
+  const [savedChatsFailed, setSavedChatsFailed] = useState(false);
+  const [gifts, setGifts] = useState<GiftsState>(createGifts);
   const [reloadKey, setReloadKey] = useState(0);
 
   const sectionsRef = useRef(sections);
@@ -444,7 +591,29 @@ export function ChatInfoPanel({
   const mediaFilterRef = useRef<MediaFilter>(mediaFilter);
   const sectionLoadingRef = useRef<Partial<Record<SharedMediaSection, boolean>>>({});
   const membersLoadingRef = useRef(false);
+  const savedChatsRef = useRef<SavedChats | null>(null);
+  const savedChatsLoadingRef = useRef(false);
+  const giftsRef = useRef(gifts);
+  const giftsLoadingRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Latest loader props / network params for the async callbacks; kept in a ref
+  // so inline arrow props from the shell never restart the loading effects.
+  const loadersRef = useRef({
+    onLoadSavedChats,
+    onLoadChatGifts,
+    network,
+    language: i18n.language,
+    t,
+  });
+  useEffect(() => {
+    loadersRef.current = {
+      onLoadSavedChats,
+      onLoadChatGifts,
+      network,
+      language: i18n.language,
+      t,
+    };
+  });
 
   useEffect(() => {
     sectionsRef.current = sections;
@@ -453,6 +622,14 @@ export function ChatInfoPanel({
   useEffect(() => {
     membersRef.current = members;
   }, [members]);
+
+  useEffect(() => {
+    savedChatsRef.current = savedChats;
+  }, [savedChats]);
+
+  useEffect(() => {
+    giftsRef.current = gifts;
+  }, [gifts]);
 
   useEffect(() => {
     activeRef.current = active;
@@ -465,7 +642,7 @@ export function ChatInfoPanel({
   // The Media tab swaps between the combined photo+video filter and each half,
   // exactly like Telegram Web's tickable Photos/Videos menu.
   const activeSection = useMemo<SharedMediaSection | null>(() => {
-    if (!active || active === "members") {
+    if (!active || active === "members" || active === "chats" || active === "gifts") {
       return null;
     }
     if (active === "media") {
@@ -531,12 +708,35 @@ export function ChatInfoPanel({
   const isSaved = peerType === "saved";
   /** Broadcast channels and supergroups share the same info card/link row. */
   const isChatPeer = peerType === "group" || peerType === "channel";
-  const panelTitle = t(PROFILE_TITLE_KEYS[peerType]);
+  /**
+   * Saved Messages gets its title from the chat itself (the shell localises the
+   * self-chat title); normal peers keep the Web K "X info" pane title. The
+   * localised "我的收藏" must come from `chat.title`, never a second label here.
+   */
+  const panelTitle = isSaved
+    ? chat.title || t("profile.savedMessages")
+    : t(PROFILE_TITLE_KEYS[peerType]);
   const countFormatter = useMemo(
     () => new Intl.NumberFormat(i18n.language),
     [i18n.language],
   );
   const memberCount = profile?.members ?? chat.memberCount ?? 0;
+  /** Saved Messages 2.0 "N chats" line under the pane title. */
+  const savedChatsSubtitle = useMemo(() => {
+    if (!isSaved || !savedChats) {
+      return "";
+    }
+    const count = savedChats.count || savedChats.chats.length;
+    return t("rightPanel.savedChatsCount", {
+      count,
+      value: countFormatter.format(count),
+    });
+  }, [countFormatter, isSaved, savedChats, t]);
+  /** Gifts tab is a Web K channel/user tab; groups, bots and Saved never get it. */
+  const showGiftsTab =
+    !isSaved &&
+    (peerType === "user" || peerType === "channel") &&
+    (profile?.giftsCount ?? 0) > 0;
 
   // Web K's link row carries only the main username; the others live in the
   // "also @x, @y" subtitle. The kernel sends every active username (main first)
@@ -645,13 +845,16 @@ export function ChatInfoPanel({
       label: chat.muted ? t("profile.unmute") : t("profile.mute"),
       onClick: () => onToggleMute(chat.id),
     });
-    const linkedChatId = profile?.linkedChatId;
+    // Web K resolves the Discussion tile from `channelFull.linked_chat_id`; the
+    // shell opens `linkedChat` directly when the group is not in the dialog list.
+    const linkedChat = profile?.linkedChat;
+    const linkedChatId = profile?.linkedChatId ?? linkedChat?.id;
     if (linkedChatId && onOpenDiscussion) {
       tiles.push({
         id: "discussion",
         icon: "forum",
         label: t("profile.discussion"),
-        onClick: () => onOpenDiscussion(linkedChatId),
+        onClick: () => onOpenDiscussion(linkedChatId, linkedChat),
       });
     }
     if (isChatPeer && onLeaveChat) {
@@ -673,6 +876,7 @@ export function ChatInfoPanel({
     onToggleMute,
     onToast,
     peerType,
+    profile?.linkedChat,
     profile?.linkedChatId,
     t,
   ]);
@@ -749,12 +953,149 @@ export function ChatInfoPanel({
     setMediaFilter("all");
     setSections(createSections());
     setMembers(createMembers());
+    setSavedChats(null);
+    setSavedChatsFailed(false);
+    setGifts(createGifts());
     setInfoFailed(false);
+    // The refs are read by the async loaders; clear them synchronously so a
+    // chat switch cannot keep the previous peer's loaded chats/gifts.
+    savedChatsRef.current = null;
+    giftsRef.current = createGifts();
     void loadInfo(true);
   }, [loadInfo, reloadKey]);
 
+  // Telegram Web K's Saved "Chats" tab lists the source chats of the saved
+  // messages. The figure also feeds the "N chats" subtitle in the pane header,
+  // so it loads eagerly for the Saved peer instead of on the first tab click.
+  const loadSavedChats = useCallback(async () => {
+    if (savedChatsLoadingRef.current || savedChatsRef.current) {
+      return;
+    }
+    savedChatsLoadingRef.current = true;
+    setSavedChatsFailed(false);
+    try {
+      const {
+        onLoadSavedChats: loader,
+        network: net,
+        language,
+        t: translate,
+      } = loadersRef.current;
+      let next: SavedChats | null = null;
+      if (loader) {
+        next = await loader();
+      } else if (infoService.GetSavedChats) {
+        const dto = await infoService.GetSavedChats(
+          net?.proxy ?? "",
+          net?.ntp ?? "",
+        );
+        if (dto) {
+          const chats = (dto.chats ?? []).map((item) =>
+            mapChat(item, language, translate),
+          );
+          next = { chats, count: dto.count ?? chats.length };
+        }
+      }
+      if (next) {
+        setSavedChats(next);
+      } else {
+        setSavedChatsFailed(true);
+      }
+    } catch {
+      setSavedChatsFailed(true);
+    } finally {
+      savedChatsLoadingRef.current = false;
+    }
+  }, []);
+
+  // The first visible Chats tab for Saved; also the Retry target.
+  useEffect(() => {
+    if (!isSaved) {
+      return;
+    }
+    void loadSavedChats();
+  }, [chat.id, isSaved, loadSavedChats, reloadKey]);
+
+  // Profile Gifts tab: payments.getSavedStarGifts pages, loaded lazily on the
+  // first activation and appended when the list is scrolled to the end.
+  const loadGiftsPage = useCallback(
+    async (mode: "first" | "more") => {
+      if (giftsLoadingRef.current) {
+        return;
+      }
+      const state = giftsRef.current;
+      if (mode === "first" && state.loaded) {
+        return;
+      }
+      if (mode === "more" && (!state.loaded || !state.hasMore)) {
+        return;
+      }
+      giftsLoadingRef.current = true;
+      setGifts((current) => ({ ...current, loading: true, failed: false }));
+      try {
+        const { onLoadChatGifts: loader, network: net } = loadersRef.current;
+        let page: ChatGiftsPage | null = null;
+        if (loader) {
+          page = await loader(mode === "first" ? undefined : state.nextOffset);
+        } else if (infoService.GetChatGifts) {
+          const dto = await infoService.GetChatGifts(
+            chat.id,
+            mode === "first" ? "" : state.nextOffset,
+            GIFTS_PAGE_SIZE,
+            net?.proxy ?? "",
+            net?.ntp ?? "",
+          );
+          if (dto) {
+            const items = (dto.gifts ?? [])
+              .map(mapGiftInfo)
+              .filter((gift): gift is GiftInfo => gift !== null);
+            page = {
+              gifts: items,
+              nextOffset: dto.nextOffset || undefined,
+              total: dto.total ?? 0,
+            };
+          }
+        }
+        if (!page) {
+          setGifts((current) => ({
+            ...current,
+            loading: false,
+            loaded: current.loaded,
+            failed: true,
+          }));
+          return;
+        }
+        const items = page.gifts ?? [];
+        setGifts((current) => ({
+          items: mode === "first" ? items : mergeGifts(current.items, items),
+          loading: false,
+          loaded: true,
+          failed: false,
+          hasMore: Boolean(page.nextOffset),
+          nextOffset: page.nextOffset ?? "",
+          total: page.total ?? 0,
+        }));
+      } catch {
+        setGifts((current) => ({
+          ...current,
+          loading: false,
+          loaded: current.loaded,
+          failed: true,
+        }));
+      } finally {
+        giftsLoadingRef.current = false;
+      }
+    },
+    [chat.id],
+  );
+
   const tabs = useMemo(() => {
     const result: Array<{ id: InfoTab; label: string }> = [];
+    // Saved Messages 2.0 opens on its source-chat "Chats" list, which stays
+    // visible even while the shared-media counter request is still running.
+    if (isSaved) {
+      // Reuses the existing "Chats" nav string (Web K's SavedDialogs tab label).
+      result.push({ id: "chats", label: t("sidebar.chats") });
+    }
     if (infoLoading) {
       return result;
     }
@@ -764,6 +1105,10 @@ export function ChatInfoPanel({
       (info?.canViewMembers || (infoFailed && chat.kind === "group"))
     ) {
       result.push({ id: "members", label: t("rightPanel.members") });
+    }
+    // Gifts sits before the shared-media tabs, exactly like Web K.
+    if (showGiftsTab) {
+      result.push({ id: "gifts", label: t("rightPanel.gifts") });
     }
     const counts = new Map(
       (info?.counts ?? []).map((count) => [count.section, count.count]),
@@ -777,19 +1122,40 @@ export function ChatInfoPanel({
       result.push({ id: section, label: t(SECTION_LABELS[section]) });
     }
     return result;
-  }, [chat.kind, info, infoFailed, infoLoading, peerType, t]);
+  }, [
+    chat.kind,
+    info,
+    infoFailed,
+    infoLoading,
+    isSaved,
+    peerType,
+    showGiftsTab,
+    t,
+  ]);
 
-  // Telegram Web opens the first visible tab: Members for groups, Media for
-  // everybody else.
+  // Telegram Web opens the peer's main tab, not literally the first tab: the
+  // Members list for groups, Media for everybody else. Saved Messages opens its
+  // Chats list, the way Web A's ProfileState.SavedDialogs does.
   useEffect(() => {
     if (tabs.length === 0) {
       setActive(null);
       return;
     }
-    setActive((current) =>
-      current && tabs.some((tab) => tab.id === current) ? current : tabs[0].id,
-    );
-  }, [tabs]);
+    setActive((current) => {
+      if (current && tabs.some((tab) => tab.id === current)) {
+        return current;
+      }
+      const preferred = isSaved
+        ? ["chats", "media", "files", "links", "music", "voice", "gifs"]
+        : ["members", "media", "files", "links", "music", "voice", "gifs"];
+      for (const id of preferred) {
+        if (tabs.some((tab) => tab.id === id)) {
+          return id as InfoTab;
+        }
+      }
+      return tabs[0].id;
+    });
+  }, [isSaved, tabs]);
 
   const loadSectionPage = useCallback(
     async (section: SharedMediaSection, mode: "first" | "more") => {
@@ -896,7 +1262,12 @@ export function ChatInfoPanel({
   const refreshLive = useCallback(async () => {
     void loadInfo(false);
     const current = activeRef.current;
-    if (!current || current === "members") {
+    if (
+      !current ||
+      current === "members" ||
+      current === "chats" ||
+      current === "gifts"
+    ) {
       return;
     }
     const section =
@@ -950,10 +1321,21 @@ export function ChatInfoPanel({
     }
     if (active === "members") {
       void loadMembersPage("first");
+    } else if (active === "chats") {
+      void loadSavedChats();
+    } else if (active === "gifts") {
+      void loadGiftsPage("first");
     } else if (activeSection) {
       void loadSectionPage(activeSection, "first");
     }
-  }, [active, activeSection, loadMembersPage, loadSectionPage]);
+  }, [
+    active,
+    activeSection,
+    loadGiftsPage,
+    loadMembersPage,
+    loadSavedChats,
+    loadSectionPage,
+  ]);
 
   const loadMore = useCallback(() => {
     if (!active) {
@@ -961,10 +1343,12 @@ export function ChatInfoPanel({
     }
     if (active === "members") {
       void loadMembersPage("more");
+    } else if (active === "gifts") {
+      void loadGiftsPage("more");
     } else if (activeSection) {
       void loadSectionPage(activeSection, "more");
     }
-  }, [active, activeSection, loadMembersPage, loadSectionPage]);
+  }, [active, activeSection, loadGiftsPage, loadMembersPage, loadSectionPage]);
 
   const checkScroll = useCallback(() => {
     const element = scrollRef.current;
@@ -983,11 +1367,15 @@ export function ChatInfoPanel({
   // scrollable refiller).
   useEffect(() => {
     checkScroll();
-  }, [checkScroll, members, sections]);
+  }, [checkScroll, gifts, members, sections]);
 
   const prefetch = (tab: InfoTab) => {
     if (tab === "members") {
       void loadMembersPage("first");
+    } else if (tab === "chats") {
+      void loadSavedChats();
+    } else if (tab === "gifts") {
+      void loadGiftsPage("first");
     } else if (tab === "media") {
       void loadSectionPage(mediaSectionKey(mediaFilter), "first");
     } else {
@@ -1066,6 +1454,90 @@ export function ChatInfoPanel({
           ))}
         </div>
         {members.loading ? (
+          <div className="f-info-status">
+            <Spinner size={18} />
+          </div>
+        ) : null}
+      </>
+    );
+  };
+
+  // Saved Messages 2.0 "Chats" tab. Web K lists the source chats of the saved
+  // messages with a click that reopens that conversation.
+  const renderSavedChats = () => {
+    if (savedChatsFailed && !savedChats) {
+      return (
+        <div className="f-info-status f-info-status-error">
+          <p>{t("rightPanel.chatsFailed")}</p>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              savedChatsRef.current = null;
+              void loadSavedChats();
+            }}
+          >
+            {t("common.retry")}
+          </Button>
+        </div>
+      );
+    }
+    if (!savedChats) {
+      return (
+        <div className="f-info-status">
+          <Spinner size={20} />
+        </div>
+      );
+    }
+    if (savedChats.chats.length === 0) {
+      return <InfoEmpty text={t("rightPanel.chatsEmpty")} />;
+    }
+    return (
+      <SavedChatList
+        chats={savedChats.chats}
+        unavailable={!onOpenSavedChat}
+        onOpenChat={(chat) => {
+          if (onOpenSavedChat) {
+            onOpenSavedChat(chat.id);
+          } else {
+            onToast(t("rightPanel.savedChatUnavailable"));
+          }
+        }}
+      />
+    );
+  };
+
+  // Profile Gifts tab: grid of the star gifts saved on this user/channel.
+  const renderGifts = () => {
+    if (gifts.failed && gifts.items.length === 0) {
+      return (
+        <div className="f-info-status f-info-status-error">
+          <p>{t("rightPanel.giftsFailed")}</p>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              giftsRef.current = createGifts();
+              setGifts(createGifts());
+              void loadGiftsPage("first");
+            }}
+          >
+            {t("common.retry")}
+          </Button>
+        </div>
+      );
+    }
+    if (gifts.items.length === 0) {
+      return gifts.loading ? (
+        <div className="f-info-status">
+          <Spinner size={20} />
+        </div>
+      ) : (
+        <InfoEmpty text={t("rightPanel.giftsEmpty")} />
+      );
+    }
+    return (
+      <>
+        <GiftList gifts={gifts.items} />
+        {gifts.loading ? (
           <div className="f-info-status">
             <Spinner size={18} />
           </div>
@@ -1395,9 +1867,16 @@ export function ChatInfoPanel({
         <InfoEmpty text={t("rightPanel.sharedMediaEmpty")} />
       );
     }
-    return active === "members"
-      ? renderMembers()
-      : renderSection(activeSection ?? "media");
+    if (active === "members") {
+      return renderMembers();
+    }
+    if (active === "chats") {
+      return renderSavedChats();
+    }
+    if (active === "gifts") {
+      return renderGifts();
+    }
+    return renderSection(activeSection ?? "media");
   };
 
   return (
@@ -1414,7 +1893,14 @@ export function ChatInfoPanel({
           iconSize={17}
           onClick={onClose}
         />
-        <span className="f-info-title">{panelTitle}</span>
+        <span className="f-info-head-copy">
+          <span className="f-info-title">{panelTitle}</span>
+          {/* Saved Messages has no hero block, so the "N chats" line lives in
+              the pane header like Web K's shared-media subtitle. */}
+          {savedChatsSubtitle ? (
+            <small className="f-info-head-sub">{savedChatsSubtitle}</small>
+          ) : null}
+        </span>
         {active === "media" ? (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
@@ -1593,7 +2079,7 @@ export function ChatInfoPanel({
           </div>
         ) : null}
 
-        {infoLoading ? (
+        {infoLoading && !isSaved ? (
           <div className="f-info-status">
             <Spinner size={20} />
           </div>

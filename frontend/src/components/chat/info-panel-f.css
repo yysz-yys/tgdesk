@@ -1002,6 +1002,232 @@ button.f-info-prow-main:focus-visible {
   margin-top: 0;
 }
 
+/* Two-line pane header used by Saved Messages: the chat title over the
+ * "N chats" subtitle (there is no hero block to carry it). */
+.f-info-head-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+
+.f-info-head-copy .f-info-title {
+  flex: 0 0 auto;
+}
+
+.f-info-head-sub {
+  overflow: hidden;
+  color: var(--f-muted);
+  font-size: 11px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Saved Messages 2.0 "Chats" tab: Telegram Web K's saved-dialog rows with a
+ * 48 px avatar, the source-chat title, the last saved-message preview and the
+ * pin/unread markers on the end side. */
+.f-info-saved-chats {
+  display: flex;
+  flex-direction: column;
+}
+
+.f-info-saved-chat {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--f-line);
+  background: transparent;
+  padding: 8px 2px;
+  color: var(--f-text);
+  cursor: pointer;
+  font-family: var(--f-font);
+  text-align: start;
+}
+
+.f-info-saved-chat:last-child {
+  border-bottom: 0;
+}
+
+.f-info-saved-chat:hover {
+  background: var(--gray-a3);
+}
+
+.f-info-saved-chat:focus-visible {
+  outline: 1px solid var(--gray-a7);
+  outline-offset: -1px;
+}
+
+.f-info-saved-chat[data-unavailable] {
+  cursor: default;
+}
+
+.f-info-saved-chat-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.f-info-saved-chat-copy b {
+  overflow: hidden;
+  color: var(--f-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-info-saved-chat-copy small {
+  overflow: hidden;
+  color: var(--f-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-info-saved-chat-meta {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  color: var(--f-muted);
+}
+
+.f-info-saved-chat-pin {
+  color: var(--f-muted);
+}
+
+.f-info-saved-chat-badge {
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--accent-9);
+  padding: 0 5px;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Profile Gifts tab: two-column grid of saved star gifts. Each card shows the
+ * gift thumbnail, title, sender, Stars value, date and the Unique badge. */
+.f-info-gifts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.f-info-gift {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--f-line);
+  border-radius: 12px;
+  background: var(--f-surface-muted);
+  padding: 8px;
+}
+
+.f-info-gift-thumb-wrap {
+  position: relative;
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--gray-3);
+}
+
+.f-info-gift-thumb-fallback {
+  color: var(--f-faint);
+}
+
+.f-info-gift-thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.f-info-gift-unique {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 1px 5px;
+  color: #ffffff;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.5;
+}
+
+.f-info-gift-title {
+  overflow: hidden;
+  color: var(--f-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-info-gift-count {
+  margin-inline-start: 3px;
+  color: var(--f-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.f-info-gift-from {
+  overflow: hidden;
+  color: var(--f-muted);
+  font-size: 10.5px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-info-gift-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: auto;
+}
+
+.f-info-gift-stars {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  color: var(--amber-11);
+  font-size: 10.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.f-info-gift-date {
+  overflow: hidden;
+  color: var(--f-faint);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* --------------------------------------------------------------------------
  * Peer QR code dialog (Telegram Web's "My QR code" sheet): a white code card on
  * the themed dialog surface, the @USERNAME caption and the link actions. The

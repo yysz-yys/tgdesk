@@ -4,6 +4,12 @@ import { Browser, Events } from "@wailsio/runtime";
 import { Service as AppService } from "../bindings/tgdesk/internal/app";
 import { resolveLanguage } from "./i18n";
 import { setTelegramLinkNavigator } from "./lib/telegramLinks";
+import {
+  getChatGifts as getChatGiftsRPC,
+  getPinnedMessage as getPinnedMessageRPC,
+  getSavedChats as getSavedChatsRPC,
+  unpinAllMessages as unpinAllMessagesRPC,
+} from "./lib/telegramExtra";
 
 import {
   mapChat,
@@ -28,7 +34,9 @@ import type {
   ChatProfile,
   DownloadEvent,
   DownloadTask,
+  Message,
   MiniAppLaunch,
+  SavedChats,
   SharedMediaPage,
   SharedMediaSection,
   TaskStatus,
@@ -46,6 +54,7 @@ import { DownloadsView } from "./components/downloads/DownloadsView";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { LoginLoading } from "./components/auth/LoginLoading";
 import { SettingsDialog } from "./components/settings/SettingsDialog";
+import { ProfileHomeDialog } from "./components/settings/ProfileHomeDialog";
 
 const TASK_STATUSES: TaskStatus[] = ["active", "queued", "paused", "done", "failed"];
 /** Shared-media page size, close to Telegram Web's "a few screens" batch. */
@@ -133,6 +142,7 @@ export default function App() {
   const [selfAvatar, setSelfAvatar] = useState("");
   const [authImportError, setAuthImportError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [chatDTOs, setChatDTOs] = useState<KernelChat[]>([]);
   const [folders, setFolders] = useState<ChatFolder[]>([]);
   const [messageDTOs, setMessageDTOs] = useState<KernelMessage[]>([]);
@@ -161,6 +171,8 @@ export default function App() {
   /** In-app bot Web App overlay (Telegram Web browser panel analogue). */
   const [miniApp, setMiniApp] = useState<MiniAppLaunch | null>(null);
   const [miniAppRecents, setMiniAppRecents] = useState<MiniAppLaunch[]>([]);
+  /** Incremented by live pin/unpin updates so the pinned strip refreshes. */
+  const [pinnedVersion, setPinnedVersion] = useState(0);
   const toastTimer = useRef<number | undefined>(undefined);
   // Telegram Web keeps the loaded history in memory so switching back to a
   // chat is instant. Same idea here; a background refresh replaces it.
@@ -418,9 +430,9 @@ export default function App() {
         proxyUrl,
         settings.ntp,
       );
-      return profile ? mapChatProfile(profile) : null;
+      return profile ? mapChatProfile(profile, language, t) : null;
     },
-    [proxyUrl, settings.ntp],
+    [language, proxyUrl, settings.ntp, t],
   );
 
   useEffect(() => {
@@ -448,9 +460,14 @@ export default function App() {
     toastTimer.current = window.setTimeout(() => setToastMessage(null), 2600);
   }, []);
 
+  // Raw Saved Messages source-chat DTOs, kept so a saved source chat that is
+  // not in the dialog list can be opened like a resolved t.me link.
+  const savedChatsRaw = useRef(new Map<string, KernelChat>());
+
   // Resolved t.me links insert the peer into the dialog list and select it,
   // exactly like Telegram Web opening a username/post link in-app.
   const mergeResolvedChat = useCallback((chat: KernelChat) => {
+    savedChatsRaw.current.set(chat.id, chat);
     setChatDTOs((current) => {
       const known = current.some((item) => item.id === chat.id);
       if (known) {
@@ -463,6 +480,38 @@ export default function App() {
     setSelectedChatId(chat.id);
     setView("chats");
   }, []);
+
+  // Saved Messages 2.0: source chats from messages.getSavedDialogs.
+  const loadSavedChats = useCallback(async (): Promise<SavedChats | null> => {
+    const dto = await getSavedChatsRPC(proxyUrl, settings.ntp);
+    if (!dto) {
+      return null;
+    }
+    const chats: Chat[] = [];
+    for (const raw of dto.chats ?? []) {
+      savedChatsRaw.current.set(raw.id, raw);
+      chats.push(mapChat(raw, language, t));
+    }
+    return { chats, count: dto.count || chats.length };
+  }, [language, proxyUrl, settings.ntp, t]);
+
+  const openSavedChat = useCallback(
+    (chatID: string) => {
+      const raw = savedChatsRaw.current.get(chatID);
+      if (raw) {
+        mergeResolvedChat(raw);
+        return;
+      }
+      openChat(chatID);
+    },
+    [mergeResolvedChat],
+  );
+
+  const loadChatGifts = useCallback(
+    (chatID: string, offset?: string) =>
+      getChatGiftsRPC(chatID, offset ?? "", 40, proxyUrl, settings.ntp),
+    [proxyUrl, settings.ntp],
+  );
 
   useEffect(() => {
     if (!loggedIn) {
@@ -563,16 +612,52 @@ export default function App() {
   };
 
   const openLinkedChat = useCallback(
-    (chatID: string) => {
+    (chatID: string, linkedChat?: Chat) => {
       const target = chatDTOs.find((item) => item.id === chatID);
       if (target) {
         setSelectedChatId(chatID);
         setView("chats");
         return;
       }
+      // Telegram Web opens a channel's linked discussion even when it is not
+      // in the dialog list; the full profile carries the mapped chat entity.
+      if (linkedChat) {
+        mergeResolvedChat({
+          id: linkedChat.id,
+          title: linkedChat.title,
+          kind: linkedChat.kind,
+          username: linkedChat.username,
+          preview: linkedChat.preview,
+          avatarUrl: linkedChat.avatarUrl,
+          members: linkedChat.memberCount,
+          online: linkedChat.online,
+          lastSeen: linkedChat.lastSeen,
+          status: linkedChat.status,
+        });
+        return;
+      }
       showToast(t("chat.linkedChatUnavailable"));
     },
-    [chatDTOs, showToast, t],
+    [chatDTOs, mergeResolvedChat, showToast, t],
+  );
+
+  // Telegram Web keeps a pinned-message strip under the chat header. The
+  // kernel resolves the first pinned message; live pin/unpin updates bump
+  // pinnedVersion so the strip follows the server state.
+  const loadPinnedMessage = useCallback(
+    async (chatID: string): Promise<Message | null> => {
+      const raw = await getPinnedMessageRPC(chatID, proxyUrl, settings.ntp);
+      return raw ? mapMessage(raw, language, t) : null;
+    },
+    [language, proxyUrl, settings.ntp, t],
+  );
+
+  const unpinAllMessages = useCallback(
+    async (chatID: string) => {
+      await unpinAllMessagesRPC(chatID, proxyUrl, settings.ntp);
+      setPinnedVersion((version) => version + 1);
+    },
+    [proxyUrl, settings.ntp],
   );
 
   // Opens a bot Web App in the in-app overlay (Telegram Web browser panel):
@@ -590,6 +675,10 @@ export default function App() {
             url: request.url,
             title: request.title || t("miniApp.windowTitle"),
             fromBotMenu: false,
+            chatId: request.chatId,
+            botId: request.botId,
+            messageId: request.messageId,
+            network: { proxy: proxyUrl, ntp: settings.ntp },
           });
           return;
         }
@@ -611,6 +700,11 @@ export default function App() {
           url,
           title: request.title || t("miniApp.windowTitle"),
           fromBotMenu: request.fromBotMenu,
+          chatId: request.chatId,
+          botId: request.botId,
+          messageId: request.messageId,
+          queryId: view?.queryId,
+          network: { proxy: proxyUrl, ntp: settings.ntp },
         });
       } catch {
         showToast(t("toasts.webAppFailed"));
@@ -1456,6 +1550,27 @@ export default function App() {
     await refreshMessages();
   };
 
+  // Inline-bot GIF search results carry a query id + result id instead of a
+  // document ref, so they use messages.sendInlineBotResult.
+  const sendInlineGif = async (
+    queryId: number,
+    resultId: string,
+    replyToID?: number,
+  ) => {
+    if (!selectedChatId) {
+      throw new Error("No chat selected");
+    }
+    await AppService.SendInlineGif(
+      selectedChatId,
+      queryId,
+      resultId,
+      replyToID ?? 0,
+      proxyUrl,
+      settings.ntp,
+    );
+    await refreshMessages();
+  };
+
   const attachFiles = async (caption: string, replyToID?: number) => {
     if (!selectedChatId) {
       throw new Error("No chat selected");
@@ -1561,6 +1676,32 @@ export default function App() {
       const chatID = payload.chatId || "";
       const raw = payload.message as KernelMessage | undefined;
       const belongs = chatID !== "" && chatID === selectedChatId;
+
+      // Real presence from updateUserStatus: patch the matching private row
+      // (and therefore the open header) without reloading the dialog list.
+      if (payload.kind === "presence" && payload.userId) {
+        const prefix = `user:${payload.userId}:`;
+        setChatDTOs((current) =>
+          current.map((chat) =>
+            chat.id.startsWith(prefix)
+              ? {
+                  ...chat,
+                  online: Boolean(payload.online),
+                  lastSeen: payload.lastSeen || 0,
+                  status: payload.status,
+                }
+              : chat,
+          ),
+        );
+        return;
+      }
+
+      if (payload.kind === "pinned") {
+        if (!payload.chatId || payload.chatId === selectedChatId) {
+          setPinnedVersion((version) => version + 1);
+        }
+        return;
+      }
 
       // The open chat-info pane follows Telegram Web and refreshes its counters
       // and shared media when the conversation changes under it.
@@ -1832,6 +1973,9 @@ export default function App() {
               accountInitials={authUser?.initials ?? "T"}
               accountColor={authUser?.color}
               accountPhoto={selfAvatar || undefined}
+              accountUsername={authUser?.username || undefined}
+              accountPhone={authUser?.phone || undefined}
+              onProfile={() => setProfileOpen(true)}
               loading={chatsLoading}
               failed={chatsFailed}
             />
@@ -1895,9 +2039,16 @@ export default function App() {
                 onSendCommand={sendCommand}
                 onRequestLeaveChat={requestLeaveChat}
                 onOpenLinkedChat={openLinkedChat}
+                onLoadSavedChats={loadSavedChats}
+                onOpenSavedChat={openSavedChat}
+                onLoadChatGifts={loadChatGifts}
+                onLoadPinnedMessage={loadPinnedMessage}
+                onUnpinAllMessages={unpinAllMessages}
+                pinnedVersion={pinnedVersion}
                 network={{ proxy: proxyUrl, ntp: settings.ntp }}
                 onSendSticker={sendSticker}
                 onSendGif={sendGif}
+                onSendInlineGif={sendInlineGif}
                 jumpToMessageId={pendingJumpId}
                 onJumpConsumed={() => setPendingJumpId(null)}
                 onLoadAround={loadMessagesAround}
@@ -1952,6 +2103,21 @@ export default function App() {
         onUpdate={update}
         onOpenDownloadFolder={openDownloadFolder}
         onChooseDownloadFolder={chooseDownloadFolder}
+      />
+
+      <ProfileHomeDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        name={authUser?.displayName ?? t("settings.general.telegramAccount")}
+        initials={authUser?.initials ?? "T"}
+        color={authUser?.color ?? "#7cacf8"}
+        photo={selfAvatar || undefined}
+        username={authUser?.username || undefined}
+        phone={authUser?.phone || undefined}
+        online={Boolean(authUser)}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onToast={showToast}
+        onLogout={() => void handleLogout()}
       />
 
       {/* Invite links open a join confirmation inside the app, like Telegram. */}

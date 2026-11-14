@@ -16,6 +16,7 @@ import {
   Icon,
 } from "../../ui";
 import { PeerAvatar } from "./PeerAvatar";
+import { EmojiText } from "./EmojiText";
 import { MessageMediaView, isBleedMedia } from "./MessageMediaView";
 import { BotKeyboard } from "./BotKeyboard";
 
@@ -496,7 +497,9 @@ function AutoLinked({ text }: { text: string }) {
             {part.text}
           </a>
         ) : (
-          <Fragment key={`text-${index}`}>{part.text}</Fragment>
+          <Fragment key={`text-${index}`}>
+            <EmojiText text={part.text} />
+          </Fragment>
         ),
       )}
     </>

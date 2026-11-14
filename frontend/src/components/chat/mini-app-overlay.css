@@ -131,6 +131,44 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* App-requested header colour (`web_app_set_header_color`): tint the whole
+ * header chrome and derive a readable foreground from the colour. Web K keeps
+ * its own chrome here; Web A tints the active tab, which this mirrors while the
+ * tab pill keeps its hover semantics. */
+.ma-panel[data-app-tinted="true"] .ma-header {
+  background: var(--ma-app-header-bg);
+  color: var(--ma-app-header-fg);
+}
+
+.ma-panel[data-app-tinted="true"] .ma-tab {
+  background: var(--ma-app-header-bg);
+}
+
+.ma-panel[data-app-tinted="true"] .ma-title {
+  color: var(--ma-app-header-fg);
+}
+
+.ma-panel[data-app-tinted="true"] .ma-header-btn {
+  color: color-mix(in srgb, var(--ma-app-header-fg) 72%, transparent);
+}
+
+.ma-panel[data-app-tinted="true"] .ma-header-btn:hover {
+  background: color-mix(in srgb, var(--ma-app-header-fg) 14%, transparent);
+  color: var(--ma-app-header-fg);
+}
+
+.ma-panel[data-app-tinted="true"] .ma-close:hover {
+  background: color-mix(in srgb, var(--ma-app-header-fg) 14%, transparent);
+  color: var(--ma-app-header-fg);
+}
+
+.ma-panel[data-app-tinted="true"] .ma-avatar-fallback {
+  border-color: color-mix(in srgb, var(--ma-app-header-fg) 30%, transparent);
+  background: color-mix(in srgb, var(--ma-app-header-fg) 18%, transparent);
+  color: var(--ma-app-header-fg);
 }
 
 .ma-header-btn {
@@ -247,6 +285,10 @@
   display: none;
 }
 
+.ma-panel.is-collapsed .ma-back {
+  display: none;
+}
+
 /* ---------------------------------------------------------------- body */
 
 .ma-body {
@@ -255,8 +297,9 @@
   overflow: hidden;
   border-start-start-radius: 24px;
   border-start-end-radius: 24px;
-  background: var(--ma-surface);
+  background: var(--ma-app-body-bg, var(--ma-surface));
   box-shadow: var(--ma-pill-shadow);
+  transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Minimised: the body keeps its pre-collapse inline size (so the iframe is not
@@ -271,7 +314,7 @@
   width: 100%;
   height: 100%;
   border: 0;
-  background: var(--ma-surface);
+  background: var(--ma-app-body-bg, var(--ma-surface));
   opacity: 0;
   transition: opacity 150ms ease;
 }
@@ -291,7 +334,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: var(--ma-surface);
+  background: var(--ma-app-body-bg, var(--ma-surface));
   color: var(--ma-muted);
   pointer-events: none;
   text-align: center;
@@ -358,7 +401,7 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
-  background: var(--ma-surface);
+  background: var(--ma-app-body-bg, var(--ma-surface));
   color: var(--ma-muted);
   padding: 28px 30px;
   text-align: center;
@@ -436,6 +479,137 @@
 .ma-btn-primary:hover {
   background: var(--ma-accent);
   filter: brightness(1.05);
+}
+
+.ma-btn-danger {
+  background: var(--ma-danger);
+  color: #ffffff;
+}
+
+.ma-btn-danger:hover {
+  background: var(--ma-danger);
+  filter: brightness(0.94);
+}
+
+/* ------------------------------------------------ main button bar (host) */
+
+/* `web_app_setup_main_button` is rendered by the host, like Telegram Web K's
+ * footer, not inside the iframe. Its height is taken out of the iframe viewport
+ * in the component so the app never paints behind the bar. */
+.ma-mainbar {
+  display: flex;
+  height: 56px;
+  flex: 0 0 56px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--ma-app-bottom-bg, var(--ma-surface));
+  box-shadow: var(--ma-pill-shadow);
+  transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ma-mainbtn {
+  display: inline-flex;
+  width: 100%;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--ma-mainbtn-bg, var(--ma-accent));
+  color: var(--ma-mainbtn-fg, var(--ma-accent-text));
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    filter 150ms ease,
+    opacity 150ms ease;
+}
+
+.ma-mainbtn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.ma-mainbtn:active:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.ma-mainbtn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.ma-mainbtn:focus-visible {
+  outline: 2px solid var(--ma-accent);
+  outline-offset: 2px;
+}
+
+.ma-mainbtn-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ma-mainbtn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid color-mix(in srgb, currentColor 32%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: ma-spin 800ms linear infinite;
+}
+
+/* --------------------------------------------- close confirmation dialog */
+
+.ma-confirm-layer {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--ma-text) 26%, transparent);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: ma-fade-in 140ms ease both;
+}
+
+.ma-confirm {
+  display: flex;
+  width: min(330px, 100%);
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ma-line);
+  border-radius: 16px;
+  background: var(--ma-surface);
+  box-shadow: 0 18px 44px -16px rgba(0, 0, 0, 0.45);
+  padding: 20px 20px 16px;
+  color: var(--ma-text);
+  text-align: center;
+}
+
+.ma-confirm-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ma-confirm-text {
+  color: var(--ma-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.ma-confirm-actions {
+  display: flex;
+  width: 100%;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 /* ------------------------------------------------------ apps popover */
@@ -661,11 +835,29 @@
     transition: none;
   }
 
+  .ma-header,
+  .ma-body,
+  .ma-mainbar {
+    transition: none;
+  }
+
   .ma-apps-popover {
     animation: none;
   }
 
+  .ma-confirm-layer {
+    animation: none;
+  }
+
+  .ma-mainbtn {
+    transition: none;
+  }
+
   .ma-spinner {
+    animation-duration: 1600ms;
+  }
+
+  .ma-mainbtn-spinner {
     animation-duration: 1600ms;
   }
 }

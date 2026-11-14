@@ -94,7 +94,9 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 - 频道信息面板对齐 Telegram Web：动作格 静音/讨论/离开/更多（最多 4 个），简介卡片
   带 "个人信息" 标签，单个 t.me 链接行 + 二维码弹窗 + "还有 @x、@y" 多用户名，
   订阅数只出现在 hero；离开聊天带确认并调用 `channels.leaveChannel`，讨论组尝试在
-  应用内打开。已保存消息信息面板只有共享媒体 tab（无 hero/动作格/资料行）。
+  应用内打开。已保存消息信息面板与 Telegram Web 对齐：无 hero/动作格/资料行，
+  首个 "聊天" tab 列出 Saved Messages 2.0 来源聊天（置顶优先，点击跳转），其后是
+  共享媒体 tab。
 - 已保存消息行为对齐 Telegram：标题本地化、书签头像、无未读、顶栏 "N 条消息"
   （`messages.getHistory` 计数）、空聊天显示"你的云存储"引导。
 - Bot mini app 改为应用内浮层（`MiniAppOverlay`）：非模态 480×688、24px 圆角、
@@ -104,7 +106,18 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 - 贴纸/GIF 面板：安装的贴纸包封面栏 + 最近使用 + 按包分组网格（5×72px）、
   已保存 GIF 3 列网格、悬停/长按单个动画预览、点击即发（`messages.sendMedia`，
   无上传），带加载/空/受限/错误状态；内核新增 `GetStickerPacks`/`GetStickerSet`/
-  `GetSavedGifs`/`SendSticker`/`SendGif` 与不透明文档 ref。
+  `GetSavedGifs`/`SendSticker`/`SendGif` 与不透明文档 ref。第三轮补齐贴纸搜索
+  （`messages.searchStickers`）、收藏（`getFavedStickers`/`faveSticker`）、最近清除、
+  套件安装/卸载/归档、热门套件，以及 inline bot GIF 搜索/分页/发送
+  （`getInlineBotResults`/`sendInlineBotResult`）和 GIF 收藏（`saveGif`）。
+- 第三轮 Telegram 对齐：已保存消息统一为"我的收藏"并加入来源聊天列表；聊天信息栏
+  改为从右侧滑出覆盖聊天（不再挤占聊天宽度），新增礼物 tab；置顶消息条（预览/跳转/
+  取消置顶/隐藏，实时刷新）；真实在线/最后上线状态（`online`/`lastSeen`/`status` +
+  `UpdateUserStatus` 推送）；profile.linkedChat 可在未出现在会话列表时直接打开；
+  mini app iframe JS bridge（`web_app_data_send`、`prolongWebView`、MainButton/
+  BackButton、主题/颜色/返回/关闭确认等）；Emoji 面板使用 Telegram Web 同款
+  3,787 张 Apple 表情图（1,903 基础 emoji + 肤色选择）并在消息文本中同样按图片渲染；
+  左上角菜单头像打开 Telegram 风格的个人资料/设置主页。
 - Telegram 链接应用内跳转：`t.me` 用户名/帖子链接（含 `tg://`、多用户名后缀、
   帖子 id 会通过 `GetMessagesAround` 翻页并定位）、邀请链接确认后
   `messages.importChatInvite` 加入、`@用户名` 提及和资料链接走同一入口，不支持的
@@ -140,25 +153,20 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 
 明确未实现：
 
-- 服务端消息搜索、typing/在线状态、定时消息、多文件一次性发送为相册。
-- 聊天信息中的 Stories/Gifts/相似频道/群组等 Web 分类尚未接入（当前覆盖
-  成员、媒体、文件、链接、音乐、语音、动图）；礼物 tab 只用 `stargifts_count` 判断是否
-  显示，礼物列表（payments.getSavedStarGifts）尚未实现。Sticker/GIF 面板 v1 未接搜索
-  （messages.searchStickers / inline bot GIF）、收藏/清除最近、套件安装/卸载/归档、
-  saveRecentSticker/saveGif 维护；t.me 论坛 thread/comment、手机号链接、addstickers 等
-  非聊天 link 归为 unsupported。
+- 服务端消息搜索、typing/定时消息、多文件一次性发送为相册。
+- 聊天信息中的 Stories/相似频道/群组等 Web 分类尚未接入（成员、媒体、文件、链接、
+  音乐、语音、动图、礼物已接入）；礼物 tab 目前是基础网格/分页，尚未实现收藏柜筛选、
+  按价值排序、Collections 和发送礼物流程。
+- Sticker/GIF：贴纸搜索只取一页（无翻页），GIF 搜索走 inline bot 分页；套件封面若
+  是 TGS/WebM 动画则回退为首字母（静态图仍显示）；"添加后隐藏 Add" 的瞬时状态未做。
+- t.me 论坛 thread/comment、手机号链接、addstickers 等非聊天 link 归为 unsupported。
 - 输入框的 send-as / 匿名管理员 / 定时消息 / 语音录制与发送菜单未实现（相关按钮
   隐藏或给出提示）；未订阅频道的 JOIN/SUBSCRIBE 底栏依赖加入聊天功能，暂不涉及。
-- Bot mini app 还没有 Telegram JS bridge：`web_app_data_send`、`prolongWebView`、
-  MainButton/返回事件、`web_app_ready` 均未转发；`botOwnerId` 在 gotd v0.140 的 TL
-  层没有字段，保持为空。Emoji 面板暂无肤色选择，Windows 上国旗 emoji 渲染为字母对
-  （Segoe UI Emoji 限制）；群组中的 bot 命令补全依赖资料里的 commands 数据。
+- mini app 浮动层在跨域 iframe 持有焦点时收不到 Esc（已知 WebView2/浏览器限制）；
+  `botOwnerId` 在 gotd v0.140 的 TL 层没有字段，保持为空。
+- Emoji 面板已按 Telegram Web 图集渲染，但输入框仍是原生 textarea（输入时显示系统
+  emoji，发送后气泡内为 Telegram 图集）；混合肤色情侣等图集未覆盖的组合回退原生字形。
 - 聊天资料里的"通话"按钮会提示本版本暂不支持（未接语音通话）。
-- 第二轮 Telegram 对齐遗留：频道"讨论"按钮只有在关联讨论组已在聊天列表时才能打开
-  （profile 里的 linkedChat DTO 尚未喂给前端路由）；礼物 tab 未实现；顶栏的
-  在线/最后上线状态仍是静态文案（没有 presence 数据），pinned-message 条未做；
-  贴纸/GIF 搜索、收藏、套件安装/归档未做；mini app 浮动层在跨域 iframe 持有焦点时
-  收不到 Esc（已知 WebView2/浏览器限制），也没有 web_app_data_send 桥。
 - 带本地 passcode 的 tdata 导入不支持。
 - 只导出主 DC 的 auth key；其余 DC key 由官方客户端连接时补齐。
 - Windows 以外的构建脚手架存在，但未做发布级验证。

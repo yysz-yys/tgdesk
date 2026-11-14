@@ -2,12 +2,16 @@
  * One section of the stickers tab: a centred Telegram-style category title plus
  * a 5-column grid of 72 px cells.
  *
- * The "recent" row is a section with ready-made `documents`; installed sets pass
- * a `set` and are fetched lazily the first time the section scrolls near the
- * viewport (the root is the picker's own scroll container, 200 px margin, as in
- * Web K's VisibilityIntersector). While a set loads the skeleton renders exactly
+ * The "recent" / "favorites" rows are sections with ready-made `documents` and
+ * their own header actions (clear recent); installed sets pass a `set` and are
+ * fetched lazily the first time the section scrolls near the viewport (the root
+ * is the picker's own scroll container, 200 px margin, as in Web K's
+ * VisibilityIntersector). While a set loads the skeleton renders exactly
  * `set.count` cells, which pre-reserves the final height so the custom
  * scrollbar does not jump as sections stream in.
+ *
+ * Headers are right-click/context-menu targets for the set management actions
+ * and expose the same actions through a hover "more" button.
  */
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,26 +22,42 @@ import {
   PickerState,
   StickerGridSkeleton,
 } from "./PickerStates";
+import {
+  StickerSetContextMenu,
+  StickerSetMoreMenu,
+  type StickerSetActionRequest,
+} from "./StickerSetActions";
 import { handlePickerGridKeyDown } from "./gridKeyboard";
 import { useStickerSet } from "./useStickerSet";
 
 export interface StickerSetSectionProps {
   sectionId: string;
   title: string;
-  /** Ready documents (recent row). Mutually exclusive with `set`. */
+  /** Ready documents (recent/favorites rows). Mutually exclusive with `set`. */
   documents?: StickerDoc[];
   /** Installed set lazy-fetched when the section becomes visible. */
   set?: StickerSetInfo;
   network?: PickerNetwork;
   canSend: boolean;
   pendingIds: ReadonlySet<string>;
+  favedIds?: ReadonlySet<string>;
+  busy?: boolean;
   onSend: (doc: StickerDoc) => void;
+  onToggleFaved?: (doc: StickerDoc) => void;
   onFocusRail: () => void;
   onPreviewStart: (doc: StickerDoc, anchor: HTMLElement) => void;
   onPreviewEnd: () => void;
+  /** Set management (installed set sections only). */
+  onSetAction?: (request: StickerSetActionRequest) => void;
+  /** Clear-recent action (recent section only). */
+  onClearRecent?: () => void;
 }
 
 const SKELETON_CELL_CAP = 120;
+
+function docKey(doc: StickerDoc): string {
+  return doc.id || doc.ref;
+}
 
 export function StickerSetSection({
   sectionId,
@@ -47,10 +67,15 @@ export function StickerSetSection({
   network,
   canSend,
   pendingIds,
+  favedIds,
+  busy = false,
   onSend,
+  onToggleFaved,
   onFocusRail,
   onPreviewStart,
   onPreviewEnd,
+  onSetAction,
+  onClearRecent,
 }: StickerSetSectionProps) {
   const { t } = useTranslation();
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -112,33 +137,76 @@ export function StickerSetSection({
     first?.scrollIntoView({ block: "nearest" });
   };
 
+  const header = (
+    <div
+      className="g-emoji-picker-sticker-section-title"
+      role="heading"
+      aria-level={3}
+      tabIndex={-1}
+      data-section-header="true"
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) {
+          return;
+        }
+        if (event.key === "ArrowDown" || event.key === "Enter") {
+          event.preventDefault();
+          focusFirstCell();
+        } else if (event.key === "ArrowUp") {
+          event.preventDefault();
+          onFocusRail();
+        }
+      }}
+    >
+      <span className="g-emoji-picker-sticker-section-title-text">
+        {title}
+        {countLabel ? (
+          <span className="g-emoji-picker-visually-hidden"> {countLabel}</span>
+        ) : null}
+      </span>
+      {onClearRecent ? (
+        <button
+          type="button"
+          className="g-emoji-picker-section-action"
+          aria-label={t("emojiPicker.clearRecent")}
+          title={t("emojiPicker.clearRecent")}
+          onClick={onClearRecent}
+        >
+          {t("common.clear")}
+        </button>
+      ) : null}
+      {set && onSetAction ? (
+        <StickerSetMoreMenu
+          set={set}
+          installed
+          busy={busy}
+          onAction={onSetAction}
+        />
+      ) : null}
+    </div>
+  );
+
   return (
     <section
       ref={sectionRef}
       className="g-emoji-picker-sticker-section"
       data-section-id={sectionId}
     >
-      <div
-        className="g-emoji-picker-sticker-section-title"
-        role="heading"
-        aria-level={3}
-        tabIndex={-1}
-        data-section-header="true"
-        onKeyDown={(event) => {
-          if (event.key === "ArrowDown" || event.key === "Enter") {
-            event.preventDefault();
-            focusFirstCell();
-          } else if (event.key === "ArrowUp") {
-            event.preventDefault();
-            onFocusRail();
-          }
-        }}
-      >
-        {title}
-        {countLabel ? (
-          <span className="g-emoji-picker-visually-hidden"> {countLabel}</span>
-        ) : null}
-      </div>
+      {set && onSetAction ? (
+        <StickerSetContextMenu
+          set={set}
+          installed
+          busy={busy}
+          onAction={onSetAction}
+        >
+          {header}
+        </StickerSetContextMenu>
+      ) : onSetAction || onClearRecent ? (
+        <StickerSetContextMenu onClearRecent={onClearRecent}>
+          {header}
+        </StickerSetContextMenu>
+      ) : (
+        header
+      )}
       {showSkeleton ? (
         <StickerGridSkeleton count={skeletonCount} />
       ) : loadFailed ? (
@@ -149,20 +217,21 @@ export function StickerSetSection({
       ) : items.length > 0 ? (
         <div
           className="g-emoji-picker-sticker-grid"
+          data-picker-grid="true"
           role="group"
           aria-label={title}
           onKeyDown={(event) => handlePickerGridKeyDown(event, onFocusRail)}
         >
           {items.map((doc, index) => (
             <StickerCell
-              key={doc.id || doc.ref || index}
+              key={docKey(doc) || index}
               doc={doc}
               index={index}
               tabbable={index === activeIndex}
-              pending={
-                pendingIds.has(doc.id) || pendingIds.has(doc.ref)
-              }
+              pending={pendingIds.has(docKey(doc))}
+              faved={favedIds?.has(docKey(doc)) ?? false}
               onSend={onSend}
+              onToggleFaved={onToggleFaved}
               onFocusCell={setFocusedIndex}
               onPreviewStart={onPreviewStart}
               onPreviewEnd={onPreviewEnd}

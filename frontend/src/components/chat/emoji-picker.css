@@ -5,6 +5,11 @@
  * themes work automatically (light surface #ffffff / dark #1d1d23, Radix gray
  * alpha plates for hover/active states).
  *
+ * The tiles draw Telegram Web K's Apple emoji PNGs (`/emoji/<unified>.png`,
+ * class `f-emoji-img`, 32 px inside the 42 px cell) exactly like
+ * web.telegram.org does on Windows; only a failed image falls back to the
+ * platform colour glyph.
+ *
  * The panel is rendered inside the composer card, which must be relatively
  * positioned. The `:where()` rule below is a zero-specificity safety net for
  * that anchor; the composer owns its own layout otherwise.
@@ -12,6 +17,17 @@
 
 :where(.f-composer, .g-composer, [data-emoji-picker-anchor]) {
   position: relative;
+}
+
+/* Emoji image tile content (Apple emoji artwork from the Web K asset set). */
+.f-emoji-img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .g-emoji-picker {
@@ -253,7 +269,7 @@
   grid-template-columns: repeat(auto-fill, 42px);
   justify-content: space-between;
   column-gap: 4px;
-  row-gap: 0;
+  row-gap: 2px;
 }
 
 .g-emoji-picker-results {
@@ -278,7 +294,7 @@
   display: grid;
   width: 42px;
   height: 42px;
-  padding: 4px;
+  padding: 5px;
   place-items: center;
   border: 0;
   border-radius: 12px;
@@ -286,11 +302,12 @@
   color: inherit;
   cursor: pointer;
   font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
-  font-size: 34px;
+  font-size: 30px;
   line-height: 1;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .g-emoji-picker-tile:hover {
@@ -309,6 +326,61 @@
 .g-emoji-picker-glyph {
   display: block;
   pointer-events: none;
+}
+
+/* ------------------------------------------------------ skin-tone picker */
+
+/* Floating six-swatch menu (default + 5 tones), portalled to <body> so the
+ * panel's overflow never clips it. Position is set from the tile rectangle. */
+.g-emoji-tone-popover {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--f-line, #dfe1e5);
+  border-radius: 12px;
+  background: var(--f-surface, #ffffff);
+  box-shadow: var(--f-shadow-card, 0 5px 10px 5px rgba(16, 35, 47, 0.14));
+  animation: g-emoji-picker-fade 120ms ease both;
+}
+
+.g-emoji-tone-swatch {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+
+.g-emoji-tone-swatch:hover {
+  background: var(--gray-a3, rgba(112, 117, 121, 0.08));
+}
+
+.g-emoji-tone-swatch:focus-visible {
+  outline: 2px solid var(--f-accent, #3e63dd);
+  outline-offset: -1px;
+}
+
+.g-emoji-tone-swatch[aria-checked="true"] {
+  background: var(--gray-a4, rgba(112, 117, 121, 0.12));
+  box-shadow: inset 0 0 0 1.5px var(--f-accent, #3e63dd);
+}
+
+.f-emoji-tone-img {
+  width: 24px;
+  height: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .g-emoji-tone-popover {
+    animation: none;
+  }
 }
 
 /* ------------------------------------------------------- empty/loading UI */

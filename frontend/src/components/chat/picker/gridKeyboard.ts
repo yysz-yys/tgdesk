@@ -10,6 +10,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 export const PICKER_CELL_SELECTOR = "[data-picker-cell]";
 export const PICKER_RAIL_SELECTOR = "[data-rail-id]";
+export const PICKER_GRID_SELECTOR = "[data-picker-grid]";
 
 function gridColumns(grid: HTMLElement): number {
   const template = getComputedStyle(grid).gridTemplateColumns;
@@ -36,7 +37,10 @@ export function handlePickerGridKeyDown(
   if (!cell) {
     return;
   }
-  const grid = cell.parentElement;
+  // GIF cells live inside a wrapper (send button + heart sibling), so resolve
+  // the grid by its marker attribute rather than by the cell's parent node.
+  const grid =
+    cell.closest<HTMLElement>(PICKER_GRID_SELECTOR) ?? cell.parentElement;
   if (!grid) {
     return;
   }

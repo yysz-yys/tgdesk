@@ -50,6 +50,8 @@ export interface MessageComposerProps {
   network?: { proxy: string; ntp: string };
   onSendSticker?: (ref: string) => void | Promise<unknown>;
   onSendGif?: (ref: string) => void | Promise<unknown>;
+  /** Sends an inline-bot GIF search result (query id + result id). */
+  onSendInlineGif?: (queryId: number, resultId: string) => void | Promise<unknown>;
 }
 
 /**
@@ -75,6 +77,7 @@ export function MessageComposer({
   network,
   onSendSticker,
   onSendGif,
+  onSendInlineGif,
 }: MessageComposerProps) {
   const { t } = useTranslation();
   const draftKey = `${DRAFT_PREFIX}${chatId}`;
@@ -611,6 +614,7 @@ export function MessageComposer({
             network={network}
             onSendSticker={onSendSticker}
             onSendGif={onSendGif}
+            onSendInlineGif={onSendInlineGif}
             canSendStickers={canSendStickers}
             canSendGifs={canSendGifs}
             initialTab={canSendPlain ? undefined : "stickers"}

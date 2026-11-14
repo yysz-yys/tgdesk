@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -10,9 +11,29 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { Service as AppService } from "../../../bindings/tgdesk/internal/app";
 import { cn } from "../../lib/cn";
+import {
+  MINI_APP_PROLONG_INTERVAL_MS,
+  MINI_APP_VIEWPORT_THROTTLE_MS,
+  eventBoolean,
+  eventRecord,
+  eventString,
+  externalWebLink,
+  isMiniAppMessageSource,
+  miniAppContrastColor,
+  miniAppOrigin,
+  normalizeMiniAppColor,
+  parseMiniAppEvent,
+  postMiniAppEvent,
+  resolveMiniAppColor,
+  telegramLinkFromPath,
+  themeChangedPayload,
+  viewportChangedPayload,
+} from "../../lib/miniAppBridge";
+import { miniAppThemeParams, withThemeParams } from "../../lib/miniAppTheme";
+import { openTelegramLink } from "../../lib/telegramLinks";
 import { Icon } from "../../ui";
-import { withThemeParams } from "../../lib/miniAppTheme";
 import type { MiniAppLaunch } from "../../types";
 import "./mini-app-overlay.css";
 
@@ -36,16 +57,24 @@ import "./mini-app-overlay.css";
  * K's sandbox/allow list; `tgWebAppThemeParams` is injected into the URL hash
  * only when the server did not already provide it.
  *
- * v1 has no `web_app_ready`/`postMessage` bridge: a navigation `load` event is
- * the only "ready" signal we have, so a frame blocked by X-Frame-Options can
- * still report itself loaded with an error document. The watchdog plus the
- * "Open in browser" escape hatch is the documented fallback (phase 2 adds the
- * bridge). Escape cannot be observed while the cross-origin iframe document
- * owns keyboard focus; it closes the panel only while our chrome has focus.
+ * Telegram JS bridge: a `message` listener validates `event.source` + the launch
+ * URL origin, decodes the platform `{eventType, eventData}` envelope (JSON string
+ * or object, `eventData` object / JSON string / undefined) and implements the
+ * events Telegram Web K handles for an in-app browser (`web_app_ready`,
+ * `web_app_close`, `web_app_data_send`, header/background/bottom-bar colours,
+ * closing behaviour, back button, main button, expand/collapse, theme request,
+ * open link / open tg link, prolong, `iframe_ready`). The host -> app direction
+ * (`theme_changed`, `viewport_changed`, `visibility_changed`, button presses)
+ * goes through the same pinned-origin `postMessage`. Backend calls go through
+ * `AppService.SendWebViewData`/`ProlongWebView` behind a cast so the overlay
+ * compiles before the bindings are regenerated; a 50 s prolong timer keeps
+ * inline-button queries alive.
  *
  * A `data-*` verification surface is kept intentionally small:
  * `[data-miniapp="overlay"]` (panel), `data-state="expanded|minimized"`,
- * `[data-miniapp-action]` on every header action, `[data-miniapp-frame]`.
+ * `[data-miniapp-action]` on every header action, `[data-miniapp-frame]`,
+ * `[data-miniapp-mainbar]`, `[data-miniapp-confirm]`, `data-bridge-ready`,
+ * `data-app-ready`, `data-app-tinted`.
  */
 export interface MiniAppOverlayProps {
   /** App to show; `null` renders nothing. */
@@ -56,6 +85,12 @@ export interface MiniAppOverlayProps {
   onToast?: (message: string) => void;
   /** External-browser fallback hook; receives the hash-stripped URL. */
   onOpenLink?: (url: string) => void;
+  /**
+   * Telegram-link navigation for `web_app_open_tg_link` (t.me / tg://). When
+   * absent the overlay uses the app-wide Telegram-link navigator, which itself
+   * falls back to the system browser.
+   */
+  onOpenTelegramLink?: (url: string) => void;
   /** Recently opened apps for the header `+` popover. */
   recents?: MiniAppLaunch[];
 }
@@ -67,6 +102,8 @@ const COLLAPSED_WIDTH = 328;
 const COLLAPSED_HEIGHT = 48;
 const MIN_WIDTH = 328;
 const MIN_HEIGHT = 485;
+/** Host-rendered MainButton bar height (Telegram Web K footer). */
+const MAIN_BAR_HEIGHT = 56;
 const EDGE_GAP = 8;
 const LOAD_TIMEOUT_MS = 25_000;
 const CLOSE_ANIMATION_MS = 180;
@@ -208,13 +245,25 @@ function resizeBox(start: Box, side: ResizeSide, dx: number, dy: number, bounds:
   return { x, y, w: Math.max(w, MIN_WIDTH), h: Math.max(h, MIN_HEIGHT) };
 }
 
+/**
+ * Launch identity: a re-render of the same app must not reload the iframe, but
+ * a new authenticated session (new `queryId`/peer data from `requestWebView`)
+ * has to replace it — the bridge would otherwise keep prolonging/sending on a
+ * stale query.
+ */
 function sameLaunch(a: MiniAppLaunch, b: MiniAppLaunch): boolean {
   return (
     a.url === b.url &&
     a.title === b.title &&
     a.botName === b.botName &&
     a.avatarUrl === b.avatarUrl &&
-    a.fromBotMenu === b.fromBotMenu
+    a.fromBotMenu === b.fromBotMenu &&
+    a.chatId === b.chatId &&
+    a.botId === b.botId &&
+    a.messageId === b.messageId &&
+    a.queryId === b.queryId &&
+    a.network?.proxy === b.network?.proxy &&
+    a.network?.ntp === b.network?.ntp
   );
 }
 
@@ -245,6 +294,70 @@ function externalBrowserUrl(value: string): string | null {
   }
 }
 
+/** Chrome colours requested by the mini app through the JS bridge. */
+interface MiniAppChrome {
+  header?: string;
+  body?: string;
+  bottom?: string;
+}
+
+/** Host-rendered MainButton state (`web_app_setup_main_button`). */
+interface MiniAppMainButton {
+  visible: boolean;
+  text: string;
+  color?: string;
+  textColor?: string;
+  active: boolean;
+  progress: boolean;
+}
+
+/**
+ * Go webview-bridge methods used by the JS bridge. The bindings are regenerated
+ * by the Lead after the kernel lands `SendWebViewData`/`ProlongWebView`; until
+ * then the generated service object has no such members, hence the cast and the
+ * defensive "method missing" error below.
+ */
+interface WebViewBridgeService {
+  SendWebViewData(
+    chatID: string,
+    botPeerID: string,
+    queryID: number,
+    data: string,
+    proxy: string,
+    ntp: string,
+  ): Promise<void>;
+  ProlongWebView(
+    chatID: string,
+    botPeerID: string,
+    queryID: number,
+    proxy: string,
+    ntp: string,
+  ): Promise<void>;
+}
+
+const webViewBridge = AppService as unknown as Partial<WebViewBridgeService>;
+
+async function callWebViewBridge(
+  method: keyof WebViewBridgeService,
+  args: unknown[],
+): Promise<void> {
+  const candidate = webViewBridge[method] as unknown;
+  if (typeof candidate !== "function") {
+    throw new Error(`AppService.${method} is not available in this build`);
+  }
+  await (candidate as (...values: unknown[]) => Promise<void>)(...args);
+}
+
+/** Current theme params as the plain record the bridge payload expects. */
+function currentThemeParams(appearance: "light" | "dark"): Record<string, string> {
+  return { ...miniAppThemeParams(appearance) };
+}
+
+/** Network params for the bridge RPCs; missing values become empty strings. */
+function networkParam(value: string | undefined): string {
+  return value ?? "";
+}
+
 /**
  * In-app Telegram Web K-style mini app panel. Rendered by App above the shell
  * when a bot Web App is launched; closing is owned by the parent.
@@ -255,9 +368,12 @@ export function MiniAppOverlay({
   onClose,
   onToast,
   onOpenLink,
+  onOpenTelegramLink,
   recents,
 }: MiniAppOverlayProps) {
   const { t } = useTranslation();
+  const confirmTitleId = useId();
+  const confirmDescriptionId = useId();
 
   // The panel can also switch between apps through the `+` recents popover
   // without asking the parent (the API has no "reopen" callback): `view` is the
@@ -278,12 +394,21 @@ export function MiniAppOverlay({
   const [appsOpen, setAppsOpen] = useState(false);
   const [gestureMode, setGestureMode] = useState<"drag" | ResizeSide | null>(null);
   const [exiting, setExiting] = useState(false);
+  // Telegram JS bridge state.
+  const [bridgeReady, setBridgeReady] = useState(false);
+  const [appReady, setAppReady] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [backVisible, setBackVisible] = useState(false);
+  const [mainButton, setMainButton] = useState<MiniAppMainButton | null>(null);
+  const [chrome, setChrome] = useState<MiniAppChrome>({});
 
   const panelRef = useRef<HTMLElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const appsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const confirmCancelRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const gestureRef = useRef<Gesture | null>(null);
   const closeTimerRef = useRef<number | null>(null);
@@ -293,9 +418,35 @@ export function MiniAppOverlay({
   const wasOpenRef = useRef(false);
   const appearanceRef = useRef(appearance);
   const boundsRef = useRef(bounds);
+  // Bridge callbacks live behind refs so the single `message` listener never has
+  // to be re-bound when a prop changes; the bridge itself is stateful across the
+  // app's lifetime, including while minimized.
+  const viewRef = useRef<MiniAppLaunch | null>(view);
+  const bridgeReadyRef = useRef(false);
+  const confirmCloseRef = useRef(false);
+  const minimizedRef = useRef(false);
+  const frameBoxRef = useRef({ w: NORMAL_WIDTH, h: NORMAL_HEIGHT - HEADER_HEIGHT });
+  const callbacksRef = useRef({
+    appearance,
+    onClose,
+    onToast,
+    onOpenLink,
+    onOpenTelegramLink,
+  });
 
   appearanceRef.current = appearance;
   boundsRef.current = bounds;
+  viewRef.current = view;
+  bridgeReadyRef.current = bridgeReady;
+  confirmCloseRef.current = confirmClose;
+  minimizedRef.current = minimized;
+  callbacksRef.current = {
+    appearance,
+    onClose,
+    onToast,
+    onOpenLink,
+    onOpenTelegramLink,
+  };
 
   const restoreFocus = useCallback(() => {
     const target = previousFocusRef.current;
@@ -326,19 +477,35 @@ export function MiniAppOverlay({
 
   // Fade the panel out, then let the parent drop the launch state (which re-arms
   // the iframe teardown). If the parent keeps us mounted, the app=null effect
-  // below removes the panel right after `onClose` lands.
-  const requestClose = useCallback(() => {
+  // below removes the panel right after `onClose` lands. `onClose` is read from
+  // `callbacksRef` so this callback stays stable for the bridge listener.
+  const closeOverlay = useCallback(() => {
     if (closingRef.current) {
       return;
     }
     closingRef.current = true;
     setAppsOpen(false);
+    setCloseConfirmOpen(false);
     setExiting(true);
     closeTimerRef.current = window.setTimeout(() => {
       closeTimerRef.current = null;
-      onClose();
+      callbacksRef.current.onClose();
     }, CLOSE_ANIMATION_MS);
-  }, [onClose]);
+  }, []);
+
+  // A user-requested close (header X, Escape, web_app_close) honours the app's
+  // `web_app_setup_closing_behavior {need_confirmation:true}` first.
+  const requestClose = useCallback(() => {
+    if (closingRef.current) {
+      return;
+    }
+    if (confirmCloseRef.current) {
+      setAppsOpen(false);
+      setCloseConfirmOpen(true);
+      return;
+    }
+    closeOverlay();
+  }, [closeOverlay]);
 
   const reloadFrame = useCallback(() => {
     setAppsOpen(false);
@@ -362,6 +529,351 @@ export function MiniAppOverlay({
     window.open(url, "_blank", "noopener,noreferrer");
     onToast?.(t("miniAppOverlay.browserNote"));
   }, [view, onOpenLink, onToast, t]);
+
+  // -------------------------------------------------------------------------
+  // Telegram Mini App JS bridge: host -> app events
+  // -------------------------------------------------------------------------
+
+  /** Posts one host -> app event to the current iframe at the pinned origin. */
+  const postBridgeEvent = useCallback(
+    (eventType: string, eventData?: unknown): boolean => {
+      const current = viewRef.current;
+      if (!current) {
+        return false;
+      }
+      return postMiniAppEvent(
+        iframeRef.current,
+        eventType,
+        eventData,
+        miniAppOrigin(current.url),
+      );
+    },
+    [],
+  );
+
+  const sendTheme = useCallback(() => {
+    postBridgeEvent(
+      "theme_changed",
+      themeChangedPayload(currentThemeParams(callbacksRef.current.appearance)),
+    );
+  }, [postBridgeEvent]);
+
+  const sendViewport = useCallback(() => {
+    const frame = frameBoxRef.current;
+    postBridgeEvent(
+      "viewport_changed",
+      viewportChangedPayload({
+        width: frame.w,
+        height: frame.h,
+        expanded: !minimizedRef.current,
+      }),
+    );
+  }, [postBridgeEvent]);
+
+  /** `web_app_prolong` + the 50 s keep-alive: messages.prolongWebView. */
+  const prolongWebView = useCallback(async () => {
+    const current = viewRef.current;
+    if (
+      !current?.chatId ||
+      !current.botId ||
+      !current.queryId ||
+      current.queryId <= 0
+    ) {
+      return;
+    }
+    try {
+      await callWebViewBridge("ProlongWebView", [
+        current.chatId,
+        current.botId,
+        current.queryId,
+        networkParam(current.network?.proxy),
+        networkParam(current.network?.ntp),
+      ]);
+    } catch {
+      // A finished/cancelled query answers QUERY_ID_INVALID: that is the normal
+      // end of a mini-app session, so prolongation is best-effort and silent.
+    }
+  }, []);
+
+  /** `web_app_data_send`: messages.sendWebViewData, toast on failure. */
+  const sendWebViewData = useCallback(
+    async (data: string) => {
+      const current = viewRef.current;
+      const toast = callbacksRef.current.onToast;
+      if (
+        !current?.chatId ||
+        !current.botId ||
+        !current.queryId ||
+        current.queryId <= 0
+      ) {
+        toast?.(t("miniAppOverlay.dataSendFailed"));
+        return;
+      }
+      try {
+        await callWebViewBridge("SendWebViewData", [
+          current.chatId,
+          current.botId,
+          current.queryId,
+          data,
+          networkParam(current.network?.proxy),
+          networkParam(current.network?.ntp),
+        ]);
+      } catch {
+        toast?.(t("miniAppOverlay.dataSendFailed"));
+      }
+    },
+    [t],
+  );
+
+  /**
+   * One dispatcher for the app -> host events the overlay implements. Payload
+   * accessors come from `miniAppBridge` so an object, a JSON string or a missing
+   * `eventData` all behave the same.
+   */
+  const handleBridgeEvent = useCallback(
+    (eventType: string, eventData: unknown) => {
+      switch (eventType) {
+        case "iframe_ready": {
+          // The frame's bridge is up: every client answers the implicit
+          // theme/viewport bootstrap requests right after it.
+          bridgeReadyRef.current = true;
+          setBridgeReady(true);
+          sendTheme();
+          sendViewport();
+          return;
+        }
+        case "web_app_ready": {
+          // Authoritative "the app rendered" signal; same effect as the iframe
+          // load fallback (fade in, disarm the watchdog).
+          setAppReady(true);
+          markLoaded();
+          return;
+        }
+        case "web_app_close": {
+          requestClose();
+          return;
+        }
+        case "web_app_data_send": {
+          const data =
+            typeof eventData === "string"
+              ? eventData
+              : eventString(eventData, "data") ?? "";
+          void sendWebViewData(data);
+          return;
+        }
+        case "web_app_set_header_color": {
+          const color = resolveMiniAppColor(
+            eventData,
+            currentThemeParams(callbacksRef.current.appearance),
+          );
+          if (color) {
+            setChrome((current) => ({ ...current, header: color }));
+          }
+          return;
+        }
+        case "web_app_set_background_color": {
+          const color = resolveMiniAppColor(
+            eventData,
+            currentThemeParams(callbacksRef.current.appearance),
+          );
+          if (color) {
+            setChrome((current) => ({ ...current, body: color }));
+          }
+          return;
+        }
+        case "web_app_set_bottom_bar_color": {
+          const color = resolveMiniAppColor(
+            eventData,
+            currentThemeParams(callbacksRef.current.appearance),
+          );
+          if (color) {
+            setChrome((current) => ({ ...current, bottom: color }));
+          }
+          return;
+        }
+        case "web_app_setup_closing_behavior": {
+          const needConfirmation = eventBoolean(eventData, "need_confirmation") === true;
+          confirmCloseRef.current = needConfirmation;
+          setConfirmClose(needConfirmation);
+          return;
+        }
+        case "web_app_setup_back_button": {
+          setBackVisible(eventBoolean(eventData, "is_visible") === true);
+          return;
+        }
+        case "web_app_setup_main_button": {
+          const record = eventRecord(eventData);
+          if (!record) {
+            setMainButton(null);
+            return;
+          }
+          setMainButton({
+            visible: eventBoolean(record, "is_visible") !== false,
+            text: eventString(record, "text") ?? "",
+            color: normalizeMiniAppColor(record.color) ?? undefined,
+            textColor: normalizeMiniAppColor(record.text_color) ?? undefined,
+            active: eventBoolean(record, "is_active") !== false,
+            progress: eventBoolean(record, "is_progress_visible") === true,
+          });
+          return;
+        }
+        case "web_app_expand": {
+          // Same geometry intent as restoring the minimized panel: the host has
+          // one expanded size (no separate fullscreen page expansion).
+          setMinimized(false);
+          setAppsOpen(false);
+          setBox((current) => clampExpandedBox(current, boundsRef.current));
+          window.requestAnimationFrame(() => {
+            panelRef.current?.focus({ preventScroll: true });
+            // After the render above, so `minimizedRef`/`frameBoxRef` report
+            // the restored geometry rather than the pre-expand one.
+            sendViewport();
+          });
+          return;
+        }
+        case "web_app_collapse": {
+          // The panel is already at its default height; the only collapse the
+          // host owns is restoring a minimized app. Report the viewport as not
+          // expanded instead of hiding the app.
+          setMinimized(false);
+          window.requestAnimationFrame(() => sendViewport());
+          return;
+        }
+        case "web_app_request_theme": {
+          sendTheme();
+          return;
+        }
+        case "web_app_request_viewport": {
+          sendViewport();
+          return;
+        }
+        case "web_app_open_link": {
+          const url = externalWebLink(eventString(eventData, "url"));
+          if (!url) {
+            callbacksRef.current.onToast?.(t("miniAppOverlay.openLinkFailed"));
+            return;
+          }
+          const { onOpenLink: openLink } = callbacksRef.current;
+          if (openLink) {
+            openLink(url);
+            return;
+          }
+          window.open(url, "_blank", "noopener,noreferrer");
+          return;
+        }
+        case "web_app_open_tg_link": {
+          const url = telegramLinkFromPath(eventString(eventData, "path_full"));
+          if (!url) {
+            callbacksRef.current.onToast?.(t("miniAppOverlay.openLinkFailed"));
+            return;
+          }
+          const { onOpenTelegramLink: openTelegram } = callbacksRef.current;
+          if (openTelegram) {
+            openTelegram(url);
+            return;
+          }
+          // No parent wiring: the app-wide navigator routes t.me links in-app
+          // and falls back to Browser.OpenURL for everything else.
+          openTelegramLink(url);
+          return;
+        }
+        case "web_app_prolong": {
+          void prolongWebView();
+          return;
+        }
+        default:
+          return;
+      }
+    },
+    [
+      markLoaded,
+      prolongWebView,
+      requestClose,
+      sendTheme,
+      sendViewport,
+      sendWebViewData,
+      t,
+    ],
+  );
+
+  // Single global message listener: only messages from the overlay iframe at the
+  // launch URL origin reach the dispatcher (everything else is ignored before
+  // the payload is parsed).
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const current = viewRef.current;
+      if (!current) {
+        return;
+      }
+      if (!isMiniAppMessageSource(event, iframeRef.current, miniAppOrigin(current.url))) {
+        return;
+      }
+      const parsed = parseMiniAppEvent(event.data);
+      if (parsed) {
+        handleBridgeEvent(parsed.eventType, parsed.eventData);
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [handleBridgeEvent]);
+
+  // Push the current theme whenever the app appearance flips (and on the first
+  // render after a launch; `iframe_ready` re-sends it authoritative).
+  useEffect(() => {
+    if (!view) {
+      return;
+    }
+    sendTheme();
+  }, [view, appearance, sendTheme]);
+
+  // Report iframe viewport changes (window resize, drag/resize, MainButton bar
+  // appearing) to the app; throttled because resizing changes it every frame.
+  useEffect(() => {
+    if (!view) {
+      return;
+    }
+    const timer = window.setTimeout(
+      () => sendViewport(),
+      MINI_APP_VIEWPORT_THROTTLE_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [view, box.h, box.w, mainButton, minimized, sendViewport]);
+
+  // Minimizing keeps the iframe mounted and loaded; tell the app it is hidden
+  // (tweb sends `visibility_changed` on collapse/restore).
+  useEffect(() => {
+    if (!view || !bridgeReady) {
+      return;
+    }
+    postBridgeEvent("visibility_changed", { is_visible: !minimized });
+  }, [view, bridgeReady, minimized, postBridgeEvent]);
+
+  // Telegram prolongs an open web view every 50 s so inline-button/menu-button
+  // queries stay usable; the timer stops when the overlay closes or switches.
+  useEffect(() => {
+    const current = view;
+    if (
+      !current?.chatId ||
+      !current.botId ||
+      !current.queryId ||
+      current.queryId <= 0
+    ) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void prolongWebView();
+    }, MINI_APP_PROLONG_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [view, prolongWebView]);
+
+  // The close-confirmation dialog is a real modal inside the panel: move focus
+  // to its safe action so Escape/Enter behave predictably.
+  useEffect(() => {
+    if (!closeConfirmOpen) {
+      return;
+    }
+    confirmCancelRef.current?.focus({ preventScroll: true });
+  }, [closeConfirmOpen]);
 
   // The parent owns the launch state: a new launch replaces the current app,
   // while a plain re-render with the same app must not reset or reload it.
@@ -427,8 +939,8 @@ export function MiniAppOverlay({
   }, [view]);
 
   // One iframe document per session; the theme is captured at open time so a
-  // light/dark switch never reloads the running web app (v1 has no bridge to
-  // send `theme_changed`).
+  // light/dark switch never reloads the running web app (a bridge `theme_changed`
+  // is pushed instead). A new document starts with a blank bridge state.
   useEffect(() => {
     if (!view) {
       setFrameSrc(null);
@@ -443,6 +955,15 @@ export function MiniAppOverlay({
     setLoaded(false);
     setTimedOut(false);
     setAvatarFailed(false);
+    bridgeReadyRef.current = false;
+    setBridgeReady(false);
+    setAppReady(false);
+    confirmCloseRef.current = false;
+    setConfirmClose(false);
+    setCloseConfirmOpen(false);
+    setBackVisible(false);
+    setMainButton(null);
+    setChrome({});
     if (watchdogRef.current !== null) {
       window.clearTimeout(watchdogRef.current);
     }
@@ -491,6 +1012,14 @@ export function MiniAppOverlay({
       if (document.activeElement === iframeRef.current) {
         return;
       }
+      if (closeConfirmOpen) {
+        event.preventDefault();
+        setCloseConfirmOpen(false);
+        window.requestAnimationFrame(() =>
+          panelRef.current?.focus({ preventScroll: true }),
+        );
+        return;
+      }
       if (appsOpen) {
         event.preventDefault();
         setAppsOpen(false);
@@ -512,7 +1041,7 @@ export function MiniAppOverlay({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [view, appsOpen, requestClose]);
+  }, [view, appsOpen, closeConfirmOpen, requestClose]);
 
   // Click outside closes only the "Apps" popover (the panel itself is non-modal
   // and is not dismissed by clicks on the chat).
@@ -619,9 +1148,15 @@ export function MiniAppOverlay({
       window.requestAnimationFrame(() => panelRef.current?.focus({ preventScroll: true }));
       return;
     }
-    setFrozenFrame({ w: box.w, h: Math.max(0, box.h - HEADER_HEIGHT) });
+    // Freeze the iframe viewport at its expanded size (minus the host MainButton
+    // bar, if the app asked for one) so nothing is resized to 0 while collapsed.
+    const mainBarHeight = mainButton?.visible ? MAIN_BAR_HEIGHT : 0;
+    setFrozenFrame({
+      w: box.w,
+      h: Math.max(0, box.h - HEADER_HEIGHT - mainBarHeight),
+    });
     setMinimized(true);
-  }, [box.h, box.w, minimized]);
+  }, [box.h, box.w, mainButton?.visible, minimized]);
 
   const beginDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.button !== 0 || exiting) {
@@ -705,6 +1240,26 @@ export function MiniAppOverlay({
     items[next]?.focus();
   };
 
+  // The close-confirmation alertdialog is modal inside the non-modal panel, so
+  // keep Tab between its two actions instead of leaking focus to the chrome.
+  const handleConfirmKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") {
+      return;
+    }
+    const buttons = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>("button"),
+    );
+    if (buttons.length === 0) {
+      return;
+    }
+    const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    const next = event.shiftKey ? index - 1 : index + 1;
+    if (index === -1 || next < 0 || next >= buttons.length) {
+      event.preventDefault();
+      buttons[event.shiftKey ? buttons.length - 1 : 0]?.focus();
+    }
+  };
+
   const recentItems = useMemo(() => {
     const seen = new Set<string>();
     const items: MiniAppLaunch[] = [];
@@ -728,16 +1283,50 @@ export function MiniAppOverlay({
   const title = view.title?.trim() || view.botName?.trim() || t("miniAppOverlay.fallbackTitle");
   const showAvatar = Boolean(view.avatarUrl) && !avatarFailed;
   const ariaLabel = t("miniAppOverlay.aria", { name: title });
+  const themeParams = currentThemeParams(appearance);
 
-  const expandedFrame = { w: box.w, h: Math.max(0, box.h - HEADER_HEIGHT) };
+  // The host-rendered MainButton bar is part of the panel, not of the iframe:
+  // give the iframe the remaining height so the app's viewport matches the
+  // visible area (Telegram clients report viewport height minus the button bar).
+  const mainBarVisible = Boolean(mainButton?.visible) && !minimized && !exiting;
+  const expandedFrame = {
+    w: box.w,
+    h: Math.max(0, box.h - HEADER_HEIGHT - (mainBarVisible ? MAIN_BAR_HEIGHT : 0)),
+  };
   const frameBox = minimized ? frozenFrame : expandedFrame;
+  frameBoxRef.current = frameBox;
+  minimizedRef.current = minimized;
+
+  const mainButtonColor = mainButton?.color ?? themeParams.button_color ?? "#3e63dd";
+  const mainButtonTextColor =
+    mainButton?.textColor ??
+    (mainButton?.color
+      ? miniAppContrastColor(mainButton.color)
+      : themeParams.button_text_color ?? miniAppContrastColor(mainButtonColor));
+
   const collapsed = minimized ? collapsedPosition(box, bounds) : null;
-  const panelStyle: CSSProperties = {
+  const chromeVars: Record<string, string> = {};
+  if (chrome.header) {
+    chromeVars["--ma-app-header-bg"] = chrome.header;
+    chromeVars["--ma-app-header-fg"] = miniAppContrastColor(chrome.header);
+  }
+  if (chrome.body) {
+    chromeVars["--ma-app-body-bg"] = chrome.body;
+  }
+  if (chrome.bottom) {
+    chromeVars["--ma-app-bottom-bg"] = chrome.bottom;
+  }
+  const panelStyle = {
     left: collapsed ? collapsed.x : box.x,
     top: collapsed ? collapsed.y : box.y,
     width: collapsed ? COLLAPSED_WIDTH : box.w,
     height: collapsed ? COLLAPSED_HEIGHT : box.h,
-  };
+    ...chromeVars,
+  } as CSSProperties;
+  const mainButtonStyle = {
+    "--ma-mainbtn-bg": mainButtonColor,
+    "--ma-mainbtn-fg": mainButtonTextColor,
+  } as CSSProperties;
   const bodyStyle: CSSProperties = { width: frameBox.w, height: frameBox.h };
 
   return createPortal(
@@ -759,8 +1348,26 @@ export function MiniAppOverlay({
         data-state={minimized ? "minimized" : "expanded"}
         data-loaded={loaded ? "true" : undefined}
         data-timed-out={timedOut ? "true" : undefined}
+        data-bridge-ready={bridgeReady ? "true" : undefined}
+        data-app-ready={appReady ? "true" : undefined}
+        data-app-tinted={chrome.header ? "true" : undefined}
+        data-confirm-close={confirmClose ? "true" : undefined}
+        data-back-button={backVisible ? "true" : undefined}
+        data-main-button={mainBarVisible ? "true" : undefined}
       >
         <header className="ma-header" onPointerDown={beginDrag}>
+          {backVisible && !minimized ? (
+            <button
+              type="button"
+              className="ma-header-btn ma-back"
+              data-miniapp-action="back"
+              aria-label={t("miniAppOverlay.back")}
+              title={t("miniAppOverlay.back")}
+              onClick={() => postBridgeEvent("back_button_pressed")}
+            >
+              <Icon name="arrow_back" size={18} />
+            </button>
+          ) : null}
           <button
             type="button"
             className="ma-header-btn ma-close"
@@ -974,6 +1581,76 @@ export function MiniAppOverlay({
             </div>
           ) : null}
         </div>
+
+        {mainBarVisible ? (
+          <div
+            className="ma-mainbar"
+            data-miniapp-mainbar=""
+            data-app-tinted={chrome.bottom ? "true" : undefined}
+          >
+            <button
+              type="button"
+              className="ma-mainbtn"
+              style={mainButtonStyle}
+              data-miniapp-action="main-button"
+              disabled={!mainButton?.active}
+              aria-busy={mainButton?.progress ? true : undefined}
+              onClick={() => postBridgeEvent("main_button_pressed")}
+            >
+              {mainButton?.progress ? (
+                <span className="ma-mainbtn-spinner" aria-hidden="true" />
+              ) : (
+                <span className="ma-mainbtn-text">
+                  {mainButton?.text.trim() || t("miniAppOverlay.continue")}
+                </span>
+              )}
+            </button>
+          </div>
+        ) : null}
+
+        {closeConfirmOpen ? (
+          <div className="ma-confirm-layer" data-miniapp-confirm="">
+            <div
+              className="ma-confirm"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby={confirmTitleId}
+              aria-describedby={confirmDescriptionId}
+              onKeyDown={handleConfirmKeyDown}
+            >
+              <span className="ma-confirm-title" id={confirmTitleId}>
+                {t("miniAppOverlay.close")}
+              </span>
+              <span className="ma-confirm-text" id={confirmDescriptionId}>
+                {t("miniAppOverlay.changesMayNotBeSaved")}
+              </span>
+              <div className="ma-confirm-actions">
+                <button
+                  ref={confirmCancelRef}
+                  type="button"
+                  className="ma-btn"
+                  data-miniapp-action="confirm-cancel"
+                  onClick={() => {
+                    setCloseConfirmOpen(false);
+                    window.requestAnimationFrame(() =>
+                      panelRef.current?.focus({ preventScroll: true }),
+                    );
+                  }}
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  type="button"
+                  className="ma-btn ma-btn-danger"
+                  data-miniapp-action="confirm-close"
+                  onClick={closeOverlay}
+                >
+                  {t("miniAppOverlay.closeAnyway")}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {!minimized && !exiting
           ? RESIZE_SIDES.map((side) => (

@@ -2230,6 +2230,18 @@
   overflow-wrap: anywhere;
 }
 
+/* Telegram Web draws emoji with its own Apple images, not the system font. */
+.f-emoji-inline {
+  display: inline-block;
+  width: 1.35em;
+  height: 1.35em;
+  margin: 0 1px;
+  object-fit: contain;
+  vertical-align: -0.3em;
+  pointer-events: none;
+  user-select: text;
+}
+
 .g-message-text strong {
   font-weight: 650;
 }

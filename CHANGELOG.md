@@ -2,6 +2,57 @@
 
 ## Unreleased
 
+### Telegram parity III: Saved Messages 2.0, gifts, search, presence, pinned bar, live emoji
+
+- **Saved Messages ("我的收藏")** now matches Telegram Web on every surface: the
+  dialog row, chat header and slide-over info pane all use one localized title,
+  the header shows the message count, and the info pane has no hero/action
+  tiles — its first tab lists the Saved Messages 2.0 **source chats**
+  (`messages.getPinnedSavedDialogs` + `messages.getSavedDialogs`) with pinned
+  chats first and click-to-open, while the shared-media tabs stay available.
+- The **chat info column slides over the conversation** from the right (190 ms
+  entry animation, Esc/× close, chat keeps its full width) instead of being a
+  third flex column that squeezed the message canvas.
+- **New chat-info Gifts tab** for users/channels with star gifts: paged grid
+  with gift sticker thumbnail, title, sender, stars, date and Unique badge
+  (`payments.getSavedStarGifts`), plus loading/empty/error states.
+- **Pinned message strip** under the chat header: first pinned message preview,
+  click to jump, unpin-all, dismiss, and live pin/unpin refresh. Kernel gained
+  `GetPinnedMessage` / `UnpinAllMessages` and `pinned` live events.
+- **Real presence/last-seen** for private peers: dialog rows, chat header and
+  info pane show online, exact last-seen or the coarse privacy buckets, kept
+  current through `UpdateUserStatus` live events. `ChatDTO` and
+  `ChatProfileDTO` gained `online`/`lastSeen`/`status`.
+- **Linked discussions open in-app even when they are not in the dialog list**:
+  `ChatProfileDTO.linkedChat` is mapped by the frontend and merged into the
+  router on demand.
+- **Sticker/GIF picker search, favorites and set management**: server-side
+  sticker search with installable set rows (`messages.searchStickers`),
+  favourites section and cell toggle (`getFavedStickers`/`faveSticker`), recent
+  clear, set install/uninstall/archive, featured/trending sets,
+  inline-bot GIF search with paging and send (`getInlineBotResults` /
+  `sendInlineBotResult`), save/unsave GIF hearts (`saveGif`).
+- **Telegram mini-app JS bridge**: iframe `postMessage` bridge for
+  `web_app_ready`, `web_app_close` (with closing-behaviour confirm),
+  `web_app_data_send` (`messages.sendWebViewData`), header/background/bottom
+  colours, BackButton/MainButton (host-rendered), expand/collapse,
+  theme/viewport pushes, open-link/TG-link, and 50 s `prolongWebView` keepalive.
+- **Emoji picker parity**: the full Telegram Web K catalogue (1,903 base emoji,
+  7 categories, exact order) rendered with the same 3,787 Apple emoji PNGs
+  Telegram Web ships (no more Segoe UI glyphs or missing flags), message text
+  also renders emoji as images, and a Web-K-style skin-tone picker (right-click
+  or long-press → 6 swatches, persisted per emoji) was added. Search keywords
+  stay localized (en/zh/ja), and panel geometry matches Web K's 382×420 panel.
+- **Profile home from the top-left menu**: clicking the account avatar opens a
+  Telegram-style profile/settings sheet (large avatar, online, phone/@username,
+  edit-profile hint) with the official settings rows (notifications, data and
+  storage, privacy, general, folders, stickers and emoji, speakers, language,
+  about) wired to the existing settings screen where available.
+- Internal: new kernel files for presence/saved/pinned/gifts/sticker search/GIF
+  search/webview bridge, regenerated bindings, 31 new round-3 Go tests and a new
+  `EmojiText` renderer, `telegramExtra.ts` typed façade, profile-home and
+  pinned-bar components. Docs/CHANGELOG updated.
+
 ### Telegram parity II: stickers/GIFs, in-app mini apps, links, header, Saved Messages
 
 - The emoji picker's **Stickers** and **GIFs** tabs now work like Telegram

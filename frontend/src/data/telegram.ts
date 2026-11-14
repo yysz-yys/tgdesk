@@ -27,6 +27,9 @@ export interface KernelChat {
   bot?: boolean;
   contact?: boolean;
   members?: number;
+  online?: boolean;
+  lastSeen?: number;
+  status?: string;
 }
 
 export interface KernelChatMember {
@@ -61,8 +64,62 @@ function normalizedProfileType(profile: KernelChatProfile): ChatProfile["type"] 
   }
 }
 
+/** Maps the kernel's privacy-preserving user status to the UI union. */
+export function normalizedUserStatus(
+  value: string | undefined,
+): Chat["status"] {
+  switch (value) {
+    case "online":
+    case "offline":
+    case "recently":
+    case "lastWeek":
+    case "lastMonth":
+    case "hidden":
+      return value;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Telegram-Web-style presence line: "online", "last seen 12:34", or the coarse
+ * privacy categories. Returns undefined for peers that never show a status.
+ */
+export function formatUserStatus(
+  online: boolean | undefined,
+  status: string | undefined,
+  lastSeen: number | undefined,
+  t: TFunction,
+  language: string,
+): string | undefined {
+  if (online || status === "online") {
+    return t("chat.online");
+  }
+  if (lastSeen) {
+    return t("chat.lastSeenAt", {
+      time: formatChatTime(new Date(lastSeen * 1000), language),
+    });
+  }
+  switch (status) {
+    case "offline":
+      return t("chat.lastSeen");
+    case "recently":
+      return t("chat.statusRecently");
+    case "lastWeek":
+      return t("chat.statusLastWeek");
+    case "lastMonth":
+      return t("chat.statusLastMonth");
+    default:
+      return undefined;
+  }
+}
+
 /** Maps the kernel's full-peer profile to the UI shape. */
-export function mapChatProfile(profile: KernelChatProfile): ChatProfile {
+export function mapChatProfile(
+  profile: KernelChatProfile,
+  language?: string,
+  t?: TFunction,
+): ChatProfile {
   const commands: BotCommandInfo[] = [];
   for (const command of profile.botCommands ?? []) {
     const name = command.command?.trim().replace(/^\/+/, "");
@@ -103,6 +160,13 @@ export function mapChatProfile(profile: KernelChatProfile): ChatProfile {
     usernames: Array.isArray(profile.usernames)
       ? profile.usernames.filter((name) => Boolean(name))
       : undefined,
+    linkedChat:
+      profile.linkedChat && language && t
+        ? mapChat(profile.linkedChat, language, t)
+        : undefined,
+    online: Boolean(profile.online),
+    lastSeen: profile.lastSeen || undefined,
+    status: normalizedUserStatus(profile.status),
     canSendStickers: profile.canSendStickers !== false,
     canSendGifs: profile.canSendGifs !== false,
     giftsCount: profile.giftsCount || undefined,
@@ -205,6 +269,10 @@ export interface KernelChatProfile {
   isForum?: boolean;
   inviteLink?: string;
   linkedChatId?: string;
+  linkedChat?: KernelChat | null;
+  online?: boolean;
+  lastSeen?: number;
+  status?: string;
   botCommands?: { command: string; description?: string }[] | null;
   botMenuButton?: { type?: string; text?: string; url?: string } | null;
   botOwnerId?: string;
@@ -396,7 +464,9 @@ export function mapChat(chat: KernelChat, language: string, t: TFunction): Chat 
         })
       : undefined,
     memberCount: chat.members || undefined,
-    online: false,
+    online: Boolean(chat.online),
+    lastSeen: chat.lastSeen || undefined,
+    status: normalizedUserStatus(chat.status),
     color: chatColor(chat.id),
     initials: chatInitials(chat.title),
   };

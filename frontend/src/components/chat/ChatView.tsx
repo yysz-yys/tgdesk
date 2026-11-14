@@ -6,12 +6,14 @@ import type {
   BotCallbackResult,
   BotWebViewRequest,
   Chat,
+  ChatGiftsPage,
   ChatInfo,
   ChatMembersPage,
   ChatProfile,
   DownloadTask,
   Message,
   MessageButton,
+  SavedChats,
   SharedMediaPage,
   SharedMediaSection,
   UploadProgress,
@@ -28,6 +30,7 @@ import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { MessageList } from "./MessageList";
 import { ChatInfoPanel } from "./ChatInfoPanel";
+import { PinnedMessageBar } from "./PinnedMessageBar";
 import { ForwardDialog } from "./ForwardDialog";
 import { ReactionPickerDialog } from "./ReactionPickerDialog";
 import "./info-panel-f.css";
@@ -61,11 +64,30 @@ interface ChatViewProps {
   onOpenBotWebView: (request: BotWebViewRequest) => void;
   onSendCommand: (command: string) => Promise<void>;
   onRequestLeaveChat?: (chat: Chat) => void;
-  onOpenLinkedChat?: (chatID: string) => void;
+  onOpenLinkedChat?: (chatID: string, chat?: Chat) => void;
+  /** Saved Messages 2.0 source chats for the info pane's "Chats" tab. */
+  onLoadSavedChats?: () => Promise<SavedChats | null>;
+  onOpenSavedChat?: (chatID: string) => void;
+  /** One page of a profile's star gifts for the info pane's Gifts tab. */
+  onLoadChatGifts?: (
+    chatID: string,
+    offset?: string,
+  ) => Promise<ChatGiftsPage | null>;
+  /** Pinned message for this chat (nil when none/unavailable). */
+  onLoadPinnedMessage?: (chatID: string) => Promise<Message | null>;
+  /** Removes every pinned message from this chat. */
+  onUnpinAllMessages?: (chatID: string) => Promise<void>;
+  /** Bumped by live pin/unpin updates so the bar refreshes. */
+  pinnedVersion?: number;
   /** Network params for auxiliary kernel RPCs (sticker/GIF picker). */
   network: { proxy: string; ntp: string };
   onSendSticker: (ref: string, replyToID?: number) => Promise<void>;
   onSendGif: (ref: string, replyToID?: number) => Promise<void>;
+  onSendInlineGif?: (
+    queryId: number,
+    resultId: string,
+    replyToID?: number,
+  ) => Promise<void>;
   /** Message id to scroll to after an in-app t.me post link opened this chat. */
   jumpToMessageId?: number | null;
   onJumpConsumed?: () => void;
@@ -121,9 +143,16 @@ export function ChatView({
   onSendCommand,
   onRequestLeaveChat,
   onOpenLinkedChat,
+  onLoadSavedChats,
+  onOpenSavedChat,
+  onLoadChatGifts,
+  onLoadPinnedMessage,
+  onUnpinAllMessages,
+  pinnedVersion,
   network,
   onSendSticker,
   onSendGif,
+  onSendInlineGif,
   jumpToMessageId,
   onJumpConsumed,
   onLoadAround,
@@ -179,6 +208,48 @@ export function ChatView({
     ids: number[];
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [pinnedMessage, setPinnedMessage] = useState<Message | null>(null);
+  const [pinnedHidden, setPinnedHidden] = useState(false);
+
+  useEffect(() => {
+    setPinnedHidden(false);
+  }, [chat.id]);
+
+  // The pinned strip follows Telegram Web: it shows the first pinned message
+  // and refreshes when the live update stream reports a pin/unpin change.
+  useEffect(() => {
+    if (!onLoadPinnedMessage) {
+      return;
+    }
+    let alive = true;
+    void onLoadPinnedMessage(chat.id)
+      .then((message) => {
+        if (alive) {
+          setPinnedMessage(message);
+        }
+      })
+      .catch(() => {
+        // A failed pinned-message read only hides the strip.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [chat.id, onLoadPinnedMessage, pinnedVersion]);
+
+  useEffect(() => {
+    if (!infoOpen) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      setInfoOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [infoOpen]);
 
   useEffect(() => {
     setSearchOpen(false);
@@ -368,6 +439,41 @@ export function ChatView({
     window.setTimeout(() => node.classList.remove("g-message-flash"), 1400);
   };
 
+  const jumpToPinned = () => {
+    const target = pinnedMessage;
+    if (!target) {
+      return;
+    }
+    setSearchOpen(false);
+    if (messages.some((message) => message.id === target.id)) {
+      jumpToMessage(target.id);
+      return;
+    }
+    if (!onLoadAround) {
+      jumpToMessage(target.id);
+      return;
+    }
+    void onLoadAround(target.id).then((found) => {
+      if (found) {
+        window.setTimeout(() => jumpToMessage(target.id), 120);
+      } else {
+        onToast(t("chat.postNotLoaded"));
+      }
+    });
+  };
+
+  const unpinAllMessages = () => {
+    if (!onUnpinAllMessages) {
+      return;
+    }
+    void onUnpinAllMessages(chat.id)
+      .then(() => {
+        setPinnedMessage(null);
+        onToast(t("chat.unpinnedToast"));
+      })
+      .catch(() => onToast(t("chat.unpinFailed")));
+  };
+
   // t.me/<channel>/<post> links open this chat with the post to show. Once the
   // page containing the id is loaded, scroll to it (and consume the request).
   // When the post is older than the newest page, page the history around it.
@@ -554,6 +660,16 @@ export function ChatView({
           }
         />
 
+        {pinnedMessage && !pinnedHidden && !searchOpen ? (
+          <PinnedMessageBar
+            message={pinnedMessage}
+            sender={chat.saved ? selfName : pinnedMessage.sender}
+            onJump={jumpToPinned}
+            onUnpin={unpinAllMessages}
+            onDismiss={() => setPinnedHidden(true)}
+          />
+        ) : null}
+
         <div className="g-chat-canvas">
           {loading ? (
             <div className="g-chat-status">
@@ -658,6 +774,12 @@ export function ChatView({
           network={network}
           onSendSticker={(ref) => onSendSticker(ref, replyingTo?.id)}
           onSendGif={(ref) => onSendGif(ref, replyingTo?.id)}
+          onSendInlineGif={
+            onSendInlineGif
+              ? (queryId, resultId) =>
+                  onSendInlineGif(queryId, resultId, replyingTo?.id)
+              : undefined
+          }
           onToast={onToast}
           enterToSend={enterToSend}
         />
@@ -737,7 +859,8 @@ export function ChatView({
       </main>
 
       {infoOpen ? (
-        <ChatInfoPanel
+        <div className="f-info-overlay" role="dialog" aria-label={chat.title}>
+          <ChatInfoPanel
           chat={chat}
           profile={profile}
           profileLoading={profileLoading}
@@ -748,7 +871,15 @@ export function ChatView({
           onOpenBotWebView={openBotMenu}
           onFocusComposer={focusComposer}
           onLeaveChat={() => onRequestLeaveChat?.(chat)}
-          onOpenDiscussion={(chatID) => onOpenLinkedChat?.(chatID)}
+          onOpenDiscussion={(chatID, linkedChat) =>
+            onOpenLinkedChat?.(chatID, linkedChat)
+          }
+          onLoadSavedChats={onLoadSavedChats}
+          onOpenSavedChat={onOpenSavedChat}
+          onLoadChatGifts={
+            onLoadChatGifts ? (offset) => onLoadChatGifts(chat.id, offset) : undefined
+          }
+          network={network}
           onOpenLink={openTelegramLink}
           onClose={() => setInfoOpen(false)}
           onTogglePin={onTogglePin}
@@ -774,6 +905,7 @@ export function ChatView({
           onJumpToMessage={jumpToMessage}
           onToast={onToast}
         />
+        </div>
       ) : null}
     </>
   );

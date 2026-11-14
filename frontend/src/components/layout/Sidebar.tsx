@@ -39,6 +39,9 @@ interface SidebarProps {
   accountInitials?: string;
   accountColor?: string;
   accountPhoto?: string;
+  accountUsername?: string;
+  accountPhone?: string;
+  onProfile?: () => void;
   loading?: boolean;
   failed?: boolean;
 }
@@ -70,6 +73,9 @@ export function Sidebar({
   accountInitials,
   accountColor,
   accountPhoto,
+  accountUsername,
+  accountPhone,
+  onProfile,
   loading,
   failed,
 }: SidebarProps) {
@@ -287,6 +293,9 @@ export function Sidebar({
             accountInitials={accountInitials}
             accountColor={accountColor}
             accountPhoto={accountPhoto}
+            accountUsername={accountUsername}
+            accountPhone={accountPhone}
+            onProfile={onProfile}
             onChats={onChats}
             onArchive={openArchive}
             archivedCount={archivedChats.length}

@@ -1,19 +1,27 @@
 /**
  * GENERATED FILE — do not edit by hand.
- * Regenerate with: node temp/emoji/build-emoji-ts.mjs (dev-only; temp/ is gitignored).
+ * Regenerate with: node temp/emoji-r3/build-emoji-data.mjs (dev-only; temp/ is gitignored).
  *
- * Sources (both permissive, AGPL-compatible):
- *  - Emoji list, category order and names: iamcal/emoji-data `emoji_pretty.json`
- *    MIT License, Copyright (c) 2013 Cal Henderson
+ * This catalogue is the exact Telegram Web K emoji tab: tile order, skin-tone
+ * templates and the Apple emoji image set match web.telegram.org (Web K).
+ *
+ * Sources:
+ *  - Telegram Web K (GPL-3.0-only) `src/config/emoji.ts` / `emojiSkinTone.ts`:
+ *    tile order and skin-tone templates, used as the parity reference.
+ *    https://github.com/morethanwords/tweb
+ *  - iamcal/emoji-data `emoji_pretty.json` (MIT, © 2013 Cal Henderson):
+ *    fully-qualified Unicode strings and English short names.
  *    https://github.com/iamcal/emoji-data
- *  - Search keywords: Unicode CLDR annotations / annotationsDerived (en, zh, ja)
- *    Unicode License V3 — https://www.unicode.org/license.txt
- *    https://github.com/unicode-org/cldr-json
+ *  - Unicode CLDR annotations / annotationsDerived (Unicode License V3):
+ *    localized en/zh/ja search keywords carried over from the previous
+ *    catalogue by codepoint key. https://github.com/unicode-org/cldr-json
+ *  - Apple emoji artwork: the 64 px PNGs from iamcal/emoji-data's Apple set,
+ *    the same images Web K ships under `public/assets/img/emoji`. See
+ *    THIRD_PARTY_NOTICES.md for the licensing note.
  *
- * Snapshot: iamcal/emoji-data master snapshot 2026-11-14; Unicode CLDR annotations snapshot of the same date.
- * Filter: Unicode <= 15.1 (Windows Segoe UI Emoji coverage), ©/®/™ excluded.
- * Emoji glyphs are rendered with the platform colour emoji font; the repository
- * bundles no emoji image assets.
+ * The emoji tiles are drawn as images: every catalogue emoji (and each of its
+ * skin-tone variants) resolves to `/emoji/<imageKey>.png`, where the key is the
+ * Web K "unified" identifier with `-fe0f` stripped.
  */
 
 import type { EmojiKeywordTable } from "./emojiKeywords";
@@ -80,6 +88,7 @@ export default [
   ["crying", "face", "good", "night", "sad", "sleep", "sleeping", "sleepy", "tired", "sleepy face"],
   ["drooling", "face", "drooling face"],
   ["bed", "bedtime", "face", "good", "goodnight", "nap", "night", "sleep", "sleeping", "tired", "whatever", "yawn", "zzz", "sleeping face"],
+  ["face_with_bags_under_eyes", "face with bags under eyes"],
   ["cold", "dentist", "dermatologist", "doctor", "dr", "face", "germs", "mask", "medical", "medicine", "sick", "face with medical mask"],
   ["face", "ill", "sick", "thermometer", "face with thermometer"],
   ["bandage", "face", "head-bandage", "hurt", "injury", "ouch", "face with head-bandage", "face with head bandage"],
@@ -576,6 +585,7 @@ export default [
   ["adult", "child", "family", "family: adult, child", "family adult child"],
   ["adult", "child", "family", "family: adult, child, child", "family adult child child"],
   ["barefoot", "clothing", "footprint", "footprints", "omw", "print", "walk"],
+  ["fingerprint"],
   ["animal", "banana", "face", "monkey", "monkey face"],
   ["animal", "banana", "monkey"],
   ["animal", "gorilla"],
@@ -734,6 +744,7 @@ export default [
   ["branch", "empty", "home", "nest", "nesting", "empty nest"],
   ["bird", "branch", "egg", "eggs", "nest", "nesting", "nest with eggs"],
   ["fungus", "mushroom", "toadstool"],
+  ["leafless_tree", "leafless tree"],
   ["dionysus", "fruit", "grape", "grapes"],
   ["cantaloupe", "fruit", "melon"],
   ["fruit", "watermelon"],
@@ -772,6 +783,7 @@ export default [
   ["beer", "ginger", "health", "herb", "natural", "root", "spice", "ginger root"],
   ["beans", "beanstalk", "edamame", "legume", "pea", "pod", "soybean", "vegetable", "veggie", "pea pod"],
   ["food", "fungi", "fungus", "mushroom", "nature", "pizza", "portobello", "shiitake", "shroom", "spore", "sprout", "toppings", "truffle", "vegetable", "vegetarian", "veggie", "brown mushroom"],
+  ["root_vegetable", "root vegetable"],
   ["bread", "carbs", "food", "grain", "loaf", "restaurant", "toast", "wheat"],
   ["bread", "breakfast", "crescent", "croissant", "food", "french", "roll"],
   ["baguette", "bread", "food", "french", "baguette bread"],
@@ -1233,16 +1245,17 @@ export default [
   ["earbud", "headphone", "sound", "headphones"],
   ["entertainment", "radio", "tbt", "video"],
   ["instrument", "music", "sax", "saxophone"],
-  ["instrument", "music", "trumpet"],
   ["accordion", "box", "concertina", "instrument", "music", "squeeze", "squeezebox"],
   ["guitar", "instrument", "music", "strat"],
   ["instrument", "keyboard", "music", "musical", "piano", "musical keyboard"],
+  ["instrument", "music", "trumpet"],
   ["instrument", "music", "violin"],
   ["banjo", "music", "stringed"],
   ["drum", "drumsticks", "music", "drum with drumsticks"],
   ["beat", "conga", "drum", "instrument", "long", "rhythm", "long drum"],
   ["cha", "dance", "instrument", "maracas", "music", "party", "percussion", "rattle", "shake", "shaker"],
   ["band", "fife", "flautist", "flute", "instrument", "marching", "music", "orchestra", "piccolo", "pipe", "recorder", "woodwind"],
+  ["harp"],
   ["cell", "communication", "mobile", "phone", "telephone", "mobile phone", "iphone"],
   ["arrow", "build", "call", "cell", "communication", "mobile", "phone", "receive", "telephone", "mobile phone with arrow", "calling", "mobile phone with rightwards arrow at left"],
   ["phone", "telephone", "black telephone"],
@@ -1296,8 +1309,8 @@ export default [
   ["bookmark", "mark", "marker", "tabs", "bookmark tabs"],
   ["bookmark", "mark"],
   ["label", "tag"],
-  ["coin", "dollar", "euro", "gold", "metal", "money", "rich", "silver", "treasure"],
   ["bag", "bank", "bet", "billion", "cash", "cost", "dollar", "gold", "million", "money", "moneybag", "paid", "paying", "pot", "rich", "win", "money bag"],
+  ["coin", "dollar", "euro", "gold", "metal", "money", "rich", "silver", "treasure"],
   ["bank", "banknote", "bill", "currency", "money", "note", "yen", "yen banknote", "banknote with yen sign"],
   ["bank", "banknote", "bill", "currency", "dollar", "money", "note", "dollar banknote", "banknote with dollar sign"],
   ["100", "bank", "banknote", "bill", "currency", "euro", "money", "note", "rich", "euro banknote", "banknote with euro sign"],
@@ -1381,6 +1394,7 @@ export default [
   ["box", "chest", "mechanic", "red", "tool", "toolbox"],
   ["attraction", "horseshoe", "magnet", "magnetic", "negative", "positive", "shape", "u"],
   ["climb", "ladder", "rung", "step"],
+  ["shovel"],
   ["alembic", "chemistry", "tool"],
   ["chemist", "chemistry", "experiment", "lab", "science", "test", "tube", "test tube"],
   ["bacteria", "biologist", "biology", "culture", "dish", "lab", "petri", "petri dish"],
@@ -1527,8 +1541,6 @@ export default [
   ["broadband", "computer", "connectivity", "hotspot", "internet", "network", "router", "smartphone", "wi-fi", "wifi", "wireless", "wlan"],
   ["cell", "communication", "mobile", "mode", "phone", "telephone", "vibration", "vibration mode"],
   ["cell", "mobile", "off", "phone", "telephone", "mobile phone off"],
-  ["female", "sign", "woman", "female sign"],
-  ["male", "man", "sign", "male sign"],
   ["symbol", "transgender", "transgender symbol"],
   ["×", "cancel", "multiplication", "multiply", "sign", "x", "heavy multiplication x"],
   ["+", "plus", "heavy plus sign"],
@@ -1545,7 +1557,6 @@ export default [
   ["dash", "punctuation", "wavy", "wavy dash"],
   ["bank", "currency", "exchange", "money", "currency exchange"],
   ["billion", "cash", "charge", "currency", "dollar", "heavy", "million", "money", "pay", "sign", "heavy dollar sign"],
-  ["aesculapius", "medical", "medicine", "staff", "symbol", "medical symbol"],
   ["recycle", "recycling", "symbol", "recycling symbol", "black universal recycling symbol"],
   ["fleur-de-lis", "knights", "fleur de lis"],
   ["anchor", "emblem", "poseidon", "ship", "tool", "trident", "trident emblem"],
@@ -1563,6 +1574,10 @@ export default [
   ["*", "asterisk", "eight-spoked", "eight-spoked asterisk", "eight spoked asterisk"],
   ["*", "eight-pointed", "star", "eight-pointed star", "eight pointed black star"],
   ["*", "sparkle"],
+  ["copyright", "copyright sign"],
+  ["registered", "registered sign"],
+  ["tm", "trade mark sign"],
+  ["splatter"],
   ["keycap", "keycap: #", "hash", "hash key"],
   ["keycap", "keycap: *", "keycap star"],
   ["0", "keycap", "zero", "keycap: 0", "keycap 0"],
@@ -1708,6 +1723,7 @@ export default [
   ["flag", "flag: china", "cn", "china flag"],
   ["flag", "flag: colombia", "flag-co", "colombia flag"],
   ["flag", "flag: clipperton island", "flag-cp", "clipperton island flag"],
+  ["flag-sark", "flag sark", "sark flag"],
   ["flag", "flag: costa rica", "flag-cr", "costa rica flag"],
   ["flag", "flag: cuba", "flag-cu", "cuba flag"],
   ["flag", "flag: cape verde", "flag-cv", "cape verde flag"],

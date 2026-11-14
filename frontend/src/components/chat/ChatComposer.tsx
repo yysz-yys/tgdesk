@@ -35,6 +35,7 @@ export interface ChatComposerProps {
   network?: { proxy: string; ntp: string };
   onSendSticker?: (ref: string) => void | Promise<unknown>;
   onSendGif?: (ref: string) => void | Promise<unknown>;
+  onSendInlineGif?: (queryId: number, resultId: string) => void | Promise<unknown>;
 }
 
 /**
@@ -62,6 +63,7 @@ export function ChatComposer({
   network,
   onSendSticker,
   onSendGif,
+  onSendInlineGif,
 }: ChatComposerProps) {
   const { t } = useTranslation();
   const channel = isChannelChat(chat, profile);
@@ -136,6 +138,7 @@ export function ChatComposer({
       network={network}
       onSendSticker={onSendSticker}
       onSendGif={onSendGif}
+      onSendInlineGif={onSendInlineGif}
     />
   );
 }

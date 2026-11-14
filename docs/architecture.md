@@ -91,6 +91,22 @@ Wails runtime `Window` API for minimise/maximise/close and CSS
 - The old `mini-app` window, its `/miniapp.html` wrapper, `OpenBotWebView` /
   `OpenMiniApp` / `TakeMiniAppState` bindings and the `MiniAppWindowName`
   close-on-exit wiring were removed when the overlay landed.
+- The overlay runs the Telegram JS bridge over `postMessage`: `web_app_ready`,
+  close (with closing-behaviour confirm), `web_app_data_send` →
+  `kernel.SendWebViewData` (`messages.sendWebViewData`), header/background/bottom
+  colours, BackButton/MainButton (rendered by the host), expand/collapse,
+  theme/viewport pushes, link events and a 50 s `messages.prolongWebView`
+  keepalive (`kernel.ProlongWebView`). Query id/peer/network data travel with the
+  `MiniAppLaunch` so the bridge never needs app-wide state.
+
+### Chat info column
+
+The info pane is a slide-over child of the shell: `ChatView` renders
+`div.f-info-overlay > aside.f-info-panel`, absolutely positioned on the right and
+animated over the chat, so the message canvas keeps its width. Internally it is
+still `ChatInfoPanel` (shared media, members, gifts, Saved Messages source chats
+and the profile hero/action tiles for non-saved peers), which only receives DTOs
+and callbacks; all routing stays in `App.tsx`.
 
 ## Kernel state and concurrency
 
@@ -108,6 +124,10 @@ Wails runtime `Window` API for minimise/maximise/close and CSS
 - sticker/GIF picker caches (`stickerCacheMu`: installed sets, recent stickers,
   set details, saved GIFs) and the opaque document-ref side map (`stickerRefsMu`,
   bounded at 4096 entries); both are cleared on session reset;
+- presence mapping (`presence.go`), Saved Messages source chats (`saved.go`),
+  pinned message reads (`pinned.go`) and star gifts (`gifts.go`) are stateless
+  read paths; live `UpdateUserStatus`/`UpdatePinned*` updates are emitted through
+  `chat:event` as `presence`/`pinned`;
 - a bounded in-memory image cache and the loopback image server.
 
 The shared session is keyed by proxy + NTP. The first call creates a tdl client,
@@ -300,6 +320,35 @@ layer has no `stickers.getStickerSet`):
   `UpdateRecentStickers`/`UpdateSavedGifs` drop their list, and every successful
   send invalidates the matching cache. The session reset clears everything,
   including the ref side map.
+- Search/favorites use `messages.searchStickers`, `messages.getFavedStickers`
+  and `messages.faveSticker`; set management uses `installStickerSet`/
+  `uninstallStickerSet`/`toggleStickerSets` (+ archived) and
+  `messages.getFeaturedStickers` for the trending row. `SearchStickers` also
+  resolves up to six non-installed set headers so the results grid can show an
+  Add button.
+- GIF search goes through the inline bot advertised by the server config
+  (default `@gif`): `contacts.resolveUsername` + `messages.getInlineBotResults`,
+  and the selected result is sent with `messages.sendInlineBotResult`; results
+  carry an opaque `ginl1_…` ref holding query/result ids. `messages.saveGif`
+  maintains the saved-GIF heart state (`gif_search.go`).
+
+### Presence, pinned messages, Saved Messages and star gifts
+
+- `presence.go` maps `tg.UserStatus` to `Online`/`LastSeen`/`Status`
+  (`online|offline|recently|lastWeek|lastMonth|hidden`) for human private peers
+  only; `chats.go` fills it for dialog rows, `chat_profile.go` for the info pane.
+  `live.go` registers `UpdateUserStatus` and pushes the same shape as a
+  `presence` chat event.
+- `pinned.go` resolves the first pinned message with
+  `messages.search` + `InputMessagesFilterPinned` and unpins all with
+  `messages.unpinAllMessages`; `UpdatePinnedMessages`/`UpdatePinnedChannelMessages`
+  emit a `pinned` event so the frontend refreshes the strip.
+- `saved.go` lists Saved Messages 2.0 source chats with
+  `messages.getPinnedSavedDialogs` + `messages.getSavedDialogs` (pinned first,
+  last-saved-message preview/date) for the info pane's Chats tab. It reuses the
+  normal `ChatDTO` shape so rows open through the same router.
+- `gifts.go` pages `payments.getSavedStarGifts` into the Gifts tab (template
+  title, sender, date, stars, batch count, unique/sold-out, sticker thumbnail).
 
 ### In-app Telegram links and membership actions
 

@@ -20,5 +20,6 @@ export function useStickerSet(
     peek: (activeNetwork) => peekStickerSet(activeNetwork, setRef),
     load: (activeNetwork, force) =>
       loadStickerSet(activeNetwork, setRef, { force }),
+    reloadScopes: ["sets", "packs"],
   });
 }

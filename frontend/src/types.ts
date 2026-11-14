@@ -45,6 +45,18 @@ export interface AuthEvent {
 
 export type ChatKind = "private" | "group" | "channel";
 
+/**
+ * Peer presence as Telegram exposes it. "recently"/"lastWeek"/"lastMonth" are
+ * the privacy-preserving coarse statuses; "hidden" means the peer hides it.
+ */
+export type UserStatusKind =
+  | "online"
+  | "offline"
+  | "recently"
+  | "lastWeek"
+  | "lastMonth"
+  | "hidden";
+
 export interface Chat {
   id: string;
   title: string;
@@ -62,11 +74,21 @@ export interface Chat {
   /** True for the Saved Messages peer (the private chat with yourself). */
   saved?: boolean;
   online?: boolean;
+  /** Unix seconds of the last-seen timestamp (0 when unknown/coarse). */
+  lastSeen?: number;
+  /** Privacy-preserving presence category. */
+  status?: UserStatusKind;
   verified?: boolean;
   members?: string;
   memberCount?: number;
   color: string;
   initials: string;
+}
+
+/** Saved Messages 2.0: the source chats messages were forwarded from. */
+export interface SavedChats {
+  chats: Chat[];
+  count: number;
 }
 
 export interface ChatFolder {
@@ -134,6 +156,11 @@ export interface ChatProfile {
   isForum?: boolean;
   inviteLink?: string;
   linkedChatId?: string;
+  /** Full linked discussion chat entity, even when it is not in the dialog list. */
+  linkedChat?: Chat;
+  online?: boolean;
+  lastSeen?: number;
+  status?: UserStatusKind;
   botCommands?: BotCommandInfo[];
   botMenuButton?: BotMenuButtonInfo;
   botOwnerId?: string;
@@ -182,6 +209,32 @@ export interface MiniAppLaunch {
   botName?: string;
   avatarUrl?: string;
   fromBotMenu?: boolean;
+  /** Backend routing data used by the Telegram JS bridge. */
+  chatId?: string;
+  botId?: string;
+  messageId?: number;
+  queryId?: number;
+  /** Network params the bridge needs for prolong/data-send RPC calls. */
+  network?: { proxy: string; ntp: string };
+}
+
+/** One star gift shown in a profile's Gifts tab. */
+export interface GiftInfo {
+  id: string;
+  title: string;
+  from?: string;
+  date?: number;
+  stars?: number;
+  count?: number;
+  thumbUrl?: string;
+  unique?: boolean;
+  soldOut?: boolean;
+}
+
+export interface ChatGiftsPage {
+  gifts: GiftInfo[];
+  nextOffset?: string;
+  total?: number;
 }
 
 export type StickerDocKind = "static" | "tgs" | "webm";
@@ -210,6 +263,8 @@ export interface StickerSetInfo {
   count: number;
   official?: boolean;
   archived?: boolean;
+  /** Whether this set is currently installed on the account. */
+  installed?: boolean;
   coverUrl?: string;
   coverKind?: StickerDocKind;
 }
@@ -228,6 +283,8 @@ export interface StickerSetDetail {
 export interface SavedGif {
   ref: string;
   id: string;
+  /** Inline-bot result id for GIF search results (not for saved GIFs). */
+  resultId?: string;
   thumbUrl?: string;
   streamUrl: string;
   mime?: string;
@@ -235,6 +292,19 @@ export interface SavedGif {
   h?: number;
   duration?: number;
   sizeBytes?: number;
+}
+
+/** Result of a sticker search (documents + matching set info). */
+export interface StickerSearch {
+  stickers: StickerDoc[];
+  sets: StickerSetInfo[];
+}
+
+/** One page of inline-bot GIF search results. */
+export interface GifSearchPage {
+  gifs: SavedGif[];
+  nextOffset?: string;
+  queryId: number;
 }
 
 /** Result of resolving a t.me / tg:// link for in-app navigation. */
@@ -444,7 +514,16 @@ export interface Message {
 }
 
 export interface ChatEvent {
-  kind: "message" | "edit" | "delete" | "reaction" | "resync" | "read" | "readOutbox";
+  kind:
+    | "message"
+    | "edit"
+    | "delete"
+    | "reaction"
+    | "resync"
+    | "read"
+    | "readOutbox"
+    | "presence"
+    | "pinned";
   chatId?: string;
   message?: unknown;
   messageIds?: number[] | null;
@@ -452,6 +531,11 @@ export interface ChatEvent {
   reactions?: Reaction[] | null;
   unread?: number;
   maxId?: number;
+  /** presence events */
+  userId?: number;
+  online?: boolean;
+  lastSeen?: number;
+  status?: UserStatusKind;
 }
 
 export interface UploadEvent {

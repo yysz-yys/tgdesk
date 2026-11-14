@@ -98,12 +98,17 @@
   padding: 4px;
 }
 
-.g-emoji-picker-set-tab img {
+.g-emoji-picker-set-tab .g-emoji-picker-set-cover {
   display: block;
   width: 30px;
   height: 30px;
   border-radius: 3px;
   object-fit: contain;
+}
+
+.g-emoji-picker-set-tab .g-emoji-picker-set-initial {
+  width: 30px;
+  height: 30px;
 }
 
 .g-emoji-picker-set-initial {
@@ -137,12 +142,26 @@
 }
 
 .g-emoji-picker-sticker-section-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 37px;
   padding: 12px 14px 6px;
   color: color-mix(in srgb, var(--f-text, #1c2024) 42%, transparent);
   font-size: 16px;
   font-weight: 600;
   line-height: 19px;
   text-align: center;
+}
+
+.g-emoji-picker-sticker-section-title-text {
+  min-width: 0;
+  max-width: calc(100% - 56px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .g-emoji-picker-sticker-section-title:focus-visible {
@@ -379,6 +398,286 @@
   clip: rect(0 0 0 0);
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* ------------------------------------ round-3: search, favorites, set manage */
+
+/* Search row inside the tab body: same plate as the emoji tab; the tab-specific
+ * class only documents the placement under the set rail. */
+.g-emoji-picker-tab-search {
+  flex: 0 0 38px;
+}
+
+/* Section header actions: "Clear" pill (Recent) and the hover "more" button
+ * (installed sets). Both overlay the centred title without shifting it. */
+.g-emoji-picker-section-action {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 50%;
+  height: 24px;
+  padding: 0 8px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--f-muted, #646a73);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.g-emoji-picker-section-action:hover {
+  background: var(--gray-a3, rgba(28, 32, 36, 0.06));
+  color: var(--f-text, #1c2024);
+}
+
+.g-emoji-picker-section-action:focus-visible,
+.g-emoji-picker-set-more:focus-visible {
+  outline: 2px solid var(--f-accent, #3e63dd);
+  outline-offset: -1px;
+}
+
+.g-emoji-picker-set-more {
+  position: absolute;
+  inset-inline-end: 6px;
+  top: 50%;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--f-muted, #646a73);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.g-emoji-picker-set-more-content {
+  display: grid;
+  place-items: center;
+}
+
+.g-emoji-picker-set-more:hover {
+  background: var(--gray-a3, rgba(28, 32, 36, 0.06));
+  color: var(--f-text, #1c2024);
+}
+
+.g-emoji-picker-sticker-section:hover .g-emoji-picker-set-more,
+.g-emoji-picker-sticker-section:focus-within .g-emoji-picker-set-more,
+.g-emoji-picker-set-more:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .g-emoji-picker-set-more {
+    opacity: 1;
+  }
+}
+
+/* Heart badge on favorited sticker cells. */
+.g-emoji-picker-sticker-fav {
+  position: absolute;
+  inset-inline-end: 3px;
+  bottom: 3px;
+  display: grid;
+  place-items: center;
+  color: var(--f-accent, #3e63dd);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+  pointer-events: none;
+}
+
+/* Sticker search results: flat hit grid followed by the packs block. */
+.g-emoji-picker-sticker-search-results {
+  display: block;
+  padding-bottom: 6px;
+}
+
+.g-emoji-picker-set-section {
+  display: block;
+  padding-bottom: 8px;
+}
+
+/* ----------------------------------------------------------------- set rows */
+
+.g-emoji-picker-set-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 3px 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.g-emoji-picker-set-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 8px;
+  border-radius: 12px;
+}
+
+.g-emoji-picker-set-row:hover {
+  background: var(--gray-a3, rgba(28, 32, 36, 0.06));
+}
+
+img.g-emoji-picker-set-cover {
+  display: block;
+  object-fit: contain;
+}
+
+.g-emoji-picker-set-row-cover {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 8px;
+}
+
+.g-emoji-picker-set-row-cover.g-emoji-picker-set-initial {
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+.g-emoji-picker-set-row-body {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.g-emoji-picker-set-row-title {
+  overflow: hidden;
+  color: var(--f-text, #1c2024);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.g-emoji-picker-set-row-count {
+  color: var(--f-muted, #646a73);
+  font-size: 12px;
+  line-height: 15px;
+}
+
+.g-emoji-picker-set-row-state {
+  flex: 0 0 auto;
+  color: var(--f-muted, #646a73);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.g-emoji-picker-set-row-add {
+  display: inline-flex;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  /* Radix' accent pair resolves to a readable light/dark pair inside the theme;
+   * the F accent is the fallback (e.g. a portal without theme variables). */
+  background: var(--accent-9, var(--f-accent, #3e63dd));
+  color: var(--accent-contrast, #ffffff);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.g-emoji-picker-set-row-add:hover {
+  filter: brightness(1.06);
+}
+
+.g-emoji-picker-set-row-add:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.g-emoji-picker-set-row-add:focus-visible {
+  outline: 2px solid var(--f-accent, #3e63dd);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------- GIF search + save state */
+
+.g-emoji-picker-gif-results-header {
+  padding: 6px 2px;
+  color: color-mix(in srgb, var(--f-text, #1c2024) 42%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+.g-emoji-picker-gif-cell-wrap {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 0;
+}
+
+.g-emoji-picker-gif-cell-wrap .g-emoji-picker-gif-cell {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.g-emoji-picker-gif-heart {
+  position: absolute;
+  top: 4px;
+  inset-inline-end: 4px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.g-emoji-picker-gif-heart:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.g-emoji-picker-gif-heart[data-saved] {
+  color: #ff5f8f;
+}
+
+.g-emoji-picker-gif-heart:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.g-emoji-picker-gif-cell-wrap:hover .g-emoji-picker-gif-heart,
+.g-emoji-picker-gif-cell-wrap:focus-within .g-emoji-picker-gif-heart,
+.g-emoji-picker-gif-heart:focus-visible,
+.g-emoji-picker-gif-heart[data-saved] {
+  opacity: 1;
+}
+
+.g-emoji-picker-gif-more {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+}
+
+@media (hover: none) {
+  .g-emoji-picker-gif-heart {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,28 +1,36 @@
 /**
  * GENERATED FILE — do not edit by hand.
- * Regenerate with: node temp/emoji/build-emoji-ts.mjs (dev-only; temp/ is gitignored).
+ * Regenerate with: node temp/emoji-r3/build-emoji-data.mjs (dev-only; temp/ is gitignored).
  *
- * Sources (both permissive, AGPL-compatible):
- *  - Emoji list, category order and names: iamcal/emoji-data `emoji_pretty.json`
- *    MIT License, Copyright (c) 2013 Cal Henderson
+ * This catalogue is the exact Telegram Web K emoji tab: tile order, skin-tone
+ * templates and the Apple emoji image set match web.telegram.org (Web K).
+ *
+ * Sources:
+ *  - Telegram Web K (GPL-3.0-only) `src/config/emoji.ts` / `emojiSkinTone.ts`:
+ *    tile order and skin-tone templates, used as the parity reference.
+ *    https://github.com/morethanwords/tweb
+ *  - iamcal/emoji-data `emoji_pretty.json` (MIT, © 2013 Cal Henderson):
+ *    fully-qualified Unicode strings and English short names.
  *    https://github.com/iamcal/emoji-data
- *  - Search keywords: Unicode CLDR annotations / annotationsDerived (en, zh, ja)
- *    Unicode License V3 — https://www.unicode.org/license.txt
- *    https://github.com/unicode-org/cldr-json
+ *  - Unicode CLDR annotations / annotationsDerived (Unicode License V3):
+ *    localized en/zh/ja search keywords carried over from the previous
+ *    catalogue by codepoint key. https://github.com/unicode-org/cldr-json
+ *  - Apple emoji artwork: the 64 px PNGs from iamcal/emoji-data's Apple set,
+ *    the same images Web K ships under `public/assets/img/emoji`. See
+ *    THIRD_PARTY_NOTICES.md for the licensing note.
  *
- * Snapshot: iamcal/emoji-data master snapshot 2026-11-14; Unicode CLDR annotations snapshot of the same date.
- * Filter: Unicode <= 15.1 (Windows Segoe UI Emoji coverage), ©/®/™ excluded.
- * Emoji glyphs are rendered with the platform colour emoji font; the repository
- * bundles no emoji image assets.
+ * The emoji tiles are drawn as images: every catalogue emoji (and each of its
+ * skin-tone variants) resolves to `/emoji/<imageKey>.png`, where the key is the
+ * Web K "unified" identifier with `-fe0f` stripped.
  */
 
 /**
  * Lazy per-language keyword tables.
  *
- * The main `emoji` module is small enough to bundle, but the keyword tables are
- * ~100–145 KB raw each, so they are split into separate chunks and fetched only
- * when the emoji picker is opened for that UI language (the promise is cached,
- * so reopening the picker never reloads a table).
+ * The main `emoji` module is bundled with the picker, but the keyword tables
+ * are ~150–180 KB raw each, so they are split into separate chunks and fetched
+ * only when the emoji picker is opened for that UI language (the promise is
+ * cached, so reopening the picker never reloads a table).
  */
 export type EmojiKeywordTable = readonly (readonly string[])[];
 

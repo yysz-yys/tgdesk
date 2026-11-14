@@ -1,6 +1,7 @@
 import { DropdownMenu } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import type { Chat } from "../../types";
+import { formatUserStatus } from "../../data/telegram";
 import { Icon, IconButton, TextField } from "../../ui";
 import { ChatAvatar } from "./ChatAvatar";
 
@@ -55,9 +56,13 @@ export function ChatHeader({
           ? chat.username
             ? `@${chat.username}`
             : t("rightPanel.bot")
-          : chat.online
-            ? t("chat.online")
-            : t("chat.lastSeen")
+          : (formatUserStatus(
+              chat.online,
+              chat.status,
+              chat.lastSeen,
+              t,
+              i18n.resolvedLanguage ?? "en",
+            ) ?? t("chat.lastSeen"))
       : (chat.members ?? t(chat.kind === "channel" ? "chat.channel" : "chat.group"));
 
   return (

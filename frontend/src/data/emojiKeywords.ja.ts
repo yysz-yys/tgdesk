@@ -1,19 +1,27 @@
 /**
  * GENERATED FILE — do not edit by hand.
- * Regenerate with: node temp/emoji/build-emoji-ts.mjs (dev-only; temp/ is gitignored).
+ * Regenerate with: node temp/emoji-r3/build-emoji-data.mjs (dev-only; temp/ is gitignored).
  *
- * Sources (both permissive, AGPL-compatible):
- *  - Emoji list, category order and names: iamcal/emoji-data `emoji_pretty.json`
- *    MIT License, Copyright (c) 2013 Cal Henderson
+ * This catalogue is the exact Telegram Web K emoji tab: tile order, skin-tone
+ * templates and the Apple emoji image set match web.telegram.org (Web K).
+ *
+ * Sources:
+ *  - Telegram Web K (GPL-3.0-only) `src/config/emoji.ts` / `emojiSkinTone.ts`:
+ *    tile order and skin-tone templates, used as the parity reference.
+ *    https://github.com/morethanwords/tweb
+ *  - iamcal/emoji-data `emoji_pretty.json` (MIT, © 2013 Cal Henderson):
+ *    fully-qualified Unicode strings and English short names.
  *    https://github.com/iamcal/emoji-data
- *  - Search keywords: Unicode CLDR annotations / annotationsDerived (en, zh, ja)
- *    Unicode License V3 — https://www.unicode.org/license.txt
- *    https://github.com/unicode-org/cldr-json
+ *  - Unicode CLDR annotations / annotationsDerived (Unicode License V3):
+ *    localized en/zh/ja search keywords carried over from the previous
+ *    catalogue by codepoint key. https://github.com/unicode-org/cldr-json
+ *  - Apple emoji artwork: the 64 px PNGs from iamcal/emoji-data's Apple set,
+ *    the same images Web K ships under `public/assets/img/emoji`. See
+ *    THIRD_PARTY_NOTICES.md for the licensing note.
  *
- * Snapshot: iamcal/emoji-data master snapshot 2026-11-14; Unicode CLDR annotations snapshot of the same date.
- * Filter: Unicode <= 15.1 (Windows Segoe UI Emoji coverage), ©/®/™ excluded.
- * Emoji glyphs are rendered with the platform colour emoji font; the repository
- * bundles no emoji image assets.
+ * The emoji tiles are drawn as images: every catalogue emoji (and each of its
+ * skin-tone variants) resolves to `/emoji/<imageKey>.png`, where the key is the
+ * Web K "unified" identifier with `-fe0f` stripped.
  */
 
 import type { EmojiKeywordTable } from "./emojiKeywords";
@@ -80,6 +88,7 @@ export default [
   ["寝る", "疲れた", "眠い", "眠そうな顔", "眠っている顔", "眠る", "顔"],
   ["よだれ", "よだれを垂らした顔", "顔"],
   ["zzz", "おやすみ", "グーグー", "寝る", "寝顔", "眠い", "眠る", "顔"],
+  ["face_with_bags_under_eyes", "face with bags under eyes"],
   ["ドクター", "マスク", "マスク顔", "医師", "歯科医", "病気", "花粉症", "顔", "風邪"],
   ["体温計", "熱がある顔", "熱を測る", "病気", "顔", "風邪"],
   ["ケガ", "ケガしてる顔", "包帯", "包帯を巻いた顔", "痛い", "顔"],
@@ -576,6 +585,7 @@ export default [
   ["大人一人", "子供一人", "家族", "家族: 大人一人と子供一人", "親子"],
   ["大人一人", "子供二人", "家族", "家族: 大人一人と子供二人", "親子"],
   ["裸足", "足", "足あと"],
+  ["fingerprint"],
   ["サル", "サルの顔", "動物", "猿", "顔"],
   ["サル", "動物", "猿"],
   ["ゴリラ", "動物", "顔"],
@@ -734,6 +744,7 @@ export default [
   ["営巣", "巣", "巣作り", "空っぽの巣"],
   ["卵", "営巣", "巣", "巣作り", "鳥の卵と巣", "鳥の巣"],
   ["きのこ", "キノコ", "マッシュルーム", "毒", "菌類", "野菜"],
+  ["leafless_tree", "leafless tree"],
   ["グレープ", "ぶどう", "ブドウ", "果物"],
   ["マスクメロン", "メロン", "果物", "野菜"],
   ["スイカ", "果物", "野菜"],
@@ -772,6 +783,7 @@ export default [
   ["ショウガ", "ジンジャー", "スパイス", "ハーブ", "生姜", "薬味", "薬草"],
   ["エンドウ豆", "グリーンピース", "さや", "大豆", "枝豆", "豆", "野菜"],
   ["きのこ", "キノコ", "しいたけ", "トリュフ", "ブラウンマッシュルーム", "ポートベロー", "マッシュルーム", "椎茸", "茸", "菌類"],
+  ["root_vegetable", "root vegetable"],
   ["パン", "ベーカリー", "小麦", "食パン"],
   ["クロワッサン", "パン", "フランス", "ベーカリー"],
   ["バゲット", "パン", "フランスパン", "ベーカリー"],
@@ -1233,16 +1245,17 @@ export default [
   ["イヤホン", "ヘッドフォン", "ヘッドホン", "音楽"],
   ["ラジオ", "受信機", "放送", "音楽"],
   ["サキソフォン", "サクソフォン", "サックス", "楽器", "音楽"],
-  ["トランペット", "ラッパ", "楽器", "音楽"],
   ["アコーディオン", "じゃばら", "楽器", "音楽"],
   ["エレキギター", "ギター", "楽器", "音楽"],
   ["キーボード", "ピアノ", "楽器", "鍵盤", "音楽"],
+  ["トランペット", "ラッパ", "楽器", "音楽"],
   ["ヴィオラ", "ストラディバリウス", "バイオリン", "楽器", "音楽"],
   ["バンジョー", "弦楽器", "楽器", "音楽"],
   ["ドラム", "ドラムスティック", "太鼓", "楽器", "音楽"],
   ["コンガ", "ドラム", "ビート", "リズム", "太鼓", "楽器", "音楽"],
   ["シェイカー", "ダンス", "パーティー", "マラカス", "ラトル", "リズム", "打楽器", "振る", "楽器", "音楽"],
   ["オーケストラ", "バンド", "ピッコロ", "フルート", "フルート奏者", "リコーダー", "楽器", "横笛", "管楽器", "音楽", "笛"],
+  ["harp"],
   ["スマートフォン", "スマホ", "モバイル", "携帯", "携帯電話"],
   ["スマートフォン", "スマホ", "モバイル", "受信", "携帯受信", "携帯電話", "着信中", "電話"],
   ["ボタン式電話", "固定電話", "親機", "電話", "黒電話"],
@@ -1296,8 +1309,8 @@ export default [
   ["ふせん", "ページに付箋", "付箋", "文具", "文房具"],
   ["しおり", "タグ", "ブックマーク", "付箋"],
   ["タグ", "ラベル", "荷札"],
-  ["お金", "コイン", "小銭", "硬貨", "金貨", "銀貨"],
   ["お金", "キャッシュ", "ドル", "ドル袋", "現金", "賞金", "賭け金", "金持ち", "金袋", "銀行"],
+  ["お金", "コイン", "小銭", "硬貨", "金貨", "銀貨"],
   ["お札", "お金", "円", "円札", "札束", "紙幣", "通貨"],
   ["お札", "お金", "ドル", "ドル札", "札束", "紙幣", "通貨"],
   ["お札", "お金", "ユーロ", "ユーロ札", "札束", "紙幣", "通貨"],
@@ -1381,6 +1394,7 @@ export default [
   ["ツールボックス", "メカニック", "工具箱", "整備士", "機械工", "箱", "赤い箱"],
   ["u字型磁石", "マグネット", "引き付ける", "正負", "磁石", "蹄鉄"],
   ["ステッパー", "はしご", "梯子", "登る", "高所作業"],
+  ["shovel"],
   ["化学", "実験", "蒸留器"],
   ["ラボ", "化学", "化学者", "実験", "科学", "試験管"],
   ["バクテリア", "ペトリ皿", "培養", "実験", "生物学", "生物学者"],
@@ -1527,8 +1541,6 @@ export default [
   ["wi-fi", "インターネット", "スマホ", "ネットワーク", "ブロードバンド", "ホットスポット", "接続", "無線", "無線lan", "電波"],
   ["スマートフォン", "スマホ", "マナーモード", "携帯", "携帯電話"],
   ["オフ", "スマートフォン", "スマホ", "携帯電話", "携帯電話電源オフ", "電源オフ"],
-  ["シンボル", "女", "女性", "女性のマーク"],
-  ["シンボル", "男", "男性", "男性のマーク"],
   ["lgbt", "tg", "シンボル", "トランスジェンダーのマーク", "性別"],
   ["キャンセル", "バツ", "ペケ", "乗算", "掛け算", "記号"],
   ["+", "プラス", "加算", "記号", "足し算", "足す"],
@@ -1545,7 +1557,6 @@ export default [
   ["波", "波線", "約物", "記号"],
   ["お金", "ドル", "ドル円", "両替", "円", "円ドル", "外貨両替", "通貨"],
   ["お金", "ドル", "ドル記号", "通貨"],
-  ["アスクレピオスの杖", "医療", "医療のシンボル", "医者", "治療"],
   ["リサイクル", "リサイクルマーク", "再利用", "再生"],
   ["エンブレム", "フランス王家", "フルール・ド・リス", "ユリ", "紋章"],
   ["エンブレム", "トライデント", "三つ又", "海"],
@@ -1563,6 +1574,10 @@ export default [
   ["アスタリスク", "八角アスタリスク", "約物", "記号"],
   ["八角星", "星", "約物", "記号"],
   ["アスタリスク", "キラキラ", "スパークル", "約物", "記号"],
+  ["copyright", "copyright sign"],
+  ["registered", "registered sign"],
+  ["tm", "trade mark sign"],
+  ["splatter"],
   ["囲み数字", "囲み数字: #"],
   ["囲み数字", "囲み数字: *"],
   ["0", "囲み数字", "囲み数字: 0"],
@@ -1708,6 +1723,7 @@ export default [
   ["旗", "旗: 中国"],
   ["旗", "旗: コロンビア"],
   ["旗", "旗: クリッパートン島"],
+  ["flag-sark", "flag sark", "sark flag"],
   ["旗", "旗: コスタリカ"],
   ["旗", "旗: キューバ"],
   ["旗", "旗: カーボベルデ"],

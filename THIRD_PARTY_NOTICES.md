@@ -36,22 +36,45 @@ The Inter Latin subset is shipped inside `frontend/public/fonts` and is included
 in the production bundle. CJK text falls back to the Windows UI font. The font is
 not fetched from a CDN.
 
-## Emoji data
+## Emoji data and images
 
-The emoji catalogue and the offline search keywords in `frontend/src/data/emoji*.ts`
-are generated from these sources (both permissive, AGPL-compatible). The generated
-files are checked in; no network access is needed to build or run the app, and the
-emoji glyphs themselves are rendered with the platform's native colour emoji font
-(no emoji image assets are bundled).
+The emoji picker mirrors Telegram Web K (web.telegram.org): its catalogue order,
+skin-tone templates and rendered Apple emoji images come from the Web K client,
+while the Unicode data underneath is regenerated from permissive sources. The
+generated files in `frontend/src/data/emoji*.ts` are checked in; no network
+access is needed to build or run the app.
 
 | Component | License | Upstream |
 |---|---|---|
-| iamcal/emoji-data (`emoji_pretty.json`) — emoji list, category order and names | MIT (© 2013 Cal Henderson) | <https://github.com/iamcal/emoji-data> |
+| Telegram Web K (`src/config/emoji.ts` `EmojiVersions`, `src/config/emojiSkinTone.ts`) — emoji tile order and skin-tone templates | GPL-3.0-only; used as reference data only (see note) | <https://github.com/morethanwords/tweb> |
+| iamcal/emoji-data (`emoji_pretty.json`) — fully-qualified Unicode strings and English names | MIT (© 2013 Cal Henderson) | <https://github.com/iamcal/emoji-data> |
 | Unicode CLDR annotations / annotationsDerived — `en`, `zh`, `ja` search keywords | Unicode License V3 | <https://github.com/unicode-org/cldr-json> |
+| Apple emoji artwork (`frontend/public/emoji`, 3,787 PNGs) — via iamcal/emoji-data's Apple image set, as shipped by Telegram Web K | See note below | <https://github.com/iamcal/emoji-data> |
 
-None of this data is copied from Telegram Web/tweb, Telegram Desktop or the
-official clients: the ordering and keywords are regenerated from the two sources
-above.
+Notes:
+
+- **Telegram Web K data.** The catalogue order in `frontend/src/data/emoji.ts`
+  is derived from Web K's `EmojiVersions` map (category digit + sort position)
+  and its skin-tone templates from `emojiSkinTone.ts`; both files are part of
+  tweb, which is GPL-3.0-only. Emoji codepoint sequences and their standard
+  ordering are Unicode data, and tweb's licence is compatible with this
+  project's AGPL-3.0-only licence, but tweb is attributed here for
+  transparency. No tweb source code (CSS, components) is copied into tgdesk.
+- **Apple emoji images.** The PNGs under `frontend/public/emoji` are the 64 px
+  Apple emoji images distributed with iamcal/emoji-data (the
+  `emoji-datasource-apple` set); Telegram Web K ships the same files under
+  `public/assets/img/emoji`. The artwork is Apple Inc.'s; iamcal's README notes
+  that the Apple images are **not licensed for commercial usage**, and the
+  images are bundled here only to match Telegram Web K's visual appearance. If
+  a distribution cannot carry them, replace the files with Noto (Apache-2.0) or
+  Twemoji (CC-BY 4.0) images using the same `<unified>.png` naming — the picker
+  falls back to the platform glyph when an image is missing.
+- **Unicode data.** Emoji characters, codepoint sequences and CLDR annotations
+  are Unicode standard data; the names and keywords are licensed by the sources
+  above, and the catalogue/keyword files are regenerated deterministically by
+  `temp/emoji-r3/build-emoji-data.mjs` (dev-only script, `temp/` is
+  gitignored).
+
 
 ## Protocol implementation
 

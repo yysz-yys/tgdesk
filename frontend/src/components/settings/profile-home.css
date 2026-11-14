@@ -1,0 +1,302 @@
+/* F profile/settings home: the Telegram Settings screen opened from the app
+ * menu account row (reference: Telegram Android Settings, image 4). The first
+ * block also styles that menu row, which lives in the app menu component. */
+
+/* ------------------------------------------- app menu account row (entry) */
+
+.f-app-menu-account-button {
+  cursor: pointer;
+}
+
+.f-profile-menu-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.f-profile-menu-name {
+  overflow: hidden;
+  color: var(--f-text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-profile-menu-sub {
+  overflow: hidden;
+  color: var(--f-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-profile-menu-chevron {
+  flex: 0 0 auto;
+  color: var(--f-faint);
+}
+
+/* ----------------------------------------------------------- dialog shell */
+
+.f-dialog.f-profile-home-dialog {
+  display: flex;
+  max-height: 88vh;
+  flex-direction: column;
+  border-radius: 16px;
+}
+
+.f-profile-home-dialog .f-dialog-body {
+  min-height: 0;
+  flex: 1;
+  margin-top: 10px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.f-profile-home {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 2px;
+}
+
+/* ------------------------------------------------------------------- hero */
+
+.f-profile-home-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0 10px;
+  text-align: center;
+}
+
+.f-profile-home-avatar {
+  margin-bottom: 6px;
+  box-shadow:
+    0 0 0 1px var(--f-line),
+    0 8px 22px -14px rgba(17, 24, 39, 0.55);
+}
+
+.f-profile-home-name {
+  max-width: 100%;
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--f-text);
+  font-family: var(--f-font);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-profile-home-status {
+  margin: 0;
+  color: var(--f-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.f-profile-home-status[data-online] {
+  color: #3fa54b;
+}
+
+html[data-theme="dark"] .f-profile-home-status[data-online] {
+  color: #65c46f;
+}
+
+.f-profile-home-username {
+  max-width: 100%;
+  margin: 1px 0 0;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-profile-home-username-value {
+  color: var(--accent-11);
+}
+
+.f-profile-home-username-empty {
+  color: var(--f-faint);
+}
+
+.f-profile-home-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gray-a3);
+  padding: 5px 12px;
+  color: var(--f-text);
+  cursor: pointer;
+  font-family: var(--f-font);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.f-profile-home-edit:hover {
+  background: var(--gray-a4);
+}
+
+.f-profile-home-edit .f-icon {
+  color: var(--f-muted);
+}
+
+/* -------------------------------------------------------------- phone row */
+
+.f-profile-home-phone {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid var(--f-line);
+  border-radius: 16px;
+  background: var(--f-surface);
+  padding: 9px 12px;
+  color: var(--f-text);
+  cursor: pointer;
+  font-family: var(--f-font);
+  text-align: start;
+}
+
+.f-profile-home-phone:hover {
+  background: var(--gray-a3);
+}
+
+.f-profile-home-phone-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.f-profile-home-phone-label {
+  color: var(--f-faint);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.f-profile-home-phone-value {
+  overflow: hidden;
+  color: var(--f-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------- settings section */
+
+.f-profile-home-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--f-line);
+  border-radius: 16px;
+  background: var(--f-surface);
+}
+
+.f-profile-home-row {
+  display: flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  gap: 11px;
+  border: 0;
+  border-bottom: 1px solid var(--f-line);
+  background: transparent;
+  padding: 8px 12px;
+  color: var(--f-text);
+  cursor: pointer;
+  font-family: var(--f-font);
+  text-align: start;
+}
+
+.f-profile-home-row:last-child {
+  border-bottom: 0;
+}
+
+.f-profile-home-row:hover {
+  background: var(--gray-a3);
+}
+
+.f-profile-home-tile {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--tile-color, var(--accent-9));
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.f-profile-home-tile[data-tone="green"] {
+  background: #4fae4e;
+}
+
+.f-profile-home-tile[data-tone="danger"] {
+  background: #e17076;
+}
+
+.f-profile-home-tile .f-icon {
+  color: #ffffff;
+}
+
+.f-profile-home-row-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-profile-home-row[data-danger] .f-profile-home-row-label {
+  color: var(--f-danger);
+}
+
+.f-profile-home-chevron {
+  flex: 0 0 auto;
+  color: var(--f-faint);
+}
+
+/* --------------------------------------------------------------- keyboard */
+
+.f-profile-home-row:focus-visible,
+.f-profile-home-phone:focus-visible,
+.f-profile-home-edit:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent-8);
+}
+
+.f-profile-home-phone:focus-visible,
+.f-profile-home-edit:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-8);
+}
+
+@media (max-height: 640px) {
+  .f-dialog.f-profile-home-dialog {
+    max-height: 94vh;
+  }
+}

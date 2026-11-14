@@ -34,8 +34,20 @@ import type {
   SavedGif,
   StickerDoc,
   StickerPacks,
+  StickerSearch,
   StickerSetDetail,
+  StickerSetInfo,
 } from "../types";
+import {
+  archiveStickerSet as archiveStickerSetRpc,
+  clearRecentStickers as clearRecentStickersRpc,
+  installStickerSet as installStickerSetRpc,
+  searchGifs as searchGifsRpc,
+  searchStickers as searchStickersRpc,
+  setGifSaved as setGifSavedRpc,
+  setStickerFaved as setStickerFavedRpc,
+  uninstallStickerSet as uninstallStickerSetRpc,
+} from "./telegramExtra";
 
 /** Transport settings the kernel RPCs need (same pair App passes elsewhere). */
 export interface PickerNetwork {
@@ -47,6 +59,10 @@ const RECENT_LIMIT = 20;
 const PACKS_TTL_MS = 60_000;
 const SET_TTL_MS = 30 * 60_000;
 const GIFS_TTL_MS = 60_000;
+const FAVED_TTL_MS = 60_000;
+const FEATURED_TTL_MS = 5 * 60_000;
+/** Web K's search page size (messages.searchStickers accepts up to 100). */
+export const STICKER_SEARCH_LIMIT = 50;
 
 /**
  * Loose payload shapes on purpose: the generated bindings wrap the kernel DTOs
@@ -81,6 +97,20 @@ export interface StickerBindings {
 
 const bindings = AppService as unknown as StickerBindings;
 
+/**
+ * The round-3 kernel reads whose generated binding shape is a bare array.
+ * `./telegramExtra.ts` currently unwraps them as `{ stickers }` / `{ sets }`
+ * envelopes (the helpers predate the regenerated bindings), so those two are
+ * read through this local, structurally typed cast instead. Everything else
+ * goes through the typed helpers.
+ */
+interface Round3ArrayReads {
+  GetFavedStickers(proxy: string, ntp: string): Promise<unknown[] | null>;
+  GetFeaturedStickerSets(proxy: string, ntp: string): Promise<unknown[] | null>;
+}
+
+const arrayReads = AppService as unknown as Round3ArrayReads;
+
 // ------------------------------------------------------------------- caches
 
 interface CacheEntry<T> {
@@ -92,6 +122,8 @@ interface CacheEntry<T> {
 const packsCache = new Map<string, CacheEntry<StickerPacks>>();
 const setCache = new Map<string, CacheEntry<StickerSetDetail>>();
 const gifsCache = new Map<string, CacheEntry<SavedGif[]>>();
+const favedCache = new Map<string, CacheEntry<StickerDoc[]>>();
+const featuredCache = new Map<string, CacheEntry<StickerSetInfo[]>>();
 
 /** Client-side recent stickers per account (Telegram leaves this to the client). */
 const localRecentStickers = new Map<string, StickerDoc[]>();
@@ -180,6 +212,38 @@ function normalizeGifs(payload: SavedGifsPayload, key: string): SavedGif[] {
     .map((entry) => entry.gif);
 }
 
+// ------------------------------------------------- round-3 payload normalisers
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
+/**
+ * Faved stickers and featured sets come from the generated bindings as bare
+ * arrays; keep only well-formed entries so the UI never renders a broken cell.
+ */
+function normalizeStickerDocs(values: readonly unknown[] | null | undefined): StickerDoc[] {
+  const docs: StickerDoc[] = [];
+  for (const value of values ?? []) {
+    if (!isRecord(value) || typeof value.ref !== "string" || value.ref.length === 0) {
+      continue;
+    }
+    docs.push(value as unknown as StickerDoc);
+  }
+  return docs;
+}
+
+function normalizeStickerSets(values: readonly unknown[] | null | undefined): StickerSetInfo[] {
+  const sets: StickerSetInfo[] = [];
+  for (const value of values ?? []) {
+    if (!isRecord(value) || typeof value.ref !== "string" || value.ref.length === 0) {
+      continue;
+    }
+    sets.push(value as unknown as StickerSetInfo);
+  }
+  return sets;
+}
+
 // ------------------------------------------------------------- cache loading
 
 function loadCached<T>(
@@ -258,6 +322,28 @@ async function fetchSavedGifs(
   return gifs;
 }
 
+async function fetchFavedStickers(
+  network: PickerNetwork,
+  entry: CacheEntry<StickerDoc[]>,
+): Promise<StickerDoc[]> {
+  const payload = await arrayReads.GetFavedStickers(network.proxy, network.ntp);
+  const stickers = normalizeStickerDocs(payload);
+  entry.value = stickers;
+  entry.at = Date.now();
+  return stickers;
+}
+
+async function fetchFeaturedStickerSets(
+  network: PickerNetwork,
+  entry: CacheEntry<StickerSetInfo[]>,
+): Promise<StickerSetInfo[]> {
+  const payload = await arrayReads.GetFeaturedStickerSets(network.proxy, network.ntp);
+  const sets = normalizeStickerSets(payload);
+  entry.value = sets;
+  entry.at = Date.now();
+  return sets;
+}
+
 // --------------------------------------------------------------- public reads
 
 export function peekStickerPacks(network: PickerNetwork): StickerPacks | undefined {
@@ -306,6 +392,114 @@ export function loadSavedGifs(
   );
 }
 
+// --------------------------------------------------- favorites / featured (v3)
+
+export function peekFavedStickers(network: PickerNetwork): StickerDoc[] | undefined {
+  return favedCache.get(networkKey(network))?.value;
+}
+
+/** `messages.getFavedStickers` (favorites section + per-cell heart state). */
+export function loadFavedStickers(
+  network: PickerNetwork,
+  options: { force?: boolean } = {},
+): Promise<StickerDoc[]> {
+  const key = networkKey(network);
+  return loadCached(favedCache, key, FAVED_TTL_MS, options.force === true, (entry) =>
+    fetchFavedStickers(network, entry),
+  );
+}
+
+export function peekFeaturedStickerSets(
+  network: PickerNetwork,
+): StickerSetInfo[] | undefined {
+  return featuredCache.get(networkKey(network))?.value;
+}
+
+/**
+ * `messages.getFeaturedStickers` (the picker's Trending section). The kernel
+ * itself does not cache this showcase read, so keep it for a few minutes here.
+ */
+export function loadFeaturedStickerSets(
+  network: PickerNetwork,
+  options: { force?: boolean } = {},
+): Promise<StickerSetInfo[]> {
+  const key = networkKey(network);
+  return loadCached(
+    featuredCache,
+    key,
+    FEATURED_TTL_MS,
+    options.force === true,
+    (entry) => fetchFeaturedStickerSets(network, entry),
+  );
+}
+
+// ------------------------------------------------------------- sticker search
+
+/**
+ * One page of `messages.searchStickers` (AI sticker search, 50 results like Web
+ * K). No cache: search is a live query and the refs must stay fresh; the hook
+ * debounces typing instead.
+ */
+export function searchStickerResults(
+  network: PickerNetwork,
+  query: string,
+  limit: number = STICKER_SEARCH_LIMIT,
+): Promise<StickerSearch> {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return Promise.resolve({ stickers: [], sets: [] });
+  }
+  return searchStickersRpc(trimmed, network.proxy, network.ntp, limit).then(
+    (page) => ({
+      stickers: normalizeStickerDocs(page?.stickers),
+      sets: normalizeStickerSets(page?.sets),
+    }),
+  );
+}
+
+// ----------------------------------------------------------------- GIF search
+
+/** One decoded page of the inline-bot GIF search. */
+export interface GifSearchResults {
+  gifs: SavedGif[];
+  /** Empty string when the bot has no further page. */
+  nextOffset: string;
+  /** Query id needed for `SendInlineGif` (the ref carries its own copy too). */
+  queryId: number;
+}
+
+function normalizeSearchGifs(values: readonly unknown[] | null | undefined): SavedGif[] {
+  const gifs: SavedGif[] = [];
+  for (const value of values ?? []) {
+    if (!isRecord(value) || typeof value.ref !== "string" || value.ref.length === 0) {
+      continue;
+    }
+    gifs.push(value as unknown as SavedGif);
+  }
+  return gifs;
+}
+
+/**
+ * One page of the inline-bot GIF search (`contacts.resolveUsername` + inline
+ * results on the kernel side). The returned ref handles are opaque inline
+ * handles, valid until the query expires.
+ */
+export function searchGifPage(
+  network: PickerNetwork,
+  query: string,
+  offset: string = "",
+): Promise<GifSearchResults> {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return Promise.resolve({ gifs: [], nextOffset: "", queryId: 0 });
+  }
+  return searchGifsRpc(trimmed, offset, network.proxy, network.ntp).then((page) => ({
+    gifs: normalizeSearchGifs(page?.gifs),
+    nextOffset: page?.nextOffset ?? "",
+    queryId: page?.queryId ?? 0,
+  }));
+}
+
 // ------------------------------------------------------------ cache watching
 
 export interface StickerCacheChange {
@@ -314,6 +508,30 @@ export interface StickerCacheChange {
    * dropped after a failure); false for optimistic local updates.
    */
   force: boolean;
+  /**
+   * Which part of the store changed. Hooks only reload when at least one of
+   * their scopes matches, so saving a GIF does not refetch the sticker packs and
+   * installing a set does not refetch saved GIFs.
+   */
+  scope?: StickerCacheScope;
+}
+
+export type StickerCacheScope =
+  | "all"
+  | "packs"
+  | "sets"
+  | "gifs"
+  | "faved"
+  | "featured"
+  | "recents";
+
+/** True when a change notification concerns one of the caller's scopes. */
+export function cacheScopeMatches(
+  change: StickerCacheChange,
+  scopes: readonly StickerCacheScope[],
+): boolean {
+  const scope = change.scope ?? "all";
+  return scope === "all" || scopes.includes(scope);
 }
 
 type StickerCacheListener = (change: StickerCacheChange) => void;
@@ -342,7 +560,159 @@ export function invalidateStickerCaches(): void {
   packsCache.clear();
   setCache.clear();
   gifsCache.clear();
-  notify({ force: true });
+  favedCache.clear();
+  featuredCache.clear();
+  notify({ force: true, scope: "all" });
+}
+
+/** Marks a cached value stale without dropping it (paint stays until refetch). */
+function markStale<T>(cache: Map<string, CacheEntry<T>>, key: string): void {
+  const entry = cache.get(key);
+  if (entry) {
+    entry.at = 0;
+  }
+}
+
+/**
+ * Marks the installed-set list, set details and featured list of one account
+ * stale and lets mounted tabs refetch. The cached values are kept so the rail
+ * and sections stay painted while the refreshed packs arrive (no skeleton
+ * flash after an install/uninstall/archive).
+ */
+export function invalidateStickerSetCaches(network: PickerNetwork): void {
+  const key = networkKey(network);
+  markStale(packsCache, key);
+  markStale(featuredCache, key);
+  const prefix = `${key}\u0000`;
+  for (const cacheKey of Array.from(setCache.keys())) {
+    if (cacheKey.startsWith(prefix)) {
+      markStale(setCache, cacheKey);
+    }
+  }
+  // The packs/set/featured hooks all accept the "packs" scope.
+  notify({ force: true, scope: "packs" });
+}
+
+/**
+ * Marks the saved-GIF list stale (after save/unsave): the grid keeps painting
+ * the old list while the hook refetches, then drops the removed cell.
+ */
+export function invalidateSavedGifsCache(network?: PickerNetwork): void {
+  if (network) {
+    markStale(gifsCache, networkKey(network));
+  } else {
+    gifsCache.clear();
+  }
+  notify({ force: true, scope: "gifs" });
+}
+
+// -------------------------------------------------------------- picker actions
+
+/**
+ * Installs a sticker set (messages.installStickerSet) and drops the installed-set
+ * / featured caches so the rail and Trending section refetch immediately.
+ */
+export async function installSet(network: PickerNetwork, ref: string): Promise<void> {
+  await installStickerSetRpc(ref, network.proxy, network.ntp);
+  invalidateStickerSetCaches(network);
+}
+
+/** Removes a sticker set (messages.uninstallStickerSet) and refreshes packs. */
+export async function uninstallSet(network: PickerNetwork, ref: string): Promise<void> {
+  await uninstallStickerSetRpc(ref, network.proxy, network.ntp);
+  invalidateStickerSetCaches(network);
+}
+
+/** Archives/unarchives a sticker set (messages.toggleStickerSets). */
+export async function archiveSet(
+  network: PickerNetwork,
+  ref: string,
+  archived: boolean,
+): Promise<void> {
+  await archiveStickerSetRpc(ref, archived, network.proxy, network.ntp);
+  invalidateStickerSetCaches(network);
+}
+
+/** Clears the server-side recent stickers and the local Recent row. */
+export async function clearPickerRecents(network: PickerNetwork): Promise<void> {
+  await clearRecentStickersRpc(network.proxy, network.ntp);
+  const key = networkKey(network);
+  localRecentStickers.delete(key);
+  const entry = packsCache.get(key);
+  if (entry?.value) {
+    // Paint the cleared row immediately; the forced reload confirms it.
+    entry.value = { recent: [], sets: entry.value.sets };
+    entry.at = 0;
+  }
+  notify({ force: true, scope: "recents" });
+}
+
+// ------------------------------------------------------ favorite sticker state
+
+function withoutSticker(list: readonly StickerDoc[], target: StickerDoc): StickerDoc[] {
+  return list.filter((doc) => doc.id !== target.id && doc.ref !== target.ref);
+}
+
+/**
+ * Adds/removes one sticker from the favorites list (`messages.faveSticker`).
+ *
+ * The cached favorites list is painted optimistically before the RPC and rolled
+ * back on failure, which is what makes the heart menu item and the Favorites
+ * section update without a round-trip.
+ */
+export async function toggleStickerFaved(
+  network: PickerNetwork,
+  doc: StickerDoc,
+  faved: boolean,
+): Promise<void> {
+  const key = networkKey(network);
+  const entry = favedCache.get(key);
+  const previous = entry?.value;
+  const optimistic = faved
+    ? [doc, ...withoutSticker(previous ?? [], doc)]
+    : withoutSticker(previous ?? [], doc);
+  if (entry) {
+    entry.value = optimistic;
+    entry.at = Date.now();
+  } else {
+    favedCache.set(key, { at: Date.now(), value: optimistic });
+  }
+  notify({ force: false, scope: "faved" });
+  try {
+    await setStickerFavedRpc(doc.ref, faved, network.proxy, network.ntp);
+    // Keep the optimistic list visible for the open picker but mark it stale so
+    // the next open refetches the authoritative order and fresh document refs.
+    const current = favedCache.get(key);
+    if (current) {
+      current.at = 0;
+    }
+  } catch (error) {
+    const current = favedCache.get(key);
+    if (current) {
+      if (previous !== undefined) {
+        current.value = previous;
+        current.at = Date.now();
+      } else {
+        current.value = withoutSticker(current.value ?? [], doc);
+        current.at = 0;
+      }
+    }
+    notify({ force: false, scope: "faved" });
+    throw error;
+  }
+}
+
+/**
+ * Saves/unsaves a GIF (`messages.saveGif`). Works for saved-GIF document refs
+ * and for search-result inline handles (the kernel resolves both).
+ */
+export async function setSavedGif(
+  network: PickerNetwork,
+  ref: string,
+  saved: boolean,
+): Promise<void> {
+  await setGifSavedRpc(ref, saved, network.proxy, network.ntp);
+  invalidateSavedGifsCache(network);
 }
 
 // ------------------------------------------------------ refresh after a send
@@ -367,7 +737,7 @@ export function noteStickerSent(network: PickerNetwork, doc: StickerDoc): void {
     // Stale for the *next* load (fresh file references) but visually current.
     entry.at = 0;
   }
-  notify({ force: false });
+  notify({ force: false, scope: "packs" });
 }
 
 /**
@@ -387,7 +757,7 @@ export function noteGifSent(network: PickerNetwork, gif: SavedGif): void {
     entry.value = [gif, ...entry.value.filter((item) => item.ref !== gif.ref)];
     entry.at = 0;
   }
-  notify({ force: false });
+  notify({ force: false, scope: "gifs" });
 }
 
 /**
@@ -400,13 +770,14 @@ export function refreshStickerDataAfterSendFailure(network: PickerNetwork): void
   const key = networkKey(network);
   packsCache.delete(key);
   gifsCache.delete(key);
+  favedCache.delete(key);
   const prefix = `${key}\u0000`;
   for (const cacheKey of Array.from(setCache.keys())) {
     if (cacheKey.startsWith(prefix)) {
       setCache.delete(cacheKey);
     }
   }
-  notify({ force: true });
+  notify({ force: true, scope: "all" });
 }
 
 /** Test/preview seam: forget every module-level cache and optimistic state. */
@@ -414,7 +785,9 @@ export function resetStickerCaches(): void {
   packsCache.clear();
   setCache.clear();
   gifsCache.clear();
+  favedCache.clear();
+  featuredCache.clear();
   localRecentStickers.clear();
   localGifOrder.clear();
-  notify({ force: true });
+  notify({ force: true, scope: "all" });
 }

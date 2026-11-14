@@ -7,8 +7,17 @@
  * 20 px radius, 49 px footer, 38 px search field, 42 px/8-column emoji grid)
  * follows the measured Telegram Web K values in temp/research/emoji-picker.md §3.
  *
- * Tabs: emoji (bundled offline lists + localised keyword search), stickers and
- * GIFs (real backend data via `src/lib/stickerApi.ts`, bodies in
+ * The emoji tab mirrors web.telegram.org exactly: the full Web K catalogue (7
+ * categories, 1,903 emoji) from `../data/emoji`, drawn with Web K's own Apple
+ * emoji PNGs served from `/emoji/<unified>.png` instead of the platform glyphs
+ * (see `../lib/emojiImage`). Skin tones follow Web K too: right-click or
+ * long-press a tile that has variants to open a 6-swatch popover (default +
+ * 1f3fb…1f3ff); the choice is remembered per base emoji in localStorage and
+ * applied to every tile, search result and recent of that emoji, while recents
+ * keep storing the base emoji (Web K's normalization).
+ *
+ * Tabs: emoji (bundled offline catalogue + localised keyword search), stickers
+ * and GIFs (real backend data via `src/lib/stickerApi.ts`, bodies in
  * `./picker/**`). The emoji body owns the search row and category row; the
  * stickers/GIF bodies are separate panels with their own geometry (5×72 sticker
  * grid behind a 49 px set rail; 3×124 GIF grid) and keep the shared panel frame,
@@ -17,21 +26,19 @@
  * in stickerApi) and its cells send through the optional `onSendSticker` /
  * `onSendGif` callbacks while the panel stays open.
  *
- * Data for the emoji tab is bundled offline: ./../data/emoji.ts ships the
- * ordered lists and ./../data/emojiKeywords.*.ts the per-language search
- * keywords (loaded lazily on first open for the active UI language, cached
- * afterwards).
- *
- * Recents live in localStorage (`tgdesk.emoji.recent.v1`, MRU, max 32) and are
- * seeded with the "frequently used" list until the user picks their own emoji.
+ * Search keywords are bundled offline: `../data/emojiKeywords.*.ts` ships the
+ * per-language tables (loaded lazily on first open for the active UI language,
+ * cached afterwards), aligned index-for-index with `EMOJI_ALL`.
  */
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
   ReactNode,
   RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
   Car,
@@ -60,6 +67,14 @@ import {
   resolveEmojiKeywordLanguage,
   type EmojiKeywordTable,
 } from "../../data/emojiKeywords";
+import {
+  EMOJI_TONE_SWATCH_COUNT,
+  emojiImageUrl,
+  emojiSkinToneBase,
+  emojiSkinToneVariants,
+  emojiWithSkinTone,
+  hasEmojiSkinTones,
+} from "../../lib/emojiImage";
 import { cn } from "../../lib/cn";
 import type { PickerNetwork } from "../../lib/stickerApi";
 import { GifsTab } from "./picker/GifsTab";
@@ -85,6 +100,17 @@ export interface EmojiPickerProps {
   onSendSticker?: (ref: string) => void | Promise<unknown>;
   /** Sends a saved GIF document by its opaque kernel ref; panel stays open. */
   onSendGif?: (ref: string) => void | Promise<unknown>;
+  /**
+   * Sends one inline GIF search result (`messages.sendInlineBotResult`). The
+   * picker has no chat id, so the host wires this through ChatView/App to
+   * `AppService.SendInlineGif`; without it the GIF tab cannot send search hits
+   * (their refs are inline handles, not document refs).
+   */
+  onSendInlineGif?: (
+    queryId: number,
+    resultId: string,
+    replyToID?: number,
+  ) => void | Promise<unknown>;
   /** Peer rights: when false the stickers tab shows the blocked message. */
   canSendStickers?: boolean;
   /** Peer rights: when false the GIF tab shows the blocked message. */
@@ -100,9 +126,13 @@ export interface EmojiPickerProps {
 }
 
 const RECENT_STORAGE_KEY = "tgdesk.emoji.recent.v1";
+const TONE_STORAGE_KEY = "tgdesk.emoji.tones.v1";
 const RECENT_MAX = 32;
 const SEARCH_RESULT_LIMIT = 120;
+const LONG_PRESS_MS = 450;
 const TAB_ORDER: readonly EmojiPickerTab[] = ["emoji", "stickers", "gifs"];
+/** Every catalogue emoji, for filtering stale recents from older catalogues. */
+const CATALOGUE_EMOJI: ReadonlySet<string> = new Set(EMOJI_ALL);
 const CATEGORY_ICONS: Record<EmojiCategoryId, LucideIcon> = {
   smileys: Smile,
   animals: PawPrint,
@@ -128,6 +158,48 @@ const CATEGORY_ROW: readonly CategoryRowItem[] = [
   ...EMOJI_CATEGORIES.map((category) => ({ id: category.id, icon: CATEGORY_ICONS[category.id] })),
 ];
 
+// ------------------------------------------------------------ tone storage
+
+type ToneMap = Record<string, number>;
+
+function sanitizeTone(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 && value < EMOJI_TONE_SWATCH_COUNT
+    ? value
+    : 0;
+}
+
+/** Per-base skin-tone choices, JSON in localStorage (single map, Web K-like). */
+function readToneMap(): ToneMap {
+  try {
+    const raw = localStorage.getItem(TONE_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") {
+      return {};
+    }
+    const result: ToneMap = {};
+    for (const [base, value] of Object.entries(parsed as Record<string, unknown>)) {
+      const tone = sanitizeTone(value);
+      if (tone > 0) {
+        result[base] = tone;
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+function writeToneMap(map: ToneMap): void {
+  try {
+    localStorage.setItem(TONE_STORAGE_KEY, JSON.stringify(map));
+  } catch {
+    // Best effort: the pick still uses the chosen variant for this session.
+  }
+}
+
 // ------------------------------------------------------------------ recents
 
 function sanitizeRecent(value: unknown): string[] {
@@ -137,11 +209,16 @@ function sanitizeRecent(value: unknown): string[] {
   const result: string[] = [];
   const seen = new Set<string>();
   for (const item of value) {
-    if (typeof item !== "string" || item.length === 0 || seen.has(item)) {
+    if (typeof item !== "string" || item.length === 0) {
       continue;
     }
-    seen.add(item);
-    result.push(item);
+    // Web K keeps recents normalized to the base emoji, never a tone variant.
+    const base = emojiSkinToneBase(item);
+    if (seen.has(base) || !CATALOGUE_EMOJI.has(base)) {
+      continue;
+    }
+    seen.add(base);
+    result.push(base);
     if (result.length >= RECENT_MAX) {
       break;
     }
@@ -173,9 +250,9 @@ function writeRecentEmoji(emoji: string): string[] {
   return next;
 }
 
-/** Records a picked (or sent) emoji as the newest recent one. */
+/** Records a picked (or sent) emoji as the newest recent one (base emoji). */
 export function recordRecentEmoji(emoji: string): void {
-  writeRecentEmoji(emoji);
+  writeRecentEmoji(emojiSkinToneBase(emoji));
 }
 
 // ------------------------------------------------------------------- search
@@ -218,7 +295,7 @@ function buildSearchIndex(keywords: EmojiKeywordTable | null): readonly IndexedE
  * Prefix search over the localised CLDR keywords. Every whitespace-separated
  * token must prefix-match a keyword (or be the raw emoji itself); shorter /
  * exact matches rank first, then catalogue order. Mirrors Telegram's local
- * keyword search without a debounce — 1,895 rows are scanned in well under 1 ms.
+ * keyword search without a debounce — 1,903 rows are scanned in well under 1 ms.
  */
 function searchEmoji(index: readonly IndexedEmoji[], query: string): string[] {
   const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -266,28 +343,117 @@ function searchEmoji(index: readonly IndexedEmoji[], query: string): string[] {
 // ------------------------------------------------------------------- tiles
 
 interface EmojiTileProps {
-  emoji: string;
+  /** Base emoji in the catalogue (recents/search are normalized to bases). */
+  base: string;
+  /** Tone-applied raw emoji: what the tile draws and what a click returns. */
+  display: string;
   index: number;
   tabbable: boolean;
-  onPick: (emoji: string) => void;
+  onPick: (base: string) => void;
+  onOpenTonePicker: (base: string, anchor: HTMLElement) => void;
   onFocusTile: (index: number) => void;
 }
 
-const EmojiTile = memo(function EmojiTile({ emoji, index, tabbable, onPick, onFocusTile }: EmojiTileProps) {
+const EmojiTile = memo(function EmojiTile({
+  base,
+  display,
+  index,
+  tabbable,
+  onPick,
+  onOpenTonePicker,
+  onFocusTile,
+}: EmojiTileProps) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressFiredRef = useRef(false);
+  const imageSrc = emojiImageUrl(display);
+  const toneEnabled = hasEmojiSkinTones(base);
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => cancelLongPress, [cancelLongPress]);
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (!toneEnabled || event.pointerType === "mouse") {
+        return;
+      }
+      const anchor = event.currentTarget;
+      longPressFiredRef.current = false;
+      cancelLongPress();
+      longPressTimerRef.current = window.setTimeout(() => {
+        longPressTimerRef.current = null;
+        longPressFiredRef.current = true;
+        onOpenTonePicker(base, anchor);
+      }, LONG_PRESS_MS);
+    },
+    [base, cancelLongPress, onOpenTonePicker, toneEnabled],
+  );
+
+  const handleClick = useCallback(() => {
+    if (longPressFiredRef.current) {
+      // The long press already opened the tone picker; don't also insert.
+      longPressFiredRef.current = false;
+      return;
+    }
+    onPick(base);
+  }, [base, onPick]);
+
+  const handleContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>) => {
+      if (!toneEnabled) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      longPressFiredRef.current = false;
+      cancelLongPress();
+      onOpenTonePicker(base, event.currentTarget);
+    },
+    [base, cancelLongPress, onOpenTonePicker, toneEnabled],
+  );
+
   return (
     <button
       type="button"
       className="g-emoji-picker-tile"
-      data-emoji={emoji}
+      data-emoji={base}
       data-emoji-index={index}
+      data-emoji-variant={display !== base ? display : undefined}
+      data-emoji-tones={toneEnabled ? "true" : undefined}
       tabIndex={tabbable ? 0 : -1}
-      aria-label={emoji}
+      aria-label={display}
       onFocus={() => onFocusTile(index)}
-      onClick={() => onPick(emoji)}
+      onClick={handleClick}
+      onContextMenu={handleContextMenu}
+      onPointerDown={handlePointerDown}
+      onPointerUp={cancelLongPress}
+      onPointerCancel={cancelLongPress}
+      onPointerLeave={cancelLongPress}
+      onPointerMove={cancelLongPress}
     >
-      <span className="g-emoji-picker-glyph" aria-hidden="true">
-        {emoji}
-      </span>
+      {failedSrc === imageSrc ? (
+        <span className="g-emoji-picker-glyph" aria-hidden="true">
+          {display}
+        </span>
+      ) : (
+        <img
+          className="f-emoji-img"
+          src={imageSrc}
+          width={32}
+          height={32}
+          alt={display}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={() => setFailedSrc(imageSrc)}
+        />
+      )}
     </button>
   );
 });
@@ -299,7 +465,9 @@ interface EmojiSectionProps {
   /** Flat index of the section's first tile inside the rendered grid. */
   offset: number;
   focusedIndex: number;
-  onPick: (emoji: string) => void;
+  toneFor: (base: string) => number;
+  onPick: (base: string) => void;
+  onOpenTonePicker: (base: string, anchor: HTMLElement) => void;
   onFocusTile: (index: number) => void;
 }
 
@@ -309,22 +477,26 @@ const EmojiSection = memo(function EmojiSection({
   emoji,
   offset,
   focusedIndex,
+  toneFor,
   onPick,
+  onOpenTonePicker,
   onFocusTile,
 }: EmojiSectionProps) {
   return (
     <section className="g-emoji-picker-section" data-section-id={id}>
       <div className="g-emoji-picker-header">{label}</div>
       <div className="g-emoji-picker-grid">
-        {emoji.map((value, localIndex) => {
+        {emoji.map((base, localIndex) => {
           const index = offset + localIndex;
           return (
             <EmojiTile
-              key={value}
-              emoji={value}
+              key={base}
+              base={base}
+              display={emojiWithSkinTone(base, toneFor(base))}
               index={index}
               tabbable={index === focusedIndex}
               onPick={onPick}
+              onOpenTonePicker={onOpenTonePicker}
               onFocusTile={onFocusTile}
             />
           );
@@ -341,6 +513,98 @@ interface PickerSection {
   offset: number;
 }
 
+// -------------------------------------------------------------- tone picker
+
+interface ToneMenuState {
+  base: string;
+  anchorRect: DOMRect;
+  selected: number;
+  anchor: HTMLElement | null;
+}
+
+interface TonePopoverProps {
+  menu: ToneMenuState;
+  label: string;
+  defaultLabel: string;
+  onSelect: (tone: number) => void;
+}
+
+/** Six swatches (default + five tones) floating above/below a tile. */
+function EmojiTonePopover({ menu, label, defaultLabel, onSelect }: TonePopoverProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const variants = emojiSkinToneVariants(menu.base) ?? [];
+
+  useLayoutEffect(() => {
+    const node = rootRef.current;
+    if (!node) {
+      return;
+    }
+    const { width, height } = node.getBoundingClientRect();
+    const margin = 8;
+    const viewWidth = window.innerWidth;
+    const viewHeight = window.innerHeight;
+    const { anchorRect } = menu;
+    let top = anchorRect.top - height - 6;
+    if (top < margin) {
+      top = anchorRect.bottom + 6;
+    }
+    top = Math.min(Math.max(margin, top), Math.max(margin, viewHeight - height - margin));
+    const desiredLeft = anchorRect.left + anchorRect.width / 2 - width / 2;
+    const left = Math.min(Math.max(margin, desiredLeft), Math.max(margin, viewWidth - width - margin));
+    setPosition({ left, top });
+  }, [menu]);
+
+  // The swatches are `visibility: hidden` until measured; focus the selected one
+  // only once it is actually visible so keyboard users land inside the popover.
+  useEffect(() => {
+    if (!position) {
+      return;
+    }
+    const node = rootRef.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]');
+    node?.focus();
+  }, [position]);
+
+  return createPortal(
+    <div
+      ref={rootRef}
+      className="g-emoji-tone-popover"
+      data-emoji-tone-popover="true"
+      role="menu"
+      aria-label={label}
+      style={{
+        left: position?.left ?? 0,
+        top: position?.top ?? 0,
+        visibility: position ? "visible" : "hidden",
+      }}
+    >
+      {variants.map((emoji, tone) => (
+        <button
+          key={emoji}
+          type="button"
+          role="menuitemradio"
+          aria-checked={tone === menu.selected}
+          aria-label={tone === 0 ? defaultLabel : emoji}
+          title={tone === 0 ? defaultLabel : emoji}
+          className="g-emoji-tone-swatch"
+          onClick={() => onSelect(tone)}
+        >
+          <img
+            className="f-emoji-img f-emoji-tone-img"
+            src={emojiImageUrl(emoji)}
+            width={26}
+            height={26}
+            alt=""
+            decoding="async"
+            draggable={false}
+          />
+        </button>
+      ))}
+    </div>,
+    document.body,
+  );
+}
+
 /**
  * Telegram-style emoji picker panel. Renders nothing while `open` is false, so
  * mounting it conditionally is fine — the opening scale/fade animation runs on
@@ -354,6 +618,7 @@ export function EmojiPicker({
   network,
   onSendSticker,
   onSendGif,
+  onSendInlineGif,
   canSendStickers,
   canSendGifs,
   initialTab,
@@ -365,6 +630,8 @@ export function EmojiPicker({
   const [tab, setTab] = useState<EmojiPickerTab>(initialTab ?? "emoji");
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState<string[]>(readRecentEmojis);
+  const [tones, setTones] = useState<ToneMap>(readToneMap);
+  const [toneMenu, setToneMenu] = useState<ToneMenuState | null>(null);
   const [keywordState, setKeywordState] = useState<{
     language: string;
     table: EmojiKeywordTable;
@@ -391,6 +658,10 @@ export function EmojiPicker({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const initialTabRef = useRef<EmojiPickerTab>(initialTab ?? "emoji");
   initialTabRef.current = initialTab ?? "emoji";
+  const tonesRef = useRef<ToneMap>(tones);
+  tonesRef.current = tones;
+  const toneMenuRef = useRef<ToneMenuState | null>(toneMenu);
+  toneMenuRef.current = toneMenu;
 
   const language = resolveEmojiKeywordLanguage(i18n.resolvedLanguage ?? i18n.language);
   const searchText = query.trim();
@@ -419,8 +690,45 @@ export function EmojiPicker({
     return list;
   }, [recent, t]);
 
+  const toneFor = useCallback((base: string) => tones[base] ?? 0, [tones]);
+
   const normalLength = recent.length + EMOJI_ALL.length;
   const viewLength = searching ? (searchResults?.length ?? 0) : normalLength;
+
+  const openTonePicker = useCallback((base: string, anchor: HTMLElement) => {
+    if (!hasEmojiSkinTones(base)) {
+      return;
+    }
+    setToneMenu({
+      base,
+      anchorRect: anchor.getBoundingClientRect(),
+      selected: tonesRef.current[base] ?? 0,
+      anchor,
+    });
+  }, []);
+
+  const selectTone = useCallback((tone: number) => {
+    const menu = toneMenuRef.current;
+    if (!menu) {
+      return;
+    }
+    const next: ToneMap = { ...tonesRef.current };
+    if (tone === 0) {
+      delete next[menu.base];
+    } else {
+      next[menu.base] = tone;
+    }
+    writeToneMap(next);
+    tonesRef.current = next;
+    setTones(next);
+    setToneMenu(null);
+    // Return focus to the tile so arrow-key navigation keeps working.
+    requestAnimationFrame(() => {
+      if (menu.anchor?.isConnected) {
+        menu.anchor.focus();
+      }
+    });
+  }, []);
 
   // Reset transient UI state every time the panel opens; focus the search field
   // (or, when the caller asks for stickers/GIFs, the tab body focuses itself).
@@ -436,6 +744,8 @@ export function EmojiPicker({
     setTab(wantedTab);
     setQuery("");
     setRecent(readRecentEmojis());
+    setTones(readToneMap());
+    setToneMenu(null);
     setFocusedIndex(0);
     setActiveCategory("recent");
     const frame = requestAnimationFrame(() => {
@@ -497,6 +807,21 @@ export function EmojiPicker({
     };
   }, [language, open]);
 
+  // The tone popover is anchored to a fixed-position rectangle; any scroll or
+  // resize would leave it misplaced, so dismiss it (Web K closes on scroll too).
+  useEffect(() => {
+    if (!toneMenu) {
+      return;
+    }
+    const close = () => setToneMenu(null);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [toneMenu]);
+
   // Outside click closes; clicks inside the composer the panel is anchored to
   // (the plate with the textarea and the emoji trigger) intentionally keep it
   // open so the caret can be repositioned, matching Telegram Web K.
@@ -509,9 +834,29 @@ export function EmojiPicker({
       if (!(target instanceof Element)) {
         return;
       }
+      if (target.closest("[data-emoji-tone-popover]")) {
+        return;
+      }
+      // The sticker/GIF tabs open Radix menus (set actions, sticker favorites).
+      // They are portalled to <body>, so a click on a menu item would otherwise
+      // look like an outside click and close the whole picker before the item's
+      // onSelect can run.
+      if (
+        target.closest(
+          "[data-radix-popper-content-wrapper], [role='menu'], .f-menu, .f-menu-content",
+        )
+      ) {
+        return;
+      }
       const root = rootRef.current;
       if (root?.contains(target)) {
+        if (toneMenuRef.current) {
+          setToneMenu(null);
+        }
         return;
+      }
+      if (toneMenuRef.current) {
+        setToneMenu(null);
       }
       const anchor = root?.parentElement;
       if (anchor?.contains(target)) {
@@ -527,13 +872,25 @@ export function EmojiPicker({
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [onOpenChange, open]);
 
-  // Escape: clear a non-empty query first, then close (Telegram behaviour).
+  // Escape: close the tone popover first, then clear a non-empty query, then
+  // close the panel (Telegram behaviour).
   useEffect(() => {
     if (!open) {
       return;
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) {
+        return;
+      }
+      if (toneMenuRef.current) {
+        event.preventDefault();
+        const anchor = toneMenuRef.current.anchor;
+        setToneMenu(null);
+        requestAnimationFrame(() => {
+          if (anchor?.isConnected) {
+            anchor.focus();
+          }
+        });
         return;
       }
       if (query && tab === "emoji") {
@@ -724,9 +1081,12 @@ export function EmojiPicker({
   }, []);
 
   const pickEmoji = useCallback(
-    (emoji: string) => {
-      setRecent(writeRecentEmoji(emoji));
-      onPick(emoji);
+    (base: string) => {
+      const value = emojiWithSkinTone(base, tonesRef.current[base] ?? 0);
+      // Recents keep the base emoji (Web K normalizes variants); the pick is the
+      // tone variant so the composer inserts exactly what the tile shows.
+      setRecent(writeRecentEmoji(base));
+      onPick(value);
     },
     [onPick],
   );
@@ -836,6 +1196,7 @@ export function EmojiPicker({
   // search row; the stickers/GIF tabs mount their real data bodies (the first
   // mount of each is what triggers that tab's lazy fetch, cached module-side).
   const selectTab = useCallback((nextTab: EmojiPickerTab) => {
+    setToneMenu(null);
     setTab(nextTab);
     if (nextTab === "emoji") {
       requestAnimationFrame(() => searchRef.current?.focus());
@@ -863,7 +1224,9 @@ export function EmojiPicker({
         emoji={section.emoji}
         offset={section.offset}
         focusedIndex={focusedIndex}
+        toneFor={toneFor}
         onPick={pickEmoji}
+        onOpenTonePicker={openTonePicker}
         onFocusTile={handleTileFocus}
       />
     ));
@@ -887,13 +1250,15 @@ export function EmojiPicker({
   } else {
     content = (
       <div className="g-emoji-picker-grid g-emoji-picker-results">
-        {searchResults.map((emoji, index) => (
+        {searchResults.map((base, index) => (
           <EmojiTile
-            key={`search:${emoji}`}
-            emoji={emoji}
+            key={`search:${base}`}
+            base={base}
+            display={emojiWithSkinTone(base, toneFor(base))}
             index={index}
             tabbable={index === focusedIndex}
             onPick={pickEmoji}
+            onOpenTonePicker={openTonePicker}
             onFocusTile={handleTileFocus}
           />
         ))}
@@ -1021,6 +1386,7 @@ export function EmojiPicker({
             network={network}
             canSend={canSendGifs ?? true}
             onSend={onSendGif}
+            onSendInlineGif={onSendInlineGif}
             onToast={onToast}
             autoFocus
           />
@@ -1064,6 +1430,15 @@ export function EmojiPicker({
           <X size={18} aria-hidden="true" />
         </button>
       </div>
+
+      {toneMenu ? (
+        <EmojiTonePopover
+          menu={toneMenu}
+          label={t("emojiPicker.skinTone", { defaultValue: "Skin tone" })}
+          defaultLabel={t("emojiPicker.skinToneDefault", { defaultValue: "Default" })}
+          onSelect={selectTone}
+        />
+      ) : null}
     </div>
   );
 }

@@ -17,5 +17,6 @@ export function useSavedGifs(
     cacheKey: "saved-gifs",
     peek: peekSavedGifs,
     load: (activeNetwork, force) => loadSavedGifs(activeNetwork, { force }),
+    reloadScopes: ["gifs"],
   });
 }

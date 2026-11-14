@@ -10,8 +10,10 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  cacheScopeMatches,
   subscribeStickerCache,
   type PickerNetwork,
+  type StickerCacheScope,
 } from "../../../lib/stickerApi";
 
 export interface PickerResource<T> {
@@ -28,6 +30,11 @@ export interface PickerResourceOptions<T> {
   cacheKey: string;
   peek: (network: PickerNetwork) => T | undefined;
   load: (network: PickerNetwork, force: boolean) => Promise<T>;
+  /**
+   * Cache scopes whose forced invalidation should refetch this resource. Omit to
+   * refetch on every forced invalidation (the pre-round-3 behaviour).
+   */
+  reloadScopes?: readonly StickerCacheScope[];
 }
 
 interface ResourceState<T> {
@@ -42,6 +49,7 @@ export function usePickerResource<T>({
   cacheKey,
   peek,
   load,
+  reloadScopes,
 }: PickerResourceOptions<T>): PickerResource<T> {
   const networkRef = useRef(network);
   networkRef.current = network;
@@ -49,6 +57,8 @@ export function usePickerResource<T>({
   peekRef.current = peek;
   const loadRef = useRef(load);
   loadRef.current = load;
+  const scopesRef = useRef(reloadScopes);
+  scopesRef.current = reloadScopes;
 
   const [state, setState] = useState<ResourceState<T>>(() => ({
     data: enabled && network ? peek(network) : undefined,
@@ -113,6 +123,10 @@ export function usePickerResource<T>({
         return;
       }
       if (change.force) {
+        const scopes = scopesRef.current;
+        if (scopes && !cacheScopeMatches(change, scopes)) {
+          return;
+        }
         setAttempt((value) => value + 1);
         return;
       }

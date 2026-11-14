@@ -17,5 +17,6 @@ export function useStickerPacks(
     cacheKey: "sticker-packs",
     peek: peekStickerPacks,
     load: (activeNetwork, force) => loadStickerPacks(activeNetwork, { force }),
+    reloadScopes: ["packs", "recents"],
   });
 }
