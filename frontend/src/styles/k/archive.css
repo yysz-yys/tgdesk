@@ -1,0 +1,138 @@
+/* Archived chats tab + its three-dot menu.
+ * Ported from tweb: components/sidebarLeft/tabs/archivedTab.tsx,
+ * components/sliderTab.ts + components/transition.ts (navigation slide) and
+ * scss/partials/_button.scss (.btn-menu / .btn-menu-item). */
+
+/* ---------- sidebar tabs sliding (TransitionSlider 'navigation') ---------- */
+
+.k-root .sidebar-slider {
+  overflow: hidden;
+}
+
+.k-root .tabs-container[data-animation="navigation"].animating .tabs-tab {
+  transition:
+    transform var(--transition-standard-in),
+    filter var(--transition-standard-in);
+}
+
+.k-root .tabs-container[data-animation="navigation"].animating.backwards
+  .tabs-tab {
+  transition:
+    transform var(--transition-standard-out),
+    filter var(--transition-standard-out);
+}
+
+.k-root .item-secondary {
+  background-color: var(--surface-color);
+}
+
+.k-root .sidebar-close-button {
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.k-root #chats-archived-container .sidebar-header {
+  justify-content: flex-start;
+}
+
+.k-root #chats-archived-container .sidebar-header__title {
+  padding-inline-start: 1.5rem;
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+.k-root #chats-archived-list {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- Web K dropdown menu (tweb .btn-menu, desktop metrics) ---------- */
+
+.k-menu {
+  min-width: 11.25rem;
+  width: max-content;
+  padding: 0.25rem 0;
+  border-radius: 16px;
+  background-color: rgba(255, 255, 255, 0.85);
+  -webkit-backdrop-filter: blur(50px);
+  backdrop-filter: blur(50px);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+  font-family: Roboto, "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB",
+    sans-serif;
+  font-size: 1rem;
+  color: #333333;
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+  animation: k-menu-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.k-menu[data-state="closed"] {
+  animation: k-menu-out 0.15s ease;
+}
+
+/* `scale` (not `transform`): Radix positions the content with an inline
+ * transform, which an animated transform would replace and throw the menu to
+ * the corner. */
+@keyframes k-menu-in {
+  from {
+    opacity: 0;
+    scale: 0.8;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes k-menu-out {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 0.8;
+  }
+}
+
+.k-menu .btn-menu-item {
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 2rem;
+  margin-inline: 0.25rem;
+  padding-inline: 0.75rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  line-height: var(--line-height-14);
+  font-weight: 500;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.k-menu .btn-menu-item[data-highlighted] {
+  background-color: rgba(140, 142, 145, 0.08);
+}
+
+.k-menu .btn-menu-item:active {
+  transform: scale(0.96);
+}
+
+.k-menu .btn-menu-item-icon {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  font-size: 1.25rem;
+  margin-inline-end: 1.25rem;
+  color: #8c8e91;
+}
+
+.k-menu .btn-menu-item-text {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

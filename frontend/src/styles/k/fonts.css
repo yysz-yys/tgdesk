@@ -1,0 +1,70 @@
+/* Roboto (400/500/600) — the same woff2 subsets tweb uses for its Latin UI. */
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local("Roboto"), local("Roboto-Regular"),
+    url("/assets/fonts/KFOmCnqEu92Fr1Mu4mxKKTU1Kg.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local("Roboto"), local("Roboto-Regular"),
+    url("/assets/fonts/KFOmCnqEu92Fr1Mu7GxKKTU1Kvnz.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: local("Roboto Medium"), local("Roboto-Medium"),
+    url("/assets/fonts/KFOlCnqEu92Fr1MmEU9fBBc4AMP6lQ.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: local("Roboto Medium"), local("Roboto-Medium"),
+    url("/assets/fonts/KFOlCnqEu92Fr1MmEU9fChc4AMP6lbBP.woff2") format("woff2");
+}
+
+/* tweb aliases 600 to the medium face so bold formatting is not faked. */
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local("Roboto Medium"), local("Roboto-Medium"),
+    url("/assets/fonts/KFOlCnqEu92Fr1MmEU9fBBc4AMP6lQ.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "tgico";
+  src:
+    url("/assets/fonts/tgico.ttf") format("truetype"),
+    url("/assets/fonts/tgico.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+/* global: the tgico map is also used by portalled popups (menus), which live
+ * outside `.k-root` */
+.tgico {
+  font-family: "tgico" !important;
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

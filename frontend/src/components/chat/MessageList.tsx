@@ -4,6 +4,7 @@ import type { DownloadTask, Message, MessageButton, Reaction } from "../../types
 import type { ViewerSource } from "../media/types";
 import { chatColor, chatInitials } from "../../data/telegram";
 import { Icon, Spinner } from "../../ui";
+import { useScrollThumb } from "../k/KScrollArea";
 import { MessageBubble, type MessageAuthor } from "./MessageBubble";
 
 /** Distance from the top that starts loading the previous page. */
@@ -81,6 +82,9 @@ export function MessageList({
 }: MessageListProps) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Web K's overlay scrollbar (5px capsule, fades in on hover) on the
+  // conversation's own scroller; the thumb markup goes inside it below.
+  const { thumbRef, onThumbMouseDown } = useScrollThumb(scrollRef);
   const contentRef = useRef<HTMLDivElement>(null);
   const messageCount = useRef(messages.length);
   const stickToBottom = useRef(true);
@@ -327,7 +331,19 @@ export function MessageList({
 
   return (
     <div className="g-message-layer">
-      <div className="g-message-scroll" ref={scrollRef} onScroll={onScroll}>
+      <div
+        className="g-message-scroll scrollable scrollable-y"
+        ref={scrollRef}
+        onScroll={onScroll}
+      >
+        <div className="scrollable-thumb-container">
+          <div
+            ref={thumbRef}
+            className="scrollable-thumb"
+            onMouseDown={onThumbMouseDown}
+            aria-hidden="true"
+          />
+        </div>
         <div className="g-message-list" ref={contentRef}>
         {hasMoreMessages && olderMessagesLoading ? (
           <div className="g-load-older g-load-older-auto" aria-live="polite">

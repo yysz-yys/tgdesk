@@ -39,6 +39,20 @@ type ChatDTO struct {
 	Online   bool   `json:"online,omitempty"`
 	LastSeen int64  `json:"lastSeen,omitempty"`
 	Status   string `json:"status,omitempty"`
+	// Web K chat-list decorations: whether the last message is outgoing and
+	// whether it was read (single vs double check), the media kind of the last
+	// message (preview icon), the auto-delete period (avatar "1d" badge) and the
+	// peer colour index (avatar gradient palette, abs(peer id) % 7).
+	LastOut    bool   `json:"lastOut,omitempty"`
+	LastChecks string `json:"lastChecks,omitempty"`
+	LastMedia  string `json:"lastMedia,omitempty"`
+	TTL        int    `json:"ttl,omitempty"`
+	ColorIndex int    `json:"colorIndex,omitempty"`
+	// LastSender is the display name of the last message's author for group
+	// chats (never for private chats or broadcast channels). Web K prefixes the
+	// list preview with it — "Name: text" — and with "You: text" for outgoing
+	// group messages (LastOut is set then, LastSender stays empty).
+	LastSender string `json:"lastSender,omitempty"`
 }
 
 type ChatFolderDTO struct {
@@ -952,6 +966,56 @@ func mapDialog(elem dialogs.Elem, dialog *tg.Dialog, selfID int64) (ChatDTO, boo
 	if folderID, ok := dialog.GetFolderID(); ok && folderID == 1 {
 		archived = true
 	}
+
+	// Web K list decorations.
+	lastOut := false
+	lastChecks := ""
+	lastMedia := ""
+	if msg, ok := elem.Last.(*tg.Message); ok {
+		lastOut = msg.Out
+		if msg.Out {
+			if dialog.ReadOutboxMaxID >= msg.ID {
+				lastChecks = "read"
+			} else {
+				lastChecks = "sent"
+			}
+		}
+		if media := mapMedia(msg.Media); media != nil {
+			lastMedia = media.Kind
+		}
+	}
+
+	lastSender := ""
+	if msg, ok := elem.Last.(*tg.Message); ok && kind == "group" && !msg.Out {
+		switch from := msg.FromID.(type) {
+		case *tg.PeerUser:
+			if user, found := entities.Users()[from.UserID]; found {
+				lastSender = displayName(user.FirstName, user.LastName)
+				if lastSender == "" {
+					lastSender = user.Username
+				}
+			}
+		case *tg.PeerChannel:
+			if channel, found := entities.Channels()[from.ChannelID]; found {
+				lastSender = channel.Title
+			}
+		case *tg.PeerChat:
+			if chat, found := entities.Chats()[from.ChatID]; found {
+				lastSender = chat.Title
+			}
+		}
+	}
+
+	colorIndex := 0
+	switch p := peer.(type) {
+	case *tg.InputPeerUser:
+		colorIndex = int(absInt64(p.UserID) % 7)
+	case *tg.InputPeerChat:
+		colorIndex = int(absInt64(p.ChatID) % 7)
+	case *tg.InputPeerChannel:
+		colorIndex = int(absInt64(p.ChannelID) % 7)
+	}
+
 	return ChatDTO{
 		ID:              id,
 		Title:           title,
@@ -970,6 +1034,12 @@ func mapDialog(elem dialogs.Elem, dialog *tg.Dialog, selfID int64) (ChatDTO, boo
 		Online:          online,
 		LastSeen:        lastSeen,
 		Status:          status,
+		LastOut:         lastOut,
+		LastChecks:      lastChecks,
+		LastMedia:       lastMedia,
+		TTL:             dialog.TTLPeriod,
+		ColorIndex:      colorIndex,
+		LastSender:      lastSender,
 	}, true
 }
 
@@ -1699,6 +1769,13 @@ func truncatePreview(text string) string {
 		return string(runes[:120]) + "…"
 	}
 	return text
+}
+
+func absInt64(value int64) int64 {
+	if value < 0 {
+		return -value
+	}
+	return value
 }
 
 func mutedUntil(settings tg.PeerNotifySettings) bool {

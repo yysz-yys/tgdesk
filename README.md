@@ -4,18 +4,43 @@ Windows-first desktop shell for [tdl](https://github.com/iyear/tdl), built with
 Wails v3, React 19 and TypeScript. tdl and gotd are consumed as Go modules; the
 upstream projects are **not forked or patched**.
 
-The UI uses the **F** design language across login, conversations, downloads and
-settings: a cool grey canvas, floating cards with hairline borders, one indigo
-accent, Radix Themes components, Lucide icons and bundled Inter for Latin (CJK
-falls back to the Windows UI font). Light and dark themes share the same tokens.
-The default client area is 1107×725; the layouts are verified at 1280×800 and
-down to 640×480. A settings dialog only exposes options those features use:
-language, theme, send-on-Enter, download folder/threads/file-name template,
-proxy and NTP.
+The UI is being replaced **page by page with a 1:1 Telegram Web K port** ("design
+K", see [docs/design-k.md](docs/design-k.md)): the signed-in main screen already
+uses the real Web K markup, CSS, tgico icon font, doodle wallpaper, folder chip
+strip, chat rows and empty-column state of the light "Day" theme. Screens that
+have not been redesigned yet (login, conversation, settings, downloads, menus)
+still use the earlier **F** design language: a cool grey canvas, floating cards,
+one indigo accent, Radix Themes and Lucide icons. The signed-in page has no
+caption bar and fills the window like telegram web; other screens keep the F
+window layout. The default client area is 1107×725; the layouts are verified at
+1280×800 and down to 640×480. A settings dialog exposes language, theme,
+send-on-Enter, download folder/threads/file-name template, proxy and NTP.
 
 ![tgdesk login](docs/assets/ui-login-current.png)
 
 ## Current status
+
+**Web K main screen (design K, light theme)** — reproduced 1:1 from Telegram Web K:
+
+- Page-wide doodle wallpaper rendered exactly like tweb: a 50×50 freeform
+  gradient canvas stretched over the viewport plus the tiled pattern.svg
+  composited with `soft-light`; the floating 360 px sidebar card on a 16 px page
+  inset, the empty middle column showing the "选择一个会话开始聊天" service pill
+  and the top-right tips lightbulb.
+- Sidebar rebuilt on tweb's DOM: hamburger + old-style 44 px search pill (focus
+  state, clear button), the folder chip strip (48 px plate, sliding active pill,
+  unread-chat badges), 72 px chat rows (54 px avatar with the `abs(peerId) % 7`
+  colour palette, title with verified/muted icons, preview, time with
+  single/double checks, unread badge, auto-delete "1D" corner badge), the
+  archived-chats row (blue gradient avatar, unread-chat count and preview list)
+  and Saved Messages, plus the 54 px pencil FAB.
+- Web K behaviour: the app opens with no chat selected; hover plates, active-row
+  fill, press ripples and the folder-pill slide animation follow tweb; search
+  filters across all folders.
+- The signed-in shell has no F caption bar; the empty chat column is the window
+  drag surface (double-click toggles maximise).
+
+
 
 Working end to end against real Telegram data:
 
@@ -284,6 +309,10 @@ belong in git. A detailed checklist is in
 
 ## Known limitations
 
+- The page-by-page Web K redesign is in progress: login, the conversation view,
+  the main menu, settings, downloads, search results, the archive view and the
+  expanded tips deck still use the F design (see docs/design-k.md).
+- Only the light "Day" Web K theme is ported so far; dark themes are not.
 - Map tiles require network; the card falls back to a schematic surface.
 - tdata protected by a Telegram Desktop local passcode is unsupported.
 - Only the main-DC auth key is exported to tdata; Telegram Desktop fills the

@@ -46,8 +46,10 @@ import type {
 import { useSettings, type AppSettings } from "./hooks/useSettings";
 import { useTheme } from "./hooks/useTheme";
 import { AppTheme } from "./ui/theme";
-import { Button, Dialog, EmptyState, Toast } from "./ui";
-import { Sidebar } from "./components/layout/Sidebar";
+import { Button, Dialog, Toast } from "./ui";
+import { KChatList } from "./components/k/KChatList";
+import { KEmptyChatSurface, KTipsToggle } from "./components/k/KEmptyChat";
+import { KMainScreen } from "./components/k/KMainScreen";
 import { ChatView } from "./components/chat/ChatView";
 import { MiniAppOverlay } from "./components/chat/MiniAppOverlay";
 import { DownloadsView } from "./components/downloads/DownloadsView";
@@ -145,6 +147,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [chatDTOs, setChatDTOs] = useState<KernelChat[]>([]);
   const [folders, setFolders] = useState<ChatFolder[]>([]);
+  const folderCacheKey = `tgdesk.k.folders.${authUser?.id ?? "anon"}`;
   const [messageDTOs, setMessageDTOs] = useState<KernelMessage[]>([]);
   const [selectedChatId, setSelectedChatId] = useState("");
   const [chatsLoading, setChatsLoading] = useState(false);
@@ -749,30 +752,6 @@ export default function App() {
     });
   }, [chatDTOs, language, t, authUser?.id]);
 
-  const filteredChats = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) {
-      return chatState;
-    }
-
-    return chatState.filter((chat) =>
-      [chat.title, chat.preview, chat.username ?? ""].some((value) =>
-        value.toLowerCase().includes(needle),
-      ),
-    );
-  }, [chatState, query]);
-
-  useEffect(() => {
-    if (view !== "chats" || filteredChats.length === 0) {
-      return;
-    }
-    if (!filteredChats.some((chat) => chat.id === selectedChatId)) {
-      setSelectedChatId(
-        (filteredChats.find((chat) => !chat.archived) ?? filteredChats[0]).id,
-      );
-    }
-  }, [filteredChats, selectedChatId, view]);
-
   const selectedChat = chatState.find((chat) => chat.id === selectedChatId);
   const messages = useMemo(() => {
     // Saved Messages is a chat with yourself: Telegram clients render every
@@ -822,12 +801,11 @@ export default function App() {
         cachedChatsApplied = true;
         setChatDTOs(cached);
         setChatsLoading(false);
-        setSelectedChatId((current) => {
-          if (cached.some((chat) => chat.id === current)) {
-            return current;
-          }
-          return (cached.find((chat) => !chat.archived) ?? cached[0])?.id ?? "";
-        });
+        // Web K opens on an empty middle column, so only keep a selection
+        // that still exists (a deep link or one the caller restored).
+        setSelectedChatId((current) =>
+          cached.some((chat) => chat.id === current) ? current : "",
+        );
       })
       .catch(() => {
         // A missing/corrupt cache only loses the head start.
@@ -844,12 +822,9 @@ export default function App() {
         }
         const next = list ?? [];
         setChatDTOs(next);
-        setSelectedChatId((current) => {
-          if (next.some((chat) => chat.id === current)) {
-            return current;
-          }
-          return (next.find((chat) => !chat.archived) ?? next[0])?.id ?? "";
-        });
+        setSelectedChatId((current) =>
+          next.some((chat) => chat.id === current) ? current : "",
+        );
         setChatsLoading(false);
       })
       .catch(() => {
@@ -867,6 +842,23 @@ export default function App() {
         setChatsLoading(false);
       });
 
+    // Folder tabs are part of the shell: paint the last snapshot from the local
+    // store at once (telegram web keeps the folder list in its storage as well),
+    // then let the server answer replace it. Without this the tabs stay empty
+    // until the first dialog-filter round trip finishes, which on a cold launch
+    // means "connected (a good while) later".
+    try {
+      const raw = localStorage.getItem(folderCacheKey);
+      if (raw) {
+        const cachedFolders = JSON.parse(raw) as ChatFolder[];
+        if (Array.isArray(cachedFolders) && cachedFolders.length > 0) {
+          setFolders(cachedFolders);
+        }
+      }
+    } catch {
+      // A corrupt snapshot only loses the head start.
+    }
+
     void Promise.all([
       AppService.GetArchivedChats(proxyUrl, settings.ntp, 100, false).catch(() => []),
       AppService.GetFolders(proxyUrl, settings.ntp).catch(() => []),
@@ -883,8 +875,8 @@ export default function App() {
           ];
         });
       }
-      setFolders(
-        (folderList ?? []).map((folder: ChatFolderDTO) => ({
+      const mappedFolders = (folderList ?? []).map(
+        (folder: ChatFolderDTO) => ({
           id: folder.id,
           title: folder.title,
           emoticon: folder.emoticon || undefined,
@@ -898,8 +890,14 @@ export default function App() {
           excludeMuted: folder.excludeMuted,
           excludeRead: folder.excludeRead,
           excludeArchived: folder.excludeArchived,
-        })),
+        }),
       );
+      setFolders(mappedFolders);
+      try {
+        localStorage.setItem(folderCacheKey, JSON.stringify(mappedFolders));
+      } catch {
+        // Quota/privacy-mode failures only cost the next cold start.
+      }
     });
 
     return () => {
@@ -1954,52 +1952,52 @@ export default function App() {
   return (
     <AppTheme appearance={resolvedTheme}>
       <>
-      <div className="g-app-shell">
-          <div className="f-shell">
-            <Sidebar
-              activeView={view}
-              chats={filteredChats}
-              selectedChatId={selectedChatId}
-              query={query}
-              onQueryChange={(value) => {
-                setQuery(value);
-                if (value) {
-                  setView("chats");
-                }
-              }}
-              onSelectChat={(id) => {
+      <KMainScreen
+        sidebar={
+          <KChatList
+            activeView={view}
+            chats={chatState}
+            folders={folders}
+            selectedChatId={selectedChatId}
+            query={query}
+            onQueryChange={(value) => {
+              setQuery(value);
+              if (value) {
                 setView("chats");
-                openChat(id);
-              }}
-              onTogglePin={togglePin}
-              onToggleMute={toggleMute}
-              onMarkRead={markRead}
-              onMarkAllRead={markAllRead}
-              onDownloadAll={downloadAll}
-              onToggleArchive={toggleArchive}
-              onToast={showToast}
-              onChats={() => setView("chats")}
-              onDownloads={openDownloads}
-              onSettings={() => setSettingsOpen(true)}
-              onLogout={() => void handleLogout()}
-              activeDownloads={active.length}
-              folders={folders}
-              archivedCount={chatState.filter((chat) => chat.archived).length}
-              accountRestricted={authUser?.restricted}
-              accountRestriction={authUser?.restriction}
-              accountName={authUser?.displayName ?? t("settings.general.telegramAccount")}
-              accountInitials={authUser?.initials ?? "T"}
-              accountColor={authUser?.color}
-              accountPhoto={selfAvatar || undefined}
-              accountUsername={authUser?.username || undefined}
-              accountPhone={authUser?.phone || undefined}
-              onProfile={() => setProfileOpen(true)}
-              loading={chatsLoading}
-              failed={chatsFailed}
-            />
-
+              }
+            }}
+            onSelectChat={(id) => {
+              setView("chats");
+              openChat(id);
+            }}
+            onTogglePin={togglePin}
+            onToggleMute={toggleMute}
+            onMarkRead={markRead}
+            onMarkAllRead={markAllRead}
+            onDownloadAll={downloadAll}
+            onToggleArchive={toggleArchive}
+            onToast={showToast}
+            onChats={() => setView("chats")}
+            onDownloads={openDownloads}
+            onSettings={() => setSettingsOpen(true)}
+            onLogout={() => void handleLogout()}
+            onProfile={() => setProfileOpen(true)}
+            activeDownloads={active.length}
+            accountName={authUser?.displayName ?? t("settings.general.telegramAccount")}
+            accountInitials={authUser?.initials ?? "T"}
+            accountColor={authUser?.color}
+            accountPhoto={selfAvatar || undefined}
+            accountUsername={authUser?.username || undefined}
+            accountPhone={authUser?.phone || undefined}
+            loading={chatsLoading}
+            failed={chatsFailed}
+          />
+        }
+        center={
+          <>
             {view === "downloads" ? (
-              <div className="f-downloads-pane">
+              <div className="f-shell k-center-host">
+                <div className="f-downloads-pane">
                 <DownloadsView
                   active={active}
                   completed={completed}
@@ -2014,8 +2012,10 @@ export default function App() {
                   onClearFailed={clearFailed}
                   onOpenDownloadFolder={openDownloadFolder}
                 />
+                </div>
               </div>
             ) : selectedChat ? (
+              <div className="f-shell k-center-host">
               <ChatView
                 chat={selectedChat}
                 chats={chatState}
@@ -2094,25 +2094,26 @@ export default function App() {
                 selfColor={authUser?.color ?? "#7cacf8"}
                 selfAvatarUrl={selfAvatar || undefined}
               />
+              </div>
             ) : (
-              <main className="f-chat-pane f-chat-empty">
-                <EmptyState
-                  icon={chatsLoading ? "hourglass_top" : chatsFailed ? "cloud_off" : "forum"}
-                  title={
-                    chatsLoading
-                      ? t("chat.loadingChats")
-                      : chatsFailed
-                        ? t("chat.loadChatsFailed")
-                        : t("chat.noChats")
-                  }
-                  description={
-                    !chatsLoading && !chatsFailed ? t("chat.noChatsDesc") : undefined
-                  }
-                />
-              </main>
+              <KEmptyChatSurface
+                chats={chatState}
+                onSelectChat={(id) => {
+                  setView("chats");
+                  openChat(id);
+                }}
+                onSettings={() => setSettingsOpen(true)}
+                proxyUrl={proxyUrl}
+                ntp={settings.ntp}
+              />
             )}
-          </div>
-      </div>
+          </>
+        }
+        overlay={
+          view === "downloads" || selectedChat ? null : <KTipsToggle />
+        }
+        chatOpen={view === "downloads" || Boolean(selectedChat)}
+      />
 
       <SettingsDialog
         open={settingsOpen}

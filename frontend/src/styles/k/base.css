@@ -1,0 +1,172 @@
+/* Telegram Web K base element styles (ported from tweb scss/components/_global.scss
+ * and the html/body rules of base.scss). */
+
+.k-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  font-family: var(--font-regular);
+  font-size: 16px;
+  line-height: var(--line-height);
+  color: var(--primary-text-color);
+  background-color: var(--body-background-color);
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  user-select: none;
+  --reflect: 1;
+}
+
+.k-root ul {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+}
+
+.k-root a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.k-root button {
+  background: none;
+  border: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.k-root input {
+  font-family: inherit;
+}
+
+.k-root input:focus,
+.k-root button:focus {
+  outline: none;
+}
+
+.k-root img,
+.k-root svg {
+  display: block;
+}
+
+.k-root ::placeholder {
+  color: var(--input-placeholder-color);
+  opacity: 1;
+}
+
+.k-root ::-webkit-scrollbar {
+  width: 0.375rem;
+  height: 0.375rem;
+  background: transparent;
+}
+
+.k-root ::-webkit-scrollbar-thumb {
+  border-radius: 16px;
+  background-color: transparent;
+}
+
+.k-root ::-webkit-scrollbar-button,
+.k-root ::-webkit-scrollbar-corner {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.k-root .hide {
+  display: none !important;
+}
+
+.k-root .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+/* utility classes shared by tweb markup we mirror */
+.k-root .text-super {
+  display: inline-table;
+}
+
+.k-root .text-bold {
+  font-weight: var(--font-weight-bold) !important;
+}
+
+.k-root .no-wrap {
+  white-space: nowrap !important;
+}
+
+.k-root .rp {
+  position: relative;
+}
+
+.k-root .rp-overflow,
+.k-root .btn-corner.rp,
+.k-root .btn-menu-toggle.rp,
+.k-root .menu-horizontal-div-item.rp {
+  overflow: hidden;
+}
+
+.k-root .rp-overflow .c-ripple,
+.k-root .btn-corner.rp .c-ripple,
+.k-root .btn-menu-toggle.rp .c-ripple,
+.k-root .menu-horizontal-div-item.rp .c-ripple {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* ripple */
+.k-root .c-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.k-root .c-ripple__circle {
+  opacity: var(--ripple-max-opacity, 1);
+  background-color: var(--ripple-color);
+  display: block;
+  position: absolute;
+  transform: scale(0);
+  border-radius: 50%;
+  animation-name: k-ripple-effect;
+  animation-fill-mode: forwards;
+  animation-duration: var(--ripple-duration);
+  transition: calc(var(--ripple-duration) / 2) opacity,
+    calc(var(--ripple-duration) / 2) background-color;
+  pointer-events: none;
+}
+
+.k-root .c-ripple__circle.hiding {
+  opacity: 0;
+}
+
+@keyframes k-ripple-effect {
+  from {
+    transform: scale(var(--ripple-start-scale));
+  }
+
+  to {
+    transform: scale(var(--ripple-end-scale));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-root .c-ripple__circle {
+    animation: none;
+    transform: scale(var(--ripple-end-scale));
+  }
+}

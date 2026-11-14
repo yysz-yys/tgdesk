@@ -1,0 +1,56 @@
+/* Web K scrollbars. Ported from tweb scss/partials/_scrollable.scss, the
+ * `html.custom-scroll` branch: platforms without true overlay scrollbars
+ * (Chrome/WebView2 on Windows) hide the native bar and draw a 5px rounded
+ * thumb that fades in while the scroll area is hovered.
+ *
+ * Keeping the native bar hidden matters for layout too: a native scrollbar
+ * would take ~6px off the row width, while telegram web draws the rows at the
+ * full column width and overlays the thumb in the 8px gutter. */
+
+.k-root .scrollable {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 100%;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.k-root .scrollable::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.k-root .scrollable-thumb-container {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  height: 0;
+  width: 100%;
+  pointer-events: none;
+}
+
+.k-root .scrollable-thumb {
+  position: absolute;
+  top: 0;
+  inset-inline-end: 1px;
+  width: 5px;
+  height: 0;
+  background-color: var(--scrollbar-color);
+  border-radius: 16px;
+  cursor: default;
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 0.1s ease-in-out;
+}
+
+.k-root .scrollable:hover .scrollable-thumb,
+.k-root .scrollable-thumb.is-focused {
+  opacity: 1;
+}
+
+.k-root .scrollable-thumb--hidden {
+  transition: none !important;
+  opacity: 0 !important;
+}

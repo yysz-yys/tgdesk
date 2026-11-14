@@ -1,0 +1,95 @@
+/* Auto-hiding window chrome for the frameless shell (see KWindowChrome.tsx).
+ * Idle pages look exactly like telegram web; near the top edge the page offers
+ * a drag strip (with the 16 px wallpaper inset as its hit area) and a Web K
+ * styled pill with minimise / maximise / close. */
+
+.k-window-drag-strip {
+  position: fixed;
+  top: 0;
+  inset-inline: 0;
+  height: 16px;
+  z-index: 900;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.k-window-controls {
+  position: fixed;
+  top: 8px;
+  inset-inline-end: 8px;
+  z-index: 901;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0s linear 0.15s;
+}
+
+.k-window-controls.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.k-root .k-window-control {
+  width: 30px;
+  height: 26px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-text-color);
+  background-color: transparent;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.k-root .k-window-control:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.k-root .k-window-control:active {
+  background-color: rgba(0, 0, 0, 0.14);
+}
+
+.k-root .k-window-control.k-window-control-close:hover,
+.k-root .k-window-control.k-window-control-close:active {
+  background-color: #e5484d;
+  color: #ffffff;
+}
+
+/* The tips lightbulb sits in the same corner; it steps aside while the window
+ * controls are up (both live in the page's top-right corner). */
+html.k-chrome-visible .k-root .chat-tips-toggle {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.k-root .chat-tips-toggle {
+  transition: opacity 0.15s ease, visibility 0s linear 0.15s;
+}
+
+/* Floating (narrow) layout insets the page by 8 px, so the caption hit area must
+ * shrink with it — it must never cover the sidebar card. */
+@media (max-width: 925px) {
+  .k-window-drag-strip {
+    height: 8px;
+  }
+}

@@ -1,0 +1,71 @@
+/* The empty middle column (nothing selected): the service pill + the tips
+ * lightbulb toggle. Ported from tweb components/chatTips/index.tsx and
+ * chatTips.module.scss (.selectChat / .selectChatPill / .toggleButton). */
+
+.k-root #column-center .chat-tips-host {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.k-root .chat-tips-host.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.k-root .chat-tips-select-chat {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-standard-in);
+}
+
+.k-root .chat-tips-select-chat.is-shown {
+  opacity: 1;
+}
+
+.k-root .chat-tips-select-chat-pill {
+  padding: 5px 12px;
+  border-radius: 1rem;
+  background-color: var(--message-highlighting-color);
+  color: #ffffff;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--messages-service-text-size);
+  line-height: 20px;
+  text-align: center;
+  user-select: none;
+}
+
+/* The corner tips toggle: a service plate (same paint as a chat's service
+ * message) pinned to the page's top-right corner. */
+.k-root .chat-tips-toggle {
+  position: fixed;
+  top: 1rem;
+  inset-inline-end: 1rem;
+  z-index: 3;
+  display: flex;
+  background-color: var(--message-highlighting-color);
+  color: #ffffff;
+}
+
+@media (hover: hover) {
+  .k-root .chat-tips-toggle:hover,
+  .k-root .chat-tips-toggle:active {
+    background-color: rgba(
+      var(--message-highlighting-color-rgb),
+      calc(var(--message-highlighting-alpha) + 0.24)
+    ) !important;
+  }
+}
+
+.k-root .chat-tips-toggle .c-ripple {
+  border-radius: inherit;
+}

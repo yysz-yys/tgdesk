@@ -45,6 +45,9 @@ export interface AuthEvent {
 
 export type ChatKind = "private" | "group" | "channel";
 
+/** Read state of the last outgoing message, shown in the chat-list row. */
+export type ChatCheckState = "sent" | "read";
+
 /**
  * Peer presence as Telegram exposes it. "recently"/"lastWeek"/"lastMonth" are
  * the privacy-preserving coarse statuses; "hidden" means the peer hides it.
@@ -79,8 +82,26 @@ export interface Chat {
   /** Privacy-preserving presence category. */
   status?: UserStatusKind;
   verified?: boolean;
+  /** Title icons shown before the sender/user status (Web K icons column). */
   members?: string;
   memberCount?: number;
+  /** Unix seconds of the last message (raw order key; `time` is display only). */
+  lastMessageDate?: number;
+  /**
+   * Author of the last message for group chats (Web K prefixes the preview with
+   * "Name: "); empty for outgoing messages, private chats and broadcast channels.
+   */
+  lastSender?: string;
+  /** Last message is outgoing: draws the single/double check next to the time. */
+  lastOut?: boolean;
+  /** Read state of the last outgoing message (Web K single/double check). */
+  lastChecks?: ChatCheckState;
+  /** Media kind of the last message, for the preview's media icon. */
+  lastMedia?: string;
+  /** Auto-delete timer period in seconds (0 = off); draws the avatar's 1D badge. */
+  ttl?: number;
+  /** Web K peer colour index 0..6 (avatar gradient palette). */
+  colorIndex?: number;
   color: string;
   initials: string;
 }

@@ -1,0 +1,165 @@
+/*
+ * Telegram Web K — Telegram "light" theme (baseThemeDay) design tokens.
+ * Values ported from tweb's runtime theme applier (helpers/themeController.ts,
+ * the `light` entry of `colorMap`) and the day-theme section of `base.scss`.
+ * Derived `--light-*` / `--light-filled-*` values follow tweb's formulas:
+ *   light        = rgba(rgb, .08)
+ *   light-filled = mix(rgb, surface, .08)  -> floor(surface + (rgb - surface) * .08)
+ */
+
+.k-root {
+  /* accent + derived */
+  --primary-color: #2d7ed5;
+  --primary-color-rgb: 45, 126, 213;
+  --light-primary-color: rgba(45, 126, 213, 0.08);
+  --light-filled-primary-color: #eef4fb;
+  --dark-primary-color: hsl(211.0714, 66.6667%, 46.5882%);
+  --primary-button-color: #2d7ed5;
+  --link-color: #2d7ed5;
+
+  --danger-color: #df3f40;
+  --danger-color-rgb: 223, 63, 64;
+  --light-danger-color: rgba(223, 63, 64, 0.08);
+  --danger-button-color: #df3f40;
+
+  --saved-color: #2d7ed5;
+  --light-filled-saved-color: #78ace4;
+
+  /* text */
+  --primary-text-color: #333333;
+  --primary-text-color-rgb: 51, 51, 51;
+  --secondary-text-color: #8c8e91;
+  --secondary-text-color-rgb: 140, 142, 145;
+  --secondary-button-color: #8c8e91;
+  --light-secondary-text-color: rgba(140, 142, 145, 0.08);
+  --light-filled-secondary-text-color: #f5f5f6;
+
+  /* surfaces */
+  --surface-color: #ffffff;
+  --surface-color-rgb: 255, 255, 255;
+  --background-color: #f4f4f5;
+  --background-color-rgb: 244, 244, 245;
+  --body-background-color: #ffffff;
+  --body-background-color-rgb: 255, 255, 255;
+  --border-color: #dfe1e5;
+  --secondary-color: #c4c9cc;
+  --green-color: #04ac35;
+  --white: #ffffff;
+
+  /* controls */
+  --input-search-background-color: #ffffff;
+  --input-search-border-color: #dfe1e5;
+  --old-input-background-color: #f1f3f5;
+  --input-placeholder-color: #9ba0a5;
+  --input-label-color: #9e9e9e;
+  --original-ripple-color: rgba(0, 0, 0, 0.08);
+  --ripple-color: var(--original-ripple-color);
+  --ripple-duration: 0.7s;
+  --ripple-start-scale: 0;
+  --ripple-end-scale: 2;
+  --scrollbar-color: rgba(0, 0, 0, 0.2);
+
+  /* chat list */
+  --avatar-online-color: var(--primary-color);
+  --chatlist-status-color: var(--avatar-online-color);
+  --chatlist-pinned-color: #a2abb2;
+  --badge-text-color: #ffffff;
+  --chatlist-badge-transition-in: 0.25s cubic-bezier(0.35, 0.35, 0.47, 1.34);
+  --chatlist-badge-transition-out: 0.25s cubic-bezier(0.35, 0.35, 0.7, 1);
+
+  /* service plates (the empty-column pill and the tips toggle): the factory
+   * baseThemeDay highlighting colour, hsla(210, 67.741935%, 50.588235%, .4)
+   * (tweb config/state.ts DEFAULT_HIGHLIGHTING_COLORS) */
+  --message-highlighting-color: hsla(210, 67.7419%, 50.5882%, 0.4);
+  --message-highlighting-color-rgb: 44, 129, 214;
+  --message-highlighting-alpha: 0.4;
+
+  /* avatar palette */
+  --peer-avatar-red-top: #ff845e;
+  --peer-avatar-red-bottom: #d45246;
+  --peer-avatar-orange-top: #febb5b;
+  --peer-avatar-orange-bottom: #f68136;
+  --peer-avatar-violet-top: #b694f9;
+  --peer-avatar-violet-bottom: #6c61df;
+  --peer-avatar-green-top: #9ad164;
+  --peer-avatar-green-bottom: #46ba43;
+  --peer-avatar-cyan-top: #53edd6;
+  --peer-avatar-cyan-bottom: #28c9b7;
+  --peer-avatar-blue-top: #5caffa;
+  --peer-avatar-blue-bottom: #408acf;
+  --peer-avatar-pink-top: #ff8aac;
+  --peer-avatar-pink-bottom: #d95574;
+  --peer-avatar-archive-top: #b8c2cc;
+  --peer-avatar-archive-bottom: #9eaab5;
+  --peer-avatar-saved-top: var(--light-filled-saved-color);
+  --peer-avatar-saved-bottom: var(--saved-color);
+  --avatar-color-top: var(--peer-avatar-saved-top);
+  --avatar-color-bottom: var(--peer-avatar-saved-bottom);
+
+  /* geometry + shadows */
+  --main-column-border-radius: 24px;
+  --page-chats-padding: 16px;
+  --column-box-shadow: 0px 0px 4px 0px #0000001a;
+  --section-box-shadow: 0px 1px 4px 0px rgba(0, 0, 0, 0.05);
+  --section-box-shadow-big: 0px 1px 8px 0px rgba(0, 0, 0, 0.1);
+  --menu-box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.15);
+  --menu-background-color: rgba(255, 255, 255, 0.85);
+  --menu-backdrop-filter: blur(50px);
+  --hover-alpha: 0.08;
+  --ripple-max-opacity: 1;
+
+  /* motion */
+  --transition-standard-easing: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-standard-in-time: 0.3s;
+  --transition-standard-out-time: 0.25s;
+  --transition-standard-in: var(--transition-standard-in-time) var(--transition-standard-easing);
+  --transition-standard-out: var(--transition-standard-out-time) var(--transition-standard-easing);
+  --tabs-transition: 0.2s ease-in-out;
+  --btn-corner-transition: 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --slide-header-transition: 0.4s ease-in-out;
+
+  /* typography */
+  --font-regular: "Roboto", -apple-system, apple color emoji, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  --font-weight-bold: 500;
+  --font-weight-normal: 400;
+  --font-weight: var(--font-weight-normal);
+  --font-size: 16px;
+  --font-size-24: 24px;
+  --font-size-20: 20px;
+  --font-size-18: 18px;
+  --font-size-16: 16px;
+  --font-size-15: 15px;
+  --font-size-14: 14px;
+  --font-size-13: 13px;
+  --font-size-12: 12px;
+  --font-size-11: 11px;
+  --font-size-10: 10px;
+  --line-height: 1.3125;
+  --line-height-24: 30px;
+  --line-height-20: 26px;
+  --line-height-18: 24px;
+  --line-height-16: 21px;
+  --line-height-15: 20px;
+  --line-height-14: 18px;
+  --line-height-13: 17px;
+  --line-height-12: 16px;
+  --messages-text-size: 16px;
+  --messages-service-text-size: 15px;
+
+  /* layout widths */
+  --left-column-visual-width: 360px;
+  --left-column-width: 360px;
+  --default-column-width: 360px;
+  --folders-sidebar-offset: 0px;
+
+  --section-padding-inline: 0.5rem;
+  --menu-height: 3rem;
+}
+
+@media (max-width: 925px) {
+  .k-root {
+    --left-column-visual-width: 360px;
+    --left-column-width: 360px;
+  }
+}

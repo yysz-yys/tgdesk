@@ -1,0 +1,87 @@
+@import "./fonts.css";
+@import "./tokens.css";
+@import "./base.css";
+@import "./wallpaper.css";
+@import "./shell.css";
+@import "./sidebar.css";
+@import "./tabs.css";
+@import "./scrollable.css";
+@import "./chatlist.css";
+@import "./archive.css";
+@import "./menu.css";
+@import "./tips.css";
+@import "./empty.css";
+@import "./windowchrome.css";
+
+/* The K shell has no caption bar of its own: the page fills the window like
+ * telegram web (tweb index.html). The window is dragged from the empty chat
+ * column instead (see KEmptyChatSurface). */
+html[data-logged-in="true"] .f-titlebar {
+  display: none;
+}
+
+html[data-logged-in="true"] .g-window {
+  background: transparent;
+}
+
+.k-root .k-empty-surface {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.k-root .k-chatlist-empty {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--secondary-text-color);
+  font-size: var(--font-size-16);
+}
+
+.k-root .k-skeleton-line {
+  display: inline-block;
+  height: 14px;
+  border-radius: 7px;
+  background-color: var(--light-filled-secondary-text-color);
+}
+
+.k-root .sidebar-header__rows {
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.k-root .sidebar-header__title {
+  flex: 1;
+  font-weight: var(--font-weight-bold);
+  padding-inline-start: 1.5rem;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--primary-text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-root .archive-unread-badge {
+  flex-shrink: 0;
+  margin-inline-start: 0.5rem;
+}
+
+.k-root .archive-dialog .row-title-row {
+  padding-inline-end: 0;
+}
+
+.k-root .archive-dialog .row-subtitle-row {
+  padding-inline-end: 0.25rem;
+}
+
+.k-root .message-time {
+  white-space: nowrap;
+}
+
+.k-root .message-status .tgico {
+  font-size: inherit;
+  line-height: 1;
+  display: block;
+}

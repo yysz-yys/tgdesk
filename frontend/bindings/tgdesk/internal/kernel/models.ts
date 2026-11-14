@@ -177,6 +177,26 @@ export interface ChatDTO {
     "online"?: boolean;
     "lastSeen"?: number;
     "status"?: string;
+
+    /**
+     * Web K chat-list decorations: whether the last message is outgoing and
+     * whether it was read (single vs double check), the media kind of the last
+     * message (preview icon), the auto-delete period (avatar "1d" badge) and the
+     * peer colour index (avatar gradient palette, abs(peer id) % 7).
+     */
+    "lastOut"?: boolean;
+    "lastChecks"?: string;
+    "lastMedia"?: string;
+    "ttl"?: number;
+    "colorIndex"?: number;
+
+    /**
+     * LastSender is the display name of the last message's author for group
+     * chats (never for private chats or broadcast channels). Web K prefixes the
+     * list preview with it — "Name: text" — and with "You: text" for outgoing
+     * group messages (LastOut is set then, LastSender stays empty).
+     */
+    "lastSender"?: string;
 }
 
 /**
@@ -422,6 +442,23 @@ export interface ChatProfileDTO {
      * Telegram mini-app privacy policy.
      */
     "botPrivacyUrl"?: string;
+}
+
+/**
+ * ChatThemeDTO is one entry of the account's theme list (account.getThemes), the
+ * data behind Web K's Appearance previews: slug/title/emoticon, the base palette
+ * and accent, and the wallpaper the chat canvas paints.
+ */
+export interface ChatThemeDTO {
+    "id": number;
+    "accessHash"?: number;
+    "slug"?: string;
+    "title": string;
+    "emoticon"?: string;
+    "baseTheme"?: string;
+    "accent"?: number;
+    "outboxAccent"?: number;
+    "wallpaper"?: ThemeWallpaperDTO | null;
 }
 
 export interface ChecklistItemDTO {
@@ -795,6 +832,27 @@ export interface TDataExport {
     "dc": number;
     "keyId": string;
     "createdAt": string;
+}
+
+/**
+ * ThemeWallpaperDTO is the wallpaper part of a cloud theme: the gradient colours
+ * Telegram paints the empty canvas with, and the doodle pattern document that is
+ * tiled over it (the same receipt telegram web uses).
+ */
+export interface ThemeWallpaperDTO {
+    "id"?: number;
+    "slug"?: string;
+    "colors"?: number[] | null;
+    "intensity"?: number;
+    "pattern"?: boolean;
+    "emoticon"?: string;
+    "blur"?: boolean;
+
+    /**
+     * PatternURL is the loopback HTTP URL of the pattern SVG (empty when the
+     * wallpaper has no pattern document).
+     */
+    "patternUrl"?: string;
 }
 
 /**

@@ -1,0 +1,24 @@
+/* Page-wide Telegram Web K wallpaper: 50x50 freeform gradient stretched over the
+ * viewport + the tiled doodle pattern composited with soft-light (tweb's
+ * chatBackground.module.scss / appChatBackground). */
+.k-wallpaper {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.k-wallpaper-gradient,
+.k-wallpaper-pattern {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.k-wallpaper-gradient {
+  height: 150%;
+  top: -25%;
+}

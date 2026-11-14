@@ -30,6 +30,13 @@ export interface KernelChat {
   online?: boolean;
   lastSeen?: number;
   status?: string;
+  /** Web K list decorations, mirrored from the kernel ChatDTO. */
+  lastOut?: boolean;
+  lastChecks?: string;
+  lastMedia?: string;
+  ttl?: number;
+  colorIndex?: number;
+  lastSender?: string;
 }
 
 export interface KernelChatMember {
@@ -449,6 +456,7 @@ export function mapChat(chat: KernelChat, language: string, t: TFunction): Chat 
     username: chat.username || undefined,
     preview: localizedPreview(chat.preview || "", t),
     time: date ? formatChatTime(date, language) : "",
+    lastMessageDate: date ? Math.floor(date.getTime() / 1000) : undefined,
     avatarUrl: chat.avatarUrl || undefined,
     unread: chat.unread || undefined,
     pinned: chat.pinned,
@@ -467,6 +475,20 @@ export function mapChat(chat: KernelChat, language: string, t: TFunction): Chat 
     online: Boolean(chat.online),
     lastSeen: chat.lastSeen || undefined,
     status: normalizedUserStatus(chat.status),
+    lastSender: chat.lastSender || undefined,
+    lastOut: chat.lastOut || undefined,
+    lastChecks:
+      chat.lastChecks === "read"
+        ? "read"
+        : chat.lastChecks === "sent"
+          ? "sent"
+          : undefined,
+    lastMedia: chat.lastMedia || undefined,
+    ttl: chat.ttl || undefined,
+    colorIndex:
+      typeof chat.colorIndex === "number" && chat.colorIndex >= 0
+        ? chat.colorIndex
+        : undefined,
     color: chatColor(chat.id),
     initials: chatInitials(chat.title),
   };

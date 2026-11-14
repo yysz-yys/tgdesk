@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { DropdownMenu } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import type { UserStatusKind } from "../../types";
@@ -23,6 +24,8 @@ interface AppMenuProps {
   onDownloads: () => void;
   onSettings: () => void;
   onLogout: () => void;
+  /** Custom trigger element; Radix themes' Trigger clones it (asChild). */
+  trigger?: ReactNode;
 }
 
 /** Shared app navigation dropdown used by the chat sidebar and downloads page. */
@@ -43,6 +46,7 @@ export function AppMenu({
   onDownloads,
   onSettings,
   onLogout,
+  trigger,
 }: AppMenuProps) {
   const { t } = useTranslation();
   // Telegram's menu header shows the account name and, on the second line, the
@@ -53,13 +57,15 @@ export function AppMenu({
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
-        <IconButton
-          label={t("common.mainNavigation")}
-          icon="menu"
-          size="2"
-          iconSize={18}
-          tooltip={false}
-        />
+        {trigger ?? (
+          <IconButton
+            label={t("common.mainNavigation")}
+            icon="menu"
+            size="2"
+            iconSize={18}
+            tooltip={false}
+          />
+        )}
       </DropdownMenu.Trigger>
       <DropdownMenu.Content
         align="start"

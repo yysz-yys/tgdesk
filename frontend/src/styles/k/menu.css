@@ -1,0 +1,64 @@
+/* Web K dropdown menus: the main (hamburger) menu and the pencil / new-chat menu.
+ * Metrics from tweb partials/_button.scss `.btn-menu` (desktop): 200px min width
+ * for the sidebar menu, 32px items, 20px icons, 12px text, 12px item radius. */
+
+.k-menu.k-app-menu {
+  min-width: 12.5rem;
+}
+
+.k-menu.k-new-menu {
+  min-width: 11.25rem;
+}
+
+.k-menu.k-new-menu .btn-menu-item {
+  height: 2.5rem;
+}
+
+.k-menu .k-menu-account-item {
+  height: 2.625rem;
+  margin-block-end: 0.125rem;
+}
+
+.k-menu .k-menu-avatar {
+  flex: 0 0 auto;
+  width: 1.875rem;
+  height: 1.875rem;
+  margin-inline-end: 0.625rem;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #2d7ed5;
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.k-menu .k-menu-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.k-menu .k-menu-separator {
+  height: 1px;
+  margin: 0.25rem 0.75rem;
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.k-menu .k-menu-item-count {
+  margin-inline-start: auto;
+  padding-inline-start: 0.75rem;
+  color: #8c8e91;
+  font-weight: 400;
+  font-size: 0.875rem;
+}
+
+/* Radix' own sub-trigger chevron sits at the inline end; keep it quiet. */
+.k-menu .btn-menu-item .rt-BaseMenuShortcut {
+  color: #8c8e91;
+}

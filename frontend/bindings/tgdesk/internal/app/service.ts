@@ -133,6 +133,14 @@ export function GetChatProfile(chatID: string, kind: string, proxy: string, ntp:
     return $Call.ByID(4105645655, chatID, kind, proxy, ntp);
 }
 
+/**
+ * GetChatThemes returns the account's cloud themes (the Appearance tip and the
+ * Settings theme list).
+ */
+export function GetChatThemes(proxy: string, ntp: string): $CancellablePromise<kernel$0.ChatThemeDTO[] | null> {
+    return $Call.ByID(4267647512, proxy, ntp);
+}
+
 export function GetChats(proxy: string, ntp: string, limit: number, force: boolean): $CancellablePromise<kernel$0.ChatDTO[] | null> {
     return $Call.ByID(393713803, proxy, ntp, limit, force);
 }

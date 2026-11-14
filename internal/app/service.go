@@ -77,6 +77,12 @@ func (s *Service) GetCachedMessages(chatID string) []kernel.MessageDTO {
 	return s.kernel.GetCachedMessages(chatID)
 }
 
+// GetChatThemes returns the account's cloud themes (the Appearance tip and the
+// Settings theme list).
+func (s *Service) GetChatThemes(proxy, ntp string) ([]kernel.ChatThemeDTO, error) {
+	return s.kernel.GetChatThemes(proxy, ntp)
+}
+
 func (s *Service) GetFolders(proxy, ntp string) ([]kernel.ChatFolderDTO, error) {
 	return s.kernel.GetFolders(proxy, ntp)
 }

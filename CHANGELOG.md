@@ -2,6 +2,98 @@
 
 ## Unreleased
 
+### Design K: Telegram Web K main screen
+
+- **Signed-in main screen rebuilt 1:1 from Telegram Web K (tweb)**, light "Day"
+  theme: the page-wide doodle wallpaper (50×50 freeform gradient + tiled
+  pattern.svg composited with `soft-light`, ported algorithms), the floating
+  360 px white sidebar card on a 16 px page inset, the 48 px bottom-right pencil
+  FAB, and the empty middle column with the "选择一个会话开始聊天" service pill
+  and the top-right tips lightbulb. The F caption bar is hidden while signed in;
+  the empty chat column is the window drag surface.
+- **Sidebar markup/CSS ported from tweb**: hamburger + old-style 44 px search
+  pill (focus state, clear button), folder chip strip (sliding active pill,
+  unread-chat badges, 24 px plate radius), and 72 px chat rows built on Web K's
+  geometry — 54 px avatar on the `abs(peerId) % 7` gradient palette, 16 px/500
+  title with verified and muted icons, 16 px preview, 12 px time with Web K
+  single/double read checks, unread badge, auto-delete "1D" avatar badge — plus
+  the archived-chats row (blue gradient avatar, unread *chat* count and a
+  ten-title preview list) and Saved Messages.
+- **Real Web K icons and fonts**: bundles the tgico icon font (653-glyph
+  codepoint map) and the Roboto 400/500/600 subsets, replacing Material icons and
+  Inter on this screen; CJK still falls back to the Windows UI font.
+- **Web K behaviour**: the app opens with no chat selected; row hover plates,
+  active-row primary fill, press ripples and the folder-pill slide animation are
+  ported from tweb; sidebar search filters across all folders; the folder strip
+  scrolls with a clipped last chip.
+- **Web K buttons and first launch**: the hamburger now paints webk's round
+  hover/menu-open plate, and a fresh profile opens on the empty screen Web K
+  shows first — just the "Select a chat to start messaging" pill, with the tips
+  deck folded until the lightbulb is pressed.
+- **Web K menus**: the hamburger now opens Web K's main menu (account row, Add
+  account, Saved Messages, Archived chats with its unread-chat badge, My
+  stories, Contacts, Calls, Settings and the More submenu), and the pencil opens
+  the new-chat menu above it (New channel / New group / New private chat — no
+  group-call entry; the pencil turns into a cross while open). Both use tweb's
+  frosted `.btn-menu` plate and its 0.2s scale/fade, and are localized in
+  English, 中文 and 日本語.
+- **Chat-tips deck**: the lightbulb folds in and out a Web K-style tips deck —
+  a 320×320 card centred on the empty column with Appearance / Stickers / Chats
+  tips and Previous / Next pills. Appearance shows the System / Dark / Light row,
+  the theme-preview strip and the link into Settings; Chats is a grid of recent
+  chats. The deck scales and fades between the card and the "select a chat"
+  pill, and remembers whether it was left open.
+- **Archived chats screen**: clicking the archive row now opens a proper Web K
+  sidebar tab — its own header (back arrow, "已归档对话", three-dot menu) and an
+  archive menu (mark all as read, hide/show the archive row), with tweb's
+  navigation slide animation in and out (back button, Escape or picking a chat
+  returns to the list, which keeps its place).
+- **Sender names in group previews**: chat rows now prefix a group's last
+  message with its author — "Name: text" and "You: text" for your own — the way
+  the real client's list does (kernel `ChatDTO.lastSender`).
+- **Folder counters match Web K**: the chip counter is the 20px badge sitting
+  5px after the folder name (Web K's `badge-20` + its 5px gap), and an unselected
+  folder chip keeps its counter
+  grey only while every unread chat in it is muted (one unmuted unread chat makes
+  it blue), and the selected chip always paints its counter in the accent, even
+  for an all-muted folder.
+- **Muted chats count in grey**: the unread badge of a muted chat is the grey
+  `--secondary-color`, only unmuted chats get the blue accent badge (and the
+  selected row paints its badge white) — matching Telegram Web K instead of
+  colouring every counter blue.
+- **Soft fade under the floating sidebar panel**: the chat list now scrolls under
+  the search/folder panel like webk, with the surface-coloured gradient that
+  fades a row out as it passes behind the chip plate — the soft "ghost" under
+  the tabs — instead of cutting the row off sharply.
+- **Folder tabs on cold start**: the folder list is cached per account locally
+  and shown immediately when the app opens, then refreshed from the server in
+  the background (no more empty tab strip while the first connection is being
+  established). Folders now also include their archived chats unless the folder
+  excludes them, so a folder that only holds archived chats is no longer empty,
+  and its tab counts those unread chats.
+- **Web K scrollbars everywhere**: the conversation's message list now uses the
+  same 5px capsule scrollbar as the chat list (translucent `rgba(0,0,0,.2)`,
+  1px from the edge, fades in on hover, draggable, system bar hidden so it takes
+  no layout width) instead of the old always-visible 8px bar.
+- **Web K scrolling**: the folder chip strip now scrolls with the mouse wheel
+  (a plain wheel walks it sideways, a tab picked out of view scrolls itself to
+  the centre), and the chat list uses Web K's own overlay scrollbar — the native
+  bar is replaced by a 5px capsule that fades in on hover, can be dragged, and
+  no longer takes 6px off the row width (rows now end 8px from the column edge,
+  exactly like the real client).
+- **Frameless window chrome**: the signed-in shell has no caption bar, so an
+  invisible drag strip along the top 16 px (the wallpaper inset) moves the window
+  with native caption behaviour and the empty chat column stays draggable; a
+  Web K-styled pill with minimise / maximise / close fades in when the pointer
+  reaches the top edge and hides itself again, so the idle page stays 1:1. The
+  tips lightbulb steps aside while the controls are shown.
+- Kernel `ChatDTO` gained the list decorations this needs: `lastOut`,
+  `lastChecks` (single vs double check), `lastMedia`, `ttl` (auto-delete period)
+  and `colorIndex` (avatar palette).
+- Remaining pages (login, conversation, menus, settings, downloads, search,
+  archive view, expanded tips deck) are still the F design; see
+  [docs/design-k.md](docs/design-k.md).
+
 ### Telegram parity III: Saved Messages 2.0, gifts, search, presence, pinned bar, live emoji
 
 - **Saved Messages ("我的收藏")** now matches Telegram Web on every surface: the

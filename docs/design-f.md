@@ -1,5 +1,11 @@
 # F design language (Radix Themes)
 
+> **Note.** The signed-in main screen has been replaced by the 1:1 Telegram Web
+> K port described in [design-k.md](design-k.md). The F design language below is
+> still the design of the login flow, the conversation view, settings, downloads
+> and the menus until those pages are ported one by one.
+
+
 Status: **migration complete (2026-11).** Login, the caption bar, shell, chat,
 downloads, app menus, the right chat-info pane, settings, dialogs, toast and
 context menus all use the F language and the `src/ui` atoms. `@material/web`,

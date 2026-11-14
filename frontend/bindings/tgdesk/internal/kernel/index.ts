@@ -18,6 +18,7 @@ export type {
     ChatMemberDTO,
     ChatMembersPageDTO,
     ChatProfileDTO,
+    ChatThemeDTO,
     ChecklistItemDTO,
     DownloadEvent,
     DownloadOptions,
@@ -41,5 +42,6 @@ export type {
     StickerSetDTO,
     StickerSetDetailDTO,
     TDataExport,
+    ThemeWallpaperDTO,
     UploadEvent
 } from "./models.js";

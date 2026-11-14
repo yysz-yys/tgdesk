@@ -1,0 +1,737 @@
+/* Chat list rows, avatars, badges — the Web K main list.
+ * Ported from tweb: scss/partials/_chatlist.scss, _row.scss, _avatar.scss,
+ * _badge.scss, base.scss (.chatlist-chat / .verified-icon blocks) and the DOM
+ * that components/dialogElement.ts + rowTsx.tsx build. */
+
+/* ---------- list / scroll containers ---------- */
+
+.k-root .chatlist-scroll {
+  position: absolute;
+  inset: 0;
+  padding-top: var(--chatlist-overlay-height, 64px);
+  background-color: var(--surface-color);
+}
+
+.k-root ul.chatlist {
+  padding: 0 0.5rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+  background-color: var(--surface-color);
+  -webkit-touch-callout: none;
+}
+
+/* ---------- row skeleton ---------- */
+
+.k-root .row {
+  min-height: 3.5rem;
+  position: relative;
+  padding-block: 0.375rem;
+  padding-inline: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-radius: 16px;
+}
+
+.k-root .row-big {
+  min-height: 4.5rem;
+  padding-inline: 1rem 0.75rem;
+}
+
+.k-root .row-with-padding {
+  padding-inline-start: 4.5rem;
+}
+
+.k-root .row-clickable {
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.k-root .row-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 1.375rem;
+}
+
+.k-root .row-title-row {
+  align-items: baseline;
+}
+
+.k-root .row-title {
+  color: var(--primary-text-color);
+  font-size: var(--font-size-16);
+  line-height: 1.375rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  position: relative;
+  pointer-events: none;
+}
+
+/* tweb .chatlist .user-title: the title block is a flex row so the muted icon
+ * and the peer title sit on one line, the name taking the leftover width. */
+.k-root .row-title.user-title {
+  display: flex !important;
+  align-items: center;
+  flex-grow: 1;
+}
+
+.k-root .user-title > .peer-title,
+.k-root .user-title > .peer-title-inner {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-root .user-title > .peer-title {
+  flex: 0 1 auto;
+}
+
+.k-root .row-subtitle-row {
+  align-items: center;
+}
+
+.k-root .row-subtitle-row .dialog-subtitle {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.k-root .dialog-subtitle-parts {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-root .row-title-row {
+  align-items: baseline;
+}
+
+.k-root .row-title-right,
+.k-root .row-subtitle-right {
+  flex: 0 0 auto !important;
+  margin-inline-start: 1rem;
+}
+
+.k-root .row-title-right-secondary {
+  display: flex;
+  align-items: baseline;
+  height: var(--line-height-12);
+  font-size: var(--font-size-12) !important;
+  line-height: var(--line-height-12) !important;
+  color: var(--secondary-text-color);
+}
+
+.k-root .row-title-right-secondary .message-status {
+  align-self: center;
+}
+
+.k-root .row-subtitle-row {
+  align-items: center;
+}
+
+.k-root .row-subtitle {
+  color: var(--secondary-text-color) !important;
+  font-size: var(--font-size-16) !important;
+  line-height: 1.375rem;
+  margin-top: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  position: relative;
+  pointer-events: none;
+}
+
+.k-root .chatlist-chat .row-subtitle-row {
+  margin-top: 0.125rem;
+}
+
+/* ---------- chat row overrides ---------- */
+
+.k-root .chatlist-chat {
+  --background: unset;
+  background: var(--background) !important;
+}
+
+.k-root .chatlist-chat.row-with-padding {
+  padding-inline-start: 4.5rem !important;
+}
+
+@media (hover: hover) {
+  .k-root .chatlist-chat:hover,
+  .k-root .chatlist-chat:active {
+    --background: var(--light-filled-secondary-text-color);
+  }
+}
+
+.k-root .chatlist-chat .row-title {
+  font-size: var(--font-size-16) !important;
+  line-height: 1.375rem;
+}
+
+.k-root .chatlist-chat.chatlist-chat-bigger .row-title .peer-title {
+  font-weight: var(--font-weight-bold);
+}
+
+.k-root .chatlist-chat.chatlist-chat-bigger .row-subtitle {
+  margin-top: 0;
+  font-size: var(--font-size-16) !important;
+  line-height: 1.375rem;
+}
+
+.k-root .chatlist-chat .row-row {
+  height: 1.375rem;
+}
+
+.k-root .chatlist-chat .dialog-avatar,
+.k-root .chatlist-chat .row-row {
+  pointer-events: none;
+  position: relative;
+}
+
+/* active (selected) row */
+.k-root .chatlist-chat.active {
+  --background: var(--primary-color) !important;
+}
+
+.k-root .chatlist-chat.active .row-subtitle,
+.k-root .chatlist-chat.active .row-title,
+.k-root .chatlist-chat.active .user-title,
+.k-root .chatlist-chat.active .message-status,
+.k-root .chatlist-chat.active .verified-icon,
+.k-root .chatlist-chat.active .sending-status-icon,
+.k-root .chatlist-chat.active .row-title-right-secondary {
+  color: #ffffff !important;
+}
+
+.k-root .chatlist-chat.active .dialog-muted-icon {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.k-root .chatlist-chat.active .badge.unread {
+  background-color: #ffffff !important;
+  color: var(--primary-color);
+}
+
+.k-root .chatlist-chat.active .verified-icon-background {
+  fill: #ffffff !important;
+}
+
+.k-root .chatlist-chat.active .verified-icon-check {
+  visibility: hidden;
+}
+
+.k-root .chatlist-chat.active .dialog-avatar.is-online::after {
+  background-color: #ffffff;
+  border-color: var(--primary-color);
+}
+
+/* ---------- peer title ---------- */
+
+.k-root .peer-title {
+  display: inline;
+}
+
+.k-root .peer-title.with-icons {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.k-root .peer-title-inner {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-root .peer-title.with-icons > .peer-title-inner {
+  align-self: baseline;
+}
+
+/* ---------- avatar ---------- */
+
+.k-root .row-media {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  position: absolute !important;
+  margin: 0 !important;
+  inset-inline-start: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.k-root .row-media-bigger {
+  width: 3.375rem !important;
+  height: 3.375rem !important;
+  inset-inline-start: 0.5625rem !important;
+}
+
+.k-root .dialog-avatar {
+  flex: 0 0 auto;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 50%;
+}
+
+.k-root .avatar {
+  border-radius: 50%;
+  position: relative;
+}
+
+.k-root .avatar-like {
+  --size: 54px;
+  --multiplier: 1;
+  color: #ffffff !important;
+  width: var(--size);
+  height: var(--size);
+  line-height: var(--size) !important;
+  text-align: center;
+  font-size: calc(1.25rem / var(--multiplier));
+  text-transform: uppercase;
+  font-weight: var(--font-weight-bold);
+}
+
+.k-root .avatar-gradient {
+  --color-top: var(--avatar-color-top);
+  --color-bottom: var(--avatar-color-bottom);
+  background: linear-gradient(var(--color-top), var(--color-bottom));
+}
+
+.k-root .avatar-gradient[data-color="red"] {
+  --color-top: var(--peer-avatar-red-top);
+  --color-bottom: var(--peer-avatar-red-bottom);
+}
+
+.k-root .avatar-gradient[data-color="orange"] {
+  --color-top: var(--peer-avatar-orange-top);
+  --color-bottom: var(--peer-avatar-orange-bottom);
+}
+
+.k-root .avatar-gradient[data-color="violet"] {
+  --color-top: var(--peer-avatar-violet-top);
+  --color-bottom: var(--peer-avatar-violet-bottom);
+}
+
+.k-root .avatar-gradient[data-color="green"] {
+  --color-top: var(--peer-avatar-green-top);
+  --color-bottom: var(--peer-avatar-green-bottom);
+}
+
+.k-root .avatar-gradient[data-color="cyan"] {
+  --color-top: var(--peer-avatar-cyan-top);
+  --color-bottom: var(--peer-avatar-cyan-bottom);
+}
+
+.k-root .avatar-gradient[data-color="blue"] {
+  --color-top: var(--peer-avatar-blue-top);
+  --color-bottom: var(--peer-avatar-blue-bottom);
+}
+
+.k-root .avatar-gradient[data-color="pink"] {
+  --color-top: var(--peer-avatar-pink-top);
+  --color-bottom: var(--peer-avatar-pink-bottom);
+}
+
+.k-root .avatar-gradient[data-color="archive"] {
+  --color-top: var(--peer-avatar-archive-top);
+  --color-bottom: var(--peer-avatar-archive-bottom);
+}
+
+.k-root .avatar > .avatar-icon {
+  font-size: 32px;
+  line-height: inherit !important;
+}
+
+.k-root .avatar > .avatar-icon-saved {
+  font-size: 30px !important;
+}
+
+.k-root .avatar > .avatar-icon-archive {
+  font-size: 28px;
+}
+
+.k-root .avatar-photo {
+  width: var(--size) !important;
+  height: var(--size) !important;
+  border-radius: inherit !important;
+  display: block;
+  object-fit: cover;
+}
+
+.k-root .avatar.is-online::after {
+  position: absolute;
+  content: " ";
+  display: block;
+  border-radius: 50%;
+  border: 2px solid var(--surface-color);
+  background-color: var(--avatar-online-color);
+  width: 14px;
+  height: 14px;
+  inset-inline-start: 2.4375rem;
+  top: 2.4375rem;
+}
+
+.k-root .avatar-auto-delete-timer {
+  position: absolute;
+  inset-inline-end: -4px;
+  bottom: -2px;
+  z-index: 1;
+  border-radius: 50%;
+  font-size: 1.25rem;
+  padding: 1px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.75);
+  overflow: hidden;
+}
+
+.k-root .avatar-auto-delete-timer__background {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0.75;
+  background-image: linear-gradient(135deg, var(--color-top), var(--color-bottom));
+}
+
+.k-root .avatar-auto-delete-timer__icon {
+  display: inline-flex;
+  position: relative;
+  color: #ffffff;
+}
+
+.k-root .overlayed-icon {
+  position: relative;
+  display: inline-flex;
+}
+
+.k-root .overlayed-icon__floating-icon {
+  --original-transform: translate(-50%, -50%);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: var(--original-transform);
+}
+
+.k-root .auto-delete-icon--shifted {
+  transform: var(--original-transform) translateX(1px);
+}
+
+/* ---------- title badges / details ---------- */
+
+.k-root .message-status {
+  margin-inline-end: 0.125rem;
+  display: inline-block;
+  vertical-align: middle;
+  color: var(--chatlist-status-color);
+  line-height: 1;
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 1.25rem;
+  position: relative;
+  margin-top: -0.0625rem;
+}
+
+.k-root .message-status::before {
+  vertical-align: middle;
+}
+
+.k-root .dialog-muted-icon {
+  flex: 0 0 auto;
+  color: var(--chatlist-pinned-color);
+  font-size: 1.125rem;
+  margin-inline-start: 0.125rem;
+}
+
+.k-root .dialog-title-details {
+  font-size: 0.75rem;
+  flex: 0 0 auto;
+  margin-inline-start: 0.5rem !important;
+}
+
+/* pinned chats: the time moves into a pill with the pin (tweb _chatlist.scss:669) */
+.k-root .chatlist-chat.is-pinned .dialog-title-details {
+  top: -2px;
+  position: relative;
+}
+
+.k-root .chatlist-chat.is-pinned .dialog-title-details .dialog-time-pill {
+  padding: 1px 6px;
+  border-radius: 8px;
+  line-height: 14px;
+  background-color: var(--light-secondary-text-color);
+}
+
+.k-root .dialog-time-pill-pin {
+  display: none;
+}
+
+.k-root .chatlist-chat.is-pinned .dialog-time-pill-pin {
+  display: inline-block;
+  vertical-align: top;
+  font-size: 14px;
+  line-height: inherit;
+  margin-inline-start: -2px;
+  opacity: 0.5;
+}
+
+.k-root .chatlist-chat.is-pinned .message-time:empty {
+  margin-inline-start: -2px;
+}
+
+.k-root .chatlist-chat.active.is-pinned .dialog-title-details .dialog-time-pill {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.k-root .verified-icon,
+.k-root .premium-icon,
+.k-root .emoji-status {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-inline-start: 0.125rem;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.k-root .verified-icon-svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.k-root .verified-icon-check {
+  fill: #ffffff;
+}
+
+.k-root .verified-icon-background {
+  fill: var(--primary-color);
+}
+
+/* ---------- badges ---------- */
+
+.k-root .badge {
+  --size: 1.375rem;
+  --padding: 0.4375rem;
+  border-radius: calc(var(--size) / 2);
+  font-weight: var(--font-weight-bold);
+  color: var(--badge-text-color);
+  font-size: 0.875rem;
+  text-align: center;
+  height: var(--size);
+  min-width: var(--size);
+  line-height: var(--size) !important;
+  padding: 0 var(--padding);
+}
+
+.k-root .badge-18 {
+  --size: 1.125rem;
+  --padding: 0.125rem;
+}
+
+.k-root .badge-20 {
+  --size: 1.25rem;
+  --padding: 0.375rem;
+}
+
+.k-root .badge-24 {
+  --size: 1.5rem;
+  --padding: 0.5rem;
+}
+
+.k-root .badge-gray {
+  background-color: var(--secondary-color);
+}
+
+.k-root .badge-primary {
+  background-color: var(--primary-color);
+}
+
+.k-root .dialog-subtitle-badge {
+  display: block !important;
+  margin-inline-start: 0.5rem;
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.k-root .row-subtitle-row .badge.unread {
+  background-color: var(--chatlist-status-color);
+}
+
+/* A muted chat's unread counter is grey, an unmuted one is the accent — the same
+ * pair tweb draws in _chatlist.scss:552-567 (`.is-muted .unread`). The active
+ * row overrides both with its white badge (rule above). */
+.k-root .chatlist-chat.is-muted .badge.unread,
+.k-root .chatlist-chat.is-muted .dialog-subtitle-badge-pollvote,
+.k-root .chatlist-chat.is-muted .dialog-subtitle-badge-gram {
+  background-color: var(--secondary-color);
+}
+
+/* ---------- subtitle parts (sender prefix, media icon) ---------- */
+
+.k-root .dialog-subtitle-span {
+  unicode-bidi: plaintext;
+  white-space: pre;
+}
+
+.k-root .dialog-subtitle-arrow {
+  margin-inline: 0.125rem;
+  font-size: 0.875em;
+  color: var(--secondary-text-color);
+}
+
+.k-root .dialog-subtitle-ico {
+  display: inline-block;
+  vertical-align: middle;
+  width: 20px;
+  height: 20px;
+  line-height: 18px;
+  color: var(--chatlist-pinned-color);
+}
+
+.k-root .dialog-subtitle-media {
+  width: 1.25rem;
+  height: 1.25rem;
+  line-height: 1.25rem;
+  position: relative;
+  border-radius: 0.25rem;
+  margin-inline-end: 0.375rem;
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.k-root .dialog-subtitle-media.is-round {
+  border-radius: 50%;
+}
+
+/* ---------- archive / saved special rows ---------- */
+
+.k-root .archive-dialog .row-title-row,
+.k-root .archive-dialog .row-subtitle-row {
+  padding-inline-end: 0;
+}
+
+.k-root .archive-media-content {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(#5caffa, #408acf);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.k-root .archive-media-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.k-root .archive-title {
+  font-size: var(--font-size-16);
+  line-height: 1.375rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--primary-text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-root .archive-subtitle {
+  color: var(--secondary-text-color);
+  font-size: var(--font-size-16);
+  line-height: 1.375rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.k-root .archive-subtitle .unread-peer-title {
+  color: hsl(from var(--secondary-text-color) h s calc(l - 5));
+  font-weight: var(--font-weight-bold);
+}
+
+/* ---------- status: sending icons ---------- */
+
+.k-root .sending-status-icon {
+  position: absolute;
+  line-height: 1 !important;
+}
+
+/* ---------- new message FAB ---------- */
+
+.k-root .btn-corner {
+  --offset: 1.25rem;
+  --translateY: calc(54px + var(--offset));
+  position: absolute !important;
+  bottom: var(--offset);
+  inset-inline-end: var(--offset);
+  transition: transform var(--btn-corner-transition) !important;
+  transform: translate3d(0, var(--translateY), 0);
+  z-index: 1;
+  background-color: var(--primary-color);
+  text-align: center;
+  font-size: 1.5rem;
+  color: #ffffff;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+}
+
+@media (hover: hover) {
+  .k-root .btn-corner:hover,
+  .k-root .btn-corner:active {
+    background-color: var(--dark-primary-color);
+  }
+}
+
+.k-root .btn-corner.is-visible {
+  --translateY: 0;
+}
+
+.k-root .btn-circle {
+  --size: 54px;
+  border-radius: 50%;
+  height: var(--size);
+  width: var(--size);
+  line-height: var(--size);
+}
+
+.k-root .animated-button-icon-icon {
+  position: absolute;
+  height: 1.5rem;
+  line-height: 1.5rem;
+}
+
+.k-root .btn-corner:not(.menu-open) .animated-button-icon-icon-first,
+.k-root .btn-corner.menu-open .animated-button-icon-icon-last {
+  visibility: visible;
+}

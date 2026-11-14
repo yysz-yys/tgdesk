@@ -11,6 +11,7 @@ import "./components/layout/shell-f.css";
 import "./components/chat/chat.css";
 import "./components/downloads/downloads-f.css";
 import "./components/settings/settings-f.css";
+import "./styles/k/k.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

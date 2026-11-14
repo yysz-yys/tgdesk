@@ -1,0 +1,188 @@
+/* The folder chip strip floating over the top of the chat list.
+ * Ported from tweb: scss/partials/_slider.scss (.menu-horizontal*),
+ * _leftSidebar.scss (.folders-tabs, .chatlist-overlay),
+ * components/foldersTabs.tsx + tabs.tsx (markup). */
+
+.k-root #chatlist-container {
+  max-height: 100%;
+  position: relative;
+  background-color: var(--surface-color);
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.k-root #folders-container {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+.k-root .chatlist-overlay {
+  position: absolute;
+  top: 0;
+  inset-inline: 0;
+  z-index: 3;
+}
+
+.k-root .folders-tabs-scrollable {
+  --scrollable-size: var(--menu-height);
+  height: var(--scrollable-size);
+  margin: 0.5rem;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--section-box-shadow-big);
+  background-color: var(--surface-color);
+  position: relative;
+}
+
+.k-root .folders-tabs-scrollable .k-scroll-x {
+  display: flex;
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  height: 100%;
+}
+
+.k-root .folders-tabs-scrollable .k-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* The fade under the floating tab plate (tweb _slider.scss .menu-horizontal-gradient
+ * and _leftSidebar.scss .folders-tabs-gradient). The list scrolls beneath the
+ * overlay: the gradient keeps the plate's surroundings surface-coloured, so a
+ * row that scrolls under the chips fades out over the 8px band instead of being
+ * cut off with a hard edge. */
+.k-root .menu-horizontal-gradient-container {
+  z-index: 2;
+  position: relative;
+}
+
+.k-root .folders-tabs-gradient-container {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.k-root .menu-horizontal-gradient {
+  --alpha: 1;
+  --gradient-color-rgb: var(--background-color-rgb);
+  --gradient-color: rgba(var(--gradient-color-rgb), var(--alpha));
+  height: 80px;
+  background: linear-gradient(180deg, var(--gradient-color), transparent 100%);
+  position: absolute;
+  width: 100%;
+}
+
+.k-root .menu-horizontal-gradient-color-surface {
+  --gradient-color-rgb: var(--surface-color-rgb);
+}
+
+.k-root .menu-horizontal-gradient-smaller {
+  height: 64px;
+}
+
+.k-root .folders-tabs-gradient {
+  --alpha: 1 !important;
+  height: 100%;
+}
+
+.k-root .menu-horizontal-div {
+  --size: var(--scrollable-size, 3rem);
+  --padding-horizontal: 0px;
+  width: 100%;
+  height: var(--size);
+  display: flex;
+  justify-content: space-around;
+  flex-direction: row;
+  position: relative;
+  z-index: 2;
+  padding: 0.25rem 0;
+  color: var(--secondary-text-color);
+  background-color: var(--surface-color);
+}
+
+.k-root .folders-tabs-scrollable .menu-horizontal-div {
+  width: auto;
+  flex: 1 1 auto;
+}
+
+.k-root .menu-horizontal-div-item {
+  height: 100%;
+  padding: 0 1rem;
+  cursor: pointer;
+  text-align: center;
+  flex: 1 1 auto;
+  font-size: 1rem;
+  font-weight: var(--font-weight-bold);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: var(--line-height);
+  border-radius: 1.25rem;
+  margin: 0 0.25rem;
+  min-width: 1px;
+  flex-shrink: 0;
+  transition: background-color var(--tabs-transition) !important;
+}
+
+@media (hover: hover) {
+  .k-root .menu-horizontal-div-item:hover,
+  .k-root .menu-horizontal-div-item:active {
+    background-color: var(--light-secondary-text-color);
+  }
+}
+
+.k-root .menu-horizontal-div-item.active {
+  color: var(--primary-color);
+}
+
+.k-root .menu-horizontal-div-item.active .menu-horizontal-div-item-background {
+  opacity: 1;
+}
+
+/* tweb _slider.scss: the selected chip paints its counter in the accent colour,
+ * even when the folder's unread chats are all muted (the grey `badge-gray` is
+ * for the unselected muted chip only). */
+.k-root .menu-horizontal-div-item.active .badge {
+  background-color: var(--primary-color);
+}
+
+/* tweb _slider.scss: the chip's counter sits 5px after the label. */
+.k-root .menu-horizontal-div-item .badge {
+  margin-inline-start: 5px;
+}
+
+.k-root .menu-horizontal-div-item-span {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  overflow: visible;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.k-root .menu-horizontal-div-item-background {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  background-color: var(--light-filled-primary-color);
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+  box-sizing: content-box;
+  transform-origin: left;
+  z-index: 1;
+}
+
+.k-root .menu-horizontal-div-item-background.animate {
+  transition: transform var(--tabs-transition), width var(--tabs-transition);
+}

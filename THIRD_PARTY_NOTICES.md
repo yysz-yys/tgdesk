@@ -31,10 +31,31 @@ each package/module remains authoritative.
 | Font | License | Bundled license |
 |---|---|---|
 | Inter | SIL Open Font License 1.1 | [`frontend/public/fonts/Inter-OFL.txt`](frontend/public/fonts/Inter-OFL.txt) |
+| Roboto (Web K UI font, 400/500/600 Latin subsets) | Apache-2.0 | [`frontend/public/assets/fonts/Roboto-LICENSE.txt`](frontend/public/assets/fonts/Roboto-LICENSE.txt) |
+| tgico (Telegram Web K icon font) | GPL-3.0 (tweb asset) | [`THIRD_PARTY_LICENSES/tweb-GPL-3.0.txt`](THIRD_PARTY_LICENSES/tweb-GPL-3.0.txt) |
 
 The Inter Latin subset is shipped inside `frontend/public/fonts` and is included
-in the production bundle. CJK text falls back to the Windows UI font. The font is
-not fetched from a CDN.
+in the production bundle. The Web K screens use the Roboto subsets and the tgico
+icon font from `frontend/public/assets/fonts`. CJK text falls back to the Windows
+UI font. No font is fetched from a CDN.
+
+## Telegram Web K UI port
+
+The signed-in main screen reproduces Telegram Web K's markup, CSS, icon font,
+wallpaper pattern and press/animation behaviour from the open-source
+**tweb** client (GPL-3.0-only; AGPL-3.0 is compatible with GPLv3, so the port is
+distributed here under this project's AGPL-3.0-only licence):
+
+| Component | License | Upstream |
+|---|---|---|
+| Ported CSS/markup/algorithms (`frontend/src/components/k`, `frontend/src/styles/k`, `docs/design-k.md`) — chat list, sidebar, folder chips, empty column, wallpaper renderer, ripple | GPL-3.0-only (tweb), distributed here under AGPL-3.0-only | <https://github.com/morethanwords/tweb> |
+| `frontend/public/assets/img/pattern.svg` — the default doodle wallpaper pattern | GPL-3.0 (tweb asset) | <https://github.com/morethanwords/tweb> |
+| `frontend/public/assets/fonts/tgico.{ttf,woff}` — Telegram Web K icon font | GPL-3.0 (tweb asset) | <https://github.com/morethanwords/tweb> |
+
+The complete GPLv3 text of tweb is bundled as
+[`THIRD_PARTY_LICENSES/tweb-GPL-3.0.txt`](THIRD_PARTY_LICENSES/tweb-GPL-3.0.txt).
+tweb is used as a reference checkout only (`temp/tweb`, gitignored); it is not
+needed to build, and no tweb code runs in the application.
 
 ## Emoji data and images
 
@@ -82,9 +103,10 @@ The video streaming implementation is original tgdesk Go/TypeScript code built
 on the gotd/td and tdl dependencies listed above. It calls the public Telegram
 MTProto methods (`upload.getFile`, `messages.getHistory`,
 `messages.getDialogFilters`, `messages.getDialogs`,
-`folders.editPeerFolders`). No source code from Telegram Web/tweb, Telegram
-Desktop, or the official mobile clients is copied into this repository. Public
+`folders.editPeerFolders`). The protocol side contains no source code from
+Telegram Web/tweb, Telegram Desktop, or the official mobile clients; public
 protocol/method descriptions and architecture notes are used only as references.
+(The Web K *UI* port is attributed separately above.)
 
 ## Brand and documentation
 
