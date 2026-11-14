@@ -519,7 +519,7 @@ function MessageMeta({ message }: { message: Message }) {
         </span>
       ) : null}
       <span>{message.time}</span>
-      {message.out ? (
+      {message.checks ? (
         message.checks === "read" ? (
           <Icon name="done_all" size={15} className="g-message-checks" />
         ) : (

@@ -774,10 +774,28 @@ export default function App() {
   }, [filteredChats, selectedChatId, view]);
 
   const selectedChat = chatState.find((chat) => chat.id === selectedChatId);
-  const messages = useMemo(
-    () => messageDTOs.map((message) => mapMessage(message, language, t)),
-    [messageDTOs, language, t],
-  );
+  const messages = useMemo(() => {
+    // Saved Messages is a chat with yourself: Telegram clients render every
+    // saved message as outgoing (right aligned) even when the API returns the
+    // forwarded message with out=false.
+    const saved = Boolean(selectedChat?.saved);
+    return messageDTOs.map((message) => {
+      const mapped = mapMessage(message, language, t);
+      if (!saved) {
+        return mapped;
+      }
+      return {
+        ...mapped,
+        out: true,
+        // Telegram does not show read receipts in the self-chat.
+        checks: undefined,
+        sender: undefined,
+        senderId: undefined,
+        senderAvatarUrl: undefined,
+        senderEmojiStatusUrl: undefined,
+      };
+    });
+  }, [messageDTOs, language, t, selectedChat?.saved]);
 
   useEffect(() => {
     if (!loggedIn) {

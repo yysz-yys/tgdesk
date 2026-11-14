@@ -662,6 +662,7 @@ html[data-theme="dark"] .f-chat-header,
 .f-peer-copy {
   display: flex;
   min-width: 0;
+  flex: 1 1 auto;
   flex-direction: column;
   justify-content: center;
 }
@@ -669,14 +670,18 @@ html[data-theme="dark"] .f-chat-header,
 .f-peer-name {
   display: flex;
   min-width: 0;
-  max-width: calc(100% - 8px);
+  max-width: 100%;
   align-items: center;
-  gap: 2px;
-  overflow: hidden;
+  gap: 4px;
   color: var(--tg-topbar-text);
   font-size: 16px;
   font-weight: 500;
   line-height: 24px;
+}
+
+.f-peer-title-text {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

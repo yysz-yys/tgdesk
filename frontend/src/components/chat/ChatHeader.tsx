@@ -111,7 +111,7 @@ export function ChatHeader({
             <ChatAvatar chat={chat} size={40} />
             <span className="f-peer-copy">
               <span className="f-peer-name">
-                {chat.title}
+                <span className="f-peer-title-text">{chat.title}</span>
                 {chat.verified ? (
                   <Icon
                     name="verified"

@@ -10,6 +10,9 @@
   tiles — its first tab lists the Saved Messages 2.0 **source chats**
   (`messages.getPinnedSavedDialogs` + `messages.getSavedDialogs`) with pinned
   chats first and click-to-open, while the shared-media tabs stay available.
+  Fixed the chat-header title clipping (flex+overflow text box) and Saved
+  Messages is now rendered as a self-chat: every saved message is outgoing
+  (right aligned) with no read receipts, exactly like Telegram Web K.
 - The **chat info column slides over the conversation** from the right (190 ms
   entry animation, Esc/× close, chat keeps its full width) instead of being a
   third flex column that squeezed the message canvas.
