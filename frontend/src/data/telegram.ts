@@ -354,8 +354,65 @@ function hashString(value: string) {
   return Math.abs(hash);
 }
 
+/** Flat colour for text drawn in the peer's colour (sender names, etc.). */
 export function chatColor(id: string) {
   return AVATAR_COLORS[hashString(id) % AVATAR_COLORS.length];
+}
+
+/**
+ * Telegram Web K's seven peer-colour gradients, in tweb's `DialogColors` order
+ * (red, orange, violet, green, cyan, blue, pink): `getPeerColorIndexById` picks
+ * one with `abs(peerId) % 7`. The hexes are the light theme's
+ * `--peer-avatar-<name>-top` / `-bottom` tokens (styles/k/tokens.css).
+ */
+export const PEER_AVATAR_COLORS = [
+  { name: "red", top: "#ff845e", bottom: "#d45246" },
+  { name: "orange", top: "#febb5b", bottom: "#f68136" },
+  { name: "violet", top: "#b694f9", bottom: "#6c61df" },
+  { name: "green", top: "#9ad164", bottom: "#46ba43" },
+  { name: "cyan", top: "#53edd6", bottom: "#28c9b7" },
+  { name: "blue", top: "#5caffa", bottom: "#408acf" },
+  { name: "pink", top: "#ff8aac", bottom: "#d95574" },
+] as const;
+
+export type PeerAvatarColorName = (typeof PEER_AVATAR_COLORS)[number]["name"];
+
+/**
+ * The raw numeric peer id behind one of our ids: `kind:id:hash` and a bare
+ * numeric id keep their number. Everything else (a sender name, a title) has no
+ * id and falls back to a stable hash, as Web K does for peers without one.
+ */
+function peerIdNumber(seed: string | number): number | null {
+  if (typeof seed === "number") {
+    return Number.isFinite(seed) ? Math.trunc(seed) : null;
+  }
+  const candidate = seed.includes(":") ? seed.split(":")[1] : seed;
+  if (!candidate || !/^-?\d+$/.test(candidate)) {
+    return null;
+  }
+  const value = Number(candidate);
+  return Number.isFinite(value) ? Math.trunc(value) : null;
+}
+
+/** Web K's peer colour index: `abs(peerId) % 7` (getPeerColorIndexById). */
+export function peerColorIndex(seed: string | number): number {
+  const id = peerIdNumber(seed);
+  const value = id === null ? hashString(String(seed)) : Math.abs(id);
+  return value % PEER_AVATAR_COLORS.length;
+}
+
+/** Web K's peer-avatar CSS background: the palette entry's 180deg gradient. */
+export function peerAvatarBackground(seed: string | number): string {
+  const color = PEER_AVATAR_COLORS[peerColorIndex(seed)];
+  return `linear-gradient(180deg, ${color.top}, ${color.bottom})`;
+}
+
+/**
+ * The gradient behind a chat's letter avatar. A `kind:id:hash` chat id is a peer
+ * seed like any other; the named helper keeps the call sites readable.
+ */
+export function chatAvatarBackground(idValue: string): string {
+  return peerAvatarBackground(idValue);
 }
 
 export function chatInitials(title: string) {

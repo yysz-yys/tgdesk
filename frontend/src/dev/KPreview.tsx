@@ -1,27 +1,33 @@
 import ReactDOM from "react-dom/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "@radix-ui/themes/styles.css";
 import "../ui/f.css";
 import "../i18n";
 import i18n from "../i18n";
 import { AppTheme } from "../ui/theme";
-import { chatColor, chatInitials } from "../data/telegram";
+import { chatColor, chatInitials, peerAvatarBackground } from "../data/telegram";
 import type { Chat, ChatFolder } from "../types";
 import { KChatList } from "../components/k/KChatList";
 import { KEmptyChatSurface, KTipsToggle } from "../components/k/KEmptyChat";
 import { KMainScreen } from "../components/k/KMainScreen";
+import { KSettings } from "../components/k/KSettings";
+import { KNewChatFlow, type KNewChatMember } from "../components/k/KNewChatFlow";
+import type { KSuperTabEntry } from "../components/k/KSuperTab";
 import "../app.css";
 import "../components/layout/layout.css";
 import "../components/layout/shell-f.css";
 import "../components/chat/chat.css";
 import "../styles/k/k.css";
 
-void i18n.changeLanguage("zh");
+const params = new URLSearchParams(window.location.search);
+const showChat = params.get("chat") === "1";
+const page = params.get("page");
+const openMenu = params.get("menu") === "1";
+
+void i18n.changeLanguage(params.get("lang") ?? "zh");
 document.documentElement.dataset.loggedIn = "true";
 
 const noop = () => undefined;
-const showChat =
-  new URLSearchParams(window.location.search).get("chat") === "1";
 
 function chat(partial: Partial<Chat> & Pick<Chat, "id" | "title" | "kind">): Chat {
   return {
@@ -133,8 +139,116 @@ const folders: ChatFolder[] = [
   { id: 4, title: "22222", chatKeys: [], excludeKeys: [], bots: true },
 ];
 
+const people: KNewChatMember[] = [
+  { id: 9001, name: "周康哲", username: "zhoukangzhe" },
+  { id: 780, name: "Nova", username: "nova_dev" },
+  { id: 4242, name: "Telegram", username: "telegram" },
+  { id: 787, name: "TDrive", username: "tdrive_bot" },
+  { id: 1001, name: "设计素材分享", username: "design_materials" },
+  { id: 1002, name: "极搜中文搜索", username: "jiso_search" },
+];
+
+const toast = (message: string) => console.log("toast:", message);
+
 function Preview() {
   const [query, setQuery] = useState("");
+  const [sidebarPage, setSidebarPage] = useState<"settings" | "channel" | "group" | null>(
+    page === "settings" ? "settings" : page === "channel" ? "channel" : page === "group" ? "group" : null,
+  );
+
+  // Auto-open the hamburger menu for CDP screen captures. Radix opens the menu
+  // on pointerdown, so a plain `.click()` is not enough.
+  useEffect(() => {
+    if (!openMenu) return;
+    const timer = window.setTimeout(() => {
+      const burger = document.querySelector<HTMLButtonElement>(
+        ".left-sidebar-burger",
+      );
+      if (!burger) return;
+      burger.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          button: 0,
+          pointerType: "mouse",
+        }),
+      );
+      burger.dispatchEvent(
+        new PointerEvent("pointerup", {
+          bubbles: true,
+          button: 0,
+          pointerType: "mouse",
+        }),
+      );
+      burger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const accountName = "Geraldine";
+  const accountInitials = "G";
+  const avatarBackground = peerAvatarBackground(4242);
+  const nightMode = false;
+  const animationLevel = 2;
+
+  const superTabStack: KSuperTabEntry[] = [];
+  if (sidebarPage === "settings") {
+    superTabStack.push({
+      key: "settings",
+      body: (
+        <KSettings
+          name={accountName}
+          initials={accountInitials}
+          avatarBackground={avatarBackground}
+          phone="+886 905 462 282"
+          username="geraldine"
+          languageLabel="简体中文"
+          deviceCount={32}
+          backLabel="Back"
+          onBack={() => setSidebarPage(null)}
+          onOpenLegacySettings={noop}
+          onLogOut={noop}
+          onOpenQrCode={noop}
+          onToast={toast}
+          onOpenUrl={noop}
+        />
+      ),
+    });
+  } else if (sidebarPage === "channel" || sidebarPage === "group") {
+    superTabStack.push({
+      key: `new-${sidebarPage}`,
+      body: (
+        <KNewChatFlow
+          kind={sidebarPage === "channel" ? "channel" : "group"}
+          onBack={() => setSidebarPage(null)}
+          onCreated={() => setSidebarPage(null)}
+          onCreateChannel={async () => "channel:1:1"}
+          onCreateGroup={async () => "chat:1"}
+          onSearchUsers={async (value) =>
+            people.filter(
+              (person) =>
+                !value ||
+                person.name.toLowerCase().includes(value.toLowerCase()) ||
+                (person.username ?? "").toLowerCase().includes(value.toLowerCase()),
+            )
+          }
+          onToast={toast}
+        />
+      ),
+    });
+  }
+
+  const center = showChat ? (
+    <div className="f-shell k-center-host">
+      <div className="g-chat-pane">
+        <div style={{ padding: 24, fontFamily: "Roboto, sans-serif" }}>
+          Chat pane placeholder (layout check for the open-chat state)
+        </div>
+      </div>
+    </div>
+  ) : (
+    <KEmptyChatSurface chats={chats} onSelectChat={noop} onSettings={noop} />
+  );
+
   return (
     <AppTheme appearance="light">
       <KMainScreen
@@ -153,38 +267,32 @@ function Preview() {
             onMarkAllRead={noop}
             onDownloadAll={noop}
             onToggleArchive={noop}
-            onToast={noop}
+            onToast={toast}
             onChats={noop}
             onDownloads={noop}
-            onSettings={noop}
+            onSettings={() => setSidebarPage("settings")}
+            onNewChannel={() => setSidebarPage("channel")}
+            onNewGroup={() => setSidebarPage("group")}
+            superTabStack={superTabStack}
+            nightMode={nightMode}
+            onToggleNightMode={noop}
+            animationLevel={animationLevel}
+            onCycleAnimations={noop}
+            onMoreAction={noop}
+            accountAvatarBackground={avatarBackground}
             onLogout={noop}
             activeDownloads={0}
-            accountName="周康哲"
-            accountInitials="周"
+            accountName={accountName}
+            accountInitials={accountInitials}
             accountColor="#8774e1"
             loading={false}
             failed={false}
           />
         }
-        center={
-          showChat ? (
-            <div className="f-shell k-center-host">
-              <div className="g-chat-pane">
-                <div style={{ padding: 24, fontFamily: "Roboto, sans-serif" }}>
-                  Chat pane placeholder (layout check for the open-chat state)
-                </div>
-              </div>
-            </div>
-          ) : (
-            <KEmptyChatSurface
-              chats={chats}
-              onSelectChat={noop}
-              onSettings={noop}
-            />
-          )
-        }
-        overlay={showChat ? null : <KTipsToggle />}
+        center={center}
+        overlay={showChat || sidebarPage ? null : <KTipsToggle />}
         chatOpen={showChat}
+        animationLevel={animationLevel}
       />
     </AppTheme>
   );

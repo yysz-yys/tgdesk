@@ -1,0 +1,110 @@
+/* Web K Settings page: the self profile header, the phone section, the
+ * settings sections with their colour-tile icons and the version line.
+ * Ported from tweb components/sidebarLeft/tabs/settings.tsx,
+ * components/peerProfile.tsx and scss/partials/_profile.scss
+ * (.profile-name / .profile-subtitle). The section/row atoms come from
+ * forms.css. */
+
+.k-root .k-settings-page {
+  background-color: var(--background-color);
+}
+
+.k-root .k-settings-header-button {
+  flex: 0 0 auto;
+}
+
+.k-root .k-settings-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* The page scrolls under the header, like the real tab. */
+  padding-bottom: 0.5rem;
+}
+
+/* ---------- self profile header (tweb peerProfile) ---------- */
+
+.k-root .k-settings-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 1.5rem 1rem 0;
+}
+
+.k-root .k-settings-avatar {
+  flex: 0 0 auto;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 44px;
+  line-height: 1;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.k-root .k-settings-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.k-root .k-settings-name {
+  margin-top: 0.75rem;
+  max-width: 100%;
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--primary-text-color);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-root .k-settings-status {
+  margin-top: 0.125rem;
+  font-size: var(--font-size-14);
+  line-height: 1.5rem;
+  color: var(--secondary-text-color);
+  text-align: center;
+}
+
+/* ---------- the sections ---------- */
+
+.k-root .k-settings-phone-container {
+  margin-top: 1.5rem;
+}
+
+.k-root .k-settings-phone-row {
+  width: 100%;
+  text-align: start;
+  border: none;
+  background: none;
+  border-radius: 0;
+  font: inherit;
+}
+
+.k-root .k-settings-version {
+  padding: 0.25rem 1rem 1rem;
+  text-align: center;
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-14);
+  color: var(--secondary-text-color);
+  user-select: none;
+}
+
+/* ---------- the header overflow menu (tweb settings' three-dot menu) ---------- */
+
+.k-root .k-settings-menu .btn-menu-item.is-danger {
+  color: var(--danger-color);
+}
+
+.k-root .k-settings-menu .btn-menu-item.is-danger .btn-menu-item-icon {
+  color: var(--danger-color);
+}

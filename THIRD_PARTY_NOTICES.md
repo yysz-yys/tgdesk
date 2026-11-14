@@ -51,6 +51,7 @@ distributed here under this project's AGPL-3.0-only licence):
 | Ported CSS/markup/algorithms (`frontend/src/components/k`, `frontend/src/styles/k`, `docs/design-k.md`) — chat list, sidebar, folder chips, empty column, wallpaper renderer, ripple | GPL-3.0-only (tweb), distributed here under AGPL-3.0-only | <https://github.com/morethanwords/tweb> |
 | `frontend/public/assets/img/pattern.svg` — the default doodle wallpaper pattern | GPL-3.0 (tweb asset) | <https://github.com/morethanwords/tweb> |
 | `frontend/public/assets/fonts/tgico.{ttf,woff}` — Telegram Web K icon font | GPL-3.0 (tweb asset) | <https://github.com/morethanwords/tweb> |
+| `frontend/public/assets/tgs/UtyanSearch.json` — the "No results" duck Lottie used by the Add Members search | GPL-3.0 (tweb asset) | <https://github.com/morethanwords/tweb> |
 
 The complete GPLv3 text of tweb is bundled as
 [`THIRD_PARTY_LICENSES/tweb-GPL-3.0.txt`](THIRD_PARTY_LICENSES/tweb-GPL-3.0.txt).

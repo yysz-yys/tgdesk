@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Chat, ChatFolder } from "../../types";
 import { chatMatchesFolder } from "../../data/folders";
-import { KAppMenu } from "./KAppMenu";
+import { KAppMenu, type KAppMenuMoreAction } from "./KAppMenu";
 import { KArchiveMenu } from "./KArchiveMenu";
 import { KNewMenu } from "./KNewMenu";
 import { KAvatar } from "./KAvatar";
@@ -11,6 +11,7 @@ import { KFolderTabs, type KFolderTab } from "./KFolderTabs";
 import { KIcon } from "./KIcon";
 import { KScrollArea } from "./KScrollArea";
 import { KSearchField } from "./KSearchField";
+import { KSuperTabHost, type KSuperTabEntry } from "./KSuperTab";
 import {
   archivePreview,
   archivedUnread,
@@ -41,6 +42,20 @@ interface KChatListProps {
   onLogout: () => void;
   onProfile?: () => void;
   onNewMessage?: () => void;
+  /** Opens the Web K new-channel page in a sidebar super tab. */
+  onNewChannel?: () => void;
+  /** Opens the Web K new-group page in a sidebar super tab. */
+  onNewGroup?: () => void;
+  /** The super-tab stack rendered over the chat list (settings, new chat). */
+  superTabStack: KSuperTabEntry[];
+  /** tweb main-menu state: the night-mode toggle and the animation level. */
+  nightMode: boolean;
+  onToggleNightMode: () => void;
+  animationLevel: number;
+  onCycleAnimations: () => void;
+  onMoreAction: (action: KAppMenuMoreAction) => void;
+  /** Web K peer-colour gradient behind the account avatar in the main menu. */
+  accountAvatarBackground?: string;
   activeDownloads: number;
   accountName: string;
   accountInitials?: string;
@@ -77,6 +92,15 @@ export function KChatList({
   onLogout,
   onProfile,
   onNewMessage,
+  onNewChannel,
+  onNewGroup,
+  superTabStack,
+  nightMode,
+  onToggleNightMode,
+  animationLevel,
+  onCycleAnimations,
+  onMoreAction,
+  accountAvatarBackground,
   activeDownloads,
   accountName,
   accountInitials,
@@ -324,9 +348,13 @@ export function KChatList({
             <KAppMenu
               accountName={accountName}
               accountInitials={accountInitials}
-              accountColor={accountColor}
               accountPhoto={accountPhoto}
+              accountAvatarBackground={accountAvatarBackground}
               archivedCount={archivedUnread(archivedChats)}
+              nightMode={nightMode}
+              onToggleNightMode={onToggleNightMode}
+              animationLevel={animationLevel}
+              onCycleAnimations={onCycleAnimations}
               onArchive={() => setArchiveOpen(true)}
               onSaved={() => {
                 const saved = chats.find((chat) => chat.saved);
@@ -334,6 +362,7 @@ export function KChatList({
               }}
               onDownloads={onDownloads}
               onSettings={onSettings}
+              onMoreAction={onMoreAction}
               onToast={onToast}
               trigger={
                 <button
@@ -420,9 +449,15 @@ export function KChatList({
 
           <KNewMenu
             onCreate={(kind) => {
-              if (kind === "private") {
-                onChats();
+              if (kind === "channel") {
+                onNewChannel?.();
+                return;
               }
+              if (kind === "group") {
+                onNewGroup?.();
+                return;
+              }
+              onChats();
               onToast(t("kMenu.comingSoon"));
             }}
           />
@@ -482,6 +517,10 @@ export function KChatList({
             </div>
           </div>
         </div>
+
+        {/* Super tabs (Settings, new channel/group) stack over the chat list
+            with tweb's navigation slide. */}
+        <KSuperTabHost stack={superTabStack} />
       </div>
     </div>
   );

@@ -4,6 +4,8 @@ import type { ThemePreference } from "./useTheme";
 export interface AppSettings {
   language: "system" | "en" | "zh" | "ja";
   theme: ThemePreference;
+  /** Interface animation level, like tweb's liteMode: 2 full, 1 reduced, 0 off. */
+  animations: number;
   downloadDir: string;
   threads: number;
   pool: number;
@@ -26,6 +28,7 @@ export interface AppSettings {
 export const defaultSettings: AppSettings = {
   language: "system",
   theme: "system",
+  animations: 2,
   downloadDir: "",
   threads: 4,
   pool: 8,

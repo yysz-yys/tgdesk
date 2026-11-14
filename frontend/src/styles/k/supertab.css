@@ -1,0 +1,130 @@
+/* Web K sidebar super tabs (settings, new channel/group, add members).
+ * Stack + slide ported from tweb components/slider.ts, sliderTab.ts,
+ * transition.ts (`navigation`) and scss/partials/_leftSidebar.scss
+ * (.sidebar-slider-item background) + _sidebar.scss (.sidebar-close-button). */
+
+.k-root .sidebar-slider {
+  position: relative;
+}
+
+.k-root .k-super-tabs {
+  position: absolute;
+  inset: 0;
+  /* Above the chat list's floating folder-chip plate (`.chatlist-overlay`,
+   * z-index 3) as well as the list itself. */
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.k-root .k-super-tab-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--background-color);
+  pointer-events: auto;
+  /* `transform` and `filter` are the only animated properties: the slide and
+   * the dim are both compositor-friendly. */
+  will-change: transform;
+}
+
+.k-root .k-super-tab-layer.is-covered {
+  transform: translate3d(calc(-25% * var(--reflect, 1)), 0, 0);
+  filter: brightness(80%);
+  pointer-events: none;
+  transition:
+    transform var(--transition-standard-in),
+    filter var(--transition-standard-in);
+}
+
+.k-root .k-super-tab-layer.is-open {
+  /* No fill-mode on purpose: once the slide-in is over the layer must fall back
+   * to the base transform so a later `.is-covered` can move it. */
+  animation: k-super-tab-in var(--transition-standard-in);
+}
+
+.k-root .k-super-tab-layer.is-leaving {
+  animation: k-super-tab-out var(--transition-standard-out) forwards;
+  pointer-events: none;
+}
+
+@keyframes k-super-tab-in {
+  from {
+    transform: translate3d(calc(100% * var(--reflect, 1)), 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes k-super-tab-out {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(calc(100% * var(--reflect, 1)), 0, 0);
+  }
+}
+
+.k-root .k-super-tab-header {
+  justify-content: flex-start;
+  flex: 0 0 auto;
+}
+
+.k-root .k-super-tab-header .sidebar-header__title {
+  padding-inline-start: 1.5rem;
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+/* The page's scroll area: a super tab keeps its header fixed and scrolls all
+ * of its content under it, like the real client's tabs. */
+.k-root .k-super-tab-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+/* Settings/search/k-newchat animations honour the Reduce/Disable Animations
+ * entry of the main menu (tweb's liteMode animation levels). */
+.k-root[data-animation-level="1"] .k-super-tab-layer.is-open,
+.k-root[data-animation-level="1"] .k-super-tab-layer.is-leaving {
+  animation: k-super-tab-fade 0.18s ease both;
+}
+
+.k-root[data-animation-level="0"] .k-super-tab-layer.is-open,
+.k-root[data-animation-level="0"] .k-super-tab-layer.is-leaving,
+.k-root[data-animation-level="0"] .k-super-tab-layer.is-covered {
+  animation: none;
+  transition: none;
+}
+
+.k-root[data-animation-level="1"] .k-super-tab-layer.is-covered {
+  transition: filter var(--transition-standard-in);
+  transform: none;
+}
+
+@keyframes k-super-tab-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.k-root[data-animation-level="0"] *,
+.k-root[data-animation-level="0"] *::before,
+.k-root[data-animation-level="0"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-delay: 0s !important;
+  transition-duration: 0.001ms !important;
+  transition-delay: 0s !important;
+}

@@ -4,6 +4,7 @@ import { Browser, Events } from "@wailsio/runtime";
 import { Service as AppService } from "../bindings/tgdesk/internal/app";
 import { resolveLanguage } from "./i18n";
 import { setTelegramLinkNavigator } from "./lib/telegramLinks";
+import { formatPhoneNumber } from "./lib/phone";
 import {
   getChatGifts as getChatGiftsRPC,
   getPinnedMessage as getPinnedMessageRPC,
@@ -17,6 +18,7 @@ import {
   mapChatProfile,
   mapMessage,
   isSavedMessagesChat,
+  peerAvatarBackground,
   type KernelChat,
   type KernelMessage,
 } from "./data/telegram";
@@ -50,7 +52,12 @@ import { Button, Dialog, Toast } from "./ui";
 import { KChatList } from "./components/k/KChatList";
 import { KEmptyChatSurface, KTipsToggle } from "./components/k/KEmptyChat";
 import { KMainScreen } from "./components/k/KMainScreen";
+import { KSettings } from "./components/k/KSettings";
+import { KNewChatFlow } from "./components/k/KNewChatFlow";
+import type { KSuperTabEntry } from "./components/k/KSuperTab";
+import type { KAppMenuMoreAction } from "./components/k/KAppMenu";
 import { ChatView } from "./components/chat/ChatView";
+import { PeerQrDialog } from "./components/chat/PeerQrDialog";
 import { MiniAppOverlay } from "./components/chat/MiniAppOverlay";
 import { DownloadsView } from "./components/downloads/DownloadsView";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -145,6 +152,13 @@ export default function App() {
   const [authImportError, setAuthImportError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  /** The left column's super-tab stack: "settings" or the new-chat flow. */
+  const [sidebarPage, setSidebarPage] = useState<
+    "settings" | "new-channel" | "new-group" | null
+  >(null);
+  const [qrOpen, setQrOpen] = useState(false);
+  /** Active Telegram sessions, shown on the Settings "Devices" row. */
+  const [deviceCount, setDeviceCount] = useState<number | undefined>(undefined);
   const [chatDTOs, setChatDTOs] = useState<KernelChat[]>([]);
   const [folders, setFolders] = useState<ChatFolder[]>([]);
   const folderCacheKey = `tgdesk.k.folders.${authUser?.id ?? "anon"}`;
@@ -277,6 +291,27 @@ export default function App() {
   }, [loggedIn]);
 
   const proxyUrl = useMemo(() => buildProxy(settings), [settings]);
+
+  // The Settings "Devices" row shows the account's active session count
+  // (account.getAuthorizations), fetched when the settings tab opens.
+  useEffect(() => {
+    if (!loggedIn || sidebarPage !== "settings") {
+      return;
+    }
+    let alive = true;
+    AppService.GetActiveSessionCount(proxyUrl, settings.ntp)
+      .then((count) => {
+        if (alive && typeof count === "number") {
+          setDeviceCount(count);
+        }
+      })
+      .catch(() => {
+        // The row simply shows no count when the request fails.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [loggedIn, sidebarPage, proxyUrl, settings.ntp]);
 
   // Telegram read state is server-owned: opening a chat and receiving messages
   // while it is focused must call messages.readHistory / channels.readHistory,
@@ -1030,11 +1065,13 @@ export default function App() {
   );
 
   const openChat = (id: string) => {
+    setSidebarPage(null);
     setSelectedChatId(id);
     setView("chats");
   };
 
   const openDownloads = () => {
+    setSidebarPage(null);
     setView("downloads");
   };
 
@@ -1898,6 +1935,29 @@ export default function App() {
 
 
 
+  // Escape leaves an open sidebar super tab (settings, new chat), like the
+  // back arrow does. An open menu/dialog takes the first Escape.
+  useEffect(() => {
+    if (!sidebarPage) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      if (
+        document.querySelector(
+          '[role="menu"][data-state="open"], [role="dialog"][data-state="open"]',
+        )
+      ) {
+        return;
+      }
+      setSidebarPage(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [sidebarPage]);
+
   const handleAuthenticated = useCallback((user: AuthUser) => {
     setAuthUser(user);
     setLoggedIn(true);
@@ -1910,6 +1970,7 @@ export default function App() {
         setAuthUser(null);
         setLoggedIn(false);
         setSettingsOpen(false);
+        setSidebarPage(null);
         setChatDTOs([]);
         messageCache.current.clear();
         setMessageDTOs([]);
@@ -1921,6 +1982,154 @@ export default function App() {
       }
     })();
   };
+
+  // ---- Web K sidebar super tabs (settings + new chat) ----------------------
+
+  const languageLabel = useMemo(() => {
+    switch (settings.language) {
+      case "en":
+        return "English";
+      case "zh":
+        return "简体中文";
+      case "ja":
+        return "日本語";
+      default:
+        return t("common.systemDefault");
+    }
+  }, [settings.language, t]);
+
+  const nightMode = resolvedTheme === "dark";
+  const animationLevel = Math.min(2, Math.max(0, settings.animations ?? 2));
+  const accountAvatarBackground = peerAvatarBackground(
+    authUser?.colorIndex ?? authUser?.initials ?? "T",
+  );
+  const accountPhone = formatPhoneNumber(authUser?.phone);
+
+  const toggleNightMode = () => {
+    update("theme", nightMode ? "light" : "dark");
+    showToast(nightMode ? t("kMenu.nightModeOff") : t("kMenu.nightModeOn"));
+  };
+
+  const cycleAnimations = () => {
+    const next = animationLevel === 2 ? 1 : animationLevel === 1 ? 0 : 2;
+    update("animations", next);
+    showToast(
+      next === 2
+        ? t("kMenu.animationsFull")
+        : next === 1
+          ? t("kMenu.animationsReduced")
+          : t("kMenu.animationsOff"),
+    );
+  };
+
+  const handleMoreAction = (action: KAppMenuMoreAction) => {
+    switch (action) {
+      case "features":
+        void Browser.OpenURL("https://telegram.org/blog");
+        return;
+      case "report-bug":
+        void Browser.OpenURL("https://bugs.telegram.org/?tag_ids=40&sort=time");
+        return;
+      case "switch-to-a":
+        showToast(t("kMenu.aVersionSoon"));
+        return;
+      case "install":
+        showToast(t("kMenu.installDesktop"));
+        return;
+      case "pip":
+        showToast(t("kMenu.pipSoon"));
+        return;
+      default:
+        return;
+    }
+  };
+
+  // Kernel adapters for the new-chat flow.
+  const createChannel = useCallback(
+    (title: string, about: string) =>
+      AppService.CreateChannel(proxyUrl, settings.ntp, title, about),
+    [proxyUrl, settings.ntp],
+  );
+
+  const createGroup = useCallback(
+    (title: string, memberIDs: number[]) =>
+      AppService.CreateGroup(proxyUrl, settings.ntp, title, memberIDs),
+    [proxyUrl, settings.ntp],
+  );
+
+  const searchUsers = useCallback(
+    async (query: string) => {
+      const found = await AppService.SearchContacts(
+        proxyUrl,
+        settings.ntp,
+        query,
+        20,
+      );
+      return (found ?? []).map((user) => ({
+        id: user.id,
+        name: user.name,
+        username: user.username || undefined,
+        avatarUrl: user.avatarUrl || undefined,
+        colorIndex: user.colorIndex,
+      }));
+    },
+    [proxyUrl, settings.ntp],
+  );
+
+  const handleChatCreated = (chatId: string) => {
+    setSidebarPage(null);
+    void (async () => {
+      await refreshChats();
+      openChat(chatId);
+    })();
+  };
+
+  const superTabStack: KSuperTabEntry[] = [];
+  if (sidebarPage === "settings") {
+    superTabStack.push({
+      key: "settings",
+      body: (
+        <KSettings
+          name={authUser?.displayName ?? t("settings.general.telegramAccount")}
+          initials={authUser?.initials ?? "T"}
+          avatarBackground={accountAvatarBackground}
+          photo={selfAvatar || undefined}
+          phone={accountPhone}
+          username={authUser?.username || undefined}
+          languageLabel={languageLabel}
+          deviceCount={deviceCount}
+          backLabel={t("kSettings.back")}
+          onBack={() => setSidebarPage(null)}
+          onOpenLegacySettings={() => setSettingsOpen(true)}
+          onLogOut={handleLogout}
+          onOpenQrCode={() => {
+            if (authUser?.username) {
+              setQrOpen(true);
+            } else {
+              showToast(t("kSettings.qrUnavailable"));
+            }
+          }}
+          onToast={showToast}
+          onOpenUrl={(url) => void Browser.OpenURL(url)}
+        />
+      ),
+    });
+  } else if (sidebarPage === "new-channel" || sidebarPage === "new-group") {
+    superTabStack.push({
+      key: sidebarPage,
+      body: (
+        <KNewChatFlow
+          kind={sidebarPage === "new-channel" ? "channel" : "group"}
+          onBack={() => setSidebarPage(null)}
+          onCreated={handleChatCreated}
+          onCreateChannel={createChannel}
+          onCreateGroup={createGroup}
+          onSearchUsers={searchUsers}
+          onToast={showToast}
+        />
+      ),
+    });
+  }
 
   if (!authChecked) {
     return (
@@ -1979,7 +2188,16 @@ export default function App() {
             onToast={showToast}
             onChats={() => setView("chats")}
             onDownloads={openDownloads}
-            onSettings={() => setSettingsOpen(true)}
+            onSettings={() => setSidebarPage("settings")}
+            onNewChannel={() => setSidebarPage("new-channel")}
+            onNewGroup={() => setSidebarPage("new-group")}
+            superTabStack={superTabStack}
+            nightMode={nightMode}
+            onToggleNightMode={toggleNightMode}
+            animationLevel={animationLevel}
+            onCycleAnimations={cycleAnimations}
+            onMoreAction={handleMoreAction}
+            accountAvatarBackground={accountAvatarBackground}
             onLogout={() => void handleLogout()}
             onProfile={() => setProfileOpen(true)}
             activeDownloads={active.length}
@@ -1988,7 +2206,7 @@ export default function App() {
             accountColor={authUser?.color}
             accountPhoto={selfAvatar || undefined}
             accountUsername={authUser?.username || undefined}
-            accountPhone={authUser?.phone || undefined}
+            accountPhone={accountPhone}
             loading={chatsLoading}
             failed={chatsFailed}
           />
@@ -2091,7 +2309,7 @@ export default function App() {
                 onLoadOlder={loadOlderMessages}
                 selfName={authUser?.displayName ?? t("chat.you")}
                 selfInitials={authUser?.initials ?? "Y"}
-                selfColor={authUser?.color ?? "#7cacf8"}
+                selfColor={accountAvatarBackground}
                 selfAvatarUrl={selfAvatar || undefined}
               />
               </div>
@@ -2102,7 +2320,7 @@ export default function App() {
                   setView("chats");
                   openChat(id);
                 }}
-                onSettings={() => setSettingsOpen(true)}
+                onSettings={() => setSidebarPage("settings")}
                 proxyUrl={proxyUrl}
                 ntp={settings.ntp}
               />
@@ -2113,6 +2331,7 @@ export default function App() {
           view === "downloads" || selectedChat ? null : <KTipsToggle />
         }
         chatOpen={view === "downloads" || Boolean(selectedChat)}
+        animationLevel={animationLevel}
       />
 
       <SettingsDialog
@@ -2124,15 +2343,26 @@ export default function App() {
         onChooseDownloadFolder={chooseDownloadFolder}
       />
 
+      {authUser?.username ? (
+        <PeerQrDialog
+          open={qrOpen}
+          onOpenChange={setQrOpen}
+          username={authUser.username}
+          onToast={showToast}
+          onOpenLink={(url) => void Browser.OpenURL(url)}
+        />
+      ) : null}
+
       <ProfileHomeDialog
         open={profileOpen}
         onOpenChange={setProfileOpen}
         name={authUser?.displayName ?? t("settings.general.telegramAccount")}
         initials={authUser?.initials ?? "T"}
-        color={authUser?.color ?? "#7cacf8"}
+        color={accountAvatarBackground}
+        avatarSeed={authUser ? String(authUser.id) : undefined}
         photo={selfAvatar || undefined}
         username={authUser?.username || undefined}
-        phone={authUser?.phone || undefined}
+        phone={accountPhone}
         online={Boolean(authUser)}
         onOpenSettings={() => setSettingsOpen(true)}
         onToast={showToast}

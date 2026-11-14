@@ -251,6 +251,7 @@ export function MessageBubble({
               title={author.name}
               initials={author.initials}
               color={author.color}
+              seed={message.senderId}
               photo={author.avatarUrl}
               size={32}
             />

@@ -1,21 +1,33 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { cn } from "../lib/cn";
+import { peerAvatarBackground } from "../data/telegram";
 
 export interface AvatarProps {
   title: string;
   initials: string;
+  /** Flat CSS colour; used when no `seed` is given. */
   color: string;
+  /**
+   * Peer seed (`kind:id:hash`, `user:123:hash`, …) that picks the Web K
+   * peer-colour gradient. Takes precedence over `color`.
+   */
+  seed?: string;
   size?: number;
   online?: boolean;
   photo?: string;
   className?: string;
 }
 
-/** Chat/account avatar: photo when available, deterministic initials otherwise. */
+/**
+ * Chat/account avatar: photo when available, deterministic initials otherwise.
+ * Letter avatars use Telegram Web K's peer-colour gradient and its letter scale
+ * (`Avatar` scss: ~37% of the circle at weight 500, uppercase).
+ */
 export function Avatar({
   title,
   initials,
   color,
+  seed,
   size = 40,
   online = false,
   photo,
@@ -28,6 +40,7 @@ export function Avatar({
   }, [photo]);
 
   const showPhoto = Boolean(photo) && !failed;
+  const background = seed != null ? peerAvatarBackground(seed) : color;
 
   return (
     <span
@@ -35,8 +48,8 @@ export function Avatar({
       style={
         {
           "--avatar-size": `${size}px`,
-          "--avatar-color": color,
-          "--avatar-font-size": `${Math.max(11, Math.round(size * 0.36))}px`,
+          "--avatar-color": background,
+          "--avatar-font-size": `${Math.round(size * 0.37)}px`,
         } as CSSProperties
       }
       title={title}
@@ -54,7 +67,8 @@ export function Avatar({
           onError={() => setFailed(true)}
         />
       ) : (
-        <span className="f-avatar-initials">{initials}</span>
+        // `toUpperCase` is a no-op for scripts without case (CJK, Arabic, …).
+        <span className="f-avatar-initials">{initials.toUpperCase()}</span>
       )}
       {online ? <span className="f-avatar-online" /> : null}
     </span>

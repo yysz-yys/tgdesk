@@ -11,6 +11,8 @@ export interface AuthUser {
   displayName: string;
   initials: string;
   color: string;
+  /** Telegram Web K avatar gradient index (abs(user id) % 7). */
+  colorIndex: number;
 }
 
 export type AuthEventState =

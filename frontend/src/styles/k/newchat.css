@@ -1,0 +1,336 @@
+/* The Web K new-channel / new-group / add-members flow.
+ *
+ * Ported from tweb:
+ *   src/components/sidebarLeft/tabs/newChannel.tsx + newGroup.tsx + addMembers.tsx
+ *   src/components/appSelectPeers.tsx            (search + results + empty duck)
+ *   src/components/emptySearchPlaceholder/       (156px UtyanSearch lottie)
+ *   src/scss/partials/_selector.scss             (.selector-search / .selector-user chips)
+ *   src/components/transition.ts + _slider.scss  (the two-layer 'navigation' slide)
+ *   src/scss/partials/_section.scss              (caption under the card)
+ *
+ * The shared Web K atoms this page composes live in forms.css (.k-page,
+ * .k-section-container/.k-section, .k-input-wrapper/.k-input-field, the
+ * .k-avatar-edit circle, .k-empty-search, .k-person-row) and chatlist.css
+ * (.btn-corner/.btn-circle/.is-visible). This file only adds the flow layer
+ * stack and the pieces that are unique to these three screens. */
+
+.k-root .k-newchat-flow {
+  /* forms.css consumes this variable but tokens.css does not define it;
+   * tweb's --section-padding-bottom is its --section-padding-inline (8px). */
+  --section-padding-bottom: var(--section-padding-inline);
+  height: 100%;
+  background-color: var(--background-color);
+}
+
+/* Both screens are absolute layers inside the tab. The active one sits at 0,
+ * the other is parked a full width towards the inline end; the forward
+ * transition moves the covered layer -25% and dims it to 80% while the new one
+ * slides in from 100% (tweb TransitionSlider 'navigation'), the back arrow
+ * plays the exact reverse. tweb keeps this under 300ms even at full animation. */
+.k-root .k-newchat-pages {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.k-root .k-newchat-layer {
+  --k-newchat-slide: 0.28s var(--transition-standard-easing);
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--background-color);
+  will-change: transform;
+  transition:
+    transform var(--k-newchat-slide),
+    filter var(--k-newchat-slide);
+}
+
+.k-root .k-newchat-form {
+  transform: translate3d(calc(-25% * var(--reflect, 1)), 0, 0);
+  filter: brightness(80%);
+  pointer-events: none;
+}
+
+.k-root .k-newchat-form.is-active {
+  transform: translate3d(0, 0, 0);
+  filter: none;
+  pointer-events: auto;
+}
+
+/* The pushed page always paints above the form: on the way back it leaves to
+ * the inline end over the form that returns from -25%. */
+.k-root .k-newchat-members {
+  z-index: 2;
+  transform: translate3d(calc(100% * var(--reflect, 1)), 0, 0);
+  pointer-events: none;
+}
+
+.k-root .k-newchat-members.is-open {
+  transform: translate3d(0, 0, 0);
+  pointer-events: auto;
+}
+
+/* The page keeps its header fixed and scrolls the content under it. The bottom
+ * padding lets the last row clear the floating corner button. */
+.k-root .k-newchat-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: 4.5rem;
+}
+
+.k-root .k-newchat-section-container {
+  padding-bottom: 0.5rem;
+}
+
+/* One white card holds the avatar and the fields (tweb .sidebar-left-section +
+ * .sidebar-left-section-content's 8px inline margin). */
+.k-root .k-section.k-newchat-card {
+  padding-inline: 0.5rem;
+  padding-bottom: 1rem;
+}
+
+/* `.k-avatar-edit` is a ripple host on this page: keep the camera glyph over
+ * the press wave (tweb paints the icon above AvatarEdit's ripple). */
+.k-root .k-avatar-edit .k-avatar-edit-icon {
+  z-index: 2;
+}
+
+.k-root .k-newchat-description {
+  resize: none;
+  overflow-y: auto;
+}
+
+/* The channel hint sits under the card, not inside it (Section's default
+ * caption position in tweb). */
+.k-root .k-section-caption.k-newchat-channel-hint {
+  margin-top: 0.625rem;
+}
+
+/* ---------- add members: search row + corner button ---------- */
+
+.k-root .k-newchat-search {
+  display: flex;
+  flex: 0 0 auto;
+  padding-block: 0.25rem 0.5rem;
+}
+
+.k-root .k-newchat-next:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.k-root .k-newchat-next:disabled .tgico {
+  opacity: 0.8;
+}
+
+@media (hover: hover) {
+  .k-root .k-newchat-next:disabled:hover,
+  .k-root .k-newchat-next:disabled:active {
+    background-color: var(--primary-color);
+    cursor: default;
+  }
+}
+
+.k-root .k-newchat-next-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+/* ---------- selected members: header + removable chips ---------- */
+
+.k-root .k-section.k-newchat-selected {
+  padding: 0.5rem;
+}
+
+.k-root .k-newchat-selected-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.125rem 0.5rem 0.375rem;
+}
+
+.k-root .k-newchat-selected-title {
+  color: var(--primary-color);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-16);
+}
+
+.k-root .k-newchat-selected-count {
+  color: var(--secondary-text-color);
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-14);
+  white-space: nowrap;
+}
+
+.k-root .k-newchat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem 0.125rem;
+}
+
+.k-root .k-newchat-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 11.25rem;
+  height: 1.875rem;
+  padding: 0 0.5rem 0 0.1875rem;
+  border: none;
+  border-radius: 1.5rem;
+  box-sizing: border-box;
+  background-color: var(--light-secondary-text-color);
+  color: var(--secondary-text-color);
+  font-family: inherit;
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+@media (hover: hover) {
+  .k-root .k-newchat-chip:hover,
+  .k-root .k-newchat-chip:active {
+    color: var(--primary-text-color);
+    background-color: var(--light-danger-color);
+  }
+}
+
+.k-root .k-newchat-chip-avatar {
+  --multiplier: 2;
+  flex: 0 0 auto;
+}
+
+.k-root .k-newchat-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-root .k-newchat-chip-close {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ---------- results list + empty search ---------- */
+
+.k-root .k-section.k-newchat-results {
+  display: flex;
+  flex-direction: column;
+  min-height: 22rem;
+  padding-inline: 0;
+}
+
+/* The person row is a <button> here; keep the Web K row metrics and wipe the
+ * UA button chrome. */
+.k-root .k-person-row.k-newchat-person {
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-family: inherit;
+  text-align: start;
+  color: inherit;
+}
+
+.k-root .k-newchat-person .k-person-row-texts {
+  display: flex;
+  flex-direction: column;
+}
+
+.k-root .k-newchat-person .k-person-row-name,
+.k-root .k-newchat-person .k-person-row-status {
+  display: block;
+}
+
+.k-root .k-newchat-person .k-person-row-check .tgico {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.k-root .k-newchat-avatar {
+  --multiplier: 1.125;
+}
+
+/* The empty add-members search sits directly on the grey page, with no white
+ * section card around it: the reference has the duck under the search pill.
+ * The generous top offset places the duck around 43% down the column (tweb's
+ * resting spot for the placeholder), shrinking on short windows; whatever does
+ * not fit is reachable because the page area still scrolls. */
+.k-root .k-newchat-empty-search {
+  padding-top: clamp(4.5rem, 16vh, 7rem);
+  padding-bottom: 2rem;
+}
+
+.k-root .k-newchat-empty-search .k-empty-search {
+  padding: 0 1.5rem;
+}
+
+.k-root .k-newchat-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 12rem;
+  padding: 3rem 1rem;
+  color: var(--secondary-text-color);
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-14);
+  text-align: center;
+}
+
+.k-root .k-newchat-spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid var(--secondary-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: k-newchat-spin 0.8s linear infinite;
+}
+
+@keyframes k-newchat-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The flow plays no slide with Reduce/Disable Animations selected in the main
+ * menu (same knob as tweb's `animation-level` attribute). */
+.k-root[data-animation-level="1"] .k-newchat-layer,
+.k-root[data-animation-level="0"] .k-newchat-layer {
+  transition: none;
+}
+
+/* ---------- narrow left columns (down to 320px) ---------- */
+
+@media (max-width: 340px) {
+  .k-root .k-newchat-card .k-avatar-edit {
+    width: 96px;
+    height: 96px;
+  }
+
+  .k-root .k-newchat-chip {
+    max-width: 8rem;
+  }
+
+  .k-root .k-newchat-selected-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

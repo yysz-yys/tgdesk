@@ -271,7 +271,11 @@ right info pane; the archived row opens the archived view.
   old F photo/video dialogs, their CSS and their i18n strings were removed.
 - **Settings** is a 560 px centred F `Dialog` with a scrollable body of grouped
   cards. There is no visible subtitle and no footer button: the header close
-  button is the only dismiss action.
+  button is the only dismiss action. Since design K's Settings home landed, this
+  dialog opens from the Web K settings rows whose screens are not ported yet
+  (Data and Storage, General Settings, Language) — it is the transitional
+  destination, not the main settings entry anymore (that one is the Web K
+  sidebar page).
   - Appearance uses a custom three-option theme picker (horizontal icon + label,
     selected surface tile, no blue segmented focus ring) and a language select.
   - The download-folder row shows the current path, a **Change** button that

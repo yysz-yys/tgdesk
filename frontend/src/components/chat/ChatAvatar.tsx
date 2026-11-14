@@ -45,6 +45,7 @@ export function ChatAvatar({
         title={chat.title}
         initials={chat.initials}
         color={chat.color}
+        seed={chat.id}
         size={size}
         online={chat.online}
         photo={chat.avatarUrl}

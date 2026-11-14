@@ -6,6 +6,16 @@
   min-width: 12.5rem;
 }
 
+/* tweb `.sidebar-tools-submenu`: the More submenu keeps the 200px plate and its
+ * rows are a little taller than the main menu's (40px, as in Web K's menu). */
+.k-menu.k-app-submenu {
+  min-width: 12.5rem;
+}
+
+.k-menu.k-app-submenu .btn-menu-item {
+  height: 2.5rem;
+}
+
 .k-menu.k-new-menu {
   min-width: 11.25rem;
 }
@@ -21,19 +31,25 @@
 
 .k-menu .k-menu-avatar {
   flex: 0 0 auto;
-  width: 1.875rem;
-  height: 1.875rem;
+  width: 2rem;
+  height: 2rem;
   margin-inline-end: 0.625rem;
   border-radius: 50%;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #2d7ed5;
+  /* The account row receives its Web K peer gradient inline; the literal pair is
+     the fallback for a caller that could not resolve a seed. Literal, not the
+     `--peer-avatar-*` tokens: Radix portals the menu out of `.k-root`, where the
+     tokens do not reach. */
+  background: linear-gradient(180deg, #5caffa, #408acf);
   color: #ffffff;
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
+  letter-spacing: 0;
   line-height: 1;
+  text-transform: uppercase;
   user-select: none;
 }
 
@@ -58,7 +74,33 @@
   font-size: 0.875rem;
 }
 
-/* Radix' own sub-trigger chevron sits at the inline end; keep it quiet. */
+/* The More row stays lit while its submenu is open, as tweb's hover-opened
+ * `.submenu-trigger` plate does (Radix marks the open submenu trigger). */
+.k-menu .btn-menu-item[data-state="open"] {
+  background-color: rgba(140, 142, 145, 0.08);
+}
+
+/* Web K's More row has no trailing chevron; Radix draws one for sub-triggers. */
 .k-menu .btn-menu-item .rt-BaseMenuShortcut {
-  color: #8c8e91;
+  display: none;
+}
+
+/* tweb `.submenu-trigger`: the trailing padding leaves the arrowhead its room. */
+.k-menu .k-menu-submenu-trigger {
+  padding-inline-end: 0.375rem;
+}
+
+/* tweb `.btn-menu-footer`: the muted version line under the More submenu,
+ * "Telegram WebK 2.3 (687)". A caption here, not the changelog link. The colour
+ * is the light theme's `--input-placeholder-color` spelled out, because the
+ * menu is portalled out of `.k-root` where that token is defined. */
+.k-menu .k-menu-version {
+  display: flex;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  color: #9ba0a5;
+  font-size: 12px;
+  font-weight: 500;
+  user-select: none;
 }

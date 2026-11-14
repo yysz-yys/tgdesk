@@ -11,9 +11,13 @@ signed-in main screen (chat list + empty chat column, light "Day" theme).
 | Screen | State |
 |---|---|
 | Signed-in main screen (chat list, folder chips, archive row, empty chat column, tips lightbulb, new-message FAB) | **Port done** (light theme) |
+| Settings (Web K home: self profile header, phone, sections, header menu, version) | **Port done** (light theme) |
+| New Channel / New Group / Add Members flow | **Port done** (light theme) |
+| Main menu (hamburger) with the More submenu and the Downloads entry | **Port done** |
+| Letter avatars (non-photo peers, sender avatars, account avatar) | **Unified** on Web K's peer-colour gradients |
 | Login / auth flow | still the F design |
 | Conversation view (bubbles, composer, header) | still the F design |
-| Main menu (hamburger), settings, downloads, search results pages, archive view, tips deck | still functional F screens, not yet re-styled |
+| Downloads screen, search results, chat info sidebar, expanded tips deck | still the F screens (the chat list's K frame is around them) |
 
 The reference capture is the Web K **`light`** AppTheme (`baseThemeDay`, the blue
 "Day" palette) — not the older Classic `day` theme (green wallpaper/outgoing
@@ -24,14 +28,22 @@ bubbles). All colours below are that theme.
 ```
 frontend/src/components/k/          the Web K UI
   KMainScreen.tsx                   .page-chats → #main-columns → #column-left/#column-center
-  KChatList.tsx                     left column: header, folder chips, list, archive, FAB
+  KChatList.tsx                     left column: header, folder chips, list, archive, FAB, super-tab host
   KChatRow.tsx                      one .chatlist-chat row (title/time + subtitle + avatar)
   KAvatar.tsx                       54px avatar: photo / peer colour gradient / saved / archive
   KFolderTabs.tsx                   .menu-horizontal* chip strip with sliding active plate
   KSearchField.tsx                  InputSearch "old-style" 44px pill
   KEmptyChat.tsx                    service pill + chatTips lightbulb (portalled to the page)
+  KSuperTab.tsx                     tweb's SliderSuperTab stack + KSuperTabHeader (slide in/out)
+  KSettings.tsx                     the Settings home (peer profile + all sections + header menu)
+  KNewChatFlow.tsx                  New Channel / New Group / Add Members pages
+  KAppMenu.tsx                      main menu + the hover-opened More submenu
+  KNewMenu.tsx                      the pencil/new-chat menu
+  KArchiveMenu.tsx                  the archived-chats header menu
+  KChatTips.tsx                     the tips deck
   KWallpaper.tsx                    page-wide gradient + doodle canvas
   KIcon.tsx                         tgico glyphs + the verified-badge SVG sprite
+  rowIcons.ts                       tweb's colour-tile row-icon backgrounds
   model.ts                          Web K helpers (colour index, abbreviation, badges)
   icons.ts                          tgico name → codepoint map (653 icons)
   wallpaper.ts                      freeform gradient + pattern tiling algorithms
@@ -40,8 +52,12 @@ frontend/src/styles/k/              plain CSS ported from tweb's SCSS
   tokens.css                        light "Day" theme custom properties
   base.css / fonts.css              reset, tgico font-face, Roboto 400/500/600
   shell.css / sidebar.css / tabs.css / chatlist.css / empty.css / wallpaper.css
+  supertab.css / forms.css          sidebar super tabs + shared page atoms (sections, rows, inputs)
+  settings.css / newchat.css        the two new page families
+  archive.css / menu.css / scrollable.css / windowchrome.css / tips.css
 frontend/public/assets/             bundled tweb assets
   img/pattern.svg                   doodle wallpaper pattern (1440×2960)
+  tgs/UtyanSearch.json              the "No results" duck (Lottie, empty search state)
   fonts/tgico.{ttf,woff}            Web K icon font
   fonts/KFO*.woff2                  Roboto subsets (400/500 latin + latin-ext)
   fonts/Roboto-LICENSE.txt          Apache-2.0 text
@@ -155,16 +171,75 @@ capture encoding.
   plate instead of being cut off with a hard edge.
 - **Main menu (hamburger)**: `KAppMenu` follows tweb's `sidebarLeft.createToolsMenu` — the account row,
   Add Account, Saved Messages, Archived chats (badge = unread archived chats), My Stories,
-  Contacts, Calls, Settings and the More submenu (Downloads, Night mode), split by the
+  Contacts, Calls, Settings, **Downloads** and the More submenu, split by the
   same separators. It is a `.k-menu` on tweb's desktop metrics (`.btn-menu`: frosted
   `rgba(255,255,255,.85)` + `blur(50px)`, radius 16, shadow `0 0 10px rgba(0,0,0,.15)`,
   32px items with 20px icons, 14px/500 labels) and animates in with the 0.2s
-  `cubic-bezier(.4,0,.2,1)` scale(.8)→1 + fade. Pages that are not ported yet (Add Account,
-  My Stories, Contacts, Calls) surface a localized "arrives with the next pages" toast.
+  `cubic-bezier(.4,0,.2,1)` scale(.8)→1 + fade. The account row opens Settings, like
+  the real client. Pages that are not ported yet (Add Account, My Stories, Contacts,
+  Calls) surface a localized "arrives with the next pages" toast.
+  **More** opens its submenu on hover (tweb's `createSubmenuTrigger`): Enable/Disable
+  Dark Mode, Reduce/Disable/Enable Animations, Switch to A version, Telegram Features,
+  Report Bug, Install App and Picture-in-Picture, with the muted version line
+  "Telegram WebK 2.3 (687)" at the bottom (tweb `getVersionLink`). The entries the
+  desktop shell cannot do (A version, PWA install, Document PiP) announce themselves
+  with a localized explanation; Features/Report Bug open the Telegram URLs.
 - **New-chat menu (pencil / FAB)**: `KNewMenu` opens above the corner button, aligned to its
   end, with tweb's three entries — New channel, New group, New private chat (the group-call
   entry is intentionally left out); the pencil icon morphs into a cross while open
   (`.menu-open` swap with a scale/fade) and the menu itself uses the same `.k-menu` plate.
+  New channel/group open their page as a sidebar super tab (below); New private chat
+  still announces the contacts page.
+- **Sidebar super tabs**: `KSuperTabHost` reproduces tweb's `SliderSuperTab` stack
+  (`slider.ts` + sliderTab.ts + `transition.ts`): settings and the new-chat flow slide
+  in over the chat list from the inline end while the page underneath moves a quarter of
+  the column towards the start and dims to 80%, and closing reverses the pair (250–300 ms,
+  `--transition-standard-in/out`). The header is tweb's `.sidebar-header` with the
+  `.sidebar-close-button` back arrow; the content scrolls with the same overlay scrollbar
+  as the chat list. The stack is owned by `App` (`sidebarPage`), so opening a chat,
+  Downloads or the archive closes the page.
+- **Settings (Web K home)**: `KSettings` follows tweb `sidebarLeft/tabs/settings.tsx` +
+  `peerProfile.tsx`: the self profile header (120px gradient avatar, 20px/500 name,
+  online status), the phone section (the number is grouped like Telegram Web and a
+  tap copies it), then the section cards
+  built from tweb's `Section`/`Row` atoms — Notifications and Sounds, Data and Storage,
+  Privacy and Security, General Settings, Chat Folders, Stickers and Emoji, Speakers and
+  Camera, Devices (count from `account.getAuthorizations`), Language (current UI
+  language) and Keyboard Shortcuts; then Telegram Premium / Telegram Business / Send a
+  Gift, then Telegram FAQ / Ask a Question, then the version line. Row icons are tweb's
+  colour tiles (`rowIcons.ts`, `getRowIconBackground`). The header carries the search
+  button and the three-dot menu (Edit Profile, QR Code, Log Out — QR reuses the existing
+  QR sheet for accounts with a username, Log Out is the real one). Sections this build
+  has no screen for show the localized "arrives with the next pages" toast;
+  Data and Storage / General Settings / Language open the existing settings dialog.
+  Strings live in `kSettings.*` for en/zh/ja.
+- **New Channel / New Group / Add Members**: `KNewChatFlow` follows tweb
+  `newChannel.tsx`, `newGroup.tsx`, `addMembers.tsx` and `emptySearchPlaceholder`:
+  the grey page with one white 24px section card holding the 120px `.avatar-edit`
+  circle (camera glyph), the name input and — for a channel — the optional description
+  plus the caption, and the 54px corner arrow that only slides in once the name is
+  valid (`btn-corner.is-visible`). New Group's arrow opens the Add Members page (the
+  same navigation slide, inside the tab) with the old-style search pill, contacts/global
+  search results as checkbox rows, and the duck Lottie + "No results / Try searching."
+  empty state; its arrow is always available (skippable, like webk) and creates the
+  group with the selected users. Creation goes through the kernel
+  (`channels.createChannel`, `messages.createChat`), and the new chat opens in the
+  middle column as soon as the dialog list refreshes. Strings live in `kNewChat.*`.
+- **Letter avatars unified**: every non-photo avatar (chat list, chat header, sender
+  avatars, member lists, the account avatar in the main menu, the F screens' `Avatar`
+  atom) uses Web K's peer-colour gradient palette (red, orange, violet, green, cyan,
+  blue, pink) picked by `abs(peerId) % 7` — `peerAvatarBackground()` in
+  `data/telegram.ts`, with `Avatar`'s new `seed` prop; the flat colour is kept for
+  text drawn in the peer's colour (sender names). The letters follow tweb's
+  `getAbbreviation` (first glyph of the first word + first glyph of the last), are
+  uppercased, and are 37% of the circle at weight 500.
+- **Reduce/Disable Animations**: the More entry cycles tweb's liteMode levels
+  (full → reduced → off → full, `settings.animations`); the K shell gets
+  `data-animation-level` on `.k-root`, where reduced turns slides into fades and off
+  disables transitions/animations. The saved preference survives restarts, like the
+  other settings. The Dark Mode entry toggles the app theme for the classic (F) screens;
+  Web K pages stay on the light theme until the dark token set is ported.
+
 - The hamburger is a webk icon button: a 40px round plate on
   `--light-secondary-text-color` while hovered or while its menu is open
   (`.menu-open`), exactly the plate the real client paints under it.
@@ -254,24 +329,42 @@ capture encoding.
 
 ## Verification
 
-`frontend/k-preview.html` (+ `?chat=1`) renders fixture data at a chosen viewport
-and is used to diff screenshots against the reference capture:
+`frontend/k-preview.html` renders fixture data at a chosen viewport and is used to
+diff screenshots against the reference capture:
 
 ```powershell
 cd frontend; npm run dev
-# http://127.0.0.1:9245/k-preview.html — headless Chrome/CDP captures at 1446×790@2
+# http://127.0.0.1:9245/k-preview.html            main screen (empty state)
+# http://127.0.0.1:9245/k-preview.html?chat=1     open-chat layout check
+# ?page=settings                                 Settings home
+# ?page=channel / ?page=group                    the new-chat flows (group: click
+#                                                the corner arrow for Add Members)
+# ?menu=1                                        the hamburger menu (hover More for
+#                                                its submenu via CDP Input events)
+# ?lang=en|zh|ja                                 UI language of the fixture
 ```
+
+The setup runs headless Chrome/CDP at 1446×790@2 (or 754×1516@2 for the phone-like
+reference captures of the sidebar pages). The archived chat list screenshot inside
+the 360px column is the desktop check: the super-tab pages fill that column only, as
+in the real desktop Web K.
 
 The reference was normalized from a P3 (wide-gamut) 2× screenshot; compare
 structure/geometry directly, colours through a Display-P3 conversion.
 
 ## Remaining work (page-by-page)
 
-1. Main menu (hamburger) — Web K menu panel.
-2. Conversation view + composer + chat header.
-3. Login/auth screens (their F caption bar is still the window chrome).
-4. Settings, downloads, search results, archive view, chat-info column, tips deck
-   (collapsed state is in place, the expanded deck is not).
-5. Dark ("night"/"tinted") themes; the token file is ready for them.
+1. Conversation view + composer + chat header (the biggest F page left).
+2. Login/auth screens (their F caption bar is still the window chrome).
+3. Downloads screen, search results, archive-view styling, chat-info column and the
+   expanded tips deck — still the F screens inside the K frame.
+4. Settings sub-pages (notifications, data and storage, privacy, chat folders,
+   stickers, speakers and camera, devices, keyboard shortcuts, edit profile) and the
+   settings search layer; the home screen is ported and those rows currently open the
+   legacy settings dialog or announce themselves.
+5. Dark ("night"/"tinted") themes; the token file is ready for them. The main menu's
+   Dark Mode entry already toggles the classic screens' theme.
 6. Animated/moving wallpaper, custom chat backgrounds, stories rings, avatars
    videos — not part of the reference page.
+7. Avatar editing for new chats (the camera button on the new-channel/group pages
+   announces itself today: the media editor is still the F one).

@@ -13,6 +13,7 @@ export function KMainScreen({
   center,
   overlay,
   chatOpen,
+  animationLevel = 2,
 }: {
   sidebar: ReactNode;
   center: ReactNode;
@@ -22,9 +23,15 @@ export function KMainScreen({
   /** A chat (or another full-width pane) fills the middle column: drop the
    * empty-state centring transform so the pane is not pushed off-screen. */
   chatOpen?: boolean;
+  /** tweb liteMode animation level: 2 full, 1 reduced, 0 off. */
+  animationLevel?: number;
 }) {
   return (
-    <div className="k-root" data-k-theme="light">
+    <div
+      className="k-root"
+      data-k-theme="light"
+      data-animation-level={animationLevel}
+    >
       <KIconDefs />
       <KWallpaper />
       <KWindowChrome />

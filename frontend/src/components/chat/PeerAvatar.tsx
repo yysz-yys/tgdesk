@@ -5,6 +5,8 @@ interface PeerAvatarProps {
   title: string;
   initials: string;
   color: string;
+  /** Peer seed for Web K's gradient letter avatar (`kind:id:hash`). */
+  seed?: string;
   photo?: string;
   size?: number;
   className?: string;
@@ -18,6 +20,7 @@ export function PeerAvatar({
   title,
   initials,
   color,
+  seed,
   photo,
   size = 32,
   className,
@@ -28,6 +31,7 @@ export function PeerAvatar({
         title={title}
         initials={initials}
         color={color}
+        seed={seed}
         size={size}
         photo={photo}
         className={className}

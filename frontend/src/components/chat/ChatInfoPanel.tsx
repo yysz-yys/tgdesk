@@ -1434,6 +1434,7 @@ export function ChatInfoPanel({
                 title={member.name}
                 initials={chatInitials(member.name)}
                 color={chatColor(member.id)}
+                seed={member.id}
                 photo={member.avatarUrl}
                 size={36}
               />

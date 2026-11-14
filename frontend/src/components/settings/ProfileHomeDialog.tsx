@@ -106,6 +106,8 @@ export interface ProfileHomeDialogProps {
   initials: string;
   color: string;
   photo?: string;
+  /** Peer seed for Web K's gradient letter avatar. */
+  avatarSeed?: string;
   username?: string;
   phone?: string;
   /** Self profile: Telegram shows the account as online. */
@@ -128,6 +130,7 @@ export function ProfileHomeDialog({
   initials,
   color,
   photo,
+  avatarSeed,
   username,
   phone,
   online = true,
@@ -177,6 +180,7 @@ export function ProfileHomeDialog({
             title={name}
             initials={initials}
             color={color}
+            seed={avatarSeed}
             photo={photo}
             size={88}
             online={online}

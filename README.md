@@ -5,16 +5,18 @@ Wails v3, React 19 and TypeScript. tdl and gotd are consumed as Go modules; the
 upstream projects are **not forked or patched**.
 
 The UI is being replaced **page by page with a 1:1 Telegram Web K port** ("design
-K", see [docs/design-k.md](docs/design-k.md)): the signed-in main screen already
-uses the real Web K markup, CSS, tgico icon font, doodle wallpaper, folder chip
-strip, chat rows and empty-column state of the light "Day" theme. Screens that
-have not been redesigned yet (login, conversation, settings, downloads, menus)
-still use the earlier **F** design language: a cool grey canvas, floating cards,
-one indigo accent, Radix Themes and Lucide icons. The signed-in page has no
-caption bar and fills the window like telegram web; other screens keep the F
-window layout. The default client area is 1107×725; the layouts are verified at
-1280×800 and down to 640×480. A settings dialog exposes language, theme,
-send-on-Enter, download folder/threads/file-name template, proxy and NTP.
+K", see [docs/design-k.md](docs/design-k.md)): the signed-in main screen, the main
+menu with its More submenu, the settings home, the new-channel/new-group/add-members
+pages and every non-photo avatar already use the real Web K markup, CSS, tgico icon
+font, doodle wallpaper and peer-colour gradients of the light "Day" theme. Screens
+that have not been redesigned yet (login, conversation, downloads, search) still use
+the earlier **F** design language: a cool grey canvas, floating cards, one indigo
+accent, Radix Themes and Lucide icons. The signed-in page has no caption bar and
+fills the window like telegram web; other screens keep the F window layout. The
+default client area is 1107×725; the layouts are verified at 1280×800 and down to
+640×480. A settings dialog exposes language, theme, send-on-Enter, download
+folder/threads/file-name template, proxy and NTP — reachable from the Web K settings
+home for the sections that are not ported yet.
 
 ![tgdesk login](docs/assets/ui-login-current.png)
 
@@ -39,6 +41,33 @@ send-on-Enter, download folder/threads/file-name template, proxy and NTP.
   filters across all folders.
 - The signed-in shell has no F caption bar; the empty chat column is the window
   drag surface (double-click toggles maximise).
+
+**Web K menus, settings and new chats** — the rest of the first reference set:
+
+- **Main menu** (hamburger): account row (opens Settings), Add Account, Saved
+  Messages, Archived chats with its unread-chat badge, My Stories, Contacts,
+  Calls, Settings, **Downloads** and **More**. More opens on hover with Enable/
+  Disable Dark Mode, Reduce/Disable/Enable Animations, Switch to A version,
+  Telegram Features, Report Bug, Install App, Picture-in-Picture and the
+  "Telegram WebK 2.3 (687)" version line.
+- **Settings**: the Web K home in a sliding sidebar page — self profile header,
+  tappable phone number, then Notification / Data and Storage / Privacy and
+  Security / General Settings / Chat Folders / Stickers and Emoji / Speakers and
+  Camera / Devices (session count) / Language / Keyboard Shortcuts, plus Telegram
+  Premium / Business / Send a Gift and Telegram FAQ / Ask a Question, the
+  three-dot header menu (Edit Profile, QR Code, Log Out) and the same version
+  line. Untranslated Telegram labels ("Speakers and Camera", "Keyboard Shortcuts")
+  stay in English exactly like the reference client.
+- **New channel / New group / Add members**: Web K's creation pages with the
+  120 px avatar-edit circle, name (and optional channel description) fields, the
+  corner arrow that slides in when the form is valid, and the Add Members page
+  with contact/global search, checkbox rows and the duck Lottie empty state. A
+  created chat opens in the middle column.
+- **Unified letter avatars**: all non-photo avatars use Web K's seven-colour
+  peer gradients with tweb's abbreviation and letter scale instead of flat
+  colours.
+- **Reduce/Disable Animations** cycles between full, reduced (slides become
+  fades) and off, and the choice is remembered.
 
 
 
@@ -310,9 +339,13 @@ belong in git. A detailed checklist is in
 ## Known limitations
 
 - The page-by-page Web K redesign is in progress: login, the conversation view,
-  the main menu, settings, downloads, search results, the archive view and the
-  expanded tips deck still use the F design (see docs/design-k.md).
-- Only the light "Day" Web K theme is ported so far; dark themes are not.
+  downloads, search results, the archive-view styling, the settings sub-pages and
+  the expanded tips deck still use the F design (see docs/design-k.md).
+- Only the light "Day" Web K theme is ported so far; the Dark Mode menu entry
+  themes the classic screens, while Web K pages stay light until the dark token
+  set is ported.
+- New chats are created without a profile photo (the avatar-edit button on the
+  creation pages explains that the media editor is not ported yet).
 - Map tiles require network; the card falls back to a schematic surface.
 - tdata protected by a Telegram Desktop local passcode is unsupported.
 - Only the main-DC auth key is exported to tdata; Telegram Desktop fills the

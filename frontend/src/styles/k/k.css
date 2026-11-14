@@ -8,6 +8,10 @@
 @import "./scrollable.css";
 @import "./chatlist.css";
 @import "./archive.css";
+@import "./supertab.css";
+@import "./forms.css";
+@import "./settings.css";
+@import "./newchat.css";
 @import "./menu.css";
 @import "./tips.css";
 @import "./empty.css";

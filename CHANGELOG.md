@@ -88,10 +88,59 @@
   reaches the top edge and hides itself again, so the idle page stays 1:1. The
   tips lightbulb steps aside while the controls are shown.
 - Kernel `ChatDTO` gained the list decorations this needs: `lastOut`,
-  `lastChecks` (single vs double check), `lastMedia`, `ttl` (auto-delete period)
-  and `colorIndex` (avatar palette).
-- Remaining pages (login, conversation, menus, settings, downloads, search,
-  archive view, expanded tips deck) are still the F design; see
+  `lastChecks` (single vs double check), `lastMedia` (media icon), `ttl`
+  (auto-delete period) and `colorIndex` (avatar palette).
+- Remaining pages (login, conversation, downloads, search, archive-view
+  styling, expanded tips deck) are still the F design; see
+  [docs/design-k.md](docs/design-k.md).
+
+### Design K: Web K settings, main menu, new chats and unified avatars
+
+- **Settings rebuilt as a Web K sidebar page**: opening your account row or
+  Settings in the main menu now slides in the real Web K settings screen (tweb's
+  `SliderSuperTab` navigation animation) — the self profile header with the
+  gradient avatar, name and online status, the tappable phone-number section, and
+  the coloured-icon section cards: Notifications and Sounds, Data and Storage,
+  Privacy and Security, General Settings, Chat Folders, Stickers and Emoji,
+  Speakers and Camera, Devices (with the account's session count from
+  `account.getAuthorizations`), Language and Keyboard Shortcuts, then Telegram
+  Premium / Business / Send a Gift and Telegram FAQ / Ask a Question, closing with
+  the version line. The header has the search button and the three-dot menu (Edit
+  Profile, QR Code, Log Out). Sections whose screens are not ported yet explain
+  themselves; Data and Storage, General Settings and Language open the existing
+  settings dialog. Every string is localized in English, 中文 and 日本語
+  (`kSettings.*`).
+- **Main menu matches Web K**: the account row opens Settings, and a new
+  **Downloads** entry sits in the menu. The **More** submenu opens on hover with
+  Web K's entries — Enable/Disable Dark Mode, Reduce/Disable/Enable Animations,
+  Switch to A version, Telegram Features, Report Bug, Install App and
+  Picture-in-Picture — closing with the "Telegram WebK 2.3 (687)" version line.
+  Dark Mode toggles the classic screens' theme; Reduce/Disable Animations cycles
+  Web K's three animation levels (slides become fades, then everything is
+  instant) and is remembered; Features and Report Bug open the Telegram pages,
+  while the A-version, installer and Picture-in-Picture entries explain why they
+  do not apply to this desktop build.
+- **New Channel / New Group / Add Members pages**: the pencil menu now opens the
+  Web K creation flow as a sidebar super tab. New Channel has the 120 px avatar
+  editor circle, the channel-name field, the optional description and Web K's
+  caption; New Group has the same form and its corner arrow opens the Add Members
+  page — search over your contacts and global Telegram users, checkbox rows, and
+  Web K's duck illustration with "No results / Try searching." when nothing
+  matches. Both corner arrows slide in as the form becomes valid (the Add Members
+  one is always available, since adding people is skippable) and creation calls
+  the new kernel APIs (`channels.createChannel`, `messages.createChat`), then
+  opens the new chat in the middle column.
+- **Letter avatars unified with Web K**: every non-photo avatar — chat list, chat
+  header, message sender avatars, member lists, the main-menu account avatar and
+  the F screens' avatar atom — now uses Web K's seven-colour peer gradient
+  (`abs(peerId) % 7`, red/orange/violet/green/cyan/blue/pink), uppercased
+  initials at tweb's letter scale, instead of a flat fill. The flat colour is
+  kept where it is really text (sender names).
+- Kernel additions: `CreateChannel`, `CreateGroup`, `InviteToChannel`,
+  `SearchContacts` (contacts.search) and `GetActiveSessionCount`, plus
+  `AuthUser.colorIndex` and a `ContactDTO`.
+- Remaining pages (login, conversation, downloads, search, archive-view styling,
+  expanded tips deck, settings sub-pages, dark theme) are still the F design; see
   [docs/design-k.md](docs/design-k.md).
 
 ### Telegram parity III: Saved Messages 2.0, gifts, search, presence, pinned bar, live emoji
