@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -177,6 +178,27 @@ func main() {
 		if viewer, ok := wailsApp.Window.Get(app.MediaViewerWindowName); ok {
 			viewer.Close()
 		}
+	})
+	// WebView2 can compose its first opaque surface before Windows 11's DWM
+	// rounded frame has been applied, leaving four square corners around the
+	// rounded window until something invalidates the window (a resize or screen
+	// capture does it). Refresh the frame once the window is shown/restored.
+	polishAfterShow := func() {
+		go func() {
+			time.Sleep(250 * time.Millisecond)
+			polishWindowFrame(mainWindow)
+			time.Sleep(1000 * time.Millisecond)
+			polishWindowFrame(mainWindow)
+		}()
+	}
+	mainWindow.OnWindowEvent(events.Common.WindowShow, func(*application.WindowEvent) {
+		polishAfterShow()
+	})
+	mainWindow.OnWindowEvent(events.Common.WindowUnMaximise, func(*application.WindowEvent) {
+		polishAfterShow()
+	})
+	mainWindow.OnWindowEvent(events.Common.WindowRestore, func(*application.WindowEvent) {
+		polishAfterShow()
 	})
 
 	if err := wailsApp.Run(); err != nil {

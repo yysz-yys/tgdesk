@@ -55,6 +55,10 @@
   search/webview bridge, regenerated bindings, 31 new round-3 Go tests and a new
   `EmojiText` renderer, `telegramExtra.ts` typed façade, profile-home and
   pinned-bar components. Docs/CHANGELOG updated.
+- Fixed a Windows/WebView2 first-composition artifact that left four square
+  corners visible around the rounded window until it was resized or captured:
+  the window frame is invalidated once after show/restore so the WebView2
+  surface is clipped inside the Windows 11 rounded frame immediately.
 
 ### Telegram parity II: stickers/GIFs, in-app mini apps, links, header, Saved Messages
 
