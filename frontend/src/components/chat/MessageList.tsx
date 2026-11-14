@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { DownloadTask, Message, Reaction } from "../../types";
+import type { DownloadTask, Message, MessageButton, Reaction } from "../../types";
 import type { ViewerSource } from "../media/types";
 import { chatColor, chatInitials } from "../../data/telegram";
 import { Icon, Spinner } from "../../ui";
@@ -39,6 +39,8 @@ interface MessageListProps {  chatId: string;
   onResumeDownload?: (task: DownloadTask) => void;
   onReact?: (message: Message, reaction: Reaction | null) => void;
   onOpenReactions?: (message: Message) => void;
+  onBotCallback?: (message: Message, button: MessageButton) => void;
+  onBotWebView?: (message: Message, button: MessageButton) => void;
   onToast: (message: string) => void;
 }
 
@@ -73,6 +75,8 @@ export function MessageList({
   onResumeDownload,
   onReact,
   onOpenReactions,
+  onBotCallback,
+  onBotWebView,
   onToast,
 }: MessageListProps) {
   const { t } = useTranslation();
@@ -312,6 +316,8 @@ export function MessageList({
           onResumeDownload={onResumeDownload}
           onReact={onReact}
           onOpenReactions={onOpenReactions}
+          onBotCallback={onBotCallback}
+          onBotWebView={onBotWebView}
           onToast={onToast}
         />
       </div>,

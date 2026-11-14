@@ -2373,34 +2373,8 @@
   text-align: end;
 }
 
-.g-message-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  margin-top: 5px;
-}
-
-.g-message-button {
-  min-height: 30px;
-  border: 0;
-  border-radius: 6px;
-  background: var(--tg-bubble-button);
-  padding: 4px 8px;
-  color: var(--tg-bubble-link);
-  cursor: pointer;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 550;
-  line-height: 16px;
-}
-
-.g-message-button:hover {
-  background: var(--tg-bubble-quote-hover);
-}
-
-.g-message-row[data-out] .g-message-button {
-  color: var(--tg-bubble-time-out);
-}
+/* Bot inline keyboard (.g-message-buttons / .g-message-button) lives in
+   bot-keyboard.css next to the BotKeyboard component that renders it. */
 
 .g-reply-quote {
   display: flex;
@@ -3597,10 +3571,6 @@
 
 .g-poll-question {
   font-size: 14px;
-}
-
-.g-message-buttons > .g-message-button:only-child {
-  grid-column: 1 / -1;
 }
 
 .g-location {

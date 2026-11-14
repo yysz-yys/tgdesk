@@ -2,7 +2,7 @@ import { Fragment, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Browser } from "@wailsio/runtime";
-import type { DownloadTask, Message, Reaction } from "../../types";
+import type { DownloadTask, Message, MessageButton, Reaction } from "../../types";
 import type { ViewerSource } from "../media/types";
 import {
   ContextMenu,
@@ -14,6 +14,7 @@ import {
 } from "../../ui";
 import { PeerAvatar } from "./PeerAvatar";
 import { MessageMediaView, isBleedMedia } from "./MessageMediaView";
+import { BotKeyboard } from "./BotKeyboard";
 
 export interface MessageAuthor {
   name: string;
@@ -47,6 +48,10 @@ interface MessageBubbleProps {
   onResumeDownload?: (task: DownloadTask) => void;
   onReact?: (message: Message, reaction: Reaction | null) => void;
   onOpenReactions?: (message: Message) => void;
+  /** Bot inline-keyboard callback press (AppService.SendBotCallback). */
+  onBotCallback?: (message: Message, button: MessageButton) => void;
+  /** Bot web app button press (AppService.OpenBotWebView / mini app window). */
+  onBotWebView?: (message: Message, button: MessageButton) => void;
   onToast: (message: string) => void;
 }
 
@@ -84,6 +89,8 @@ export function MessageBubble({
   onResumeDownload,
   onReact,
   onOpenReactions,
+  onBotCallback,
+  onBotWebView,
   onToast,
 }: MessageBubbleProps) {
   const { t } = useTranslation();
@@ -211,6 +218,13 @@ export function MessageBubble({
         media.kind === "video_note" ||
         media.kind === "animation"),
   );
+
+  // The inline keyboard rounds its outer bottom corners into the bubble tail
+  // only when nothing follows it (reactions/signature), mirroring the bubble's
+  // own bottom radii (grouped bubbles tuck the corner to 5px).
+  const keyboardIsLast = !hasReactions && !message.postAuthor;
+  const bubbleBottomStartRadius = !message.out && !lastInGroup ? 5 : 15;
+  const bubbleBottomEndRadius = message.out && !lastInGroup ? 5 : 15;
 
   return (
     <ContextMenu>
@@ -350,24 +364,15 @@ export function MessageBubble({
               ) : null}
 
               {message.buttons && message.buttons.length > 0 ? (
-                <div className="g-message-buttons">
-                  {message.buttons.map((button, index) => (
-                    <button
-                      type="button"
-                      key={`${button.text}-${index}`}
-                      className="g-message-button"
-                      onClick={() => {
-                        if (button.url) {
-                          void Browser.OpenURL(button.url);
-                        } else {
-                          onToast(t("chat.buttonUnavailable"));
-                        }
-                      }}
-                    >
-                      {button.text}
-                    </button>
-                  ))}
-                </div>
+                <BotKeyboard
+                  message={message}
+                  onBotCallback={onBotCallback}
+                  onBotWebView={onBotWebView}
+                  onToast={onToast}
+                  lastElement={keyboardIsLast}
+                  bottomStartRadius={bubbleBottomStartRadius}
+                  bottomEndRadius={bubbleBottomEndRadius}
+                />
               ) : null}
 
               {hasReactions ? (

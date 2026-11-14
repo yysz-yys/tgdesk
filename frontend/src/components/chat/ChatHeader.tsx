@@ -32,9 +32,15 @@ export function ChatHeader({
   const { t } = useTranslation();
   const subtitle =
     chat.kind === "private"
-      ? chat.online
-        ? t("chat.online")
-        : t("chat.lastSeen")
+      ? chat.saved
+        ? t("chat.savedHint")
+        : chat.bot
+          ? chat.username
+            ? `@${chat.username}`
+            : t("rightPanel.bot")
+          : chat.online
+            ? t("chat.online")
+            : t("chat.lastSeen")
       : (chat.members ?? t(chat.kind === "channel" ? "chat.channel" : "chat.group"));
 
   return (

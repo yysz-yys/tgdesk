@@ -78,6 +78,21 @@ Wails runtime `Window` API for minimise/maximise/close and CSS
   through the `mediaViewer:action` event so the chat window runs its own
   dialogs.
 
+### Bot mini-app window
+
+- `app.Service.OpenBotWebView(...)` asks the kernel for the authenticated mini-app
+  URL (`messages.requestWebView`), stores `{"url","title","botName","avatarUrl"}`
+  in memory and opens (or reuses) a transparent, frameless Wails window named
+  `mini-app` sized 480×688 and clamped to 90% of the primary work area.
+- The window always loads the local wrapper page `/miniapp.html?session=...`
+  (never the remote URL directly); the page reads the session through
+  `TakeMiniAppState` and embeds the app in a sandboxed iframe. `OpenMiniApp(url,
+  title)` opens a raw http(s) URL the same way for simple-webview buttons.
+- If `requestWebView` fails, `OpenBotWebView` still opens the raw button URL, so
+  plain URL/keyboard buttons keep working.
+- Closing the main window closes the mini app; closing the mini app focuses the
+  main window again.
+
 ## Kernel state and concurrency
 
 `internal/kernel.Service` owns:
@@ -86,8 +101,8 @@ Wails runtime `Window` API for minimise/maximise/close and CSS
 - one shared Telegram session (`sessionMu`, `session`);
 - write serialization (`chatMu`); reads (dialogs, history, members, folders)
   run concurrently so a slow/retried auxiliary call cannot block the chat view;
-- a short-lived dialogs cache (20 s, invalidated on archive changes and session
-  reset) to keep chat-list re-renders cheap and avoid duplicate
+- a short-lived dialogs cache (20 s, invalidated on archive, mute and pin changes
+  and session reset) to keep chat-list re-renders cheap and avoid duplicate
   `messages.getDialogs` flood waits. Dialog mapping reads `dialog.folder_id`;
   folder 1 is marked archived even when it appears in the main dialog response;
 - download tasks and their persistence (`downloadMu`, `downloadSem`);
@@ -200,6 +215,32 @@ Telegram Desktop fills the rest while connecting.
   returns the whole participant list of a basic group at once.
 - `GetChatMembers` remains as the first-page wrapper used by older callers and
   sorts admins first.
+- `GetChatProfile` (`chat_profile.go`) loads the full peer once with
+  `UsersGetFullUser`, `MessagesGetFullChat` or `ChannelsGetFullChannel` (60 s
+  cache, like `GetChatInfo`) and maps the info-panel/composer shape: detected
+  type (`user`/`bot`/`saved`/`group`/`channel`, Saved Messages = self peer),
+  bio/description, username, contact-only phone, member/subscriber count,
+  visible-member flag, admin/owner/forum flags, invite link (best effort),
+  linked chat, bot commands/menu button/privacy URL. Send rights are derived from
+  the tweb `hasRights` logic (creator; broadcast channels need
+  `post_messages`; megagroups need membership and no `send_messages` ban;
+  `send_plain` only blocks text; slow mode is reported separately so the
+  composer can count down).
+- `SetChatMuted` / `SetChatPinned` write server state:
+  `account.getNotifySettings` + `account.updateNotifySettings` (the update
+  replaces every field, so the current settings are merged) and
+  `messages.toggleDialogPin`. Both clear the dialogs cache.
+- `SendBotCallback` presses an inline-keyboard callback with
+  `messages.getBotCallbackAnswer`, maps `FLOOD_WAIT`/`BOT_RESPONSE_TIMEOUT` to
+  readable errors, returns alert/url/cache time, re-reads the pressed message and
+  emits it as a `chat:event` `edit` so the bubble and keyboard refresh even when
+  the callback RPC was the only update carrier.
+- `RequestBotWebView` returns the authenticated mini-app URL
+  (`messages.requestWebView`, platform `web`, reply-to for keyboard buttons and
+  `from_bot_menu` for menu launches). `MessageButtonDTO` carries the 0-based
+  `row` and the MTProto `style` (`primary`/`danger`/`success`), and
+  `KeyboardButtonSimpleWebView` maps to the separate `webview_simple` kind so the
+  UI never calls `requestWebView` for a simple webview.
 
 DTO families:
 
@@ -338,8 +379,19 @@ Component layers:
   `LoginLoading`, `BrandMark` and the proxy sub-panel. `LoginShell` owns the
   page surface; `LoginScreen` owns the state machine and `auth:event` handling.
 - `components/chat` — conversation is split into header, search, list, bubble
-  with hover/context actions, media thumbnail, forward picker, composer with
-  reply/edit banner, channel bar and the right info pane.
+  with hover/context actions and the Telegram Web K inline bot keyboard
+  (`BotKeyboard`), media thumbnail, forward picker, the Telegram Web K composer
+  panel (`composer/`: one floating plate with reply/edit header, bot menu pill,
+  `/` command autocomplete, slow-mode hint, attach menu, send/mic button and the
+  MessageComposer/FooterPlate/StartPlate/MessagingDisabledBar capability switch),
+  the emoji picker (`EmojiPicker` + `src/data/emoji*.ts`), and the right
+  chat-info pane (`ChatInfoPanel`: per-type title/action tiles, expandable bio
+  card, profile rows, shared-media tabs). Broadcast channels that cannot be
+  posted in use `ChannelBar`'s mute footer.
+- `src/miniapp` — the detached bot Web App window entry (`miniapp.html`,
+  `MiniAppWindow`): a local wrapper page with a Telegram-style header that
+  embeds the authenticated URL from `messages.requestWebView` in a sandboxed
+  iframe (theme params injected in the URL hash).
 - `components/media` — the detached media viewer: Telegram Desktop style photo
   stage with zoom/pan/rotate and open/close flight, caption plate, album strip,
   file info/action row and the tdesktop video controls (volume, play/pause,
@@ -413,7 +465,12 @@ name changes, update both Go and the frontend subscription and regenerate.
 
 ## Known technical debt
 
-- Chat pin/mute/mark-read are local UI state.
+- Bot mini apps are embedded in a plain WebView2 iframe with no Telegram JS
+  bridge: `web_app_data_send` (sendWebViewData), `prolongWebView` renewal and
+  close events are not forwarded to the bot yet. `BotCallbackResultDTO` returns
+  alert/url/message/cache-time only, so non-alert callback toast text is not
+  surfaced.
+- `botOwnerId` is empty: this TL layer does not expose a bot owner field.
 - History loads 50 messages at a time and paginates on demand; live updates are
   delivered while the client is connected but there is no persisted updates
   gap-recovery state.

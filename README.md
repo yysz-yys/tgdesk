@@ -54,7 +54,27 @@ Working end to end against real Telegram data:
   waveform playback, audio, files, web previews, polls/quizzes,
   locations/venues, contacts, dice, games, invoices, stories, giveaways, paid
   media and checklists.
-- Inline keyboard buttons under bot messages; URL buttons open externally.
+- Inline keyboard buttons under bot messages rendered as Telegram Web K's
+  keyboard grid (per-row equal cells, `primary`/`danger`/`success` styles,
+  pressed-cell spinner); URL, copy, callback and web-app buttons all work.
+- Bot Web Apps (mini apps) open in a detached 480×688 Telegram-style window that
+  embeds the authenticated `messages.requestWebView` URL in a sandboxed iframe,
+  including the bot menu button pill in the composer.
+- Telegram-style chat info pane: per-type titles (user/bot/group/channel/Saved
+  Messages), Telegram Web K action tiles (message, call, mute, more), the
+  expandable bio/description card with links, username/phone/`t.me`/invite-link
+  rows, member or subscriber counts, bot commands and menu, plus the existing
+  shared-media tabs.
+- Server-side chat actions: pin/unpin, mute/unmute (notify settings) and
+  mark-as-read are written to Telegram and survive a restart.
+- A Telegram Web K-style composer: one floating plate with reply/edit header,
+  per-type placeholders (Message/Broadcast/Send anonymously/restricted), bot
+  command autocomplete and menu button, slow-mode countdown, attach menu,
+  emoji picker, and a single send/mic button. Broadcast channels you cannot post
+  in show Telegram's wide Mute/Unmute footer with the gift action instead.
+- Telegram Web's emoji picker (1,895 emoji, 7 categories, recents, localized
+  search, quick category filters, light/dark) inserts at the caret and sends as
+  plain text.
 - Emoji reactions with live counts, a reaction picker, custom Telegram emoji
   reactions and a footer integrated into the bubble.
 - Multi-photo/video albums rendered as a Telegram-style mosaic.
@@ -70,9 +90,9 @@ Working end to end against real Telegram data:
 - A minimal settings dialog for language, send-on-Enter, download options,
   proxy and NTP only.
 
-Local-only UI actions: pin, mute and mark-read. They reset on restart.
 Server-side message search, live typing indicators and scheduled messages are
-not implemented yet.
+not implemented yet. Bot mini apps have no Telegram JS bridge yet (no
+`web_app_data_send`/prolong), and sending as a channel/send-as peer is pending.
 
 ## Quick start
 

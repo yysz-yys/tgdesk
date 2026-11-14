@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Browser, Events } from "@wailsio/runtime";
 import type {
+  BotCallbackResult,
+  BotWebViewRequest,
   Chat,
   ChatInfo,
   ChatMembersPage,
+  ChatProfile,
   DownloadTask,
   Message,
+  MessageButton,
   SharedMediaPage,
   SharedMediaSection,
   UploadProgress,
 } from "../../types";
-import { Events } from "@wailsio/runtime";
 import { chatColor, chatInitials } from "../../data/telegram";
 import { Button, Dialog, EmptyState, Spinner } from "../../ui";
 import type {
@@ -21,7 +25,6 @@ import type {
 import { viewerItemFor, viewerItemsFrom } from "../media/types";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
-import { ChannelBar } from "./ChannelBar";
 import { MessageList } from "./MessageList";
 import { ChatInfoPanel } from "./ChatInfoPanel";
 import { ForwardDialog } from "./ForwardDialog";
@@ -35,6 +38,10 @@ interface ChatViewProps {
   /** Opens the detached viewer window with the given media session. */
   onOpenMediaViewer: (payload: OpenMediaViewerPayload) => Promise<void>;
   onLoadChatInfo: (chatID: string, kind: Chat["kind"]) => Promise<ChatInfo | null>;
+  onLoadChatProfile: (
+    chatID: string,
+    kind: Chat["kind"],
+  ) => Promise<ChatProfile | null>;
   onLoadMembersPage: (
     chatID: string,
     offset: number,
@@ -44,6 +51,14 @@ interface ChatViewProps {
     section: SharedMediaSection,
     beforeID: number,
   ) => Promise<SharedMediaPage>;
+  onArchiveChat: (chat: Chat) => void;
+  onSendBotCallback: (
+    chatID: string,
+    messageID: number,
+    data: string,
+  ) => Promise<BotCallbackResult | null>;
+  onOpenBotWebView: (request: BotWebViewRequest) => void;
+  onSendCommand: (command: string) => Promise<void>;
   liveVersion?: number;
   downloads: DownloadTask[];
   onRefreshDownloads?: () => void;
@@ -86,8 +101,13 @@ export function ChatView({
   messages,
   onOpenMediaViewer,
   onLoadChatInfo,
+  onLoadChatProfile,
   onLoadMembersPage,
   onLoadSharedMedia,
+  onArchiveChat,
+  onSendBotCallback,
+  onOpenBotWebView,
+  onSendCommand,
   liveVersion,
   downloads,
   onRefreshDownloads,
@@ -123,6 +143,10 @@ export function ChatView({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [infoOpen, setInfoOpen] = useState(false);
+  const [profile, setProfile] = useState<ChatProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileFailed, setProfileFailed] = useState(false);
+  const [profileReload, setProfileReload] = useState(0);
   const [forwarding, setForwarding] = useState<{
     message: Message;
     ids: number[];
@@ -146,7 +170,41 @@ export function ChatView({
     setEditing(null);
     setReactionFor(null);
     setDeleteRequest(null);
+    setProfile(null);
+    setProfileFailed(false);
   }, [chat.id]);
+
+  // The kernel returns the full peer profile (bio, username, link, bot commands
+  // and rights) for the info pane and the composer's capability switch.
+  useEffect(() => {
+    let alive = true;
+    setProfileLoading(true);
+    setProfileFailed(false);
+    void onLoadChatProfile(chat.id, chat.kind)
+      .then((next) => {
+        if (!alive) {
+          return;
+        }
+        if (next) {
+          setProfile(next);
+        } else {
+          setProfileFailed(true);
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setProfileFailed(true);
+        }
+      })
+      .finally(() => {
+        if (alive) {
+          setProfileLoading(false);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [chat.id, chat.kind, onLoadChatProfile, profileReload]);
 
   // Escape cancels the reply/edit context even when focus moved away from the
   // textarea (for example right after choosing Reply from the context menu).
@@ -345,6 +403,66 @@ export function ChatView({
     });
   };
 
+  // Inline-keyboard callback buttons: message edits/new answers arrive through
+  // the live chat-event stream; the RPC result only adds an alert or a URL.
+  // Returning the promise lets the keyboard keep its press spinner.
+  const handleBotCallback = (message: Message, button: MessageButton) => {
+    if (!button.data) {
+      return;
+    }
+    return onSendBotCallback(chat.id, message.id, button.data)
+      .then((result) => {
+        if (!result) {
+          return;
+        }
+        if (result.alert) {
+          onToast(result.alert);
+        }
+        if (result.url) {
+          void Browser.OpenURL(result.url);
+        }
+      })
+      .catch(() => {
+        // App already reported the failure in a toast.
+      });
+  };
+
+  const handleBotWebView = (message: Message, button: MessageButton) =>
+    onOpenBotWebView({
+      chatId: chat.id,
+      botId: message.senderId ?? "",
+      messageId: message.id,
+      url: button.url ?? "",
+      fromBotMenu: false,
+      title: button.text,
+      simple: button.kind === "webview_simple",
+    });
+
+  // The bot's menu button lives in the composer; in a private bot chat the peer
+  // is the bot itself, so its opaque chat id doubles as the bot peer id.
+  const openBotMenu = () => {
+    const menu = profile?.botMenuButton;
+    onOpenBotWebView({
+      chatId: chat.id,
+      botId: chat.id,
+      messageId: 0,
+      url: menu?.url ?? "",
+      fromBotMenu: true,
+      title: menu?.text || chat.title,
+    });
+  };
+
+  const focusComposer = () => {
+    setInfoOpen(false);
+    window.setTimeout(() => {
+      document
+        .querySelector<HTMLTextAreaElement>(
+          ".f-composer-input, .tg-composer-input, .composer-input",
+        )
+        ?.focus();
+    }, 60);
+  };
+
   return (
     <>
       <main className="g-chat-pane" aria-label={chat.title}>
@@ -440,36 +558,41 @@ export function ChatView({
                 ).catch(() => onToast(t("chat.reactionFailed")));
               }}
               onOpenReactions={setReactionFor}
+              onBotCallback={handleBotCallback}
+              onBotWebView={handleBotWebView}
               onToast={onToast}
             />
           )}
         </div>
 
-        {chat.kind === "channel" ? (
-          <ChannelBar chat={chat} onToast={onToast} />
-        ) : (
-          <ChatComposer
-            key={chat.id}
-            chatId={chat.id}
-            replyingTo={replyingTo}
-            editing={editing}
-            upload={upload}
-            onCancelContext={() => {
+        <ChatComposer
+          key={chat.id}
+          chatId={chat.id}
+          chat={chat}
+          profile={profile}
+          profileLoading={profileLoading}
+          hasMessages={Boolean(loading) || messages.length > 0}
+          replyingTo={replyingTo}
+          editing={editing}
+          upload={upload}
+          onCancelContext={() => {
+            setReplyingTo(null);
+            setEditing(null);
+          }}
+          onSend={sendOrEdit}
+          onAttach={async (caption) => {
+            const sent = await onAttach(caption, replyingTo?.id);
+            if (sent) {
               setReplyingTo(null);
-              setEditing(null);
-            }}
-            onSend={sendOrEdit}
-            onAttach={async (caption) => {
-              const sent = await onAttach(caption, replyingTo?.id);
-              if (sent) {
-                setReplyingTo(null);
-              }
-              return sent;
-            }}
-            onToast={onToast}
-            enterToSend={enterToSend}
-          />
-        )}
+            }
+            return sent;
+          }}
+          onOpenBotMenu={openBotMenu}
+          onSendCommand={onSendCommand}
+          onToggleMute={() => onToggleMute(chat.id)}
+          onToast={onToast}
+          enterToSend={enterToSend}
+        />
 
         <ForwardDialog
           open={Boolean(forwarding)}
@@ -548,6 +671,14 @@ export function ChatView({
       {infoOpen ? (
         <ChatInfoPanel
           chat={chat}
+          profile={profile}
+          profileLoading={profileLoading}
+          profileFailed={profileFailed}
+          onRetryProfile={() => setProfileReload((value) => value + 1)}
+          onSearchInChat={() => setSearchOpen(true)}
+          onArchiveChat={() => onArchiveChat(chat)}
+          onOpenBotWebView={openBotMenu}
+          onFocusComposer={focusComposer}
           onClose={() => setInfoOpen(false)}
           onTogglePin={onTogglePin}
           onToggleMute={onToggleMute}

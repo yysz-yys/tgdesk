@@ -2,6 +2,54 @@
 
 ## Unreleased
 
+### Telegram parity: chat info, composer, bot buttons, mini apps, emoji
+
+- The chat-info pane is now a real Telegram profile instead of three generic
+  buttons: per-type titles and headers (User info / Bot info / Group info /
+  Channel info / Saved Messages), Telegram Web K action tiles (message, call,
+  mute, more), an expandable bio/description card with clickable links, rows for
+  username, phone, `t.me` link, invite link, member/subscriber counts, bot
+  commands and the bot menu, and the existing shared-media tabs below.
+- Pin/unpin and mute/unmute are now written to Telegram
+  (`messages.toggleDialogPin`, `account.updateNotifySettings`) instead of being
+  local-only UI flags, and survive restarts; mark-as-read was already
+  server-side. The profile "More" menu also archives/unarchives server-side.
+- The composer was rebuilt to Telegram Web K's floating plate: one 24 px card
+  with the reply/edit header and upload progress inside it, a 696 px lane, 40 px
+  icon buttons and a single morphing send/mic button. It switches on posting
+  capability rather than chat kind: private users, bots, Saved Messages, groups
+  and channel admins get the composer (Broadcast placeholder), while broadcast
+  channels you cannot post in get the wide Mute/Unmute footer plus the gift
+  action. Restricted chats show a read-only bar.
+- Composer capabilities: bot menu button pill (web app), `/` command
+  autocomplete with name + description and keyboard navigation, slow-mode
+  countdown, attach menu, Telegram placeholders (Message/Broadcast/Send
+  anonymously/Text is not Allowed), IME-safe Enter/Shift+Enter/Ctrl+Enter,
+  drafts and per-chat focus handling.
+- Bot inline keyboards keep Telegram's row layout and button styles and now do
+  something for every button kind: URL, copy, callback
+  (`messages.getBotCallbackAnswer` with alert/URL results and a pressed-cell
+  spinner) and web-app buttons.
+- Bot Web Apps open in a detached Telegram-style mini-app window (480×688,
+  rounded, own header with close/open-in-browser) that loads our local wrapper
+  page and embeds the authenticated `messages.requestWebView` URL in a sandboxed
+  iframe; the composer's bot menu pill ("JISO发现" in the tests) launches the
+  same window. Simple-webview buttons open their raw URL without a web view
+  request.
+- Telegram Web's emoji picker replaces the old "append 😊" button: 1,895 emoji in
+  7 categories plus a popular/recents section, localized search keywords
+  (en/zh/ja), quick category filters, sticky headers, skin-tone-ready grid,
+  light/dark styling, keyboard navigation, and caret-preserving insertion that
+  sends as plain text. Data is generated from permissively licensed sources
+  (iamcal/emoji-data MIT + Unicode CLDR) and bundled offline.
+- Chat list: Saved Messages is titled/localized like Telegram, channels show
+  "N subscribers" instead of "N members", and bot chats show their @username.
+- Internal: new kernel APIs `GetChatProfile`, `SetChatMuted`, `SetChatPinned`,
+  `SendBotCallback`, `RequestBotWebView` and app-level `OpenBotWebView` /
+  `OpenMiniApp` / `TakeMiniAppState` (generated bindings updated); inline button
+  DTOs gained `row`/`style` and the `webview_simple` kind; new
+  `mini-app` window modelled on the detached media viewer.
+
 ### Media viewer
 
 - Chat photos, videos, GIFs, round video notes and albums now open in a

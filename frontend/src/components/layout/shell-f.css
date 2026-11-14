@@ -725,97 +725,16 @@
 
 /* ---------------------------------------------------------------- composer */
 
-/* The composer is a floating rounded card like Telegram Web K's input plate,
- * not a full-width bar. */
-.f-composer {
-  display: flex;
-  width: min(760px, calc(100% - 20px));
-  min-height: 50px;
-  flex: 0 0 auto;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-  margin: 6px auto 10px;
-  border-radius: 14px;
-  background: var(--f-surface);
-  padding: 4px 6px;
-  box-shadow: 0 1px 8px 1px rgba(0, 0, 0, 0.12);
-}
-
-.f-composer-field {
-  display: flex;
-  width: 100%;
-  max-width: none;
-  min-height: 42px;
-  align-items: flex-end;
-  gap: 2px;
-  border: 0;
-  border-radius: 12px;
-  margin: 0 auto;
-  background: transparent;
-  padding: 2px 2px;
-  transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease;
-}
-
-.f-composer-field:focus-within {
-  border-color: transparent;
-  box-shadow: none;
-}
-
-.f-composer-input {
-  width: 100%;
-  min-height: 34px;
-  max-height: 132px;
-  flex: 1;
-  resize: none;
-  overflow-y: auto;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  padding: 7px 6px 6px;
-  color: var(--f-text);
-  font-family: var(--f-font);
-  font-size: 13.5px;
-  line-height: 20px;
-}
-
-.f-composer-input::placeholder {
-  color: var(--gray-a9);
-  opacity: 1;
-}
-
-.f-composer-input:focus-visible {
-  outline: 0;
-}
-
-.f-composer-send {
-  flex: 0 0 auto;
-  border-radius: 50%;
-}
-
-.f-composer-sending {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
-  place-items: center;
-  border-radius: 50%;
-  color: var(--accent-11);
-}
+/* The Telegram Web K composer plate (message composer + broadcast footer) now
+ * lives with its components in components/chat/composer/composer-f.css. The
+ * lane geometry (696 px, 24 px radius, 48 px plate, 40 px controls) and the
+ * --tg-composer-* light/dark tokens are defined there, so this file only keeps
+ * the shell layout around the plate. */
 
 /* ------------------------------------------------------------- channel bar */
 
-.f-shell .g-channel-bar {
-  width: min(760px, calc(100% - 20px));
-  margin: 6px auto 10px;
-  border: 0;
-  border-radius: 14px;
-  background: var(--f-surface);
-  padding: 10px 16px;
-  box-shadow: 0 1px 8px 1px rgba(0, 0, 0, 0.12);
-}
+/* Broadcast footer: rendered by components/chat/ChannelBar.tsx inside the
+ * composer plate, see composer-f.css. */
 
 @media (max-width: 860px) {
   .f-shell {

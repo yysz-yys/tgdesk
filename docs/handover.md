@@ -30,6 +30,42 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
   `messages.search` 过滤并无限滚动分页；媒体支持 Telegram Web 的照片/视频勾选过滤
   与 "N 张照片，M 个视频" 副标题；右键菜单按类别显示 转发/复制媒体/下载/在聊天中显示/
   选择/删除，支持多选操作；成员走 `channels.getParticipants` 分页（成员管理类菜单暂未实现）。
+- 聊天资料/发言能力后端：`GetChatProfile` 一次拉取 `users.getFullUser` /
+  `messages.getFullChat` / `channels.getFullChannel`（缓存 60 秒），返回类型
+  （user/bot/saved/group/channel）、简介、用户名、联系人可见手机号、成员/订阅数、
+  可发言/可发文本、慢速模式、管理员/群主、论坛、邀请链接、关联群、Bot 命令/菜单按钮/
+  隐私政策；发言权限按 tweb hasRights 推导（频道管理员需 post_messages、send_plain
+  只限制文本等）。
+- 服务端 Pin/Mute：`SetChatMuted`（account.get/updateNotifySettings，先读后合并，
+  永久静音用 0x7FFFFFFF）与 `SetChatPinned`（messages.toggleDialogPin），成功后清空
+  dialog 缓存。
+- Bot inline 键盘：`SendBotCallback`（messages.getBotCallbackAnswer，FLOOD_WAIT/
+  BOT_RESPONSE_TIMEOUT 转可读错误）回读被点击消息并以 `chat:event` edit 推送刷新；
+  按钮 DTO 带行号/样式，simple webview 单独映射为 `webview_simple`。
+- Bot mini app：`RequestBotWebView`（messages.requestWebView）返回带签名的 URL；
+  `OpenBotWebView`/`OpenMiniApp` 复用透明无边框 `mini-app` 窗口（480×688，本地
+  `/miniapp.html` 包装页 + sandbox iframe，`TakeMiniAppState(session)` 传状态）。
+- 聊天信息面板前端（`ChatInfoPanel`）：按资料类型显示 "用户信息/机器人信息/群组信息/
+  频道信息/已保存消息"，头像/标题/N 位成员·订阅者；动作格按 Telegram 类型区分
+  （用户：发消息/通话/静音/更多；机器人：发消息/静音/更多；群组：发消息/静音/更多；
+  频道：静音/更多，可发言时多一个发消息；已保存：发消息/更多），"更多"菜单含
+  置顶、标为已读、归档、在聊天中搜索；下方是图一式简介卡片（(i) 图标、可展开、
+  自动识别链接）、@用户名 / t.me / 邀请链接 / 电话 / 成员·订阅者行、Bot 命令与
+  菜单行，再接原有共享媒体 tab。
+- 输入框按 Telegram Web K 重做（`composer/`）：同一块 24px 圆角浮动面板内放回复/编辑
+  头、上传进度和输入行；按"能否发言"切换而不是按 chat.kind：私聊/机器人/已保存/群组
+  /频道管理员显示输入框（频道占位符 "广播"），不可发言的广播频道显示整条
+  Mute/取消静音 + 礼物按钮，受限群显示只读提示条。含 Bot 菜单胶囊（web app）、
+  `/` 命令自动补全（↑↓/Enter/Esc）、慢速模式倒计时、附件菜单、Emoji 面板、单一
+  morphing 发送/语音按钮、Enter/Shift+Enter/Ctrl+Enter 与草稿。
+- Bot 内联键盘前端（`BotKeyboard`）：按 `row` 还原 Telegram 行/等宽格子、`style`
+  着色、点击态 spinner；URL/复制/回调/webview 全部可用；回调走
+  `SendBotCallback`，alert/URL 结果即时反馈，被机器人编辑的消息由 `chat:event` 刷新。
+- Emoji 面板：1,895 个 emoji、7 分类 + 常用/最近、中英日搜索关键词、快捷分类过滤、
+  明暗主题、键盘导航；从光标处插入并以纯文本发送，数据来自 MIT/Unicode 许可来源，
+  离线打包（`data/emoji*.ts`，按语言懒加载关键词）。
+- 会话列表：已保存消息按语言显示为 "已保存消息"，频道显示 "N 位订阅者"，机器人
+  副标题显示 @username。
 - Telegram Web 风格的消息操作：右键/悬停菜单、回复、复制、转发、编辑自己的文本消息、
   为自己/所有人删除、链接自动识别、照片大图查看。
 - 实时消息推送：gotd `UpdateDispatcher` 处理新消息/编辑/删除/reaction/已读，通过
@@ -64,7 +100,13 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 - 服务端消息搜索、typing/在线状态、定时消息、多文件一次性发送为相册。
 - 聊天信息中的 Stories/Gifts/相似频道/群组等 Web 分类尚未接入（当前覆盖
   成员、媒体、文件、链接、音乐、语音、动图）。
-- Pin/Mute/Read 仅本地 UI 状态，不写回 Telegram。
+- 输入框的 send-as / 匿名管理员 / 定时消息 / 语音录制与发送菜单未实现（相关按钮
+  隐藏或给出提示）；未订阅频道的 JOIN/SUBSCRIBE 底栏依赖加入聊天功能，暂不涉及。
+- Bot mini app 还没有 Telegram JS bridge：`web_app_data_send`、`prolongWebView`、
+  MainButton/返回事件、`web_app_ready` 均未转发；`botOwnerId` 在 gotd v0.140 的 TL
+  层没有字段，保持为空。Emoji 面板暂无肤色选择，Windows 上国旗 emoji 渲染为字母对
+  （Segoe UI Emoji 限制）；群组中的 bot 命令补全依赖资料里的 commands 数据。
+- 聊天资料里的"通话"按钮会提示本版本暂不支持（未接语音通话）。
 - 带本地 passcode 的 tdata 导入不支持。
 - 只导出主 DC 的 auth key；其余 DC key 由官方客户端连接时补齐。
 - Windows 以外的构建脚手架存在，但未做发布级验证。
@@ -88,11 +130,16 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 ```text
 main.go                         Wails 入口、窗口、服务注册、WebView 迁移
 internal/app/service.go         Wails 适配层：只转调 kernel + 发事件
+internal/app/media_viewer.go    独立媒体查看器窗口
+internal/app/mini_app.go        Bot mini app 透明窗口（480×688、session、复用、焦点）
 internal/kernel/
   auth.go                       二维码/手机号/2FA 状态机、AuthEvent、tdata 导出触发
   session.go                    共享已授权 Telegram client
   session_user.go               RefreshUser + ensureTData
   chats.go                      会话/消息/操作/媒体 DTO 与 URL 映射
+  chat_profile.go               聊天资料 DTO、发言权限推导、60s 缓存
+  chat_actions.go               服务端静音/取消静音、Pin/取消 Pin
+  bots.go                       bot 回调答案、mini app requestWebView、错误转可读
   live.go                       Telegram updates → chat:event
   reactions.go                  表情回应
   attachments.go                原生文件选择、上传与进度事件
@@ -203,7 +250,8 @@ $env:TGDESK_WEBVIEW_DEBUG = "1"
 ## 8. 已知技术债 / 下一步
 
 1. 持久化的 updates 序列/gap recovery 与虚拟列表；当前断线只靠 `updatesTooLong` 重载。
-2. 会话 pin/mute/read 写回服务端。
+2. Bot mini app 无 Telegram JS bridge（web_app_data_send、prolongWebView 未接）；
+   `BotCallbackResultDTO` 不含非 alert 的 toast 文本；`botOwnerId` 本 TL 层无字段，留空。
 3. 服务端搜索、typing/在线状态、定时消息、多文件一次性发相册。
 4. 下载 CDN redirect 的完整续传。
 5. 代理密码迁移到 Windows Credential Manager。

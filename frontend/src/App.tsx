@@ -7,7 +7,9 @@ import { resolveLanguage } from "./i18n";
 import {
   mapChat,
   mapChatMember,
+  mapChatProfile,
   mapMessage,
+  isSavedMessagesChat,
   type KernelChat,
   type KernelMessage,
 } from "./data/telegram";
@@ -15,11 +17,14 @@ import type { DownloadTaskDTO } from "../bindings/tgdesk/internal/kernel/models"
 import type { ChatFolderDTO } from "../bindings/tgdesk/internal/kernel/models";
 import type {
   AuthUser,
+  BotCallbackResult,
+  BotWebViewRequest,
   Chat,
   ChatEvent,
   ChatFolder,
   ChatInfo,
   ChatMembersPage,
+  ChatProfile,
   DownloadEvent,
   DownloadTask,
   SharedMediaPage,
@@ -380,6 +385,21 @@ export default function App() {
     [proxyUrl, settings.ntp],
   );
 
+  // Telegram Web loads the full peer profile (bio, username, link, bot info)
+  // when the profile column opens; the kernel caches it for a minute.
+  const loadChatProfile = useCallback(
+    async (chatID: string, kind: Chat["kind"]): Promise<ChatProfile | null> => {
+      const profile = await AppService.GetChatProfile(
+        chatID,
+        kind,
+        proxyUrl,
+        settings.ntp,
+      );
+      return profile ? mapChatProfile(profile) : null;
+    },
+    [proxyUrl, settings.ntp],
+  );
+
   useEffect(() => {
     if (!loggedIn) {
       return;
@@ -423,8 +443,21 @@ export default function App() {
         unread: Math.max(existing.unread ?? 0, chat.unread ?? 0),
       });
     }
-    return Array.from(byID.values()).map((chat) => mapChat(chat, language, t));
-  }, [chatDTOs, language, t]);
+    return Array.from(byID.values()).map((chat) => {
+      const mapped = mapChat(chat, language, t);
+      // Telegram titles the self chat "Saved Messages" in the user's language
+      // instead of the account name.
+      if (isSavedMessagesChat(chat.id, authUser?.id)) {
+        return {
+          ...mapped,
+          saved: true,
+          title: t("chat.savedMessages"),
+          initials: "S",
+        };
+      }
+      return mapped;
+    });
+  }, [chatDTOs, language, t, authUser?.id]);
 
   const filteredChats = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -700,10 +733,21 @@ export default function App() {
   };
 
   const togglePin = (id: string) => {
+    const chat = chatDTOs.find((item) => item.id === id);
+    const pinned = !chat?.pinned;
     setChatDTOs((current) =>
-      current.map((chat) => (chat.id === id ? { ...chat, pinned: !chat.pinned } : chat)),
+      current.map((item) => (item.id === id ? { ...item, pinned } : item)),
     );
-    showToast(t("toasts.pinUpdated"));
+    void AppService.SetChatPinned(id, pinned, proxyUrl, settings.ntp)
+      .then(() => showToast(t("toasts.pinUpdated")))
+      .catch(() => {
+        setChatDTOs((current) =>
+          current.map((item) =>
+            item.id === id ? { ...item, pinned: !pinned } : item,
+          ),
+        );
+        showToast(t("toasts.pinFailed"));
+      });
   };
 
   const toggleArchive = (chat: Chat) => {
@@ -721,10 +765,21 @@ export default function App() {
   };
 
   const toggleMute = (id: string) => {
+    const chat = chatDTOs.find((item) => item.id === id);
+    const muted = !chat?.muted;
     setChatDTOs((current) =>
-      current.map((chat) => (chat.id === id ? { ...chat, muted: !chat.muted } : chat)),
+      current.map((item) => (item.id === id ? { ...item, muted } : item)),
     );
-    showToast(t("toasts.notificationUpdated"));
+    void AppService.SetChatMuted(id, muted, proxyUrl, settings.ntp)
+      .then(() => showToast(t("toasts.notificationUpdated")))
+      .catch(() => {
+        setChatDTOs((current) =>
+          current.map((item) =>
+            item.id === id ? { ...item, muted: !muted } : item,
+          ),
+        );
+        showToast(t("toasts.notificationFailed"));
+      });
   };
 
   const markChatsRead = (ids: string[]) => {
@@ -1136,6 +1191,72 @@ export default function App() {
     await refreshMessages();
   };
 
+  // Inline-keyboard callback buttons: the bot answers with an alert/toast, an
+  // URL, or an edited/new message (the latter arrives through chat:event).
+  const sendBotCallback = useCallback(
+    async (
+      chatID: string,
+      messageID: number,
+      dataHex: string,
+    ): Promise<BotCallbackResult | null> => {
+      try {
+        const result = await AppService.SendBotCallback(
+          chatID,
+          messageID,
+          dataHex,
+          proxyUrl,
+          settings.ntp,
+        );
+        if (!result) {
+          return null;
+        }
+        return {
+          alert: result.alert || undefined,
+          url: result.url || undefined,
+          cacheTime: result.cacheTime || undefined,
+        };
+      } catch (error) {
+        showToast(t("toasts.botActionFailed"));
+        throw error;
+      }
+    },
+    [proxyUrl, settings.ntp, showToast, t],
+  );
+
+  // Opens a bot Web App (inline webview button or the bot's menu button) in the
+  // detached mini-app window. Simple webviews skip requestWebView.
+  const openBotWebView = useCallback(
+    async (request: BotWebViewRequest) => {
+      try {
+        if (request.simple) {
+          await AppService.OpenMiniApp(request.url, request.title);
+          return;
+        }
+        await AppService.OpenBotWebView(
+          request.chatId,
+          request.botId,
+          request.messageId,
+          request.url,
+          request.fromBotMenu,
+          request.title,
+          proxyUrl,
+          settings.ntp,
+        );
+      } catch {
+        showToast(t("toasts.webAppFailed"));
+      }
+    },
+    [proxyUrl, settings.ntp, showToast, t],
+  );
+
+  const sendCommand = async (command: string) => {
+    if (!selectedChatId) {
+      throw new Error("No chat selected");
+    }
+    const text = command.startsWith("/") ? command : `/${command}`;
+    await sendMessage(text);
+  };
+
   const attachFiles = async (caption: string, replyToID?: number) => {
     if (!selectedChatId) {
       throw new Error("No chat selected");
@@ -1532,7 +1653,12 @@ export default function App() {
                 }}
                 onLoadChatInfo={loadChatInfo}
                 onLoadMembersPage={loadChatMembersPage}
+                onLoadChatProfile={loadChatProfile}
                 onLoadSharedMedia={loadSharedMedia}
+                onArchiveChat={(chat) => toggleArchive(chat)}
+                onSendBotCallback={sendBotCallback}
+                onOpenBotWebView={openBotWebView}
+                onSendCommand={sendCommand}
                 liveVersion={chatInfoVersion}
                 onDownloadAll={() => downloadAll(selectedChat)}
                 onTogglePin={togglePin}

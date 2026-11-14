@@ -1,0 +1,622 @@
+/* Telegram Web K composer plate — tgdesk.
+ *
+ * Geometry and colours follow the Web K composer research (report
+ * temp/research/composer.md §9): one floating 24 px card on a 696 px lane,
+ * 48 px minimum height, 4 px padding/gap, 40 px round controls, single
+ * morphing send/mic button, reply header and upload progress as rows inside
+ * the same card. The local `--tg-composer-*` tokens mirror Web K's day/night
+ * palette; the rest of the app's `--f-*`/Radix tokens are left untouched.
+ */
+
+.tg-composer {
+  /* ---- Web K day palette (themeController.ts:126-163) ------------------- */
+  --tg-composer-max-width: 696px;
+  --tg-composer-radius: 24px;
+  --tg-composer-height: 48px;
+  --tg-composer-button: 40px;
+  --tg-composer-bg: #ffffff;
+  --tg-composer-popover-bg: #ffffff;
+  --tg-composer-chip: rgba(112, 117, 121, 0.08);
+  --tg-composer-chip-hover: rgba(112, 117, 121, 0.14);
+  --tg-composer-text: #000000;
+  --tg-composer-secondary: #707579;
+  --tg-composer-placeholder: #a2acb4;
+  --tg-composer-primary: #3390ec;
+  --tg-composer-primary-hover: #2f84d8;
+  --tg-composer-send-disabled: #c4c9cc;
+  --tg-composer-divider: #dfe1e5;
+  --tg-composer-shadow: 0 1px 8px 1px rgba(0, 0, 0, 0.12);
+  --tg-composer-popover-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.06), 0 14px 34px -14px rgba(16, 24, 40, 0.32);
+  --tg-composer-font: var(--f-font);
+
+  display: flex;
+  width: 100%;
+  flex: 0 0 auto;
+  justify-content: center;
+  padding: 2px 10px 10px;
+  background: transparent;
+  font-family: var(--tg-composer-font);
+}
+
+/* Web K night palette (``#212121`` surface, ``#8774e1`` primary). */
+html[data-theme="dark"] .tg-composer,
+.radix-themes.dark .tg-composer,
+.radix-themes.dark-theme .tg-composer {
+  --tg-composer-bg: #212121;
+  --tg-composer-popover-bg: #212121;
+  --tg-composer-chip: rgba(255, 255, 255, 0.08);
+  --tg-composer-chip-hover: rgba(255, 255, 255, 0.14);
+  --tg-composer-text: #ffffff;
+  --tg-composer-secondary: #aaaaaa;
+  --tg-composer-placeholder: #a2acb4;
+  --tg-composer-primary: #8774e1;
+  --tg-composer-primary-hover: #7a68cc;
+  --tg-composer-send-disabled: #707579;
+  --tg-composer-divider: #0f0f0f;
+  --tg-composer-shadow: 0 1px 8px 1px rgba(0, 0, 0, 0.3);
+  --tg-composer-popover-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45), 0 18px 40px -16px rgba(0, 0, 0, 0.7);
+}
+
+.tg-composer__lane {
+  width: min(var(--tg-composer-max-width), 100%);
+  margin: 0 auto;
+}
+
+.tg-composer__anchor {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.tg-composer__plate {
+  display: flex;
+  width: 100%;
+  min-height: var(--tg-composer-height);
+  flex-direction: column;
+  border-radius: var(--tg-composer-radius);
+  background: var(--tg-composer-bg);
+  box-shadow: var(--tg-composer-shadow);
+}
+
+.tg-composer__plate--skeleton {
+  min-height: var(--tg-composer-height);
+  opacity: 0.7;
+  animation: tg-composer-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes tg-composer-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* ------------------------------------------------------------- reply chip */
+
+.tg-composer__reply {
+  display: flex;
+  padding: 4px 4px 0;
+}
+
+.tg-composer__reply-chip {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--tg-composer-button);
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  background: var(--tg-composer-chip);
+  padding: 0 2px 0 6px;
+}
+
+.tg-composer__reply-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  color: var(--tg-composer-primary);
+}
+
+.tg-composer__reply[data-editing] .tg-composer__reply-icon {
+  color: var(--tg-composer-secondary);
+}
+
+.tg-composer__reply-accent {
+  width: 2px;
+  height: 24px;
+  flex: 0 0 2px;
+  border-radius: 1px;
+  background: var(--tg-composer-primary);
+}
+
+.tg-composer__reply-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 0;
+}
+
+.tg-composer__reply-title {
+  overflow: hidden;
+  color: var(--tg-composer-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-composer__reply-text {
+  overflow: hidden;
+  color: var(--tg-composer-secondary);
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------- upload progress */
+
+.tg-composer__upload {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 12px 2px;
+}
+
+.tg-composer__upload-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--tg-composer-chip);
+  color: var(--tg-composer-primary);
+}
+
+.tg-composer__upload-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tg-composer__upload-name {
+  overflow: hidden;
+  color: var(--tg-composer-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-composer__upload-meta {
+  color: var(--tg-composer-secondary);
+  font-size: 11.5px;
+}
+
+.tg-composer__upload-bar {
+  width: 110px;
+  flex: 0 0 110px;
+}
+
+/* --------------------------------------------------------------- input row */
+
+.tg-composer__row {
+  display: flex;
+  min-height: var(--tg-composer-height);
+  align-items: flex-end;
+  gap: 4px;
+  padding: 4px;
+}
+
+.tg-composer__input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--tg-composer-button);
+  max-height: 30rem;
+  flex: 1 1 auto;
+  resize: none;
+  overflow-y: auto;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 9px 4px 9px 6px;
+  color: var(--tg-composer-text);
+  font-family: var(--tg-composer-font);
+  font-size: 16px;
+  line-height: 22px;
+  scrollbar-width: thin;
+}
+
+.tg-composer__input::placeholder {
+  color: var(--tg-composer-placeholder);
+  opacity: 1;
+}
+
+.tg-composer__input:focus-visible {
+  outline: 0;
+}
+
+.tg-composer__input[readonly] {
+  color: var(--tg-composer-secondary);
+  cursor: default;
+}
+
+/* ----------------------------------------------------------- icon buttons */
+
+.tg-composer__icon {
+  display: grid;
+  width: var(--tg-composer-button);
+  height: var(--tg-composer-button);
+  flex: 0 0 var(--tg-composer-button);
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  padding: 0;
+  color: var(--tg-composer-secondary);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.tg-composer__icon:hover {
+  background: var(--tg-composer-chip);
+}
+
+.tg-composer__icon[data-active] {
+  color: var(--tg-composer-primary);
+}
+
+.tg-composer__icon:disabled {
+  background: transparent;
+  color: var(--tg-composer-secondary);
+  cursor: default;
+  opacity: 0.45;
+}
+
+.tg-composer__icon:focus-visible {
+  outline: 2px solid var(--tg-composer-primary);
+  outline-offset: -2px;
+}
+
+.tg-composer__icon--compact {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+}
+
+/* --------------------------------------------------- send / mic morph button */
+
+.tg-composer__send {
+  display: grid;
+  width: var(--tg-composer-button);
+  height: var(--tg-composer-button);
+  flex: 0 0 var(--tg-composer-button);
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--tg-composer-primary);
+  padding: 0;
+  color: #ffffff;
+  cursor: pointer;
+  transition:
+    background-color 200ms ease,
+    transform 120ms ease;
+}
+
+.tg-composer__send:hover:not(:disabled) {
+  background: var(--tg-composer-primary-hover);
+}
+
+.tg-composer__send:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.tg-composer__send:disabled {
+  background: var(--tg-composer-send-disabled);
+  color: #ffffff;
+  cursor: default;
+}
+
+.tg-composer__send:focus-visible {
+  outline: 2px solid var(--tg-composer-primary-hover);
+  outline-offset: 2px;
+}
+
+.tg-composer__send[data-mode="send"] .f-icon {
+  margin-bottom: -1px;
+  margin-inline-start: -3px;
+}
+
+.tg-composer__send-spinner {
+  color: #ffffff;
+}
+
+/* ------------------------------------------------------------- slow mode */
+
+.tg-composer__slow {
+  display: inline-flex;
+  height: var(--tg-composer-button);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  border-radius: 20px;
+  padding: 0 8px;
+  color: var(--tg-composer-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tg-composer__slow[data-counting] {
+  color: var(--tg-composer-primary);
+}
+
+.tg-composer__slow-text {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------- bot menu pill / toggle */
+
+.tg-composer__bot-pill {
+  display: flex;
+  height: var(--tg-composer-button);
+  max-width: min(40vw, 260px);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--tg-composer-primary);
+  padding: 0 12px;
+  color: #ffffff;
+  cursor: pointer;
+  font-family: var(--tg-composer-font);
+  font-size: 15px;
+  font-weight: 500;
+  transition: background-color 150ms ease;
+}
+
+.tg-composer__bot-pill:hover {
+  background: var(--tg-composer-primary-hover);
+}
+
+.tg-composer__bot-pill:focus-visible {
+  outline: 2px solid var(--tg-composer-primary-hover);
+  outline-offset: 2px;
+}
+
+.tg-composer__bot-pill-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------- attach / command popovers */
+
+.tg-composer__attach-menu {
+  position: absolute;
+  z-index: 30;
+  bottom: calc(100% + 8px);
+  inset-inline-start: 0;
+  display: flex;
+  min-width: 208px;
+  flex-direction: column;
+  border-radius: 12px;
+  background: var(--tg-composer-popover-bg);
+  box-shadow: var(--tg-composer-popover-shadow);
+  padding: 4px;
+  animation: tg-composer-pop-in 120ms ease-out;
+}
+
+.tg-composer__attach-item {
+  display: flex;
+  height: 44px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0 10px;
+  color: var(--tg-composer-text);
+  cursor: pointer;
+  font-family: var(--tg-composer-font);
+  font-size: 14px;
+  text-align: start;
+}
+
+.tg-composer__attach-item:hover {
+  background: var(--tg-composer-chip);
+}
+
+.tg-composer__attach-item .f-icon {
+  color: var(--tg-composer-secondary);
+}
+
+/* ----------------------------------------------------- bot command dropdown */
+
+.tg-composer__commands {
+  position: absolute;
+  z-index: 30;
+  bottom: calc(100% + 8px);
+  inset-inline: 0;
+  display: flex;
+  max-height: 207px;
+  flex-direction: column;
+  overflow-y: auto;
+  border-radius: 12px;
+  background: var(--tg-composer-popover-bg);
+  box-shadow: var(--tg-composer-popover-shadow);
+  padding: 4px;
+  animation: tg-composer-pop-in 120ms ease-out;
+}
+
+.tg-composer__command {
+  display: flex;
+  min-height: 50px;
+  flex: 0 0 50px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0 12px;
+  color: var(--tg-composer-text);
+  cursor: pointer;
+  font-family: var(--tg-composer-font);
+  text-align: start;
+}
+
+.tg-composer__command[data-active] {
+  background: var(--tg-composer-chip);
+}
+
+.tg-composer__command-name {
+  color: var(--tg-composer-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.tg-composer__command-desc {
+  overflow: hidden;
+  color: var(--tg-composer-secondary);
+  font-size: 12.5px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes tg-composer-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------------------------------------- footer plate */
+
+.tg-composer__plate--footer {
+  justify-content: center;
+}
+
+.tg-composer__footer-row {
+  display: flex;
+  min-height: var(--tg-composer-height);
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+}
+
+.tg-composer__footer-center {
+  min-width: 0;
+  flex: 1;
+}
+
+.tg-composer__footer-side {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.tg-composer__wide {
+  width: 100%;
+  height: var(--tg-composer-button);
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  padding: 0 1rem;
+  color: var(--tg-composer-text);
+  cursor: pointer;
+  font-family: var(--tg-composer-font);
+  font-size: 15px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background-color 150ms ease;
+}
+
+.tg-composer__wide:hover {
+  background: var(--tg-composer-chip);
+}
+
+.tg-composer__wide:focus-visible {
+  outline: 2px solid var(--tg-composer-primary);
+  outline-offset: -2px;
+}
+
+.tg-composer__wide--primary {
+  background: var(--tg-composer-primary);
+  color: #ffffff;
+}
+
+.tg-composer__wide--primary:hover {
+  background: var(--tg-composer-primary-hover);
+}
+
+/* ------------------------------------------------------- read-only footer */
+
+.tg-composer__disabled {
+  display: flex;
+  min-height: var(--tg-composer-button);
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 20px;
+  background: var(--tg-composer-chip);
+  padding: 0 14px;
+  color: var(--tg-composer-secondary);
+}
+
+.tg-composer__disabled-text {
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .tg-composer {
+    padding-inline: 8px;
+  }
+
+  .tg-composer__slow-text {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-composer__attach-menu,
+  .tg-composer__commands,
+  .tg-composer__plate--skeleton {
+    animation: none;
+  }
+
+  .tg-composer__send,
+  .tg-composer__icon,
+  .tg-composer__bot-pill {
+    transition: none;
+  }
+}

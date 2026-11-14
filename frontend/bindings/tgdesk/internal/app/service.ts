@@ -104,6 +104,14 @@ export function GetChatMembersPage(chatID: string, proxy: string, ntp: string, o
     return $Call.ByID(2995914774, chatID, proxy, ntp, offset, limit);
 }
 
+/**
+ * GetChatProfile loads the full peer profile the chat-info panel and the
+ * composer capability switch use (bio, counts, rights, bot metadata).
+ */
+export function GetChatProfile(chatID: string, kind: string, proxy: string, ntp: string): $CancellablePromise<kernel$0.ChatProfileDTO | null> {
+    return $Call.ByID(4105645655, chatID, kind, proxy, ntp);
+}
+
 export function GetChats(proxy: string, ntp: string, limit: number, force: boolean): $CancellablePromise<kernel$0.ChatDTO[] | null> {
     return $Call.ByID(393713803, proxy, ntp, limit, force);
 }
@@ -159,6 +167,17 @@ export function MarkChatsRead(chatIDs: string[] | null, proxy: string, ntp: stri
     return $Call.ByID(305193224, chatIDs, proxy, ntp);
 }
 
+/**
+ * OpenBotWebView launches a bot mini app for the given button/menu. The kernel
+ * resolves the authenticated URL through messages.requestWebView; if that call
+ * fails (plain/simple webview buttons, bots without an inline context) the raw
+ * URL passed by the caller is opened instead, so "simple webview" buttons still
+ * work. The window always loads our local wrapper page, never the remote URL.
+ */
+export function OpenBotWebView(chatID: string, botPeerID: string, messageID: number, url: string, fromBotMenu: boolean, title: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(2535948076, chatID, botPeerID, messageID, url, fromBotMenu, title, proxy, ntp);
+}
+
 export function OpenDownloadFolder(path: string): $CancellablePromise<void> {
     return $Call.ByID(1222918316, path);
 }
@@ -171,12 +190,28 @@ export function OpenMediaViewer(payload: string): $CancellablePromise<void> {
     return $Call.ByID(4077101510, payload);
 }
 
+/**
+ * OpenMiniApp opens a raw (unauthenticated) http(s) URL in the mini-app window.
+ * It serves simple-webview buttons (kind "webview_simple") which must not call
+ * messages.requestWebView, and is the fallback entry point for plain URLs.
+ */
+export function OpenMiniApp(url: string, title: string): $CancellablePromise<void> {
+    return $Call.ByID(732980002, url, title);
+}
+
 export function PauseDownload(id: string): $CancellablePromise<void> {
     return $Call.ByID(629438258, id);
 }
 
 export function RefreshUser(proxy: string, ntp: string): $CancellablePromise<kernel$0.AuthUser | null> {
     return $Call.ByID(3728149848, proxy, ntp);
+}
+
+/**
+ * RequestBotWebView opens a bot mini app and returns the authenticated URL.
+ */
+export function RequestBotWebView(chatID: string, botPeerID: string, messageID: number, url: string, fromBotMenu: boolean, proxy: string, ntp: string): $CancellablePromise<kernel$0.BotWebViewDTO | null> {
+    return $Call.ByID(3472531325, chatID, botPeerID, messageID, url, fromBotMenu, proxy, ntp);
 }
 
 export function ResendCode(): $CancellablePromise<void> {
@@ -191,6 +226,15 @@ export function SendAttachment(chatID: string, filePath: string, caption: string
     return $Call.ByID(1507448875, chatID, filePath, caption, replyToID, proxy, ntp);
 }
 
+/**
+ * SendBotCallback presses a bot inline-keyboard callback button and returns the
+ * bot's alert/url answer (the edited message is also pushed over the chat event
+ * bridge).
+ */
+export function SendBotCallback(chatID: string, messageID: number, dataHex: string, proxy: string, ntp: string): $CancellablePromise<kernel$0.BotCallbackResultDTO | null> {
+    return $Call.ByID(1489450872, chatID, messageID, dataHex, proxy, ntp);
+}
+
 export function SendMessage(chatID: string, text: string, replyToID: number, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(1826619901, chatID, text, replyToID, proxy, ntp);
 }
@@ -201,6 +245,20 @@ export function SendReaction(chatID: string, messageID: number, emoji: string, c
 
 export function SetChatArchived(chatID: string, archived: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(52835712, chatID, archived, proxy, ntp);
+}
+
+/**
+ * SetChatMuted mutes or unmutes a chat server-side.
+ */
+export function SetChatMuted(chatID: string, muted: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(3243533753, chatID, muted, proxy, ntp);
+}
+
+/**
+ * SetChatPinned pins or unpins a dialog server-side.
+ */
+export function SetChatPinned(chatID: string, pinned: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(3145384768, chatID, pinned, proxy, ntp);
 }
 
 export function StartDownload(chatID: string, chatTitle: string, messageIDs: number[] | null, proxy: string, ntp: string, dir: string, fileNameTemplate: string, options: kernel$0.DownloadOptions): $CancellablePromise<string[] | null> {
@@ -230,6 +288,15 @@ export function SubmitPassword(password: string): $CancellablePromise<void> {
  */
 export function TakeMediaViewerState(session: string): $CancellablePromise<string> {
     return $Call.ByID(1447354160, session);
+}
+
+/**
+ * TakeMiniAppState returns the serialized mini-app payload for a session. The
+ * wrapper page calls it once on load; the entry stays until the window closes
+ * so a dev/HMR reload can still restore the app.
+ */
+export function TakeMiniAppState(session: string): $CancellablePromise<string> {
+    return $Call.ByID(165078056, session);
 }
 
 export function ValidateDownload(id: string): $CancellablePromise<boolean> {

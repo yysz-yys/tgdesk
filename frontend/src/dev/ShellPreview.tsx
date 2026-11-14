@@ -585,6 +585,19 @@ function Shell() {
             })
           }
           onDownloadAll={noop}
+          onLoadChatProfile={() =>
+            Promise.resolve({
+              type: "group",
+              members: previewMembers.length,
+              canViewMembers: true,
+              canSend: true,
+              canSendPlain: true,
+            })
+          }
+          onArchiveChat={noop}
+          onSendBotCallback={() => Promise.resolve(null)}
+          onOpenBotWebView={noop}
+          onSendCommand={() => Promise.resolve()}
           onTogglePin={togglePin}
           onToggleMute={toggleMute}
           onMarkRead={markRead}

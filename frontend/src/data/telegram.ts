@@ -1,8 +1,10 @@
 import type { TFunction } from "i18next";
 import type {
+  BotCommandInfo,
   Chat,
   ChatKind,
   ChatMember,
+  ChatProfile,
   Message,
   MessageMedia,
   MessageButton,
@@ -45,6 +47,68 @@ export function mapChatMember(member: KernelChatMember): ChatMember {
     admin: Boolean(member.admin),
     bot: Boolean(member.bot),
   };
+}
+
+function normalizedProfileType(profile: KernelChatProfile): ChatProfile["type"] {
+  switch (profile.type) {
+    case "bot":
+    case "saved":
+    case "group":
+    case "channel":
+      return profile.type;
+    default:
+      return "user";
+  }
+}
+
+/** Maps the kernel's full-peer profile to the UI shape. */
+export function mapChatProfile(profile: KernelChatProfile): ChatProfile {
+  const commands: BotCommandInfo[] = [];
+  for (const command of profile.botCommands ?? []) {
+    const name = command.command?.trim().replace(/^\/+/, "");
+    if (!name) {
+      continue;
+    }
+    commands.push({ command: name, description: command.description || undefined });
+  }
+  const menuType = profile.botMenuButton?.type;
+  return {
+    type: normalizedProfileType(profile),
+    about: profile.about || undefined,
+    username: profile.username || undefined,
+    phone: profile.phone || undefined,
+    members: profile.members ?? 0,
+    canViewMembers: Boolean(profile.canViewMembers),
+    canSend: profile.canSend !== false,
+    canSendPlain: profile.canSendPlain !== false,
+    sendRestriction: profile.sendRestriction || undefined,
+    slowModeSeconds: profile.slowModeSeconds || undefined,
+    slowModeNextSendDate: profile.slowModeNextSendDate || undefined,
+    isAdmin: Boolean(profile.isAdmin),
+    isOwner: Boolean(profile.isOwner),
+    isForum: Boolean(profile.isForum),
+    inviteLink: profile.inviteLink || undefined,
+    linkedChatId: profile.linkedChatId || undefined,
+    botCommands: commands.length > 0 ? commands : undefined,
+    botMenuButton:
+      menuType === "webapp" || menuType === "commands"
+        ? {
+            type: menuType,
+            text: profile.botMenuButton?.text || undefined,
+            url: profile.botMenuButton?.url || undefined,
+          }
+        : undefined,
+    botOwnerId: profile.botOwnerId || undefined,
+    botPrivacyUrl: profile.botPrivacyUrl || undefined,
+  };
+}
+
+/** True when the peer is the current account's own user (Saved Messages). */
+export function isSavedMessagesChat(chatId: string, selfUserId?: number): boolean {
+  if (!selfUserId) {
+    return false;
+  }
+  return chatId.startsWith(`user:${selfUserId}:`);
 }
 
 export interface KernelMessageMedia {
@@ -111,6 +175,32 @@ export interface KernelMessageButton {
   url?: string;
   data?: string;
   kind?: string;
+  row?: number;
+  style?: string;
+}
+
+/** Raw chat profile as returned by the Go kernel (see ChatProfileDTO). */
+export interface KernelChatProfile {
+  type: string;
+  about?: string;
+  username?: string;
+  phone?: string;
+  members?: number;
+  canViewMembers?: boolean;
+  canSend?: boolean;
+  canSendPlain?: boolean;
+  sendRestriction?: string;
+  slowModeSeconds?: number;
+  slowModeNextSendDate?: number;
+  isAdmin?: boolean;
+  isOwner?: boolean;
+  isForum?: boolean;
+  inviteLink?: string;
+  linkedChatId?: string;
+  botCommands?: { command: string; description?: string }[] | null;
+  botMenuButton?: { type?: string; text?: string; url?: string } | null;
+  botOwnerId?: string;
+  botPrivacyUrl?: string;
 }
 
 export interface KernelReaction {
@@ -284,7 +374,11 @@ export function mapChat(chat: KernelChat, language: string, t: TFunction): Chat 
     bot: chat.bot,
     contact: chat.contact,
     verified: chat.verified,
-    members: chat.members ? t("chat.members", { count: chat.members }) : undefined,
+    members: chat.members
+      ? t(chat.kind === "channel" ? "chat.subscribers" : "chat.members", {
+          count: chat.members,
+        })
+      : undefined,
     memberCount: chat.members || undefined,
     online: false,
     color: chatColor(chat.id),
@@ -502,6 +596,13 @@ export function mapMessage(
       url: button.url || undefined,
       data: button.data || undefined,
       kind: button.kind as MessageButton["kind"],
+      row: button.row || undefined,
+      style:
+        button.style === "primary" ||
+        button.style === "danger" ||
+        button.style === "success"
+          ? button.style
+          : undefined,
     })),
     pinned: Boolean(message.pinned),
     postAuthor: message.postAuthor || undefined,

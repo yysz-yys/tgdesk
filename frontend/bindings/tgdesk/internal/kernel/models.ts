@@ -103,6 +103,52 @@ export interface AuthUser {
 }
 
 /**
+ * BotCallbackResultDTO is the answer of messages.getBotCallbackAnswer: an alert
+ * to show modally, a URL to open, or a message state to refresh. The bot's
+ * actual edit/new message arrives as an update; the kernel also fetches the
+ * pressed message afterwards and returns it here so the open chat updates even
+ * when the callback RPC was the only carrier (the same message is emitted on the
+ * live bridge as an "edit" event).
+ */
+export interface BotCallbackResultDTO {
+    "alert"?: string;
+    "url"?: string;
+    "message"?: MessageDTO | null;
+    "cacheTime"?: number;
+}
+
+/**
+ * BotCommandDTO is one entry of a bot's command list ("command" without the
+ * leading slash, exactly like Telegram Web renders it).
+ */
+export interface BotCommandDTO {
+    "command": string;
+    "description"?: string;
+}
+
+/**
+ * BotMenuButtonDTO mirrors the bot menu button that sits in front of the
+ * composer. "webapp" opens the URL as a mini app, "commands" and "default"
+ * mean "show the command list".
+ */
+export interface BotMenuButtonDTO {
+    "type": string;
+    "text"?: string;
+    "url"?: string;
+}
+
+/**
+ * BotWebViewDTO is the authenticated mini-app launch data returned by
+ * messages.requestWebView. URL already carries the signed tgWebAppData query
+ * parameters, so the wrapper page can load it as-is; QueryID is only present for
+ * inline-button/menu-button apps and can be used for prolongWebView.
+ */
+export interface BotWebViewDTO {
+    "url": string;
+    "queryId"?: number;
+}
+
+/**
  * ChatDTO is the stable chat-list shape used by the React UI. The ID is opaque:
  * it encodes the peer type, raw ID and access hash for the message call.
  */
@@ -197,6 +243,110 @@ export interface ChatMembersPageDTO {
     "total": number;
 }
 
+/**
+ * ChatProfileDTO is one peer's full profile for the right-hand info panel and
+ * the composer capability switch. It is the mapped result of
+ * users.getFullUser / messages.getFullChat / channels.getFullChannel, shaped
+ * like the data Telegram Web K renders: type-specific header info, detail rows,
+ * bot metadata and the send rights the composer needs.
+ */
+export interface ChatProfileDTO {
+    /**
+     * Type is "user", "bot", "saved", "group" or "channel". It is resolved from
+     * the peer itself (the kind argument is only a cache/lookup hint), so Saved
+     * Messages and bots are detected even when the dialog list guessed wrong.
+     */
+    "type": string;
+
+    /**
+     * About is the bio (private peers) or description (groups/channels). Bots
+     * fall back to their BotInfo description when the bio is empty.
+     */
+    "about"?: string;
+
+    /**
+     * Username is the main active username without the leading "@".
+     */
+    "username"?: string;
+
+    /**
+     * Phone is only exposed for contacts; Telegram hides it for everyone else.
+     */
+    "phone"?: string;
+
+    /**
+     * Members is the participant/subscriber count (0 for private peers).
+     */
+    "members": number;
+
+    /**
+     * CanViewMembers is true when the participant list is usable (never for
+     * broadcast channels, which only show a subscriber count).
+     */
+    "canViewMembers": boolean;
+
+    /**
+     * CanSend reports whether the current user may post in the chat at all
+     * (rights, not slow mode). Slow mode is described separately by
+     * SlowModeSeconds/SlowModeNextSendDate so the composer stays visible.
+     */
+    "canSend": boolean;
+
+    /**
+     * CanSendPlain reports whether text messages are allowed. It is false for
+     * read-only "media allowed, text not allowed" restrictions.
+     */
+    "canSendPlain": boolean;
+
+    /**
+     * SendRestriction is the machine-readable reason when CanSend is false:
+     * "restricted" (rights/banned), "broadcast" (not an admin of a channel) or
+     * "not-member" (left the group / pending join).
+     */
+    "sendRestriction"?: string;
+
+    /**
+     * SlowModeSeconds is the group's slow-mode interval, 0 when disabled.
+     */
+    "slowModeSeconds"?: number;
+
+    /**
+     * SlowModeNextSendDate is the unix time until which the current user has to
+     * wait before sending again (0 when it can send right now).
+     */
+    "slowModeNextSendDate"?: number;
+    "isAdmin"?: boolean;
+    "isOwner"?: boolean;
+    "isForum"?: boolean;
+
+    /**
+     * InviteLink is a t.me/+... invite link when one is available (best effort;
+     * public peers use Username instead).
+     */
+    "inviteLink"?: string;
+
+    /**
+     * LinkedChatID is the opaque peer id of the linked discussion group (or of
+     * the supergroup a migrated basic group points at), empty when unresolved.
+     */
+    "linkedChatId"?: string;
+    "botCommands"?: BotCommandDTO[] | null;
+    "botMenuButton"?: BotMenuButtonDTO | null;
+
+    /**
+     * BotOwnerID is reserved for clients whose TL layer exposes the bot owner;
+     * this layer (gotd v0.140.0) does not, so it stays empty.
+     */
+    "botOwnerId"?: string;
+
+    /**
+     * BotPrivacyURL follows the documented fallback: the explicit policy URL,
+     * the bot's /privacy command (no URL is returned for it), otherwise the
+     * Telegram mini-app privacy policy.
+     */
+    "botPrivacyUrl"?: string;
+}
+
 export interface ChecklistItemDTO {
     "text": string;
     "done": boolean;
@@ -244,6 +394,18 @@ export interface MessageButtonDTO {
     "url"?: string;
     "data"?: string;
     "kind"?: string;
+
+    /**
+     * Row is the 0-based inline-keyboard row index so the UI can rebuild
+     * Telegram's button grid instead of a flat list.
+     */
+    "row": number;
+
+    /**
+     * Style is the MTProto button colour: "primary", "danger" or "success"
+     * (bg_primary / bg_danger / bg_success); empty means default styling.
+     */
+    "style"?: string;
 }
 
 export interface MessageDTO {

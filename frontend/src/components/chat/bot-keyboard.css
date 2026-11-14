@@ -1,0 +1,172 @@
+/* Telegram Web K inline keyboard (bot reply markup).
+ *
+ * Geometry from Web K `_chatBubble.scss`: rows are flex lines separated by a
+ * 2px hairline gap, cells share the width equally, min-height 40px, 6px radius,
+ * bold labels. The last row of a keyboard that ends the bubble borrows the
+ * bubble's outer bottom radii (passed as CSS variables from MessageBubble), so
+ * the keyboard rounds into the message tail instead of keeping square cells.
+ *
+ * Colors: default cells use the bubble surface tint, styled cells use the MTProto
+ * `KeyboardButtonStyle` tones (primary blue / danger red / success green) with
+ * white labels. Dark mode lifts the neutral tint and label contrast.
+ */
+
+.g-message-buttons.g-bot-keyboard {
+  --g-bot-button-bg: color-mix(in srgb, var(--tg-bubble-text) 8%, transparent);
+  --g-bot-button-bg-hover: color-mix(in srgb, var(--tg-bubble-text) 13%, transparent);
+  --g-bot-button-bg-active: color-mix(in srgb, var(--tg-bubble-text) 18%, transparent);
+  --g-bot-button-fg: var(--tg-bubble-text);
+  --g-bot-button-primary: #3e63dd;
+  --g-bot-button-primary-hover: #3357c9;
+  --g-bot-button-primary-active: #2c4cb3;
+  --g-bot-button-danger: #d64040;
+  --g-bot-button-danger-hover: #c23535;
+  --g-bot-button-danger-active: #aa2e2e;
+  --g-bot-button-success: #1a7f37;
+  --g-bot-button-success-hover: #166d30;
+  --g-bot-button-success-active: #125c28;
+
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 5px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+[data-theme="dark"] .g-message-buttons.g-bot-keyboard {
+  --g-bot-button-bg: rgba(255, 255, 255, 0.1);
+  --g-bot-button-bg-hover: rgba(255, 255, 255, 0.16);
+  --g-bot-button-bg-active: rgba(255, 255, 255, 0.22);
+  --g-bot-button-fg: #ffffff;
+  --g-bot-button-primary: #3e63dd;
+  --g-bot-button-primary-hover: #4f72e6;
+  --g-bot-button-primary-active: #5f80ef;
+  --g-bot-button-danger: #d64040;
+  --g-bot-button-danger-hover: #e14e4e;
+  --g-bot-button-danger-active: #ec5d5d;
+  --g-bot-button-success: #2f9e44;
+  --g-bot-button-success-hover: #36ad4b;
+  --g-bot-button-success-active: #3dbc53;
+}
+
+.g-message-buttons-row.g-bot-keyboard-row {
+  display: flex;
+  min-height: 40px;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.g-message-button.g-bot-keyboard-button {
+  display: flex;
+  min-width: 0;
+  min-height: 40px;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  border: 0;
+  border-radius: 6px;
+  background: var(--g-bot-button-bg);
+  padding: 8px 6px;
+  color: var(--g-bot-button-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  white-space: normal;
+  transition:
+    background-color 100ms ease,
+    border-radius 120ms ease,
+    opacity 100ms ease;
+}
+
+.g-message-button.g-bot-keyboard-button:hover:not(:disabled) {
+  background: var(--g-bot-button-bg-hover);
+}
+
+.g-message-button.g-bot-keyboard-button:active:not(:disabled) {
+  background: var(--g-bot-button-bg-active);
+}
+
+.g-message-button.g-bot-keyboard-button:focus-visible {
+  outline: 2px solid var(--f-accent);
+  outline-offset: 1px;
+}
+
+.g-message-button.g-bot-keyboard-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.g-message-button.g-bot-keyboard-button[data-pending] {
+  opacity: 1;
+}
+
+/* MTProto KeyboardButtonStyle tones (bg_primary / bg_danger / bg_success). */
+.g-message-button.g-bot-keyboard-button[data-style="primary"] {
+  --g-bot-button-bg: var(--g-bot-button-primary);
+  --g-bot-button-bg-hover: var(--g-bot-button-primary-hover);
+  --g-bot-button-bg-active: var(--g-bot-button-primary-active);
+  color: #ffffff;
+}
+
+.g-message-button.g-bot-keyboard-button[data-style="danger"] {
+  --g-bot-button-bg: var(--g-bot-button-danger);
+  --g-bot-button-bg-hover: var(--g-bot-button-danger-hover);
+  --g-bot-button-bg-active: var(--g-bot-button-danger-active);
+  color: #ffffff;
+}
+
+.g-message-button.g-bot-keyboard-button[data-style="success"] {
+  --g-bot-button-bg: var(--g-bot-button-success);
+  --g-bot-button-bg-hover: var(--g-bot-button-success-hover);
+  --g-bot-button-bg-active: var(--g-bot-button-success-active);
+  color: #ffffff;
+}
+
+.g-bot-button-label {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* Keyboard is the bubble's last element: round the outer bottom corners into
+ * the bubble tail (Telegram Web K uses the big bubble radius here). */
+.g-bot-keyboard[data-last] .g-message-buttons-row:last-child .g-message-button[data-first] {
+  border-end-start-radius: var(--g-bot-keyboard-bottom-start, 15px);
+}
+
+.g-bot-keyboard[data-last] .g-message-buttons-row:last-child .g-message-button[data-last] {
+  border-end-end-radius: var(--g-bot-keyboard-bottom-end, 15px);
+}
+
+.g-bot-button-spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: g-bot-button-spin 700ms linear infinite;
+}
+
+@keyframes g-bot-button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .g-bot-button-spinner {
+    animation-duration: 1.4s;
+  }
+}

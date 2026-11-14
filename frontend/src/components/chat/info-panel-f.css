@@ -86,26 +86,31 @@
   color: var(--green-11);
 }
 
+/* Telegram Web K profile tiles: a single row of at most four 58px tiles with a
+ * 24px icon over an 11.5px label. The last tile is always the "More" menu. */
 .f-info-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
   gap: 6px;
-  margin: 16px 0 18px;
+  margin: 14px 0;
 }
 
 .f-info-action {
   display: flex;
   min-width: 0;
+  height: 58px;
+  flex: 1 1 0;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 2px;
   border: 1px solid var(--f-line);
   border-radius: 10px;
   background: transparent;
-  padding: 10px 4px 8px;
+  padding: 4px 2px;
   color: var(--f-text);
   cursor: pointer;
   font-family: var(--f-font);
+  transition: background-color 120ms ease;
 }
 
 .f-info-action:hover {
@@ -117,11 +122,22 @@
   opacity: 0.42;
 }
 
+.f-info-action:focus-visible {
+  outline: 1px solid var(--gray-a7);
+  outline-offset: 1px;
+}
+
+.f-info-action > .f-icon {
+  flex: 0 0 auto;
+  color: var(--f-text);
+}
+
 .f-info-action span {
   overflow: hidden;
   max-width: 100%;
   color: var(--f-muted);
-  font-size: 10.5px;
+  font-size: 11px;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -711,3 +727,213 @@
 .f-info-download[data-variant="file"][data-status="failed"] {
   background: rgba(214, 64, 64, 0.94);
 }
+
+/* --------------------------------------------------------------------------
+ * Profile details card: Telegram Desktop's "personal info" block that sits
+ * between the 58px action tiles and the sticky shared-media tab rail. It only
+ * appears when the loaded ChatProfile has something to show.
+ */
+
+.f-info-profile {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 0 0 2px;
+  border: 1px solid var(--f-line);
+  border-radius: 12px;
+  background: var(--f-surface-muted);
+}
+
+.f-info-prow {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  color: var(--f-text);
+  cursor: default;
+  font-family: var(--f-font);
+  text-align: start;
+}
+
+.f-info-prow + .f-info-prow {
+  border-top: 1px solid var(--f-line);
+}
+
+button.f-info-prow {
+  cursor: pointer;
+}
+
+button.f-info-prow:hover {
+  background: var(--gray-a3);
+}
+
+button.f-info-prow:focus-visible {
+  outline: 1px solid var(--gray-a7);
+  outline-offset: -1px;
+}
+
+.f-info-prow-ico {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  margin-top: 1px;
+  border-radius: 8px;
+  background: var(--f-surface);
+  color: var(--f-muted);
+}
+
+.f-info-prow-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.f-info-prow-value {
+  color: var(--f-text);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.f-info-prow-label {
+  overflow: hidden;
+  color: var(--f-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-info-prow-right {
+  display: flex;
+  flex: 0 0 auto;
+  align-self: center;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Bio: rich text (with auto-links) clamped to four lines until expanded. */
+.f-info-bio-body {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  color: var(--f-text);
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.f-info-bio-body[data-expanded] {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+.f-info-bio-body .g-message-link {
+  color: var(--accent-11);
+  cursor: pointer;
+}
+
+.f-info-bio-toggle {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  padding: 1px 0 0;
+  color: var(--accent-11);
+  cursor: pointer;
+  font-family: var(--f-font);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.f-info-bio-toggle:hover {
+  text-decoration: underline;
+}
+
+/* Bot commands: a header row followed by tappable "/command" copy rows. */
+.f-info-commands {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.f-info-commands-head {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.f-info-command-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-inline-start: 38px;
+}
+
+.f-info-command {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 5px 7px;
+  color: var(--f-text);
+  cursor: pointer;
+  font-family: var(--f-font);
+  text-align: start;
+}
+
+.f-info-command:hover {
+  background: var(--gray-a3);
+}
+
+.f-info-command:focus-visible {
+  outline: 1px solid var(--gray-a7);
+  outline-offset: -1px;
+}
+
+.f-info-command b {
+  color: var(--f-text);
+  font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.f-info-command small {
+  color: var(--f-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* Inline loading/error state for the profile block only; the tabs below keep
+ * working while the full-peer request is still in flight. */
+.f-info-profile-state {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  color: var(--f-muted);
+  font-size: 11.5px;
+}
+
+.f-info-profile-error {
+  justify-content: space-between;
+}
+

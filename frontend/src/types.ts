@@ -59,6 +59,8 @@ export interface Chat {
   archived?: boolean;
   bot?: boolean;
   contact?: boolean;
+  /** True for the Saved Messages peer (the private chat with yourself). */
+  saved?: boolean;
   online?: boolean;
   verified?: boolean;
   members?: string;
@@ -91,6 +93,77 @@ export interface ChatMember {
   admin?: boolean;
   bot?: boolean;
 }
+
+/**
+ * Telegram peer categories the chat-info pane distinguishes. The backend also
+ * resolves "saved" (Saved Messages) instead of leaving it as a plain private
+ * chat, because the info header and composer differ.
+ */
+export type ChatProfileType = "user" | "bot" | "saved" | "group" | "channel";
+
+export interface BotCommandInfo {
+  command: string;
+  description?: string;
+}
+
+export interface BotMenuButtonInfo {
+  type: "default" | "commands" | "webapp";
+  text?: string;
+  url?: string;
+}
+
+/** Full peer profile used by the chat-info pane and the composer. */
+export interface ChatProfile {
+  type: ChatProfileType;
+  about?: string;
+  username?: string;
+  phone?: string;
+  members: number;
+  canViewMembers: boolean;
+  /** Whether the current account may post in this chat. */
+  canSend: boolean;
+  /** Whether text messages are allowed (rights, independent of slow mode). */
+  canSendPlain: boolean;
+  /** Machine reason when canSend is false ("restricted", "broadcast", ...). */
+  sendRestriction?: string;
+  slowModeSeconds?: number;
+  /** Unix seconds when the next message becomes sendable (slow mode). */
+  slowModeNextSendDate?: number;
+  isAdmin?: boolean;
+  isOwner?: boolean;
+  isForum?: boolean;
+  inviteLink?: string;
+  linkedChatId?: string;
+  botCommands?: BotCommandInfo[];
+  botMenuButton?: BotMenuButtonInfo;
+  botOwnerId?: string;
+  botPrivacyUrl?: string;
+}
+
+/** Result of pressing an inline-keyboard callback button. */
+export interface BotCallbackResult {
+  alert?: string;
+  url?: string;
+  message?: Message;
+  cacheTime?: number;
+}
+
+/** A request to open a bot Web App in the detached mini-app window. */
+export interface BotWebViewRequest {
+  chatId: string;
+  /** Opaque peer id of the bot that owns the button/menu. */
+  botId: string;
+  /** Message the button belongs to; 0 for the bot menu button. */
+  messageId: number;
+  /** Raw URL from the button or bot menu (may be empty). */
+  url: string;
+  fromBotMenu: boolean;
+  /** Window title / button label. */
+  title: string;
+  /** Simple webview buttons open the raw URL without messages.requestWebView. */
+  simple?: boolean;
+}
+
 
 /** Tabs of a chat-info shared media list, mirroring Telegram Web. */
 export type SharedMediaSection =
@@ -233,7 +306,11 @@ export interface MessageButton {
   text: string;
   url?: string;
   data?: string;
-  kind?: "url" | "callback" | "webview" | "copy";
+  kind?: "url" | "callback" | "webview" | "webview_simple" | "copy";
+  /** 0-based inline-keyboard row; Telegram renders one flex row per value. */
+  row?: number;
+  /** Telegram button style: primary (blue), danger (red), success (green). */
+  style?: "primary" | "danger" | "success";
 }
 
 export interface Reaction {

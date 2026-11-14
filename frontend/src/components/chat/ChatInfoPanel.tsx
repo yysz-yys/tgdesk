@@ -1,11 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { DropdownMenu } from "@radix-ui/themes";
+import { Browser } from "@wailsio/runtime";
 import { useTranslation } from "react-i18next";
 import type {
   Chat,
   ChatInfo,
   ChatMember,
   ChatMembersPage,
+  ChatProfile,
+  ChatProfileType,
   DownloadTask,
   Message,
   SharedMediaPage,
@@ -15,6 +26,7 @@ import { Avatar, Button, Icon, IconButton, Spinner } from "../../ui";
 import { chatColor, chatInitials } from "../../data/telegram";
 import type { ViewerSource } from "../media/types";
 import { ChatAvatar } from "./ChatAvatar";
+import { RichText } from "./MessageBubble";
 import {
   AudioList,
   FileList,
@@ -64,6 +76,20 @@ interface ChatInfoPanelProps {
   onJumpToMessage?: (messageID: number) => void;
   liveVersion?: number;
   onToast: (message: string) => void;
+  /**
+   * Full peer profile loaded by ChatView. The panel only renders it, so a slow
+   * profile request never blocks the shared-media tabs below.
+   */
+  profile?: ChatProfile | null;
+  profileLoading?: boolean;
+  profileFailed?: boolean;
+  onRetryProfile?: () => void;
+  onSearchInChat?: () => void;
+  onArchiveChat?: () => void;
+  /** Opens the bot's menu web app as a mini-app window. */
+  onOpenBotWebView?: () => void;
+  /** Focuses the composer, used by the "Message" action tile. */
+  onFocusComposer?: () => void;
 }
 
 type InfoTab = "members" | SharedMediaSection;
@@ -195,6 +221,149 @@ function mergeMembers(current: ChatMember[], incoming: ChatMember[]): ChatMember
   return next;
 }
 
+/* --------------------------------------------------------------------------
+ * Telegram-style "personal info" details: bio card, username / link / phone
+ * rows, member counters and the bot extras. Values come from the optional
+ * ChatProfile that ChatView fetches; the block is skipped without it.
+ */
+
+const PROFILE_TITLE_KEYS: Record<ChatProfileType, string> = {
+  user: "profile.userInfo",
+  bot: "profile.botInfo",
+  group: "profile.groupInfo",
+  channel: "profile.channelInfo",
+  saved: "profile.savedMessages",
+};
+
+/** Adds the scheme Wails' Browser.OpenURL expects to bare t.me links. */
+function normalizeProfileUrl(value: string): string {
+  const trimmed = value.trim();
+  if (/^[a-z][a-z0-9+.-]*:/iu.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed.replace(/^\/+/u, "")}`;
+}
+
+/** `t.me/name` display form of a public username. */
+function telegramDisplayLink(username: string): string {
+  const name = username
+    .trim()
+    .replace(/^@/u, "")
+    .replace(/^https?:\/\/t\.me\//iu, "");
+  return `t.me/${name}`;
+}
+
+/** `t.me/+hash` display form of an invite link (scheme stripped). */
+function inviteDisplayLink(link: string): string {
+  return normalizeProfileUrl(link).replace(/^https?:\/\//iu, "");
+}
+
+/** Short hostname used as the subtitle of external link rows. */
+function profileHost(value: string): string {
+  try {
+    return new URL(normalizeProfileUrl(value)).hostname.replace(/^www\./iu, "");
+  } catch {
+    return inviteDisplayLink(value);
+  }
+}
+
+interface ProfileRowProps {
+  icon: string;
+  value: ReactNode;
+  label: string;
+  onClick?: () => void;
+  right?: ReactNode;
+}
+
+/** Telegram Desktop's value + small muted label row, with an optional action. */
+function ProfileRow({ icon, value, label, onClick, right }: ProfileRowProps) {
+  const content = (
+    <>
+      <span className="f-info-prow-ico" aria-hidden>
+        <Icon name={icon} size={17} />
+      </span>
+      <span className="f-info-prow-copy">
+        <span className="f-info-prow-value">{value}</span>
+        <small className="f-info-prow-label">{label}</small>
+      </span>
+      {right ? <span className="f-info-prow-right">{right}</span> : null}
+    </>
+  );
+  if (onClick) {
+    return (
+      <button type="button" className="f-info-prow" onClick={onClick}>
+        {content}
+      </button>
+    );
+  }
+  return <div className="f-info-prow">{content}</div>;
+}
+
+/**
+ * Bio row with rich text (URL auto-linking) clamped to four lines. The
+ * expand/collapse control only appears when the text actually overflows.
+ */
+function ProfileBio({
+  text,
+  chatId,
+  label,
+}: {
+  text: string;
+  chatId: string;
+  label: string;
+}) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+
+  // A different peer always starts collapsed.
+  useEffect(() => {
+    setExpanded(false);
+    setOverflowing(false);
+  }, [chatId, text]);
+
+  useLayoutEffect(() => {
+    const element = bodyRef.current;
+    if (!element || expanded) {
+      return;
+    }
+    const measure = () =>
+      setOverflowing(element.scrollHeight > element.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [chatId, expanded, text]);
+
+  return (
+    <div className="f-info-prow f-info-bio">
+      <span className="f-info-prow-ico" aria-hidden>
+        <Icon name="info" size={17} />
+      </span>
+      <div className="f-info-prow-copy">
+        <div
+          ref={bodyRef}
+          className="f-info-bio-body"
+          data-expanded={expanded || undefined}
+        >
+          <RichText text={text} />
+        </div>
+        {overflowing || expanded ? (
+          <button
+            type="button"
+            className="f-info-bio-toggle"
+            onClick={() => setExpanded((current) => !current)}
+          >
+            {expanded ? t("profile.showLess") : t("profile.showMore")}
+          </button>
+        ) : null}
+        <small className="f-info-prow-label">{label}</small>
+      </div>
+    </div>
+  );
+}
+
 /** Right-hand chat info pane, built like Telegram Web's profile column. */
 export function ChatInfoPanel({
   chat,
@@ -219,8 +388,16 @@ export function ChatInfoPanel({
   onJumpToMessage,
   liveVersion,
   onToast,
+  profile = null,
+  profileLoading = false,
+  profileFailed = false,
+  onRetryProfile,
+  onSearchInChat,
+  onArchiveChat,
+  onOpenBotWebView,
+  onFocusComposer,
 }: ChatInfoPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [info, setInfo] = useState<ChatInfo | null>(null);
   const [infoLoading, setInfoLoading] = useState(true);
   const [infoFailed, setInfoFailed] = useState(false);
@@ -308,49 +485,121 @@ export function ChatInfoPanel({
     setSelection(new Map());
   }, [active, mediaFilter, chat.id]);
 
-  const handleType = t(
-    chat.kind === "private"
-      ? "rightPanel.privateChat"
-      : chat.kind === "channel"
-        ? "rightPanel.channel"
-        : "rightPanel.group",
-  );
-  const counts = useMemo(() => {
-    const map = new Map<SharedMediaSection, number>();
-    for (const count of info?.counts ?? []) {
-      map.set(count.section, count.count);
+  // The profile decides "user" vs "bot" vs "saved"; the dialog kind is only a
+  // fallback while the full peer request is still in flight.
+  const peerType = useMemo<ChatProfileType>(() => {
+    if (profile?.type) {
+      return profile.type;
     }
-    return map;
-  }, [info]);
-  const photosCount = counts.get("photos") ?? 0;
-  const videosCount = counts.get("videos") ?? 0;
-  // Telegram Web lists only the enabled, non-empty halves ("N photos, M
-  // videos"), but never leaves the subtitle empty.
-  const mediaSubtitle = useMemo(() => {
-    const enabled: Array<"photos" | "videos"> =
-      mediaFilter === "all" ? ["photos", "videos"] : [mediaFilter];
-    const values = { photos: photosCount, videos: videosCount };
-    const nonEmpty = enabled.filter((key) => values[key] > 0);
-    const shown = nonEmpty.length > 0 ? nonEmpty : enabled.slice(0, 1);
-    return shown
-      .map((key) =>
-        t(
-          key === "photos"
-            ? "rightPanel.photosCount"
-            : "rightPanel.videosCount",
-          { count: values[key] },
-        ),
-      )
-      .join(", ");
-  }, [mediaFilter, photosCount, t, videosCount]);
-  const subtitle =
-    active === "media" && mediaSubtitle
-      ? mediaSubtitle
-      : chat.kind === "private"
-        ? chat.online
-          ? t("chat.online")
-          : t("chat.lastSeen")
-        : (chat.members ?? handleType);
+    if (chat.bot) {
+      return "bot";
+    }
+    return chat.kind === "private" ? "user" : chat.kind;
+  }, [chat.bot, chat.kind, profile]);
+  const panelTitle = t(PROFILE_TITLE_KEYS[peerType]);
+  const countFormatter = useMemo(
+    () => new Intl.NumberFormat(i18n.language),
+    [i18n.language],
+  );
+  const memberCount = profile?.members ?? chat.memberCount ?? 0;
+
+  const copyProfileValue = useCallback(
+    async (value: string, toastKey: string) => {
+      try {
+        await navigator.clipboard.writeText(value);
+        onToast(t(toastKey));
+      } catch {
+        onToast(t("profile.copyFailed"));
+      }
+    },
+    [onToast, t],
+  );
+
+  // Telegram Web K's profile tiles: at most four, ordered by peer type. Every
+  // rendered tile has a real handler ("Call" is a documented stub toast).
+  const actionTiles = useMemo(() => {
+    const tiles: Array<{
+      id: string;
+      icon: string;
+      label: string;
+      onClick: () => void;
+    }> = [];
+    const canMessage =
+      Boolean(onFocusComposer) &&
+      (peerType === "channel" ? Boolean(profile?.canSend) : true);
+    if (canMessage) {
+      tiles.push({
+        id: "message",
+        icon: "chat_bubble",
+        label: t("profile.message"),
+        onClick: () => onFocusComposer?.(),
+      });
+    }
+    if (peerType === "user") {
+      tiles.push({
+        id: "call",
+        icon: "call",
+        label: t("profile.call"),
+        onClick: () => onToast(t("profile.callsNotAvailable")),
+      });
+    }
+    if (peerType !== "saved") {
+      tiles.push({
+        id: "mute",
+        icon: chat.muted ? "notifications_off" : "notifications",
+        label: chat.muted ? t("profile.unmute") : t("profile.mute"),
+        onClick: () => onToggleMute(chat.id),
+      });
+    }
+    return tiles;
+  }, [
+    chat.id,
+    chat.muted,
+    onFocusComposer,
+    onToggleMute,
+    onToast,
+    peerType,
+    profile?.canSend,
+    t,
+  ]);
+
+  // The hero subtitle is always peer-based (Telegram never swaps it for media
+  // counters); the Media tab keeps its own Photos/Videos filter menu.
+  const subtitle = useMemo(() => {
+    switch (peerType) {
+      case "saved":
+        return t("profile.savedHint");
+      case "bot":
+        return profile?.username
+          ? `@${profile.username}`
+          : t("profile.botStatus");
+      case "group":
+      case "channel": {
+        if (memberCount > 0) {
+          return t(
+            peerType === "channel"
+              ? "profile.subscribersCount"
+              : "profile.membersCount",
+            { count: memberCount, value: countFormatter.format(memberCount) },
+          );
+        }
+        return (
+          chat.members ??
+          t(peerType === "channel" ? "rightPanel.channel" : "rightPanel.group")
+        );
+      }
+      default:
+        return chat.online ? t("chat.online") : t("chat.lastSeen");
+    }
+  }, [
+    chat.members,
+    chat.online,
+    countFormatter,
+    memberCount,
+    peerType,
+    profile?.username,
+    t,
+  ]);
 
   // One counters request per chat decides which tabs exist; each tab then loads
   // its own pages on demand instead of filtering the messages already in view.
@@ -823,6 +1072,219 @@ export function ChatInfoPanel({
     );
   };
 
+  // Telegram's "personal info" card. Only non-empty rows render; the whole
+  // card disappears when Telegram hides every field (privacy settings).
+  const renderProfileCard = () => {
+    if (!profile) {
+      if (profileLoading) {
+        return (
+          <div className="f-info-profile f-info-profile-state">
+            <Spinner size={16} />
+            <span>{t("profile.loading")}</span>
+          </div>
+        );
+      }
+      if (profileFailed) {
+        return (
+          <div className="f-info-profile f-info-profile-state f-info-profile-error">
+            <span>{t("profile.loadFailed")}</span>
+            {onRetryProfile ? (
+              <Button variant="ghost" onClick={onRetryProfile}>
+                {t("common.retry")}
+              </Button>
+            ) : null}
+          </div>
+        );
+      }
+      return null;
+    }
+
+    const rows: ReactNode[] = [];
+    const isChat = peerType === "group" || peerType === "channel";
+    const about = profile.about?.trim();
+    if (about) {
+      const bioLabel =
+        peerType === "bot"
+          ? t("profile.botAbout")
+          : isChat
+            ? t("profile.info")
+            : t("profile.bio");
+      rows.push(
+        <ProfileBio
+          key="bio"
+          text={about}
+          chatId={chat.id}
+          label={bioLabel}
+        />,
+      );
+    }
+    if ((peerType === "user" || peerType === "saved") && profile.phone) {
+      rows.push(
+        <ProfileRow
+          key="phone"
+          icon="call"
+          value={profile.phone}
+          label={t("profile.phone")}
+          onClick={() =>
+            void copyProfileValue(profile.phone ?? "", "profile.phoneCopied")
+          }
+        />,
+      );
+    }
+    if (profile.username) {
+      rows.push(
+        <ProfileRow
+          key="username"
+          icon="at"
+          value={`@${profile.username}`}
+          label={t("profile.username")}
+          onClick={() =>
+            void copyProfileValue(
+              `@${profile.username ?? ""}`,
+              "profile.usernameCopied",
+            )
+          }
+        />,
+      );
+    }
+    if (isChat) {
+      const publicLink = profile.username
+        ? `https://t.me/${profile.username}`
+        : "";
+      if (publicLink) {
+        rows.push(
+          <ProfileRow
+            key="link"
+            icon="link"
+            value={telegramDisplayLink(profile.username ?? "")}
+            label={t("profile.link")}
+            onClick={() =>
+              void copyProfileValue(publicLink, "profile.linkCopied")
+            }
+            right={
+              <IconButton
+                label={t("profile.openLink")}
+                icon="open_in_new"
+                size="1"
+                iconSize={15}
+                onClick={() => void Browser.OpenURL(publicLink)}
+              />
+            }
+          />,
+        );
+      }
+      const invite = profile.inviteLink?.trim();
+      if (invite && invite !== publicLink) {
+        rows.push(
+          <ProfileRow
+            key="invite"
+            icon="link"
+            value={inviteDisplayLink(invite)}
+            label={t("profile.inviteLink")}
+            onClick={() =>
+              void copyProfileValue(invite, "profile.inviteCopied")
+            }
+            right={
+              <IconButton
+                label={t("profile.openLink")}
+                icon="open_in_new"
+                size="1"
+                iconSize={15}
+                onClick={() => void Browser.OpenURL(normalizeProfileUrl(invite))}
+              />
+            }
+          />,
+        );
+      }
+      if (memberCount > 0) {
+        rows.push(
+          <ProfileRow
+            key="members"
+            icon="group"
+            value={countFormatter.format(memberCount)}
+            label={
+              peerType === "channel"
+                ? t("profile.subscribers")
+                : t("profile.members")
+            }
+          />,
+        );
+      }
+    }
+    if (peerType === "bot") {
+      const menuButton = profile.botMenuButton;
+      if (menuButton?.type === "webapp" && onOpenBotWebView) {
+        rows.push(
+          <ProfileRow
+            key="bot-app"
+            icon="open_in_new"
+            value={menuButton.text || t("profile.openBotApp")}
+            label={t("profile.botMenu")}
+            onClick={onOpenBotWebView}
+          />,
+        );
+      }
+      const commands = profile.botCommands ?? [];
+      if (commands.length > 0) {
+        rows.push(
+          <div className="f-info-prow f-info-commands" key="commands">
+            <div className="f-info-commands-head">
+              <span className="f-info-prow-ico" aria-hidden>
+                <Icon name="bot" size={17} />
+              </span>
+              <span className="f-info-prow-copy">
+                <span className="f-info-prow-value">
+                  {t("profile.botCommands")}
+                </span>
+                <small className="f-info-prow-label">
+                  {t("profile.botCommandsCount", { count: commands.length })}
+                </small>
+              </span>
+            </div>
+            <div className="f-info-command-list">
+              {commands.map((command) => (
+                <button
+                  type="button"
+                  key={command.command}
+                  className="f-info-command"
+                  title={`/${command.command}`}
+                  onClick={() =>
+                    void copyProfileValue(
+                      `/${command.command}`,
+                      "profile.commandCopied",
+                    )
+                  }
+                >
+                  <b>/{command.command}</b>
+                  {command.description ? (
+                    <small>{command.description}</small>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </div>,
+        );
+      }
+      if (profile.botPrivacyUrl) {
+        const privacyUrl = normalizeProfileUrl(profile.botPrivacyUrl);
+        rows.push(
+          <ProfileRow
+            key="bot-privacy"
+            icon="shield"
+            value={t("profile.botPrivacy")}
+            label={profileHost(privacyUrl)}
+            onClick={() => void Browser.OpenURL(privacyUrl)}
+          />,
+        );
+      }
+    }
+
+    if (rows.length === 0) {
+      return null;
+    }
+    return <div className="f-info-profile">{rows}</div>;
+  };
+
   const renderBody = () => {
     if (!active) {
       return (
@@ -844,7 +1306,7 @@ export function ChatInfoPanel({
           iconSize={17}
           onClick={onClose}
         />
-        <span className="f-info-title">{t("rightPanel.chatInfo")}</span>
+        <span className="f-info-title">{panelTitle}</span>
         {active === "media" ? (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
@@ -921,32 +1383,81 @@ export function ChatInfoPanel({
         </div>
 
         <div className="f-info-actions">
-          <button
-            type="button"
-            className="f-info-action"
-            onClick={() => onToggleMute(chat.id)}
-          >
-            <Icon name={chat.muted ? "notifications" : "notifications_off"} size={19} />
-            <span>{chat.muted ? t("chatMenu.unmute") : t("chatMenu.mute")}</span>
-          </button>
-          <button
-            type="button"
-            className="f-info-action"
-            onClick={() => onTogglePin(chat.id)}
-          >
-            <Icon name="push_pin" size={19} />
-            <span>{chat.pinned ? t("chatMenu.unpin") : t("chatMenu.pin")}</span>
-          </button>
-          <button
-            type="button"
-            className="f-info-action"
-            disabled={!chat.unread}
-            onClick={() => onMarkRead(chat.id)}
-          >
-            <Icon name="mark_email_read" size={19} />
-            <span>{t("chatMenu.markRead")}</span>
-          </button>
+          {actionTiles.map((tile) => (
+            <button
+              type="button"
+              key={tile.id}
+              className="f-info-action"
+              onClick={tile.onClick}
+            >
+              <Icon name={tile.icon} size={24} />
+              <span>{tile.label}</span>
+            </button>
+          ))}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+              <button
+                type="button"
+                className="f-info-action"
+                aria-label={t("profile.more")}
+              >
+                <Icon name="more_horiz" size={24} />
+                <span>{t("profile.more")}</span>
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content
+              align="end"
+              sideOffset={6}
+              className="f-menu-content"
+            >
+              <DropdownMenu.Item
+                className="f-menu-row"
+                onSelect={() => onTogglePin(chat.id)}
+              >
+                <Icon name="push_pin" size={16} />
+                {chat.pinned
+                  ? t("chatMenu.unpin")
+                  : t("chatMenu.pin")}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                className="f-menu-row"
+                disabled={!chat.unread}
+                onSelect={() => onMarkRead(chat.id)}
+              >
+                <Icon name="mark_email_read" size={16} />
+                {t("chatMenu.markRead")}
+              </DropdownMenu.Item>
+              {onArchiveChat ? (
+                <DropdownMenu.Item
+                  className="f-menu-row"
+                  onSelect={() => onArchiveChat()}
+                >
+                  <Icon
+                    name={chat.archived ? "unarchive" : "archive"}
+                    size={16}
+                  />
+                  {chat.archived
+                    ? t("chatMenu.unarchive")
+                    : t("chatMenu.archive")}
+                </DropdownMenu.Item>
+              ) : null}
+              {onSearchInChat ? (
+                <>
+                  <DropdownMenu.Separator className="f-menu-separator" />
+                  <DropdownMenu.Item
+                    className="f-menu-row"
+                    onSelect={() => onSearchInChat()}
+                  >
+                    <Icon name="search" size={16} />
+                    {t("chat.searchInChat")}
+                  </DropdownMenu.Item>
+                </>
+              ) : null}
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
         </div>
+
+        {renderProfileCard()}
 
         {tabs.length > 0 ? (
           <div className="f-info-tabs-sticky">

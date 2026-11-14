@@ -11,12 +11,17 @@ import (
 // Service is the Wails-facing adapter. It only translates binding calls into
 // kernel calls; Telegram, storage and task logic must stay out of this package.
 type Service struct {
-	kernel *kernel.Service
-	viewer *mediaViewerManager
+	kernel  *kernel.Service
+	viewer  *mediaViewerManager
+	miniApp *miniAppManager
 }
 
 func New(k *kernel.Service) *Service {
-	service := &Service{kernel: k, viewer: newMediaViewerManager()}
+	service := &Service{
+		kernel:  k,
+		viewer:  newMediaViewerManager(),
+		miniApp: newMiniAppManager(),
+	}
 	k.SetEventSink(func(event kernel.AuthEvent) {
 		app := application.Get()
 		if app == nil {
@@ -111,6 +116,46 @@ func (s *Service) GetChatInfo(
 	chatID, kind, proxy, ntp string,
 ) (*kernel.ChatInfoDTO, error) {
 	return s.kernel.GetChatInfo(chatID, kind, proxy, ntp)
+}
+
+// GetChatProfile loads the full peer profile the chat-info panel and the
+// composer capability switch use (bio, counts, rights, bot metadata).
+func (s *Service) GetChatProfile(
+	chatID, kind, proxy, ntp string,
+) (*kernel.ChatProfileDTO, error) {
+	return s.kernel.GetChatProfile(chatID, kind, proxy, ntp)
+}
+
+// SetChatMuted mutes or unmutes a chat server-side.
+func (s *Service) SetChatMuted(chatID string, muted bool, proxy, ntp string) error {
+	return s.kernel.SetChatMuted(chatID, muted, proxy, ntp)
+}
+
+// SetChatPinned pins or unpins a dialog server-side.
+func (s *Service) SetChatPinned(chatID string, pinned bool, proxy, ntp string) error {
+	return s.kernel.SetChatPinned(chatID, pinned, proxy, ntp)
+}
+
+// SendBotCallback presses a bot inline-keyboard callback button and returns the
+// bot's alert/url answer (the edited message is also pushed over the chat event
+// bridge).
+func (s *Service) SendBotCallback(
+	chatID string,
+	messageID int,
+	dataHex, proxy, ntp string,
+) (*kernel.BotCallbackResultDTO, error) {
+	return s.kernel.SendBotCallback(chatID, messageID, dataHex, proxy, ntp)
+}
+
+// RequestBotWebView opens a bot mini app and returns the authenticated URL.
+func (s *Service) RequestBotWebView(
+	chatID, botPeerID string,
+	messageID int,
+	url string,
+	fromBotMenu bool,
+	proxy, ntp string,
+) (*kernel.BotWebViewDTO, error) {
+	return s.kernel.RequestBotWebView(chatID, botPeerID, messageID, url, fromBotMenu, proxy, ntp)
 }
 
 // GetSharedMedia loads one paginated page of a chat-info media tab.

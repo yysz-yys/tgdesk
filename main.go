@@ -170,11 +170,15 @@ func main() {
 		BackgroundColour: application.NewRGB(14, 16, 22),
 		URL:              "/",
 	})
-	// The detached media viewer outlives the chat window for as long as it is
-	// open; closing the main window closes it too so the app can quit.
+	// The detached media viewer and mini-app windows outlive the chat window for
+	// as long as they are open; closing the main window closes them too so the
+	// app can quit.
 	mainWindow.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
 		if viewer, ok := wailsApp.Window.Get(app.MediaViewerWindowName); ok {
 			viewer.Close()
+		}
+		if miniApp, ok := wailsApp.Window.Get(app.MiniAppWindowName); ok {
+			miniApp.Close()
 		}
 	})
 

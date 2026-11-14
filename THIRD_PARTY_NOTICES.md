@@ -36,6 +36,23 @@ The Inter Latin subset is shipped inside `frontend/public/fonts` and is included
 in the production bundle. CJK text falls back to the Windows UI font. The font is
 not fetched from a CDN.
 
+## Emoji data
+
+The emoji catalogue and the offline search keywords in `frontend/src/data/emoji*.ts`
+are generated from these sources (both permissive, AGPL-compatible). The generated
+files are checked in; no network access is needed to build or run the app, and the
+emoji glyphs themselves are rendered with the platform's native colour emoji font
+(no emoji image assets are bundled).
+
+| Component | License | Upstream |
+|---|---|---|
+| iamcal/emoji-data (`emoji_pretty.json`) — emoji list, category order and names | MIT (© 2013 Cal Henderson) | <https://github.com/iamcal/emoji-data> |
+| Unicode CLDR annotations / annotationsDerived — `en`, `zh`, `ja` search keywords | Unicode License V3 | <https://github.com/unicode-org/cldr-json> |
+
+None of this data is copied from Telegram Web/tweb, Telegram Desktop or the
+official clients: the ordering and keywords are regenerated from the two sources
+above.
+
 ## Protocol implementation
 
 The video streaming implementation is original tgdesk Go/TypeScript code built

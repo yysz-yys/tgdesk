@@ -121,6 +121,12 @@ type MessageButtonDTO struct {
 	URL  string `json:"url,omitempty"`
 	Data string `json:"data,omitempty"`
 	Kind string `json:"kind,omitempty"`
+	// Row is the 0-based inline-keyboard row index so the UI can rebuild
+	// Telegram's button grid instead of a flat list.
+	Row int `json:"row"`
+	// Style is the MTProto button colour: "primary", "danger" or "success"
+	// (bg_primary / bg_danger / bg_success); empty means default styling.
+	Style string `json:"style,omitempty"`
 }
 
 type ReactionDTO struct {
@@ -1180,23 +1186,45 @@ func mapButtons(markup tg.ReplyMarkupClass) []MessageButtonDTO {
 		return nil
 	}
 	var buttons []MessageButtonDTO
-	for _, row := range inline.Rows {
+	for rowIndex, row := range inline.Rows {
 		for _, button := range row.Buttons {
+			var item MessageButtonDTO
 			switch value := button.(type) {
 			case *tg.KeyboardButtonURL:
-				buttons = append(buttons, MessageButtonDTO{Kind: "url", Text: value.Text, URL: value.URL})
+				item = MessageButtonDTO{Kind: "url", Text: value.Text, URL: value.URL, Style: buttonStyle(value.Style)}
 			case *tg.KeyboardButtonCallback:
-				buttons = append(buttons, MessageButtonDTO{Kind: "callback", Text: value.Text, Data: hex.EncodeToString(value.Data)})
+				item = MessageButtonDTO{Kind: "callback", Text: value.Text, Data: hex.EncodeToString(value.Data), Style: buttonStyle(value.Style)}
 			case *tg.KeyboardButtonWebView:
-				buttons = append(buttons, MessageButtonDTO{Kind: "webview", Text: value.Text, URL: value.URL})
+				item = MessageButtonDTO{Kind: "webview", Text: value.Text, URL: value.URL, Style: buttonStyle(value.Style)}
 			case *tg.KeyboardButtonSimpleWebView:
-				buttons = append(buttons, MessageButtonDTO{Kind: "webview", Text: value.Text, URL: value.URL})
+				// Simple webviews are reply-keyboard apps that must NOT go through
+				// messages.requestWebView; the UI opens the raw URL instead.
+				item = MessageButtonDTO{Kind: "webview_simple", Text: value.Text, URL: value.URL, Style: buttonStyle(value.Style)}
 			case *tg.KeyboardButtonCopy:
-				buttons = append(buttons, MessageButtonDTO{Kind: "copy", Text: value.Text, Data: value.CopyText})
+				item = MessageButtonDTO{Kind: "copy", Text: value.Text, Data: value.CopyText, Style: buttonStyle(value.Style)}
+			default:
+				continue
 			}
+			item.Row = rowIndex
+			buttons = append(buttons, item)
 		}
 	}
 	return buttons
+}
+
+// buttonStyle maps the MTProto keyboard button colour flags onto the compact
+// style names the UI understands.
+func buttonStyle(style tg.KeyboardButtonStyle) string {
+	switch {
+	case style.BgDanger:
+		return "danger"
+	case style.BgSuccess:
+		return "success"
+	case style.BgPrimary:
+		return "primary"
+	default:
+		return ""
+	}
 }
 
 func decodeWaveform(data []byte) []int {
