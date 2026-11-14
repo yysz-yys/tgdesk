@@ -159,7 +159,7 @@ func main() {
 
 	mainWindow := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:             "main",
-		Title:            "tgdesk",
+		Title:            "tdesk",
 		Frameless:        true,
 		Width:            width,
 		Height:           height,
