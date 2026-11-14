@@ -128,6 +128,7 @@ export function MediaViewer({
   const [rotation, setRotation] = useState(0);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const [photoLoaded, setPhotoLoaded] = useState(false);
+  const [thumbLoaded, setThumbLoaded] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
   const [photoRetry, setPhotoRetry] = useState(0);
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
@@ -158,6 +159,7 @@ export function MediaViewer({
     setRotation(0);
     setDragOffset(null);
     setPhotoLoaded(false);
+    setThumbLoaded(false);
     setPhotoFailed(false);
     setNaturalSize(null);
     setVideoFailed(false);
@@ -989,6 +991,7 @@ export function MediaViewer({
                   alt=""
                   aria-hidden="true"
                   draggable={false}
+                  onLoad={() => setThumbLoaded(true)}
                   onError={(event) => {
                     event.currentTarget.style.display = "none";
                   }}
@@ -1063,6 +1066,12 @@ export function MediaViewer({
               <button type="button" className="mv-text-btn" onClick={retryVideo}>
                 {t("viewer.retry")}
               </button>
+            </div>
+          ) : null}
+          {active && !photoLoaded && !thumbLoaded && !photoFailed ? (
+            <div className="mv-stage-status">
+              <Spinner size={26} />
+              <span>{t("viewer.loading")}</span>
             </div>
           ) : null}
           {active && photoFailed ? (
