@@ -26,6 +26,9 @@
   pickers and confirmation dialogs, which now sit above the viewer.
 - The viewer has a backend-free dev preview at `/media-preview.html` with
   photo, album, video and round-video states, in light and dark themes.
+- The viewer now covers only the app body: the window caption bar stays visible
+  and usable while media is open, so the window can still be dragged, minimized
+  or closed (and video fullscreen still takes the whole screen).
 
 ### Window and archive polish
 

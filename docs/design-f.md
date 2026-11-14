@@ -245,7 +245,10 @@ right info pane; the archived row opens the archived view.
   sidebar search (and in the downloads header); it opens a dropdown with the
   account name, chats, downloads/count, settings and logout.
 - **Media viewer**: message photos, videos, GIFs, round video notes and albums
-  open in a full-window Telegram Web K style viewer (`components/media`). The
+  open in a full-window Telegram Web K style viewer (`components/media`). It
+  covers the app body only — the 34 px caption bar stays usable for dragging,
+  minimizing and closing the window (video fullscreen still fills the screen).
+  The
   media grows out of the clicked thumbnail, the top bar carries the sender
   avatar, name, position counter, message date/time and the right-hand action
   row (delete, forward, copy image, download, rotate, zoom, ⋮, close), and the

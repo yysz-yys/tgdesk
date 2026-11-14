@@ -119,6 +119,7 @@ export function MediaViewer({
     width: window.innerWidth,
     height: window.innerHeight,
   }));
+  const [rootOrigin, setRootOrigin] = useState({ x: 0, y: 0 });
   const [rootEl, setRootEl] = useState<HTMLElement | null>(null);
   const [opened, setOpened] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -165,15 +166,29 @@ export function MediaViewer({
     setVideoFailed(false);
   }, [activeId]);
 
-  useEffect(() => {
-    const onResize = () => {
-      setViewport({ width: window.innerWidth, height: window.innerHeight });
+  // The viewer starts below the window caption bar (drag + minimize + close must
+  // stay usable), so every measurement is taken from the overlay itself rather
+  // than the whole window.
+  useLayoutEffect(() => {
+    const node = rootRef.current;
+    if (!node) {
+      return;
+    }
+    const measure = () => {
+      const rect = node.getBoundingClientRect();
+      setViewport({ width: node.clientWidth, height: node.clientHeight });
+      setRootOrigin({ x: rect.left, y: rect.top });
     };
-    window.addEventListener("resize", onResize);
-    document.addEventListener("fullscreenchange", onResize);
+    measure();
+    const observer =
+      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
+    observer?.observe(node);
+    window.addEventListener("resize", measure);
+    document.addEventListener("fullscreenchange", measure);
     return () => {
-      window.removeEventListener("resize", onResize);
-      document.removeEventListener("fullscreenchange", onResize);
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+      document.removeEventListener("fullscreenchange", measure);
     };
   }, []);
 
@@ -245,25 +260,30 @@ export function MediaViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const findThumbRect = useCallback((messageId: number): Box | null => {
-    const element = document.querySelector<HTMLElement>(`[data-media-id="${messageId}"]`);
-    if (!element) {
-      return null;
-    }
-    const rect = element.getBoundingClientRect();
-    if (rect.width < 2 || rect.height < 2) {
-      return null;
-    }
-    const radius =
-      Number.parseFloat(window.getComputedStyle(element).borderTopLeftRadius) || 0;
-    return {
-      left: rect.left,
-      top: rect.top,
-      width: rect.width,
-      height: rect.height,
-      radius,
-    };
-  }, []);
+  const findThumbRect = useCallback(
+    (messageId: number): Box | null => {
+      const element = document.querySelector<HTMLElement>(
+        `[data-media-id="${messageId}"]`,
+      );
+      if (!element) {
+        return null;
+      }
+      const rect = element.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) {
+        return null;
+      }
+      const radius =
+        Number.parseFloat(window.getComputedStyle(element).borderTopLeftRadius) || 0;
+      return {
+        left: rect.left - rootOrigin.x,
+        top: rect.top - rootOrigin.y,
+        width: rect.width,
+        height: rect.height,
+        radius,
+      };
+    },
+    [rootOrigin.x, rootOrigin.y],
+  );
 
   const close = useCallback(() => {
     if (closing) {
@@ -622,8 +642,8 @@ export function MediaViewer({
     suppressClickRef.current = true;
     const offset = dragOffset;
     setDragOffset(null);
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    const viewportWidth = viewport.width;
+    const viewportHeight = viewport.height;
     if (drag.axis === "x") {
       const dx = offset?.x ?? 0;
       if (
@@ -708,8 +728,8 @@ export function MediaViewer({
     }
     if (!opened && source) {
       return {
-        left: source.left,
-        top: source.top,
+        left: source.left - rootOrigin.x,
+        top: source.top - rootOrigin.y,
         width: source.width,
         height: source.height,
         borderRadius: source.radius,
@@ -735,7 +755,7 @@ export function MediaViewer({
       borderRadius: stageBox.radius,
       transitionDuration: `${OPEN_DURATION}ms`,
     };
-  }, [closeBox, closing, opened, source, stageBox]);
+  }, [closeBox, closing, opened, rootOrigin.x, rootOrigin.y, source, stageBox]);
 
   if (!item) {
     return null;

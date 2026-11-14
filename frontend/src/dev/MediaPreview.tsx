@@ -11,6 +11,7 @@ import "../components/downloads/downloads-f.css";
 import "../components/settings/settings-f.css";
 import "../i18n";
 import { AppTheme, type Appearance } from "../ui/theme";
+import { TitleBar } from "../components/layout/TitleBar";
 import { MediaViewer } from "../components/media/MediaViewer";
 import type { ViewerItem } from "../components/media/types";
 import type { Message, MessageMedia } from "../types";
@@ -188,54 +189,77 @@ function Preview() {
   }, []);
 
   return (
-    <AppTheme appearance={theme}>
-      <div className="f-shell" aria-hidden="true">
-        <aside className="f-sidebar" style={{ padding: 16, color: "var(--f-muted)" }}>
-          Mock chat list
-          <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-            {["Geraldine", "n8n_test", "免费vpn | 正义的反派", "TgtoDrive 交流互助群", "WOVIA 官方群"].map(
-              (name) => (
-                <div key={name} style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <span
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: "50%",
-                      background: "var(--f-accent-soft)",
-                    }}
-                  />
-                  <span>{name}</span>
+    <div className="g-window">
+      <TitleBar />
+      <div className="g-window-body">
+        <AppTheme appearance={theme}>
+          <div className="g-app-shell">
+            <div className="f-shell" aria-hidden="true">
+              <aside
+                className="f-sidebar"
+                style={{ padding: 16, color: "var(--f-muted)" }}
+              >
+                Mock chat list
+                <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+                  {[
+                    "Geraldine",
+                    "n8n_test",
+                    "免费vpn | 正义的反派",
+                    "TgtoDrive 交流互助群",
+                    "WOVIA 官方群",
+                  ].map((name) => (
+                    <div
+                      key={name}
+                      style={{ display: "flex", gap: 10, alignItems: "center" }}
+                    >
+                      <span
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: "50%",
+                          background: "var(--f-accent-soft)",
+                        }}
+                      />
+                      <span>{name}</span>
+                    </div>
+                  ))}
                 </div>
-              ),
-            )}
+              </aside>
+              <main
+                className="f-chat-pane"
+                style={{ padding: 24, color: "var(--f-muted)" }}
+              >
+                <p>
+                  The chat stays visible behind the viewer&apos;s translucent
+                  overlay; the caption bar above stays usable.
+                </p>
+              </main>
+            </div>
           </div>
-        </aside>
-        <main className="f-chat-pane" style={{ padding: 24, color: "var(--f-muted)" }}>
-          <p>The chat stays visible behind the viewer&apos;s translucent overlay.</p>
-        </main>
+          {open ? (
+            <MediaViewer
+              items={items}
+              initialId={items[items.length - 1].message.id}
+              authorOf={() => ({
+                name: "Geraldine",
+                initials: "G",
+                color: "#5b8def",
+                avatarUrl: undefined,
+              })}
+              onClose={() => setOpen(false)}
+              onLoadVideo={() => Promise.resolve(SAMPLE_VIDEO)}
+              onDownload={() => undefined}
+              onForward={() => undefined}
+              onDelete={() => undefined}
+              onShowInChat={() => undefined}
+              onToast={(message) => console.log(message)}
+            />
+          ) : (
+            <div style={{ padding: 40 }}>viewer closed</div>
+          )}
+        </AppTheme>
       </div>
-      {open ? (
-        <MediaViewer
-          items={items}
-          initialId={items[items.length - 1].message.id}
-          authorOf={() => ({
-            name: "Geraldine",
-            initials: "G",
-            color: "#5b8def",
-            avatarUrl: undefined,
-          })}
-          onClose={() => setOpen(false)}
-          onLoadVideo={() => Promise.resolve(SAMPLE_VIDEO)}
-          onDownload={() => undefined}
-          onForward={() => undefined}
-          onDelete={() => undefined}
-          onShowInChat={() => undefined}
-          onToast={(message) => console.log(message)}
-        />
-      ) : (
-        <div style={{ padding: 40 }}>viewer closed</div>
-      )}
-    </AppTheme>
+    </div>
   );
 }
 

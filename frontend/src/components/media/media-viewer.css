@@ -6,7 +6,12 @@
 
 .mv-root {
   position: fixed;
-  inset: 0;
+  /* Keep the window caption bar (drag + minimize + close) usable above the
+   * viewer; the overlay covers only the app body. */
+  top: var(--app-titlebar-height, 34px);
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 100;
   overflow: hidden;
   color: #fff;
@@ -14,6 +19,11 @@
   -webkit-font-smoothing: antialiased;
   outline: none;
   user-select: none;
+}
+
+/* Native video fullscreen takes the whole screen, caption bar included. */
+.mv-root:fullscreen {
+  top: 0;
 }
 
 .mv-backdrop {
