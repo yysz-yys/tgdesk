@@ -43,7 +43,8 @@ type StickerDocDTO struct {
 	SizeBytes int64  `json:"sizeBytes,omitempty"`
 }
 
-// StickerSetDTO is one installed sticker set header (rail cover + section).
+// StickerSetDTO is one installed or search/featured sticker set header (rail
+// cover + section).
 type StickerSetDTO struct {
 	Ref       string `json:"ref"`
 	ID        string `json:"id"`
@@ -52,6 +53,7 @@ type StickerSetDTO struct {
 	Count     int    `json:"count"`
 	Official  bool   `json:"official,omitempty"`
 	Archived  bool   `json:"archived,omitempty"`
+	Installed bool   `json:"installed,omitempty"`
 	CoverURL  string `json:"coverUrl,omitempty"`
 	CoverKind string `json:"coverKind,omitempty"`
 }
@@ -69,10 +71,14 @@ type StickerSetDetailDTO struct {
 	Stickers []StickerDocDTO `json:"stickers"`
 }
 
-// GifDTO is one saved GIF.
+// GifDTO is one saved GIF or one inline-bot GIF search result. ResultID is set
+// only for search results and is the handle messages.sendInlineBotResult needs;
+// Ref stays the opaque token the rest of the kernel (and the picker) passes
+// around.
 type GifDTO struct {
 	Ref       string  `json:"ref"`
 	ID        string  `json:"id"`
+	ResultID  string  `json:"resultId,omitempty"`
 	ThumbURL  string  `json:"thumbUrl,omitempty"`
 	StreamURL string  `json:"streamUrl"`
 	Mime      string  `json:"mime,omitempty"`
@@ -162,10 +168,21 @@ func (s *Service) mapStickerDoc(
 	if token == "" {
 		return StickerDocDTO{}, false
 	}
+	return s.mapStickerDocWithToken(doc, visualKind, token, setRef, targetPx, proxy, ntp), true
+}
+
+// mapStickerDocWithToken is the shared DTO tail of the sticker mapping paths
+// (cached lists, server search, favorites). The caller mints the opaque token,
+// which lets the search/favorites paths embed the list-specific refresh data.
+func (s *Service) mapStickerDocWithToken(
+	doc *tg.Document,
+	visualKind, token, setID string,
+	targetPx int,
+	proxy, ntp string,
+) StickerDocDTO {
 	s.storeStickerDocRef(token, doc)
 	thumbURL, streamURL, photoURL := s.stickerMediaURLs(doc, visualKind, targetPx, proxy, ntp)
 	width, height := documentDimensions(doc)
-	setID := setRef
 	if setID == "" {
 		setID = stickerSetRefOf(doc)
 	}
@@ -181,7 +198,7 @@ func (s *Service) mapStickerDoc(
 		W:         width,
 		H:         height,
 		SizeBytes: doc.Size,
-	}, true
+	}
 }
 
 func (s *Service) mapGifDoc(doc *tg.Document, proxy, ntp string) (GifDTO, bool) {
@@ -213,6 +230,7 @@ func (s *Service) mapGifDoc(doc *tg.Document, proxy, ntp string) (GifDTO, bool) 
 }
 
 func mapStickerSetHeader(set *tg.StickerSet, coverURL, coverKind string) StickerSetDTO {
+	_, installed := set.GetInstalledDate()
 	return StickerSetDTO{
 		Ref:       encodeStickerSetRef(set.ID, set.AccessHash),
 		ID:        strconv.FormatInt(set.ID, 10),
@@ -221,9 +239,71 @@ func mapStickerSetHeader(set *tg.StickerSet, coverURL, coverKind string) Sticker
 		Count:     set.Count,
 		Official:  set.Official,
 		Archived:  set.Archived,
+		Installed: installed,
 		CoverURL:  coverURL,
 		CoverKind: coverKind,
 	}
+}
+
+// mapInstalledStickerSets maps messages.getAllStickers headers into DTOs, with
+// mask/custom-emoji sets filtered out and every entry marked as installed.
+func (s *Service) mapInstalledStickerSets(sets []tg.StickerSet, proxy, ntp string) []StickerSetDTO {
+	result := make([]StickerSetDTO, 0, len(sets))
+	for index := range sets {
+		set := &sets[index]
+		if set.Masks || set.Emojis || set.ID == 0 {
+			continue
+		}
+		coverURL, coverKind := s.stickerSetCoverURL(set, proxy, ntp)
+		header := mapStickerSetHeader(set, coverURL, coverKind)
+		header.Installed = true
+		result = append(result, header)
+	}
+	return result
+}
+
+// fetchInstalledStickerSets loads the account's installed sticker set headers
+// and registers their cover images. It is the shared read behind GetStickerPacks
+// and the installed-state lookup of the sticker search.
+func (s *Service) fetchInstalledStickerSets(
+	ctx context.Context,
+	client *telegram.Client,
+	proxy, ntp string,
+) ([]StickerSetDTO, error) {
+	resp, err := client.API().MessagesGetAllStickers(ctx, 0)
+	if err != nil {
+		return nil, readableRPCError("load sticker packs", err)
+	}
+	value, ok := resp.(*tg.MessagesAllStickers)
+	if !ok {
+		return []StickerSetDTO{}, nil
+	}
+	return s.mapInstalledStickerSets(value.Sets, proxy, ntp), nil
+}
+
+// installedStickerSetIndex resolves the installed sets keyed by decimal set id,
+// preferring the warm pack cache and falling back to one getAllStickers call.
+// The search path only uses it to tell installed from non-installed sets, so a
+// failed lookup degrades to "nothing is known to be installed".
+func (s *Service) installedStickerSetIndex(
+	ctx context.Context,
+	client *telegram.Client,
+	proxy, ntp string,
+) map[string]StickerSetDTO {
+	sets, ok := s.cachedStickerSets()
+	if !ok {
+		loaded, err := s.fetchInstalledStickerSets(ctx, client, proxy, ntp)
+		if err != nil {
+			return map[string]StickerSetDTO{}
+		}
+		sets = loaded
+		s.storeStickerSets(sets)
+	}
+	index := make(map[string]StickerSetDTO, len(sets))
+	for _, set := range sets {
+		index[set.ID] = set
+	}
+	return index
 }
 
 // ------------------------------------------------------------------- caches
@@ -365,6 +445,8 @@ func (s *Service) invalidateStickerCaches() {
 	s.stickerRefs = make(map[string]*tg.Document)
 	s.stickerRefOrder = nil
 	s.stickerRefsMu.Unlock()
+	// The @gif bot input user carries an account-scoped access hash.
+	invalidateGifSearchBotCache()
 }
 
 // --------------------------------------------------------------- public API
@@ -387,19 +469,17 @@ func (s *Service) GetStickerPacks(proxy, ntp string) (*StickerPacksDTO, error) {
 	s.noteMediaConfig(proxy, ntp)
 
 	var (
-		fetchedSets   []tg.StickerSet
+		fetchedSets   []StickerSetDTO
 		fetchedRecent []tg.DocumentClass
 	)
 	group, groupCtx := errgroup.WithContext(ctx)
 	if !setsOK {
 		group.Go(func() error {
-			resp, err := client.API().MessagesGetAllStickers(groupCtx, 0)
+			loaded, err := s.fetchInstalledStickerSets(groupCtx, client, proxy, ntp)
 			if err != nil {
-				return readableRPCError("load sticker packs", err)
+				return err
 			}
-			if value, ok := resp.(*tg.MessagesAllStickers); ok {
-				fetchedSets = value.Sets
-			}
+			fetchedSets = loaded
 			return nil
 		})
 	}
@@ -423,15 +503,7 @@ func (s *Service) GetStickerPacks(proxy, ntp string) (*StickerPacksDTO, error) {
 	}
 
 	if !setsOK {
-		sets = make([]StickerSetDTO, 0, len(fetchedSets))
-		for index := range fetchedSets {
-			set := &fetchedSets[index]
-			if set.Masks || set.Emojis || set.ID == 0 {
-				continue
-			}
-			coverURL, coverKind := s.stickerSetCoverURL(set, proxy, ntp)
-			sets = append(sets, mapStickerSetHeader(set, coverURL, coverKind))
-		}
+		sets = fetchedSets
 		s.storeStickerSets(sets)
 	}
 	if !recentOK {
@@ -726,6 +798,29 @@ func (s *Service) refreshStickerDoc(
 		}
 		if value, ok := resp.(*tg.MessagesStickerSet); ok {
 			if doc := findDocument(value.Documents, decoded.ID); doc != nil {
+				return doc, nil
+			}
+		}
+	case stickerRefSourceSearch:
+		resp, err := client.API().MessagesSearchStickers(callCtx, &tg.MessagesSearchStickersRequest{
+			Q:     decoded.Query,
+			Limit: stickerSearchResultLimit,
+		})
+		if err != nil {
+			return nil, readableRPCError("refresh sticker search", err)
+		}
+		if value, ok := resp.(*tg.MessagesFoundStickers); ok {
+			if doc := findDocument(value.Stickers, decoded.ID); doc != nil {
+				return doc, nil
+			}
+		}
+	case stickerRefSourceFavorites:
+		resp, err := client.API().MessagesGetFavedStickers(callCtx, 0)
+		if err != nil {
+			return nil, readableRPCError("refresh favorite stickers", err)
+		}
+		if value, ok := resp.(*tg.MessagesFavedStickers); ok {
+			if doc := findDocument(value.Stickers, decoded.ID); doc != nil {
 				return doc, nil
 			}
 		}

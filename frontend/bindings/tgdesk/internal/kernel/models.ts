@@ -168,6 +168,15 @@ export interface ChatDTO {
     "bot"?: boolean;
     "contact"?: boolean;
     "members"?: number;
+
+    /**
+     * Presence of a private peer (never set for chats/channels/bots/self). The
+     * exact last-seen timestamp is only exposed for "offline", see
+     * mapUserPresence.
+     */
+    "online"?: boolean;
+    "lastSeen"?: number;
+    "status"?: string;
 }
 
 /**
@@ -184,6 +193,15 @@ export interface ChatEvent {
     "reactions"?: ReactionDTO[] | null;
     "unread"?: number;
     "maxId"?: number;
+
+    /**
+     * Presence fields, sent with Kind "presence" (UpdateUserStatus). ChatID is
+     * the opaque chat id when the user is already part of the dialog list.
+     */
+    "userId"?: number;
+    "online"?: boolean;
+    "lastSeen"?: number;
+    "status"?: string;
 }
 
 export interface ChatFolderDTO {
@@ -200,6 +218,16 @@ export interface ChatFolderDTO {
     "excludeMuted"?: boolean;
     "excludeRead"?: boolean;
     "excludeArchived"?: boolean;
+}
+
+/**
+ * ChatGiftsDTO is one page of a peer's gifts. NextOffset is the cursor for the
+ * following page ("" at the end); Total is the server-side gift count.
+ */
+export interface ChatGiftsDTO {
+    "gifts": StarGiftDTO[] | null;
+    "nextOffset"?: string;
+    "total"?: number;
 }
 
 /**
@@ -369,6 +397,16 @@ export interface ChatProfileDTO {
      * failure. Telegram Web renders it as the Saved Messages header subtitle.
      */
     "messagesCount"?: number;
+
+    /**
+     * Presence of a human private peer: Online/LastSeen/Status mirror the
+     * ChatDTO presence fields (Status is one of the Presence* constants). Bots,
+     * groups, channels and Saved Messages keep the zero values so the UI shows
+     * the type-specific subtitle instead.
+     */
+    "online"?: boolean;
+    "lastSeen"?: number;
+    "status"?: string;
     "botCommands"?: BotCommandDTO[] | null;
     "botMenuButton"?: BotMenuButtonDTO | null;
 
@@ -429,11 +467,15 @@ export interface DownloadTaskDTO {
 }
 
 /**
- * GifDTO is one saved GIF.
+ * GifDTO is one saved GIF or one inline-bot GIF search result. ResultID is set
+ * only for search results and is the handle messages.sendInlineBotResult needs;
+ * Ref stays the opaque token the rest of the kernel (and the picker) passes
+ * around.
  */
 export interface GifDTO {
     "ref": string;
     "id": string;
+    "resultId"?: string;
     "thumbUrl"?: string;
     "streamUrl": string;
     "mime"?: string;
@@ -441,6 +483,17 @@ export interface GifDTO {
     "h"?: number;
     "duration"?: number;
     "sizeBytes"?: number;
+}
+
+/**
+ * GifSearchPageDTO is one page of inline-bot GIF search results. QueryID must be
+ * passed back with the chosen ResultID when sending the GIF; NextOffset is empty
+ * once the bot has no further pages.
+ */
+export interface GifSearchPageDTO {
+    "gifs": GifDTO[] | null;
+    "nextOffset"?: string;
+    "queryId": number;
 }
 
 export interface MessageButtonDTO {
@@ -599,6 +652,18 @@ export interface ResolvedTelegramLinkDTO {
 }
 
 /**
+ * SavedChatsDTO is the source-chat list of Saved Messages ("我的收藏"): every
+ * peer Telegram stores saved messages for. Pinned source chats come first,
+ * each with the preview/date of its last saved message. It backs the "Chats"
+ * tab of the Saved Messages info panel (Telegram Web K's Saved Messages 2.0
+ * saved-dialog list).
+ */
+export interface SavedChatsDTO {
+    "chats": ChatDTO[] | null;
+    "count": number;
+}
+
+/**
  * SavedGifsDTO is the GIF tab payload.
  */
 export interface SavedGifsDTO {
@@ -613,6 +678,46 @@ export interface SharedMediaPageDTO {
     "messages": MessageDTO[] | null;
     "nextBeforeId": number;
     "hasMore": boolean;
+}
+
+/**
+ * StarGiftDTO is one star gift shown on a peer's profile. Telegram Web K's
+ * Gifts tab is the peer's saved-gift collection (channel gifts and user
+ * profiles use the same payments.getSavedStarGifts source).
+ */
+export interface StarGiftDTO {
+    /**
+     * ID is a stable per-row id: the saved_id when Telegram assigned one,
+     * otherwise a gift/unique id fallback so the UI can key the list.
+     */
+    "id": string;
+
+    /**
+     * Title is the gift template name; empty for unnamed templates, where the
+     * UI shows the sticker only.
+     */
+    "title"?: string;
+
+    /**
+     * From is the sender display name, empty when the sender is hidden.
+     */
+    "from"?: string;
+    "date"?: number;
+
+    /**
+     * Stars is the gift price in Telegram Stars for regular gifts (the
+     * collectible value for unique gifts, when the server reports it in XTR).
+     */
+    "stars"?: number;
+
+    /**
+     * Count is the number of gifts this saved row represents (a sender may
+     * send several at once); at least 1 for every row.
+     */
+    "count"?: number;
+    "thumbUrl"?: string;
+    "unique"?: boolean;
+    "soldOut"?: boolean;
 }
 
 /**
@@ -642,7 +747,20 @@ export interface StickerPacksDTO {
 }
 
 /**
- * StickerSetDTO is one installed sticker set header (rail cover + section).
+ * StickerSearchDTO is one page of messages.searchStickers results plus the
+ * sticker sets the returned documents belong to. Set headers of installed sets
+ * carry every field; a non-installed set is resolved with messages.getStickerSet
+ * when budget allows, otherwise only Ref/ID are returned and the caller can load
+ * it with GetStickerSet.
+ */
+export interface StickerSearchDTO {
+    "stickers": StickerDocDTO[] | null;
+    "sets": StickerSetDTO[] | null;
+}
+
+/**
+ * StickerSetDTO is one installed or search/featured sticker set header (rail
+ * cover + section).
  */
 export interface StickerSetDTO {
     "ref": string;
@@ -652,6 +770,7 @@ export interface StickerSetDTO {
     "count": number;
     "official"?: boolean;
     "archived"?: boolean;
+    "installed"?: boolean;
     "coverUrl"?: string;
     "coverKind"?: string;
 }

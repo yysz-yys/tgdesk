@@ -77,7 +77,14 @@ type ChatProfileDTO struct {
 	// MessagesCount is the number of messages in Saved Messages (peer self),
 	// read from one messages.getHistory page; 0 for every other peer and on
 	// failure. Telegram Web renders it as the Saved Messages header subtitle.
-	MessagesCount int               `json:"messagesCount,omitempty"`
+	MessagesCount int `json:"messagesCount,omitempty"`
+	// Presence of a human private peer: Online/LastSeen/Status mirror the
+	// ChatDTO presence fields (Status is one of the Presence* constants). Bots,
+	// groups, channels and Saved Messages keep the zero values so the UI shows
+	// the type-specific subtitle instead.
+	Online        bool              `json:"online,omitempty"`
+	LastSeen      int64             `json:"lastSeen,omitempty"`
+	Status        string            `json:"status,omitempty"`
 	BotCommands   []BotCommandDTO   `json:"botCommands,omitempty"`
 	BotMenuButton *BotMenuButtonDTO `json:"botMenuButton,omitempty"`
 	// BotOwnerID is reserved for clients whose TL layer exposes the bot owner;
@@ -497,6 +504,11 @@ func mapUserProfile(full tg.UserFull, user *tg.User, saved bool) *ChatProfileDTO
 				profile.Phone = phone
 			}
 		}
+	}
+	// Presence is only meaningful for human private peers; Saved Messages and
+	// bots keep the zero values (see userPresence).
+	if user != nil && !isBot && !saved {
+		profile.Online, profile.LastSeen, profile.Status = userPresence(user, 0)
 	}
 
 	if profile.Type != ChatProfileTypeBot {

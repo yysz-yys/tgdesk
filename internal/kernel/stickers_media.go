@@ -30,9 +30,14 @@ const (
 	stickerRefKindGif     = "gif"
 
 	// Sticker list sources, used only to refresh an expired document ref.
-	stickerRefSourceRecent = "recent"
-	stickerRefSourceSet    = "set"
-	stickerRefSourceGif    = "gif"
+	// Round 3 adds the server-side search and the favorites list; set-owned
+	// results from either list keep source "set" so their reference is refreshed
+	// through messages.getStickerSet.
+	stickerRefSourceRecent    = "recent"
+	stickerRefSourceSet       = "set"
+	stickerRefSourceGif       = "gif"
+	stickerRefSourceSearch    = "search"
+	stickerRefSourceFavorites = "favorites"
 
 	// stickerThumbTargetPx is the grid cell size the picker asks for (72 px
 	// stickers, 124 px GIFs). Telegram serves ~100 px thumbs under type "m".
@@ -44,9 +49,13 @@ const (
 type stickerDocRef struct {
 	ID     int64  `json:"id"`
 	Kind   string `json:"kind"`             // "sticker" | "gif"
-	Source string `json:"source"`           // "recent" | "set" | "gif"
+	Source string `json:"source"`           // "recent" | "set" | "gif" | "search" | "favorites"
 	SetRef string `json:"setRef,omitempty"` // set token when Source == "set"
+	Query  string `json:"q,omitempty"`      // search query when Source == "search"
 }
+
+// stickerRefQueryLimit bounds the query embedded in a search document token.
+const stickerRefQueryLimit = 120
 
 func encodeStickerDocRef(ref stickerDocRef) string {
 	raw, err := json.Marshal(ref)
@@ -77,7 +86,8 @@ func decodeStickerDocRef(value string) (stickerDocRef, error) {
 		return ref, fmt.Errorf("invalid sticker reference: unknown kind")
 	}
 	switch ref.Source {
-	case stickerRefSourceRecent, stickerRefSourceSet, stickerRefSourceGif:
+	case stickerRefSourceRecent, stickerRefSourceSet, stickerRefSourceGif,
+		stickerRefSourceSearch, stickerRefSourceFavorites:
 	default:
 		return ref, fmt.Errorf("invalid sticker reference: unknown source")
 	}
@@ -86,7 +96,38 @@ func decodeStickerDocRef(value string) (stickerDocRef, error) {
 			return ref, fmt.Errorf("invalid sticker reference: %w", err)
 		}
 	}
+	if ref.Source == stickerRefSourceSearch && strings.TrimSpace(ref.Query) == "" {
+		return ref, fmt.Errorf("invalid sticker reference: missing search query")
+	}
 	return ref, nil
+}
+
+// stickerDocRefForList builds the token of one document listed by a picker
+// source. Set-owned documents always refresh through messages.getStickerSet;
+// only unclaimed search/favorites documents carry the list-specific source (and,
+// for search, the query needed to find them again).
+func stickerDocRefForList(doc *tg.Document, kind, source, query string) stickerDocRef {
+	ref := stickerDocRef{ID: doc.ID, Kind: kind, Source: source}
+	if setRef := stickerSetRefOf(doc); setRef != "" {
+		ref.Source = stickerRefSourceSet
+		ref.SetRef = setRef
+		return ref
+	}
+	if source == stickerRefSourceSearch {
+		ref.Query = truncateStickerSearchQuery(query)
+	}
+	return ref
+}
+
+// truncateStickerSearchQuery keeps a search token bounded (and valid even when
+// the caller sent a very long query).
+func truncateStickerSearchQuery(query string) string {
+	query = strings.TrimSpace(query)
+	runes := []rune(query)
+	if len(runes) > stickerRefQueryLimit {
+		return string(runes[:stickerRefQueryLimit])
+	}
+	return query
 }
 
 // encodeStickerSetRef builds the opaque installed-set token from the set id and

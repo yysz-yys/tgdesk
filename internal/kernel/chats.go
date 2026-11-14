@@ -33,6 +33,12 @@ type ChatDTO struct {
 	Bot             bool   `json:"bot,omitempty"`
 	Contact         bool   `json:"contact,omitempty"`
 	Members         int    `json:"members,omitempty"`
+	// Presence of a private peer (never set for chats/channels/bots/self). The
+	// exact last-seen timestamp is only exposed for "offline", see
+	// mapUserPresence.
+	Online   bool   `json:"online,omitempty"`
+	LastSeen int64  `json:"lastSeen,omitempty"`
+	Status   string `json:"status,omitempty"`
 }
 
 type ChatFolderDTO struct {
@@ -226,7 +232,7 @@ func (s *Service) getDialogs(proxy, ntp string, limit, folderID int, force bool)
 			if !ok {
 				continue
 			}
-			item, ok := mapDialog(elem, dialog)
+			item, ok := mapDialog(elem, dialog, s.selfUserID())
 			if !ok {
 				continue
 			}
@@ -870,7 +876,7 @@ func replyPreviewText(msg *tg.Message) string {
 	return ""
 }
 
-func mapDialog(elem dialogs.Elem, dialog *tg.Dialog) (ChatDTO, bool) {
+func mapDialog(elem dialogs.Elem, dialog *tg.Dialog, selfID int64) (ChatDTO, bool) {
 	peer := elem.Peer
 	entities := elem.Entities
 
@@ -884,6 +890,9 @@ func mapDialog(elem dialogs.Elem, dialog *tg.Dialog) (ChatDTO, bool) {
 		members  int
 		id       string
 		ok       bool
+		online   bool
+		lastSeen int64
+		status   string
 	)
 
 	switch p := peer.(type) {
@@ -905,6 +914,7 @@ func mapDialog(elem dialogs.Elem, dialog *tg.Dialog) (ChatDTO, bool) {
 		bot = user.Bot
 		contact = user.Contact || user.MutualContact
 		id = encodePeerID("user", p.UserID, p.AccessHash)
+		online, lastSeen, status = userPresence(user, selfID)
 		ok = true
 	case *tg.InputPeerChat:
 		chat, found := entities.Chats()[p.ChatID]
@@ -957,6 +967,9 @@ func mapDialog(elem dialogs.Elem, dialog *tg.Dialog) (ChatDTO, bool) {
 		Bot:             bot,
 		Contact:         contact,
 		Members:         members,
+		Online:          online,
+		LastSeen:        lastSeen,
+		Status:          status,
 	}, true
 }
 

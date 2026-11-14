@@ -19,6 +19,12 @@ type ChatEvent struct {
 	Reactions  []ReactionDTO `json:"reactions,omitempty"`
 	Unread     int           `json:"unread,omitempty"`
 	MaxID      int           `json:"maxId,omitempty"`
+	// Presence fields, sent with Kind "presence" (UpdateUserStatus). ChatID is
+	// the opaque chat id when the user is already part of the dialog list.
+	UserID   int64  `json:"userId,omitempty"`
+	Online   bool   `json:"online,omitempty"`
+	LastSeen int64  `json:"lastSeen,omitempty"`
+	Status   string `json:"status,omitempty"`
 }
 
 // UploadEvent reports attachment upload progress to the composer.
@@ -181,6 +187,9 @@ func newLiveUpdateHandler(service *Service, proxy, ntp string) *liveUpdateHandle
 	h.dispatcher.OnReadHistoryInbox(h.onReadHistoryInbox)
 	h.dispatcher.OnReadHistoryOutbox(h.onReadHistoryOutbox)
 	h.dispatcher.OnChannelTooLong(h.onChannelTooLong)
+	h.dispatcher.OnUserStatus(h.onUserStatus)
+	h.dispatcher.OnPinnedMessages(h.onPinnedMessages)
+	h.dispatcher.OnPinnedChannelMessages(h.onPinnedChannelMessages)
 	// Sticker/GIF picker caches: the installed set list, recent row and saved
 	// GIF list are invalidated by their matching update family.
 	onStickerSetsChanged := func(context.Context, tg.Entities, *tg.UpdateStickerSets) error {
@@ -342,6 +351,71 @@ func (h *liveUpdateHandler) onChannelTooLong(
 ) error {
 	chatID := h.service.lookupPeer("channel", update.ChannelID)
 	h.service.emitChat(ChatEvent{Kind: "resync", ChatID: chatID})
+	return nil
+}
+
+// onUserStatus pushes live presence changes (Kind "presence"). The update only
+// carries the raw user id, so the opaque chat id comes from the live peer index
+// (or from the entities attached to the update); the frontend can then update
+// the matching dialog row and open chat header without a reload.
+func (h *liveUpdateHandler) onUserStatus(
+	ctx context.Context,
+	entities tg.Entities,
+	update *tg.UpdateUserStatus,
+) error {
+	online, lastSeen, status := mapUserPresence(update.Status)
+	chatID := h.service.lookupPeer("user", update.UserID)
+	if chatID == "" {
+		if user, ok := entities.Users[update.UserID]; ok {
+			chatID = h.service.rememberPeer(
+				&tg.InputPeerUser{UserID: user.ID, AccessHash: user.AccessHash},
+			)
+		}
+	}
+	h.service.emitChat(ChatEvent{
+		Kind:     "presence",
+		ChatID:   chatID,
+		UserID:   update.UserID,
+		Online:   online,
+		LastSeen: lastSeen,
+		Status:   status,
+	})
+	return nil
+}
+
+// onPinnedMessages announces a pin/unpin in a private chat or basic group
+// (Kind "pinned"). MessageIDs are the changed ids; the list is empty for an
+// unpin-all. The frontend reloads the pinned bar with GetPinnedMessage.
+func (h *liveUpdateHandler) onPinnedMessages(
+	ctx context.Context,
+	entities tg.Entities,
+	update *tg.UpdatePinnedMessages,
+) error {
+	chatID := h.service.chatIDFromUpdatePeer(update.Peer, entities)
+	h.service.emitChat(ChatEvent{
+		Kind:       "pinned",
+		ChatID:     chatID,
+		MessageIDs: update.Messages,
+	})
+	return nil
+}
+
+// onPinnedChannelMessages is the channel/supergroup counterpart of
+// onPinnedMessages; the update carries only the raw channel id.
+func (h *liveUpdateHandler) onPinnedChannelMessages(
+	ctx context.Context,
+	entities tg.Entities,
+	update *tg.UpdatePinnedChannelMessages,
+) error {
+	chatID := h.service.chatIDFromUpdatePeer(
+		&tg.PeerChannel{ChannelID: update.ChannelID},
+		entities,
+	)
+	h.service.emitChat(ChatEvent{
+		Kind:       "pinned",
+		ChatID:     chatID,
+		MessageIDs: update.Messages,
+	})
 	return nil
 }
 

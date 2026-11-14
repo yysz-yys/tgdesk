@@ -15,6 +15,13 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 // @ts-ignore: Unused imports
 import * as kernel$0 from "../kernel/models.js";
 
+/**
+ * ArchiveStickerSet archives or unarchives a sticker set.
+ */
+export function ArchiveStickerSet(ref: string, archived: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(2272290839, ref, archived, proxy, ntp);
+}
+
 export function CancelDownload(id: string): $CancellablePromise<void> {
     return $Call.ByID(3575965466, id);
 }
@@ -45,6 +52,13 @@ export function ClearCompletedDownloads(): $CancellablePromise<void> {
 
 export function ClearFailedDownloads(): $CancellablePromise<void> {
     return $Call.ByID(547873733);
+}
+
+/**
+ * ClearRecentStickers clears the server-side recent sticker list.
+ */
+export function ClearRecentStickers(proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(3650590254, proxy, ntp);
 }
 
 export function DeleteMessages(chatID: string, messageIDs: number[] | null, revoke: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
@@ -86,6 +100,13 @@ export function GetCachedMessages(chatID: string): $CancellablePromise<kernel$0.
 }
 
 /**
+ * GetChatGifts loads one page of a profile's received star gifts.
+ */
+export function GetChatGifts(chatID: string, offset: string, limit: number, proxy: string, ntp: string): $CancellablePromise<kernel$0.ChatGiftsDTO | null> {
+    return $Call.ByID(2282456153, chatID, offset, limit, proxy, ntp);
+}
+
+/**
  * GetChatInfo resolves which chat-info tabs a peer has using the same
  * messages.getSearchCounters call as Telegram Web.
  */
@@ -120,6 +141,20 @@ export function GetDownloads(): $CancellablePromise<kernel$0.DownloadTaskDTO[] |
     return $Call.ByID(337528261);
 }
 
+/**
+ * GetFavedStickers returns the account's favourite stickers.
+ */
+export function GetFavedStickers(proxy: string, ntp: string): $CancellablePromise<kernel$0.StickerDocDTO[] | null> {
+    return $Call.ByID(3960826148, proxy, ntp);
+}
+
+/**
+ * GetFeaturedStickerSets returns Telegram's featured/trending sticker sets.
+ */
+export function GetFeaturedStickerSets(proxy: string, ntp: string): $CancellablePromise<kernel$0.StickerSetDTO[] | null> {
+    return $Call.ByID(1925753344, proxy, ntp);
+}
+
 export function GetFolders(proxy: string, ntp: string): $CancellablePromise<kernel$0.ChatFolderDTO[] | null> {
     return $Call.ByID(2512515857, proxy, ntp);
 }
@@ -150,6 +185,20 @@ export function GetOlderMessages(chatID: string, beforeID: number, proxy: string
 
 export function GetPaths(): $CancellablePromise<kernel$0.PortablePaths> {
     return $Call.ByID(119407144);
+}
+
+/**
+ * GetPinnedMessage returns the first pinned message of a chat (nil when none).
+ */
+export function GetPinnedMessage(chatID: string, proxy: string, ntp: string): $CancellablePromise<kernel$0.MessageDTO | null> {
+    return $Call.ByID(4053156701, chatID, proxy, ntp);
+}
+
+/**
+ * GetSavedChats lists the source chats of Saved Messages (Saved Messages 2.0).
+ */
+export function GetSavedChats(proxy: string, ntp: string): $CancellablePromise<kernel$0.SavedChatsDTO | null> {
+    return $Call.ByID(2834535182, proxy, ntp);
 }
 
 /**
@@ -186,6 +235,13 @@ export function GetStickerSet(ref: string, proxy: string, ntp: string): $Cancell
 
 export function GetVideoStream(chatID: string, messageID: number, proxy: string, ntp: string, useTDL: boolean): $CancellablePromise<string> {
     return $Call.ByID(231628327, chatID, messageID, proxy, ntp, useTDL);
+}
+
+/**
+ * InstallStickerSet installs a sticker set by its opaque set ref.
+ */
+export function InstallStickerSet(ref: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(202634806, ref, proxy, ntp);
 }
 
 /**
@@ -233,6 +289,13 @@ export function PauseDownload(id: string): $CancellablePromise<void> {
     return $Call.ByID(629438258, id);
 }
 
+/**
+ * ProlongWebView keeps an open mini app session alive on the server.
+ */
+export function ProlongWebView(chatID: string, botPeerID: string, queryID: number, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(1234007532, chatID, botPeerID, queryID, proxy, ntp);
+}
+
 export function RefreshUser(proxy: string, ntp: string): $CancellablePromise<kernel$0.AuthUser | null> {
     return $Call.ByID(3728149848, proxy, ntp);
 }
@@ -260,6 +323,20 @@ export function ResumeDownload(id: string, proxy: string, ntp: string): $Cancell
     return $Call.ByID(2763229687, id, proxy, ntp);
 }
 
+/**
+ * SearchGifs runs one page of the inline-bot GIF search.
+ */
+export function SearchGifs(query: string, offset: string, proxy: string, ntp: string): $CancellablePromise<kernel$0.GifSearchPageDTO | null> {
+    return $Call.ByID(1438827483, query, offset, proxy, ntp);
+}
+
+/**
+ * SearchStickers searches Telegram's sticker catalogue.
+ */
+export function SearchStickers(query: string, limit: number, proxy: string, ntp: string): $CancellablePromise<kernel$0.StickerSearchDTO | null> {
+    return $Call.ByID(1947874680, query, limit, proxy, ntp);
+}
+
 export function SendAttachment(chatID: string, filePath: string, caption: string, replyToID: number, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(1507448875, chatID, filePath, caption, replyToID, proxy, ntp);
 }
@@ -280,6 +357,13 @@ export function SendGif(chatID: string, ref: string, replyToID: number, proxy: s
     return $Call.ByID(3455439728, chatID, ref, replyToID, proxy, ntp);
 }
 
+/**
+ * SendInlineGif sends a selected inline GIF search result.
+ */
+export function SendInlineGif(chatID: string, queryID: number, resultID: string, replyToID: number, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(625948755, chatID, queryID, resultID, replyToID, proxy, ntp);
+}
+
 export function SendMessage(chatID: string, text: string, replyToID: number, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(1826619901, chatID, text, replyToID, proxy, ntp);
 }
@@ -293,6 +377,13 @@ export function SendReaction(chatID: string, messageID: number, emoji: string, c
  */
 export function SendSticker(chatID: string, ref: string, replyToID: number, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(3218597329, chatID, ref, replyToID, proxy, ntp);
+}
+
+/**
+ * SendWebViewData relays a mini app web_app_data_send payload to its bot.
+ */
+export function SendWebViewData(chatID: string, botPeerID: string, queryID: number, data: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(2672814057, chatID, botPeerID, queryID, data, proxy, ntp);
 }
 
 export function SetChatArchived(chatID: string, archived: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
@@ -311,6 +402,20 @@ export function SetChatMuted(chatID: string, muted: boolean, proxy: string, ntp:
  */
 export function SetChatPinned(chatID: string, pinned: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(3145384768, chatID, pinned, proxy, ntp);
+}
+
+/**
+ * SetGifSaved adds or removes a GIF from the saved-GIF list.
+ */
+export function SetGifSaved(ref: string, saved: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(710187813, ref, saved, proxy, ntp);
+}
+
+/**
+ * SetStickerFaved adds/removes a sticker from the favourites list.
+ */
+export function SetStickerFaved(ref: string, faved: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(2294228465, ref, faved, proxy, ntp);
 }
 
 export function StartDownload(chatID: string, chatTitle: string, messageIDs: number[] | null, proxy: string, ntp: string, dir: string, fileNameTemplate: string, options: kernel$0.DownloadOptions): $CancellablePromise<string[] | null> {
@@ -340,6 +445,20 @@ export function SubmitPassword(password: string): $CancellablePromise<void> {
  */
 export function TakeMediaViewerState(session: string): $CancellablePromise<string> {
     return $Call.ByID(1447354160, session);
+}
+
+/**
+ * UninstallStickerSet removes a sticker set by its opaque set ref.
+ */
+export function UninstallStickerSet(ref: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(2220600651, ref, proxy, ntp);
+}
+
+/**
+ * UnpinAllMessages removes every pinned message from a chat.
+ */
+export function UnpinAllMessages(chatID: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(2805468961, chatID, proxy, ntp);
 }
 
 export function ValidateDownload(id: string): $CancellablePromise<boolean> {
