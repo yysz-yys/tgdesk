@@ -181,6 +181,33 @@ func newLiveUpdateHandler(service *Service, proxy, ntp string) *liveUpdateHandle
 	h.dispatcher.OnReadHistoryInbox(h.onReadHistoryInbox)
 	h.dispatcher.OnReadHistoryOutbox(h.onReadHistoryOutbox)
 	h.dispatcher.OnChannelTooLong(h.onChannelTooLong)
+	// Sticker/GIF picker caches: the installed set list, recent row and saved
+	// GIF list are invalidated by their matching update family.
+	onStickerSetsChanged := func(context.Context, tg.Entities, *tg.UpdateStickerSets) error {
+		h.service.invalidateStickerSetsCache()
+		return nil
+	}
+	h.dispatcher.OnStickerSets(onStickerSetsChanged)
+	h.dispatcher.OnStickerSetsOrder(func(context.Context, tg.Entities, *tg.UpdateStickerSetsOrder) error {
+		h.service.invalidateStickerSetsCache()
+		return nil
+	})
+	h.dispatcher.OnMoveStickerSetToTop(func(context.Context, tg.Entities, *tg.UpdateMoveStickerSetToTop) error {
+		h.service.invalidateStickerSetsCache()
+		return nil
+	})
+	h.dispatcher.OnNewStickerSet(func(context.Context, tg.Entities, *tg.UpdateNewStickerSet) error {
+		h.service.invalidateStickerSetsCache()
+		return nil
+	})
+	h.dispatcher.OnRecentStickers(func(context.Context, tg.Entities, *tg.UpdateRecentStickers) error {
+		h.service.invalidateRecentStickersCache()
+		return nil
+	})
+	h.dispatcher.OnSavedGifs(func(context.Context, tg.Entities, *tg.UpdateSavedGifs) error {
+		h.service.invalidateSavedGifsCache()
+		return nil
+	})
 	return h
 }
 

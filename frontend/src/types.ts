@@ -138,6 +138,17 @@ export interface ChatProfile {
   botMenuButton?: BotMenuButtonInfo;
   botOwnerId?: string;
   botPrivacyUrl?: string;
+  /** All public usernames of a channel/group (preferred one first). */
+  usernames?: string[];
+  /** Whether the current account may send stickers/GIFs in this chat. */
+  canSendStickers?: boolean;
+  canSendGifs?: boolean;
+  /** Channel gift counter when the server exposes one. */
+  giftsCount?: number;
+  /** Channel admin count when the server exposes one. */
+  adminsCount?: number;
+  /** Total message count (Saved Messages only, best effort). */
+  messagesCount?: number;
 }
 
 /** Result of pressing an inline-keyboard callback button. */
@@ -162,6 +173,80 @@ export interface BotWebViewRequest {
   title: string;
   /** Simple webview buttons open the raw URL without messages.requestWebView. */
   simple?: boolean;
+}
+
+/** In-app mini app overlay: one opened bot Web App. */
+export interface MiniAppLaunch {
+  url: string;
+  title: string;
+  botName?: string;
+  avatarUrl?: string;
+  fromBotMenu?: boolean;
+}
+
+export type StickerDocKind = "static" | "tgs" | "webm";
+
+/** One sticker document as exposed by the kernel sticker picker API. */
+export interface StickerDoc {
+  ref: string;
+  id: string;
+  kind: StickerDocKind;
+  emoji?: string;
+  setId?: string;
+  thumbUrl?: string;
+  streamUrl?: string;
+  photoUrl?: string;
+  w?: number;
+  h?: number;
+  sizeBytes?: number;
+}
+
+/** Installed or archived sticker set summary. */
+export interface StickerSetInfo {
+  ref: string;
+  id: string;
+  title: string;
+  shortName?: string;
+  count: number;
+  official?: boolean;
+  archived?: boolean;
+  coverUrl?: string;
+  coverKind?: StickerDocKind;
+}
+
+export interface StickerPacks {
+  recent: StickerDoc[];
+  sets: StickerSetInfo[];
+}
+
+export interface StickerSetDetail {
+  set: StickerSetInfo;
+  stickers: StickerDoc[];
+}
+
+/** One saved GIF from Telegram's saved-GIF list. */
+export interface SavedGif {
+  ref: string;
+  id: string;
+  thumbUrl?: string;
+  streamUrl: string;
+  mime?: string;
+  w?: number;
+  h?: number;
+  duration?: number;
+  sizeBytes?: number;
+}
+
+/** Result of resolving a t.me / tg:// link for in-app navigation. */
+export interface ResolvedTelegramLink {
+  kind: "chat" | "invite" | "unsupported";
+  url: string;
+  chat?: Chat;
+  messageId?: number;
+  inviteHash?: string;
+  inviteTitle?: string;
+  inviteMembers?: number;
+  alreadyMember?: boolean;
 }
 
 

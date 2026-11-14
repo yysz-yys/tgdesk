@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Browser } from "@wailsio/runtime";
 import { useTranslation } from "react-i18next";
 import type { DownloadTask, Message, MessageMedia } from "../../types";
+import { openTelegramLink } from "../../lib/telegramLinks";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -590,7 +590,7 @@ export function LinkList({
                 if (selecting) {
                   onToggleSelect?.(message);
                 } else {
-                  void Browser.OpenURL(link.url);
+                  openTelegramLink(link.url);
                 }
               }}
             >

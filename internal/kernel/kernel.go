@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gotd/td/tg"
+
 	"tgdesk/internal/paths"
 )
 
@@ -56,6 +58,18 @@ type Service struct {
 	emojiStatusMu    sync.Mutex
 	emojiStatusCache map[int64]string
 
+	// Sticker/GIF picker: short-lived list caches plus the opaque document-ref
+	// side map. See stickers.go / stickers_media.go.
+	stickerCacheMu   sync.Mutex
+	stickerSetsCache *stickerSetsCacheEntry
+	recentCache      *recentStickersCacheEntry
+	stickerSetCache  map[string]stickerSetCacheEntry
+	savedGifsCache   *savedGifsCacheEntry
+
+	stickerRefsMu   sync.Mutex
+	stickerRefs     map[string]*tg.Document
+	stickerRefOrder []string
+
 	chatMu sync.Mutex
 
 	sessionMu sync.Mutex
@@ -95,6 +109,8 @@ func New() *Service {
 		chatInfoCache:    make(map[string]chatInfoCacheEntry),
 		chatProfileCache: make(map[string]chatProfileCacheEntry),
 		emojiStatusCache: make(map[int64]string),
+		stickerSetCache:  make(map[string]stickerSetCacheEntry),
+		stickerRefs:      make(map[string]*tg.Document),
 	}
 	s.loadDownloadTasks()
 	return s

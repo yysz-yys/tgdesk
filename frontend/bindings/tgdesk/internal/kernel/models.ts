@@ -270,6 +270,12 @@ export interface ChatProfileDTO {
     "username"?: string;
 
     /**
+     * Usernames lists every active username of the peer, main/preferred first
+     * (channels can own several collectible usernames, Web K shows "also @x").
+     */
+    "usernames"?: string[] | null;
+
+    /**
      * Phone is only exposed for contacts; Telegram hides it for everyone else.
      */
     "phone"?: string;
@@ -297,6 +303,25 @@ export interface ChatProfileDTO {
      * read-only "media allowed, text not allowed" restrictions.
      */
     "canSendPlain": boolean;
+
+    /**
+     * CanSendStickers / CanSendGifs report the per-media send rights so the
+     * emoji picker can show its blocked states before firing an RPC. They are
+     * false whenever CanSend is false.
+     */
+    "canSendStickers": boolean;
+    "canSendGifs": boolean;
+
+    /**
+     * GiftsCount is the number of star gifts the peer displays (Telegram Web K
+     * decides the Gifts tab from it; optional field in this TL layer).
+     */
+    "giftsCount"?: number;
+
+    /**
+     * AdminsCount is the channel administrator count (0 when unknown).
+     */
+    "adminsCount"?: number;
 
     /**
      * SendRestriction is the machine-readable reason when CanSend is false:
@@ -330,6 +355,20 @@ export interface ChatProfileDTO {
      * the supergroup a migrated basic group points at), empty when unresolved.
      */
     "linkedChatId"?: string;
+
+    /**
+     * LinkedChat is the mapped linked discussion chat when the full-info response
+     * carried its entity, so the UI can open the discussion in-app even when it
+     * is not in the current dialog list. LinkedChatID is always kept.
+     */
+    "linkedChat"?: ChatDTO | null;
+
+    /**
+     * MessagesCount is the number of messages in Saved Messages (peer self),
+     * read from one messages.getHistory page; 0 for every other peer and on
+     * failure. Telegram Web renders it as the Saved Messages header subtitle.
+     */
+    "messagesCount"?: number;
     "botCommands"?: BotCommandDTO[] | null;
     "botMenuButton"?: BotMenuButtonDTO | null;
 
@@ -387,6 +426,21 @@ export interface DownloadTaskDTO {
     "color": string;
     "error"?: string;
     "path"?: string;
+}
+
+/**
+ * GifDTO is one saved GIF.
+ */
+export interface GifDTO {
+    "ref": string;
+    "id": string;
+    "thumbUrl"?: string;
+    "streamUrl": string;
+    "mime"?: string;
+    "w"?: number;
+    "h"?: number;
+    "duration"?: number;
+    "sizeBytes"?: number;
 }
 
 export interface MessageButtonDTO {
@@ -528,6 +582,30 @@ export interface ReactionDTO {
 }
 
 /**
+ * ResolvedTelegramLinkDTO is everything the UI needs to route one link click.
+ * Kind decides the branch: "chat" selects Chat (optionally at MessageID),
+ * "invite" opens the join sheet (or the chat directly when AlreadyMember) and
+ * "unsupported" shows a "not supported" toast.
+ */
+export interface ResolvedTelegramLinkDTO {
+    "kind": string;
+    "url": string;
+    "chat"?: ChatDTO | null;
+    "messageId"?: number;
+    "inviteHash"?: string;
+    "inviteTitle"?: string;
+    "inviteMembers"?: number;
+    "alreadyMember"?: boolean;
+}
+
+/**
+ * SavedGifsDTO is the GIF tab payload.
+ */
+export interface SavedGifsDTO {
+    "gifs": GifDTO[] | null;
+}
+
+/**
  * SharedMediaPageDTO is one page of a shared media tab. NextBeforeID is the
  * cursor for the older page (0 means the end has been reached).
  */
@@ -535,6 +613,56 @@ export interface SharedMediaPageDTO {
     "messages": MessageDTO[] | null;
     "nextBeforeId": number;
     "hasMore": boolean;
+}
+
+/**
+ * StickerDocDTO is one sticker document in the picker grid. Ref is the opaque
+ * token needed to send it; StreamURL/PhotoURL are loopback media URLs.
+ */
+export interface StickerDocDTO {
+    "ref": string;
+    "id": string;
+    "kind": string;
+    "emoji"?: string;
+    "setId"?: string;
+    "thumbUrl"?: string;
+    "streamUrl"?: string;
+    "photoUrl"?: string;
+    "w"?: number;
+    "h"?: number;
+    "sizeBytes"?: number;
+}
+
+/**
+ * StickerPacksDTO is the sticker tab payload: recent row + installed sets.
+ */
+export interface StickerPacksDTO {
+    "recent": StickerDocDTO[] | null;
+    "sets": StickerSetDTO[] | null;
+}
+
+/**
+ * StickerSetDTO is one installed sticker set header (rail cover + section).
+ */
+export interface StickerSetDTO {
+    "ref": string;
+    "id": string;
+    "title": string;
+    "shortName"?: string;
+    "count": number;
+    "official"?: boolean;
+    "archived"?: boolean;
+    "coverUrl"?: string;
+    "coverKind"?: string;
+}
+
+/**
+ * StickerSetDetailDTO is one set with every document returned by
+ * messages.getStickerSet (the method is not paginated).
+ */
+export interface StickerSetDetailDTO {
+    "set": StickerSetDTO;
+    "stickers": StickerDocDTO[] | null;
 }
 
 /**

@@ -748,13 +748,10 @@
   display: flex;
   width: 100%;
   min-width: 0;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: stretch;
   border: 0;
   background: transparent;
-  padding: 10px 12px;
   color: var(--f-text);
-  cursor: default;
   font-family: var(--f-font);
   text-align: start;
 }
@@ -763,15 +760,36 @@
   border-top: 1px solid var(--f-line);
 }
 
-button.f-info-prow {
+.f-info-prow[data-clickable] {
   cursor: pointer;
 }
 
-button.f-info-prow:hover {
+.f-info-prow[data-clickable]:hover {
   background: var(--gray-a3);
 }
 
-button.f-info-prow:focus-visible {
+/* Clickable area and the trailing action (the QR button) are siblings so the
+ * markup never nests a button inside another button. */
+.f-info-prow-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-start;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  color: inherit;
+  cursor: inherit;
+  font-family: inherit;
+  text-align: start;
+}
+
+button.f-info-prow-main {
+  cursor: pointer;
+}
+
+button.f-info-prow-main:focus-visible {
   outline: 1px solid var(--gray-a7);
   outline-offset: -1px;
 }
@@ -819,14 +837,41 @@ button.f-info-prow:focus-visible {
   align-self: center;
   align-items: center;
   gap: 2px;
+  padding-inline-end: 12px;
 }
 
-/* Bio: rich text (with auto-links) clamped to four lines until expanded. */
+/* Web K's profile QR button: a quiet icon button at the end of the row. */
+.f-info-qr {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--f-muted);
+  cursor: pointer;
+}
+
+.f-info-qr:hover {
+  background: var(--gray-a4);
+  color: var(--f-text);
+}
+
+.f-info-qr:focus-visible {
+  outline: 1px solid var(--gray-a7);
+  outline-offset: -1px;
+}
+
+/* Bio: rich text (with auto-links). Chat descriptions are never clamped like in
+ * Web K; user/bot bios keep the four-line clamp until expanded. */
+.f-info-bio {
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
 .f-info-bio-body {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
   color: var(--f-text);
   font-size: 13.5px;
   line-height: 1.5;
@@ -834,9 +879,15 @@ button.f-info-prow:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.f-info-bio-body[data-clamped] {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
 .f-info-bio-body[data-expanded] {
   display: block;
-  -webkit-line-clamp: unset;
 }
 
 .f-info-bio-body .g-message-link {
@@ -937,3 +988,73 @@ button.f-info-prow:focus-visible {
   justify-content: space-between;
 }
 
+
+/* --------------------------------------------------------------------------
+ * Saved Messages: Web K's info column has no profile block at all (no avatar,
+ * name, tiles or rows), so the pane starts directly with the shared-media rail.
+ */
+
+.f-info-panel[data-saved] .f-info-scroll {
+  padding-top: 8px;
+}
+
+.f-info-panel[data-saved] .f-info-tabs-sticky {
+  margin-top: 0;
+}
+
+/* --------------------------------------------------------------------------
+ * Peer QR code dialog (Telegram Web's "My QR code" sheet): a white code card on
+ * the themed dialog surface, the @USERNAME caption and the link actions. The
+ * code itself keeps its black-on-white colours in both themes.
+ */
+
+.f-peer-qr .f-dialog-body {
+  gap: 14px;
+}
+
+.f-peer-qr-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 18px 18px 14px;
+  box-shadow:
+    0 0 0 1px rgba(16, 24, 40, 0.06),
+    0 8px 22px -12px rgba(16, 24, 40, 0.35);
+}
+
+.f-peer-qr-card svg {
+  display: block;
+}
+
+.f-peer-qr-caption {
+  color: #1c2024;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.f-peer-qr-link {
+  overflow: hidden;
+  color: var(--f-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f-peer-qr-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.f-peer-qr-actions .rt-Button {
+  flex: 1;
+  height: 34px;
+  justify-content: center;
+}

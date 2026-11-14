@@ -146,6 +146,7 @@ func (s *Service) stopSessionLocked() {
 	s.dialogsCacheMu.Lock()
 	s.dialogsCache = make(map[string]dialogsCacheEntry)
 	s.dialogsCacheMu.Unlock()
+	s.invalidateStickerCaches()
 	if session.pool != nil {
 		_ = session.pool.Close()
 	}

@@ -11,16 +11,14 @@ import (
 // Service is the Wails-facing adapter. It only translates binding calls into
 // kernel calls; Telegram, storage and task logic must stay out of this package.
 type Service struct {
-	kernel  *kernel.Service
-	viewer  *mediaViewerManager
-	miniApp *miniAppManager
+	kernel *kernel.Service
+	viewer *mediaViewerManager
 }
 
 func New(k *kernel.Service) *Service {
 	service := &Service{
-		kernel:  k,
-		viewer:  newMediaViewerManager(),
-		miniApp: newMiniAppManager(),
+		kernel: k,
+		viewer: newMediaViewerManager(),
 	}
 	k.SetEventSink(func(event kernel.AuthEvent) {
 		app := application.Get()
@@ -369,4 +367,64 @@ func (s *Service) CancelLogin() error {
 
 func (s *Service) Logout() error {
 	return s.kernel.Logout()
+}
+
+// ------------------------------------------------------- stickers / GIFs
+
+// GetStickerPacks returns the recent sticker row and installed sticker sets.
+func (s *Service) GetStickerPacks(proxy, ntp string) (*kernel.StickerPacksDTO, error) {
+	return s.kernel.GetStickerPacks(proxy, ntp)
+}
+
+// GetStickerSet returns every sticker of one installed set.
+func (s *Service) GetStickerSet(ref, proxy, ntp string) (*kernel.StickerSetDetailDTO, error) {
+	return s.kernel.GetStickerSet(ref, proxy, ntp)
+}
+
+// GetSavedGifs returns the account's saved GIFs.
+func (s *Service) GetSavedGifs(proxy, ntp string) (*kernel.SavedGifsDTO, error) {
+	return s.kernel.GetSavedGifs(proxy, ntp)
+}
+
+// SendSticker sends an existing sticker document (no upload).
+func (s *Service) SendSticker(chatID, ref string, replyToID int, proxy, ntp string) error {
+	return s.kernel.SendSticker(chatID, ref, replyToID, proxy, ntp)
+}
+
+// SendGif sends an existing saved GIF document (no upload).
+func (s *Service) SendGif(chatID, ref string, replyToID int, proxy, ntp string) error {
+	return s.kernel.SendGif(chatID, ref, replyToID, proxy, ntp)
+}
+
+// ------------------------------------------------------ Telegram link router
+
+// ResolveTelegramLink resolves a t.me / telegram.me / tg:// link for in-app
+// navigation (public chats and posts, private invites, user ids).
+func (s *Service) ResolveTelegramLink(rawURL, proxy, ntp string) (*kernel.ResolvedTelegramLinkDTO, error) {
+	return s.kernel.ResolveTelegramLink(rawURL, proxy, ntp)
+}
+
+// JoinByInvite joins a private chat through its invite hash and returns it.
+func (s *Service) JoinByInvite(hash, proxy, ntp string) (*kernel.ChatDTO, error) {
+	return s.kernel.JoinByInvite(hash, proxy, ntp)
+}
+
+// JoinPublicChat joins a public channel/supergroup from a resolved chat id.
+func (s *Service) JoinPublicChat(chatID, proxy, ntp string) error {
+	return s.kernel.JoinPublicChat(chatID, proxy, ntp)
+}
+
+// LeaveChat leaves a channel/supergroup or deletes a basic group chat.
+func (s *Service) LeaveChat(chatID, proxy, ntp string) error {
+	return s.kernel.LeaveChat(chatID, proxy, ntp)
+}
+
+// GetMessagesAround loads the history page ending at messageID so the UI can
+// jump to a t.me post link older than the newest page.
+func (s *Service) GetMessagesAround(
+	chatID string,
+	messageID, limit int,
+	proxy, ntp string,
+) ([]kernel.MessageDTO, bool, error) {
+	return s.kernel.GetMessagesAround(chatID, messageID, limit, proxy, ntp)
 }

@@ -332,31 +332,12 @@
   animation: g-emoji-picker-spin 900ms linear infinite;
 }
 
-/* --------------------------------------------- stickers/GIF placeholders */
+/* ------------------------------------------------ stickers/GIF tab bodies */
 
-.g-emoji-picker-soon {
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 24px;
-  color: var(--f-faint, #8f959e);
-  text-align: center;
-}
-
-.g-emoji-picker-soon p {
-  max-width: 250px;
-  margin: 0;
-  color: var(--f-text, #1c2024);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.55;
-}
-
-.g-emoji-picker-soon-note {
-  color: var(--f-muted, #646a73);
-  font-size: 11.5px;
-  line-height: 1.5;
-}
+/* The real tab bodies live in ./picker/stickers.css (imported by the tab
+ * components). Only the shared panel shell (382×420 px, 49 px footer, hidden
+ * native scrollbar + overlay thumb) is defined here, so all three tabs keep the
+ * same frame, pop animation and custom scrollbar. */
 
 /* ----------------------------------------------------------------- footer */
 

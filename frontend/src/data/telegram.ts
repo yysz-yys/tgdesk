@@ -100,6 +100,14 @@ export function mapChatProfile(profile: KernelChatProfile): ChatProfile {
         : undefined,
     botOwnerId: profile.botOwnerId || undefined,
     botPrivacyUrl: profile.botPrivacyUrl || undefined,
+    usernames: Array.isArray(profile.usernames)
+      ? profile.usernames.filter((name) => Boolean(name))
+      : undefined,
+    canSendStickers: profile.canSendStickers !== false,
+    canSendGifs: profile.canSendGifs !== false,
+    giftsCount: profile.giftsCount || undefined,
+    adminsCount: profile.adminsCount || undefined,
+    messagesCount: profile.messagesCount || undefined,
   };
 }
 
@@ -201,6 +209,12 @@ export interface KernelChatProfile {
   botMenuButton?: { type?: string; text?: string; url?: string } | null;
   botOwnerId?: string;
   botPrivacyUrl?: string;
+  usernames?: string[] | null;
+  canSendStickers?: boolean;
+  canSendGifs?: boolean;
+  giftsCount?: number;
+  adminsCount?: number;
+  messagesCount?: number;
 }
 
 export interface KernelReaction {
@@ -359,6 +373,7 @@ export function mapChat(chat: KernelChat, language: string, t: TFunction): Chat 
   const date = chat.lastMessageDate
     ? new Date(chat.lastMessageDate * 1000)
     : null;
+  const countFormatter = new Intl.NumberFormat(language);
   return {
     id: chat.id,
     title: chat.title || "Telegram",
@@ -377,6 +392,7 @@ export function mapChat(chat: KernelChat, language: string, t: TFunction): Chat 
     members: chat.members
       ? t(chat.kind === "channel" ? "chat.subscribers" : "chat.members", {
           count: chat.members,
+          formatted: countFormatter.format(chat.members),
         })
       : undefined,
     memberCount: chat.members || undefined,

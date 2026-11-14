@@ -34,6 +34,7 @@ import {
   LinkList,
   MediaGrid,
 } from "./ChatInfoSections";
+import { PeerQrDialog, QrCodeIcon } from "./PeerQrDialog";
 
 interface ChatInfoPanelProps {
   chat: Chat;
@@ -88,8 +89,21 @@ interface ChatInfoPanelProps {
   onArchiveChat?: () => void;
   /** Opens the bot's menu web app as a mini-app window. */
   onOpenBotWebView?: () => void;
-  /** Focuses the composer, used by the "Message" action tile. */
+  /**
+   * Focuses the composer. Kept for the shell's wiring; Web K's profile tiles do
+   * not carry a "Message" action for the chat that is already open, so the panel
+   * itself no longer renders that tile.
+   */
   onFocusComposer?: () => void;
+  /**
+   * Leaves the channel/group. The caller owns the confirmation dialog and the
+   * backend call; the tile only exists when this prop is wired.
+   */
+  onLeaveChat?: () => void;
+  /** Opens the linked discussion group of a channel (its linked_chat_id). */
+  onOpenDiscussion?: (chatID: string) => void;
+  /** Routes a t.me link through the app's in-app navigator (Lead wires it). */
+  onOpenLink?: (url: string) => void;
 }
 
 type InfoTab = "members" | SharedMediaSection;
@@ -270,12 +284,16 @@ function profileHost(value: string): string {
 interface ProfileRowProps {
   icon: string;
   value: ReactNode;
-  label: string;
+  label: ReactNode;
   onClick?: () => void;
   right?: ReactNode;
 }
 
-/** Telegram Desktop's value + small muted label row, with an optional action. */
+/**
+ * Telegram Web K's value + small muted subtitle row. The clickable area and the
+ * trailing action (the QR button) are siblings: nesting a button inside the row
+ * button would be invalid markup and one click would fire both handlers.
+ */
 function ProfileRow({ icon, value, label, onClick, right }: ProfileRowProps) {
   const content = (
     <>
@@ -286,31 +304,37 @@ function ProfileRow({ icon, value, label, onClick, right }: ProfileRowProps) {
         <span className="f-info-prow-value">{value}</span>
         <small className="f-info-prow-label">{label}</small>
       </span>
-      {right ? <span className="f-info-prow-right">{right}</span> : null}
     </>
   );
-  if (onClick) {
-    return (
-      <button type="button" className="f-info-prow" onClick={onClick}>
-        {content}
-      </button>
-    );
-  }
-  return <div className="f-info-prow">{content}</div>;
+  return (
+    <div className="f-info-prow" data-clickable={onClick ? "" : undefined}>
+      {onClick ? (
+        <button type="button" className="f-info-prow-main" onClick={onClick}>
+          {content}
+        </button>
+      ) : (
+        <div className="f-info-prow-main">{content}</div>
+      )}
+      {right ? <span className="f-info-prow-right">{right}</span> : null}
+    </div>
+  );
 }
 
 /**
- * Bio row with rich text (URL auto-linking) clamped to four lines. The
- * expand/collapse control only appears when the text actually overflows.
+ * Bio row with rich text (URL auto-linking). Web K's chat description is never
+ * clamped; user/bot bios keep the desktop-style four-line clamp with an
+ * expand/collapse control when the text actually overflows.
  */
 function ProfileBio({
   text,
   chatId,
   label,
+  clamp = true,
 }: {
   text: string;
   chatId: string;
   label: string;
+  clamp?: boolean;
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -325,7 +349,7 @@ function ProfileBio({
 
   useLayoutEffect(() => {
     const element = bodyRef.current;
-    if (!element || expanded) {
+    if (!element || !clamp || expanded) {
       return;
     }
     const measure = () =>
@@ -334,7 +358,7 @@ function ProfileBio({
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [chatId, expanded, text]);
+  }, [chatId, clamp, expanded, text]);
 
   return (
     <div className="f-info-prow f-info-bio">
@@ -345,11 +369,12 @@ function ProfileBio({
         <div
           ref={bodyRef}
           className="f-info-bio-body"
+          data-clamped={clamp && !expanded ? "" : undefined}
           data-expanded={expanded || undefined}
         >
           <RichText text={text} />
         </div>
-        {overflowing || expanded ? (
+        {clamp && (overflowing || expanded) ? (
           <button
             type="button"
             className="f-info-bio-toggle"
@@ -395,7 +420,9 @@ export function ChatInfoPanel({
   onSearchInChat,
   onArchiveChat,
   onOpenBotWebView,
-  onFocusComposer,
+  onLeaveChat,
+  onOpenDiscussion,
+  onOpenLink,
 }: ChatInfoPanelProps) {
   const { t, i18n } = useTranslation();
   const [info, setInfo] = useState<ChatInfo | null>(null);
@@ -405,6 +432,7 @@ export function ChatInfoPanel({
   const [mediaFilter, setMediaFilter] = useState<MediaFilter>("all");
   const [downloadedOnly, setDownloadedOnly] = useState(false);
   const [selection, setSelection] = useState<Map<number, Message>>(new Map());
+  const [qrUsername, setQrUsername] = useState<string | null>(null);
   const [sections, setSections] =
     useState<Record<SharedMediaSection, SectionState>>(createSections);
   const [members, setMembers] = useState<MembersState>(createMembers);
@@ -491,17 +519,65 @@ export function ChatInfoPanel({
     if (profile?.type) {
       return profile.type;
     }
+    if (chat.saved) {
+      return "saved";
+    }
     if (chat.bot) {
       return "bot";
     }
     return chat.kind === "private" ? "user" : chat.kind;
-  }, [chat.bot, chat.kind, profile]);
+  }, [chat.bot, chat.kind, chat.saved, profile]);
+  /** Saved Messages has no profile block in Web K: tabs only. */
+  const isSaved = peerType === "saved";
+  /** Broadcast channels and supergroups share the same info card/link row. */
+  const isChatPeer = peerType === "group" || peerType === "channel";
   const panelTitle = t(PROFILE_TITLE_KEYS[peerType]);
   const countFormatter = useMemo(
     () => new Intl.NumberFormat(i18n.language),
     [i18n.language],
   );
   const memberCount = profile?.members ?? chat.memberCount ?? 0;
+
+  // Web K's link row carries only the main username; the others live in the
+  // "also @x, @y" subtitle. The kernel sends every active username (main first)
+  // and the preferred one separately, so normalise both into one ordered list.
+  const usernames = useMemo(() => {
+    const clean = (value: string | undefined) =>
+      (value ?? "")
+        .trim()
+        .replace(/^@+/u, "")
+        .replace(/^https?:\/\/t\.me\//iu, "");
+    const list: string[] = [];
+    const push = (value: string | undefined) => {
+      const name = clean(value);
+      if (name && !list.includes(name)) {
+        list.push(name);
+      }
+    };
+    for (const item of profile?.usernames ?? []) {
+      push(item);
+    }
+    const preferred = clean(profile?.username);
+    push(preferred);
+    if (preferred && list.length > 1 && list[0] !== preferred) {
+      list.splice(list.indexOf(preferred), 1);
+      list.unshift(preferred);
+    }
+    return list;
+  }, [profile?.username, profile?.usernames]);
+
+  const usernamesAlso = useMemo(() => {
+    if (usernames.length <= 1) {
+      return "";
+    }
+    const separator = t("profile.usernameSeparator");
+    return t("profile.usernameAlso", {
+      usernames: usernames
+        .slice(1)
+        .map((name) => `@${name}`)
+        .join(separator),
+    });
+  }, [t, usernames]);
 
   const copyProfileValue = useCallback(
     async (value: string, toastKey: string) => {
@@ -515,8 +591,36 @@ export function ChatInfoPanel({
     [onToast, t],
   );
 
-  // Telegram Web K's profile tiles: at most four, ordered by peer type. Every
-  // rendered tile has a real handler ("Call" is a documented stub toast).
+  // t.me links go through the shell's in-app router when it is wired, else the
+  // system browser — same fallback Telegram Web uses for non-resolvable links.
+  const openProfileLink = useCallback(
+    (url: string) => {
+      if (onOpenLink) {
+        onOpenLink(url);
+        return;
+      }
+      void Browser.OpenURL(url);
+    },
+    [onOpenLink],
+  );
+
+  const qrButton = (username: string) => (
+    <button
+      type="button"
+      className="f-info-qr"
+      aria-label={t("profile.qrCode")}
+      title={t("profile.qrCode")}
+      onClick={() => setQrUsername(username)}
+    >
+      <QrCodeIcon size={17} />
+    </button>
+  );
+
+  // Telegram Web K's profile tiles, in its order and capped at four with the
+  // More menu as the last slot: Call (users), Mute, Discussion, Leave, More.
+  // The "Message"/"Open" tile is hidden for the chat that is already open
+  // (Web K checks peerId !== the open chat), and this column always belongs to
+  // the open chat, so it never renders here.
   const actionTiles = useMemo(() => {
     const tiles: Array<{
       id: string;
@@ -524,16 +628,8 @@ export function ChatInfoPanel({
       label: string;
       onClick: () => void;
     }> = [];
-    const canMessage =
-      Boolean(onFocusComposer) &&
-      (peerType === "channel" ? Boolean(profile?.canSend) : true);
-    if (canMessage) {
-      tiles.push({
-        id: "message",
-        icon: "chat_bubble",
-        label: t("profile.message"),
-        onClick: () => onFocusComposer?.(),
-      });
+    if (isSaved) {
+      return tiles;
     }
     if (peerType === "user") {
       tiles.push({
@@ -543,23 +639,41 @@ export function ChatInfoPanel({
         onClick: () => onToast(t("profile.callsNotAvailable")),
       });
     }
-    if (peerType !== "saved") {
+    tiles.push({
+      id: "mute",
+      icon: chat.muted ? "notifications_off" : "notifications",
+      label: chat.muted ? t("profile.unmute") : t("profile.mute"),
+      onClick: () => onToggleMute(chat.id),
+    });
+    const linkedChatId = profile?.linkedChatId;
+    if (linkedChatId && onOpenDiscussion) {
       tiles.push({
-        id: "mute",
-        icon: chat.muted ? "notifications_off" : "notifications",
-        label: chat.muted ? t("profile.unmute") : t("profile.mute"),
-        onClick: () => onToggleMute(chat.id),
+        id: "discussion",
+        icon: "forum",
+        label: t("profile.discussion"),
+        onClick: () => onOpenDiscussion(linkedChatId),
+      });
+    }
+    if (isChatPeer && onLeaveChat) {
+      tiles.push({
+        id: "leave",
+        icon: "logout",
+        label: t("profile.leave"),
+        onClick: onLeaveChat,
       });
     }
     return tiles;
   }, [
     chat.id,
     chat.muted,
-    onFocusComposer,
+    isChatPeer,
+    isSaved,
+    onLeaveChat,
+    onOpenDiscussion,
     onToggleMute,
     onToast,
     peerType,
-    profile?.canSend,
+    profile?.linkedChatId,
     t,
   ]);
 
@@ -644,7 +758,11 @@ export function ChatInfoPanel({
     if (infoLoading) {
       return result;
     }
-    if (info?.canViewMembers || (infoFailed && chat.kind === "group")) {
+    // Web K never shows a Members tab for a broadcast channel; groups keep it.
+    if (
+      peerType === "group" &&
+      (info?.canViewMembers || (infoFailed && chat.kind === "group"))
+    ) {
       result.push({ id: "members", label: t("rightPanel.members") });
     }
     const counts = new Map(
@@ -659,7 +777,7 @@ export function ChatInfoPanel({
       result.push({ id: section, label: t(SECTION_LABELS[section]) });
     }
     return result;
-  }, [chat.kind, info, infoFailed, infoLoading, t]);
+  }, [chat.kind, info, infoFailed, infoLoading, peerType, t]);
 
   // Telegram Web opens the first visible tab: Members for groups, Media for
   // everybody else.
@@ -1072,9 +1190,16 @@ export function ChatInfoPanel({
     );
   };
 
-  // Telegram's "personal info" card. Only non-empty rows render; the whole
-  // card disappears when Telegram hides every field (privacy settings).
+  // Telegram's "personal info" card. Web K's channel/group card holds only the
+  // bio and one link row (public username → t.me/<name> with the QR button, else
+  // the exported invite link); users get phone + username rows with the same QR
+  // button, bots keep their menu/commands/privacy rows. Web K's Saved Messages
+  // column has no profile block at all, so the card (and its loading/error state)
+  // disappears for it.
   const renderProfileCard = () => {
+    if (isSaved) {
+      return null;
+    }
     if (!profile) {
       if (profileLoading) {
         return (
@@ -1100,13 +1225,12 @@ export function ChatInfoPanel({
     }
 
     const rows: ReactNode[] = [];
-    const isChat = peerType === "group" || peerType === "channel";
     const about = profile.about?.trim();
     if (about) {
       const bioLabel =
         peerType === "bot"
           ? t("profile.botAbout")
-          : isChat
+          : isChatPeer
             ? t("profile.info")
             : t("profile.bio");
       rows.push(
@@ -1115,102 +1239,82 @@ export function ChatInfoPanel({
           text={about}
           chatId={chat.id}
           label={bioLabel}
+          clamp={!isChatPeer}
         />,
       );
     }
-    if ((peerType === "user" || peerType === "saved") && profile.phone) {
-      rows.push(
-        <ProfileRow
-          key="phone"
-          icon="call"
-          value={profile.phone}
-          label={t("profile.phone")}
-          onClick={() =>
-            void copyProfileValue(profile.phone ?? "", "profile.phoneCopied")
-          }
-        />,
-      );
-    }
-    if (profile.username) {
-      rows.push(
-        <ProfileRow
-          key="username"
-          icon="at"
-          value={`@${profile.username}`}
-          label={t("profile.username")}
-          onClick={() =>
-            void copyProfileValue(
-              `@${profile.username ?? ""}`,
-              "profile.usernameCopied",
-            )
-          }
-        />,
-      );
-    }
-    if (isChat) {
-      const publicLink = profile.username
-        ? `https://t.me/${profile.username}`
-        : "";
-      if (publicLink) {
+
+    const primary = usernames[0];
+    if (isChatPeer) {
+      // Exactly one link row, like Web K's channel profile. There is no separate
+      // @username row and no subscriber/member count row: the count lives in the
+      // hero subtitle, the extra usernames in the row subtitle.
+      const invite = profile.inviteLink?.trim();
+      if (primary) {
+        const publicLink = `https://t.me/${primary}`;
         rows.push(
           <ProfileRow
             key="link"
             icon="link"
-            value={telegramDisplayLink(profile.username ?? "")}
-            label={t("profile.link")}
+            value={telegramDisplayLink(primary)}
+            label={usernamesAlso || t("profile.link")}
             onClick={() =>
               void copyProfileValue(publicLink, "profile.linkCopied")
             }
-            right={
-              <IconButton
-                label={t("profile.openLink")}
-                icon="open_in_new"
-                size="1"
-                iconSize={15}
-                onClick={() => void Browser.OpenURL(publicLink)}
-              />
-            }
+            right={qrButton(primary)}
           />,
         );
-      }
-      const invite = profile.inviteLink?.trim();
-      if (invite && invite !== publicLink) {
+      } else if (invite) {
+        // Invite-only peers get the t.me/+hash row; Web K shows no QR for it.
         rows.push(
           <ProfileRow
             key="invite"
             icon="link"
             value={inviteDisplayLink(invite)}
-            label={t("profile.inviteLink")}
-            onClick={() =>
-              void copyProfileValue(invite, "profile.inviteCopied")
-            }
+            label={t("profile.link")}
+            onClick={() => void copyProfileValue(invite, "profile.inviteCopied")}
             right={
               <IconButton
                 label={t("profile.openLink")}
                 icon="open_in_new"
                 size="1"
                 iconSize={15}
-                onClick={() => void Browser.OpenURL(normalizeProfileUrl(invite))}
+                onClick={() => openProfileLink(normalizeProfileUrl(invite))}
               />
             }
           />,
         );
       }
-      if (memberCount > 0) {
+    } else {
+      if (profile.phone) {
         rows.push(
           <ProfileRow
-            key="members"
-            icon="group"
-            value={countFormatter.format(memberCount)}
-            label={
-              peerType === "channel"
-                ? t("profile.subscribers")
-                : t("profile.members")
+            key="phone"
+            icon="call"
+            value={profile.phone}
+            label={t("profile.phone")}
+            onClick={() =>
+              void copyProfileValue(profile.phone ?? "", "profile.phoneCopied")
             }
           />,
         );
       }
+      if (primary) {
+        rows.push(
+          <ProfileRow
+            key="username"
+            icon="at"
+            value={`@${primary}`}
+            label={usernamesAlso || t("profile.username")}
+            onClick={() =>
+              void copyProfileValue(`@${primary}`, "profile.usernameCopied")
+            }
+            right={qrButton(primary)}
+          />,
+        );
+      }
     }
+
     if (peerType === "bot") {
       const menuButton = profile.botMenuButton;
       if (menuButton?.type === "webapp" && onOpenBotWebView) {
@@ -1297,7 +1401,11 @@ export function ChatInfoPanel({
   };
 
   return (
-    <aside className="f-info-panel" aria-label={t("rightPanel.chatInfo")}>
+    <aside
+      className="f-info-panel"
+      data-saved={isSaved ? "" : undefined}
+      aria-label={t("rightPanel.chatInfo")}
+    >
       <header className="f-info-head">
         <IconButton
           label={t("rightPanel.close")}
@@ -1363,7 +1471,8 @@ export function ChatInfoPanel({
         ref={scrollRef}
         onScroll={checkScroll}
       >
-        <div className="f-info-hero">
+        {isSaved ? null : (
+          <div className="f-info-hero">
           <ChatAvatar chat={chat} size={84} />
           <h2>
             {chat.title}
@@ -1381,8 +1490,10 @@ export function ChatInfoPanel({
             {subtitle}
           </p>
         </div>
+        )}
 
-        <div className="f-info-actions">
+        {isSaved ? null : (
+          <div className="f-info-actions">
           {actionTiles.map((tile) => (
             <button
               type="button"
@@ -1456,6 +1567,7 @@ export function ChatInfoPanel({
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </div>
+        )}
 
         {renderProfileCard()}
 
@@ -1535,6 +1647,19 @@ export function ChatInfoPanel({
             onClick={clearSelection}
           />
         </div>
+      ) : null}
+      {qrUsername ? (
+        <PeerQrDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setQrUsername(null);
+            }
+          }}
+          username={qrUsername}
+          onToast={onToast}
+          onOpenLink={onOpenLink}
+        />
       ) : null}
     </aside>
   );

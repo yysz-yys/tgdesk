@@ -57,16 +57,31 @@ Working end to end against real Telegram data:
 - Inline keyboard buttons under bot messages rendered as Telegram Web K's
   keyboard grid (per-row equal cells, `primary`/`danger`/`success` styles,
   pressed-cell spinner); URL, copy, callback and web-app buttons all work.
-- Bot Web Apps (mini apps) open in a detached 480×688 Telegram-style window that
-  embeds the authenticated `messages.requestWebView` URL in a sandboxed iframe,
-  including the bot menu button pill in the composer.
+- Bot Web Apps (mini apps) open in Telegram Web's **in-app overlay**: a
+  non-modal 480×688 panel over the chat (rounded 24 px, no OS window, no dark
+  corner artifacts) with a close button, bot avatar/title, a `+` Apps popover
+  for recently opened apps, minimize/restore, header dragging and resizing; the
+  authenticated `messages.requestWebView` URL lives in a sandboxed iframe.
+  The bot menu button pill in the composer launches the same overlay.
 - Telegram-style chat info pane: per-type titles (user/bot/group/channel/Saved
   Messages), Telegram Web K action tiles (message, call, mute, more), the
   expandable bio/description card with links, username/phone/`t.me`/invite-link
   rows, member or subscriber counts, bot commands and menu, plus the existing
-  shared-media tabs.
+  shared-media tabs. Broadcast channels additionally get Telegram's
+  Mute/Discussion/Leave tiles, the `个人信息` section, a t.me link row with a QR
+  code dialog and alternate usernames; Saved Messages shows only the media tabs
+  with a "N messages" header.
+- Telegram links (`t.me/<name>`, `t.me/<name>/<post>`, `tg://`, invite links and
+  `@username` mentions) open inside the app: public peers are resolved and
+  opened in-app (paging the history around a post id when needed), invite links
+  ask for confirmation and join, unsupported deep links show a toast instead of
+  launching the system browser.
+- The chat header is Telegram Web K's floating top bar: 696 px lane, 24 px
+  radius, 48 px height, 40 px avatar, 16 px title with a 14 px status line, and
+  a more menu with pin/unpin, mark-as-read, archive and download-all.
 - Server-side chat actions: pin/unpin, mute/unmute (notify settings) and
-  mark-as-read are written to Telegram and survive a restart.
+  mark-as-read are written to Telegram and survive a restart; channel/group
+  Leave is confirmed and sent to the server.
 - A Telegram Web K-style composer: one floating plate with reply/edit header,
   per-type placeholders (Message/Broadcast/Send anonymously/restricted), bot
   command autocomplete and menu button, slow-mode countdown, attach menu,
@@ -75,6 +90,9 @@ Working end to end against real Telegram data:
 - Telegram Web's emoji picker (1,895 emoji, 7 categories, recents, localized
   search, quick category filters, light/dark) inserts at the caret and sends as
   plain text.
+- Telegram Web's sticker and GIF tabs: installed sticker sets in a cover rail
+  with a recent row and per-set grids, saved GIFs in a 3-column grid, animated
+  hover previews, and one-click sending of the existing documents.
 - Emoji reactions with live counts, a reaction picker, custom Telegram emoji
   reactions and a footer integrated into the bubble.
 - Multi-photo/video albums rendered as a Telegram-style mosaic.

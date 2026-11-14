@@ -155,9 +155,9 @@ func (s *Service) callbackMessageState(
 //     keyboard message is passed as reply_to_msg_id so the bot knows the context;
 //   - bot menu button / main mini app: fromBotMenu=true, no reply target.
 //
-// Theme params are intentionally not sent by the kernel: the local mini-app
-// wrapper page injects the app's current theme colors into tgWebAppThemeParams,
-// which keeps the kernel UI-agnostic and honors light/dark switching.
+// Theme params are intentionally not sent by the kernel: the in-app overlay
+// injects the app's current theme colors into tgWebAppThemeParams, which keeps
+// the kernel UI-agnostic and honors light/dark switching.
 func (s *Service) RequestBotWebView(
 	chatID, botPeerID string,
 	messageID int,

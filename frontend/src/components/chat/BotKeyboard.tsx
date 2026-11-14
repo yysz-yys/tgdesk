@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { Browser } from "@wailsio/runtime";
 import type { Message, MessageButton } from "../../types";
+import { openTelegramLink } from "../../lib/telegramLinks";
 import "./bot-keyboard.css";
 
 /**
@@ -192,7 +192,7 @@ export function BotKeyboard({
       const kind = button.kind;
       if (kind === "url") {
         if (button.url) {
-          void Browser.OpenURL(button.url);
+          openTelegramLink(button.url);
         } else {
           onToast(t("chat.buttonUnavailable"));
         }

@@ -639,6 +639,25 @@
   color: var(--app-on-primary-container);
 }
 
+/* @username mentions open the peer inside the app, like Telegram Web. */
+.g-message-mention {
+  display: inline;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--app-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.g-message-mention:hover {
+  text-decoration: underline;
+}
+
+.g-message-row[data-out] .g-message-mention {
+  color: var(--app-on-primary-container);
+}
+
 .g-message-tools {
   position: absolute;
   top: 0;

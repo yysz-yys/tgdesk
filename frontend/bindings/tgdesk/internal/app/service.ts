@@ -132,6 +132,14 @@ export function GetMessages(chatID: string, proxy: string, ntp: string, limit: n
     return $Call.ByID(1918792072, chatID, proxy, ntp, limit);
 }
 
+/**
+ * GetMessagesAround loads the history page ending at messageID so the UI can
+ * jump to a t.me post link older than the newest page.
+ */
+export function GetMessagesAround(chatID: string, messageID: number, limit: number, proxy: string, ntp: string): $CancellablePromise<[kernel$0.MessageDTO[] | null, boolean]> {
+    return $Call.ByID(2583213825, chatID, messageID, limit, proxy, ntp);
+}
+
 export function GetNewMessages(chatID: string, afterID: number, proxy: string, ntp: string): $CancellablePromise<kernel$0.MessageDTO[] | null> {
     return $Call.ByID(788018406, chatID, afterID, proxy, ntp);
 }
@@ -142,6 +150,13 @@ export function GetOlderMessages(chatID: string, beforeID: number, proxy: string
 
 export function GetPaths(): $CancellablePromise<kernel$0.PortablePaths> {
     return $Call.ByID(119407144);
+}
+
+/**
+ * GetSavedGifs returns the account's saved GIFs.
+ */
+export function GetSavedGifs(proxy: string, ntp: string): $CancellablePromise<kernel$0.SavedGifsDTO | null> {
+    return $Call.ByID(1198509884, proxy, ntp);
 }
 
 export function GetSelfAvatarURL(proxy: string, ntp: string): $CancellablePromise<string> {
@@ -155,8 +170,43 @@ export function GetSharedMedia(chatID: string, section: string, proxy: string, n
     return $Call.ByID(936464407, chatID, section, proxy, ntp, beforeID, limit);
 }
 
+/**
+ * GetStickerPacks returns the recent sticker row and installed sticker sets.
+ */
+export function GetStickerPacks(proxy: string, ntp: string): $CancellablePromise<kernel$0.StickerPacksDTO | null> {
+    return $Call.ByID(456418127, proxy, ntp);
+}
+
+/**
+ * GetStickerSet returns every sticker of one installed set.
+ */
+export function GetStickerSet(ref: string, proxy: string, ntp: string): $CancellablePromise<kernel$0.StickerSetDetailDTO | null> {
+    return $Call.ByID(3638745257, ref, proxy, ntp);
+}
+
 export function GetVideoStream(chatID: string, messageID: number, proxy: string, ntp: string, useTDL: boolean): $CancellablePromise<string> {
     return $Call.ByID(231628327, chatID, messageID, proxy, ntp, useTDL);
+}
+
+/**
+ * JoinByInvite joins a private chat through its invite hash and returns it.
+ */
+export function JoinByInvite(hash: string, proxy: string, ntp: string): $CancellablePromise<kernel$0.ChatDTO | null> {
+    return $Call.ByID(2434922248, hash, proxy, ntp);
+}
+
+/**
+ * JoinPublicChat joins a public channel/supergroup from a resolved chat id.
+ */
+export function JoinPublicChat(chatID: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(361594575, chatID, proxy, ntp);
+}
+
+/**
+ * LeaveChat leaves a channel/supergroup or deletes a basic group chat.
+ */
+export function LeaveChat(chatID: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(592183857, chatID, proxy, ntp);
 }
 
 export function Logout(): $CancellablePromise<void> {
@@ -165,17 +215,6 @@ export function Logout(): $CancellablePromise<void> {
 
 export function MarkChatsRead(chatIDs: string[] | null, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(305193224, chatIDs, proxy, ntp);
-}
-
-/**
- * OpenBotWebView launches a bot mini app for the given button/menu. The kernel
- * resolves the authenticated URL through messages.requestWebView; if that call
- * fails (plain/simple webview buttons, bots without an inline context) the raw
- * URL passed by the caller is opened instead, so "simple webview" buttons still
- * work. The window always loads our local wrapper page, never the remote URL.
- */
-export function OpenBotWebView(chatID: string, botPeerID: string, messageID: number, url: string, fromBotMenu: boolean, title: string, proxy: string, ntp: string): $CancellablePromise<void> {
-    return $Call.ByID(2535948076, chatID, botPeerID, messageID, url, fromBotMenu, title, proxy, ntp);
 }
 
 export function OpenDownloadFolder(path: string): $CancellablePromise<void> {
@@ -188,15 +227,6 @@ export function OpenDownloadFolder(path: string): $CancellablePromise<void> {
  */
 export function OpenMediaViewer(payload: string): $CancellablePromise<void> {
     return $Call.ByID(4077101510, payload);
-}
-
-/**
- * OpenMiniApp opens a raw (unauthenticated) http(s) URL in the mini-app window.
- * It serves simple-webview buttons (kind "webview_simple") which must not call
- * messages.requestWebView, and is the fallback entry point for plain URLs.
- */
-export function OpenMiniApp(url: string, title: string): $CancellablePromise<void> {
-    return $Call.ByID(732980002, url, title);
 }
 
 export function PauseDownload(id: string): $CancellablePromise<void> {
@@ -218,6 +248,14 @@ export function ResendCode(): $CancellablePromise<void> {
     return $Call.ByID(4150010114);
 }
 
+/**
+ * ResolveTelegramLink resolves a t.me / telegram.me / tg:// link for in-app
+ * navigation (public chats and posts, private invites, user ids).
+ */
+export function ResolveTelegramLink(rawURL: string, proxy: string, ntp: string): $CancellablePromise<kernel$0.ResolvedTelegramLinkDTO | null> {
+    return $Call.ByID(1041124419, rawURL, proxy, ntp);
+}
+
 export function ResumeDownload(id: string, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(2763229687, id, proxy, ntp);
 }
@@ -235,12 +273,26 @@ export function SendBotCallback(chatID: string, messageID: number, dataHex: stri
     return $Call.ByID(1489450872, chatID, messageID, dataHex, proxy, ntp);
 }
 
+/**
+ * SendGif sends an existing saved GIF document (no upload).
+ */
+export function SendGif(chatID: string, ref: string, replyToID: number, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(3455439728, chatID, ref, replyToID, proxy, ntp);
+}
+
 export function SendMessage(chatID: string, text: string, replyToID: number, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(1826619901, chatID, text, replyToID, proxy, ntp);
 }
 
 export function SendReaction(chatID: string, messageID: number, emoji: string, customEmojiID: string, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(703832737, chatID, messageID, emoji, customEmojiID, proxy, ntp);
+}
+
+/**
+ * SendSticker sends an existing sticker document (no upload).
+ */
+export function SendSticker(chatID: string, ref: string, replyToID: number, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(3218597329, chatID, ref, replyToID, proxy, ntp);
 }
 
 export function SetChatArchived(chatID: string, archived: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
@@ -288,15 +340,6 @@ export function SubmitPassword(password: string): $CancellablePromise<void> {
  */
 export function TakeMediaViewerState(session: string): $CancellablePromise<string> {
     return $Call.ByID(1447354160, session);
-}
-
-/**
- * TakeMiniAppState returns the serialized mini-app payload for a session. The
- * wrapper page calls it once on load; the entry stays until the window closes
- * so a dev/HMR reload can still restore the app.
- */
-export function TakeMiniAppState(session: string): $CancellablePromise<string> {
-    return $Call.ByID(165078056, session);
 }
 
 export function ValidateDownload(id: string): $CancellablePromise<boolean> {

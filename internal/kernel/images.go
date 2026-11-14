@@ -615,6 +615,10 @@ func writeImage(w http.ResponseWriter, data []byte, mimeType, cacheControl strin
 	if mimeType == "" {
 		mimeType = http.DetectContentType(data)
 	}
+	// Sticker/GIF picker thumbs and full documents are fetched by the WebView
+	// from this loopback server; a cross-origin read (canvas export, non-iframe
+	// preview hosts) would otherwise be blocked.
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Cache-Control", cacheControl)
 	w.Header().Set("Content-Type", mimeType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))

@@ -1,0 +1,394 @@
+/* Sticker & GIF tab bodies for the Web-K-style emoji picker.
+ *
+ * Geometry is taken from the measured Telegram Web K values in
+ * temp/research2/stickers-gifs.md §2.6 / §7.5:
+ *   sticker tab - 5 columns × 72 px with 4 px gaps and 3 px side padding
+ *                 (376 px of usable width inside the 382 px panel);
+ *   SET rail    - 49 px, 38 px tabs (30 px cover) at a 48 px pitch;
+ *   GIF tab     - 3 columns × 124 px, 2 px gaps, 3 px side margins.
+ * The emoji tab keeps its own 8 px horizontal padding; the tab-specific padding
+ * below is scoped with [data-tab] so it cannot leak into it.
+ *
+ * Colours use the shared F tokens / Radix gray alphas, so light and dark themes
+ * work without a separate dark block.
+ */
+
+/* -------------------------------------------------------------- tab body */
+
+.g-emoji-picker-pane {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  outline: none;
+}
+
+/* Empty/blocked/error/lazy states fill the tab body and centre vertically. */
+.g-emoji-picker-pane > .g-emoji-picker-empty {
+  flex: 1 1 auto;
+}
+
+/* The panel is 382 px border-box including its 1 px side borders, so the tab
+ * bodies cancel those two border pixels with a negative inline margin to get the
+ * exact Web K arithmetic: 382 − 2×3 padding = 376 px content.
+ *   sticker grid: 5×72 + 4×4 = 376;
+ *   GIF grid:     (376 − 2×2) / 3 = 124. */
+.g-emoji-picker-scroll[data-tab="stickers"],
+.g-emoji-picker-scroll[data-tab="gifs"] {
+  margin-inline: -1px;
+}
+
+.g-emoji-picker-scroll[data-tab="stickers"] {
+  padding: 0 3px 6px;
+}
+
+.g-emoji-picker-scroll[data-tab="gifs"] {
+  padding: 4px 3px 3px;
+}
+
+/* --------------------------------------------------------------- set rail */
+
+.g-emoji-picker-set-rail {
+  display: flex;
+  height: 49px;
+  flex: 0 0 49px;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 5px;
+  border-bottom: 1px solid var(--f-line, #e3e6eb);
+  scrollbar-width: none;
+}
+
+.g-emoji-picker-set-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.g-emoji-picker-set-tab {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  padding: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--f-muted, #646a73);
+  cursor: pointer;
+}
+
+.g-emoji-picker-set-tab:hover {
+  background: var(--gray-a3, rgba(28, 32, 36, 0.06));
+  color: var(--f-text, #1c2024);
+}
+
+.g-emoji-picker-set-tab[aria-pressed="true"] {
+  background: var(--gray-a4, rgba(28, 32, 36, 0.1));
+  color: var(--f-text, #1c2024);
+}
+
+.g-emoji-picker-set-tab:focus-visible {
+  outline: 2px solid var(--f-accent, #3e63dd);
+  outline-offset: -2px;
+}
+
+.g-emoji-picker-set-tab-cover {
+  padding: 4px;
+}
+
+.g-emoji-picker-set-tab img {
+  display: block;
+  width: 30px;
+  height: 30px;
+  border-radius: 3px;
+  object-fit: contain;
+}
+
+.g-emoji-picker-set-initial {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--gray-a4, rgba(28, 32, 36, 0.1));
+  color: var(--f-muted, #646a73);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.g-emoji-picker-set-tab-skeleton {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 4px;
+  background: var(--gray-a3, rgba(28, 32, 36, 0.06));
+  animation: g-emoji-picker-pulse 1.4s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------ sticker sections */
+
+.g-emoji-picker-sticker-section {
+  display: block;
+}
+
+.g-emoji-picker-sticker-section-title {
+  padding: 12px 14px 6px;
+  color: color-mix(in srgb, var(--f-text, #1c2024) 42%, transparent);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 19px;
+  text-align: center;
+}
+
+.g-emoji-picker-sticker-section-title:focus-visible {
+  outline: 2px solid var(--f-accent, #3e63dd);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+/* The 5-column arithmetic: 376 px content = 5 × 72 + 4 × 4. */
+.g-emoji-picker-sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 72px);
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.g-emoji-picker-sticker-cell {
+  position: relative;
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  cursor: pointer;
+}
+
+.g-emoji-picker-sticker-cell:hover {
+  background: var(--gray-a3, rgba(28, 32, 36, 0.06));
+}
+
+.g-emoji-picker-sticker-cell:focus-visible {
+  outline: 2px solid var(--f-accent, #3e63dd);
+  outline-offset: -2px;
+}
+
+.g-emoji-picker-sticker-cell[data-pending] {
+  opacity: 0.55;
+}
+
+.g-emoji-picker-sticker-image {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.g-emoji-picker-sticker-fallback {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  color: var(--f-faint, #8f959e);
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 34px;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.g-emoji-picker-sticker-skeleton {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  background: var(--gray-a3, rgba(28, 32, 36, 0.06));
+  animation: g-emoji-picker-pulse 1.4s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------------- GIFs */
+
+.g-emoji-picker-gif-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.g-emoji-picker-gif-cell {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--gray-a2, rgba(28, 32, 36, 0.04));
+  cursor: pointer;
+}
+
+.g-emoji-picker-gif-cell:hover {
+  background: var(--gray-a4, rgba(28, 32, 36, 0.1));
+}
+
+.g-emoji-picker-gif-cell:focus-visible {
+  outline: 2px solid var(--f-accent, #3e63dd);
+  outline-offset: -2px;
+}
+
+.g-emoji-picker-gif-cell[data-pending] {
+  opacity: 0.55;
+}
+
+.g-emoji-picker-gif-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.g-emoji-picker-gif-fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: var(--f-faint, #8f959e);
+  pointer-events: none;
+}
+
+.g-emoji-picker-gif-skeleton {
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--gray-a3, rgba(28, 32, 36, 0.06));
+  animation: g-emoji-picker-pulse 1.4s ease-in-out infinite;
+}
+
+/* -------------------------------------------------------- preview overlay */
+
+.g-emoji-picker-preview {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  width: 224px;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--f-line, #e3e6eb);
+  border-radius: 16px;
+  background: var(--f-surface, #ffffff);
+  box-shadow: var(--f-shadow-card, 0 5px 10px 5px rgba(16, 35, 47, 0.14));
+  pointer-events: none;
+  animation: g-emoji-picker-preview-in 120ms ease both;
+}
+
+.g-emoji-picker-preview-emoji {
+  color: var(--f-text, #1c2024);
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 24px;
+  line-height: 1;
+  user-select: none;
+}
+
+.g-emoji-picker-preview-media {
+  display: grid;
+  width: 200px;
+  height: 200px;
+  place-items: center;
+  overflow: hidden;
+}
+
+.g-emoji-picker-preview-media img,
+.g-emoji-picker-preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.g-emoji-picker-preview-video,
+.g-emoji-picker-preview-tgs {
+  width: 200px;
+  height: 200px;
+}
+
+.g-emoji-picker-preview-tgs svg,
+.g-emoji-picker-preview-video {
+  display: block;
+}
+
+@keyframes g-emoji-picker-preview-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes g-emoji-picker-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* ------------------------------------------------- shared state visuals */
+
+.g-emoji-picker-state-action {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--f-line-strong, #d5d9e0);
+  border-radius: 8px;
+  background: var(--gray-a3, rgba(28, 32, 36, 0.06));
+  color: var(--f-text, #1c2024);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.g-emoji-picker-state-action:hover {
+  background: var(--gray-a4, rgba(28, 32, 36, 0.1));
+}
+
+.g-emoji-picker-state-action:focus-visible {
+  outline: 2px solid var(--f-accent, #3e63dd);
+  outline-offset: 1px;
+}
+
+.g-emoji-picker-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .g-emoji-picker-sticker-skeleton,
+  .g-emoji-picker-gif-skeleton,
+  .g-emoji-picker-set-tab-skeleton {
+    animation: none;
+  }
+
+  .g-emoji-picker-preview {
+    animation: g-emoji-picker-fade 120ms ease both;
+  }
+}

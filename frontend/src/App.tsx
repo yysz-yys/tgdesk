@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Events } from "@wailsio/runtime";
+import { Browser, Events } from "@wailsio/runtime";
 import { Service as AppService } from "../bindings/tgdesk/internal/app";
 import { resolveLanguage } from "./i18n";
+import { setTelegramLinkNavigator } from "./lib/telegramLinks";
 
 import {
   mapChat,
@@ -27,6 +28,7 @@ import type {
   ChatProfile,
   DownloadEvent,
   DownloadTask,
+  MiniAppLaunch,
   SharedMediaPage,
   SharedMediaSection,
   TaskStatus,
@@ -36,9 +38,10 @@ import type {
 import { useSettings, type AppSettings } from "./hooks/useSettings";
 import { useTheme } from "./hooks/useTheme";
 import { AppTheme } from "./ui/theme";
-import { EmptyState, Toast } from "./ui";
+import { Button, Dialog, EmptyState, Toast } from "./ui";
 import { Sidebar } from "./components/layout/Sidebar";
 import { ChatView } from "./components/chat/ChatView";
+import { MiniAppOverlay } from "./components/chat/MiniAppOverlay";
 import { DownloadsView } from "./components/downloads/DownloadsView";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { LoginLoading } from "./components/auth/LoginLoading";
@@ -49,6 +52,15 @@ const TASK_STATUSES: TaskStatus[] = ["active", "queued", "paused", "done", "fail
 const SHARED_MEDIA_PAGE_SIZE = 30;
 /** Telegram Web loads 50 members first and then 200-row pages. */
 const MEMBERS_PAGE_SIZE = 50;
+
+/** Invite link waiting for the join confirmation dialog. */
+interface JoinRequest {
+  hash: string;
+  title: string;
+  members?: number;
+  alreadyMember?: boolean;
+  chat?: KernelChat | null;
+}
 
 function toDownloadTask(task: DownloadTaskDTO): DownloadTask {
   return {
@@ -138,6 +150,17 @@ export default function App() {
   const [downloads, setDownloads] = useState<DownloadTask[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [upload, setUpload] = useState<UploadProgress | null>(null);
+  /** Message id to scroll to after an in-app t.me post link opens a chat. */
+  const [pendingJumpId, setPendingJumpId] = useState<number | null>(null);
+  /** Invite link waiting for the join confirmation dialog. */
+  const [joinRequest, setJoinRequest] = useState<JoinRequest | null>(null);
+  const [joining, setJoining] = useState(false);
+  /** Channel/group waiting for the leave confirmation dialog. */
+  const [leaveRequest, setLeaveRequest] = useState<Chat | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  /** In-app bot Web App overlay (Telegram Web browser panel analogue). */
+  const [miniApp, setMiniApp] = useState<MiniAppLaunch | null>(null);
+  const [miniAppRecents, setMiniAppRecents] = useState<MiniAppLaunch[]>([]);
   const toastTimer = useRef<number | undefined>(undefined);
   // Telegram Web keeps the loaded history in memory so switching back to a
   // chat is instant. Same idea here; a background refresh replaces it.
@@ -425,6 +448,177 @@ export default function App() {
     toastTimer.current = window.setTimeout(() => setToastMessage(null), 2600);
   }, []);
 
+  // Resolved t.me links insert the peer into the dialog list and select it,
+  // exactly like Telegram Web opening a username/post link in-app.
+  const mergeResolvedChat = useCallback((chat: KernelChat) => {
+    setChatDTOs((current) => {
+      const known = current.some((item) => item.id === chat.id);
+      if (known) {
+        return current.map((item) =>
+          item.id === chat.id ? { ...item, ...chat } : item,
+        );
+      }
+      return [...current, chat];
+    });
+    setSelectedChatId(chat.id);
+    setView("chats");
+  }, []);
+
+  useEffect(() => {
+    if (!loggedIn) {
+      return;
+    }
+    setTelegramLinkNavigator(async (link) => {
+      try {
+        const resolved = await AppService.ResolveTelegramLink(
+          link.url,
+          proxyUrl,
+          settings.ntp,
+        );
+        if (!resolved) {
+          return false;
+        }
+        if (resolved.kind === "chat" && resolved.chat) {
+          mergeResolvedChat(resolved.chat);
+          if (resolved.messageId) {
+            setPendingJumpId(resolved.messageId);
+          }
+          return true;
+        }
+        if (resolved.kind === "invite") {
+          if (resolved.alreadyMember && resolved.chat) {
+            mergeResolvedChat(resolved.chat);
+            return true;
+          }
+          setJoinRequest({
+            hash: resolved.inviteHash ?? "",
+            title: resolved.inviteTitle || t("chat.inviteTitle"),
+            members: resolved.inviteMembers,
+          });
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    });
+    return () => setTelegramLinkNavigator(null);
+  }, [loggedIn, mergeResolvedChat, proxyUrl, settings.ntp, t]);
+
+  const confirmJoin = async () => {
+    if (!joinRequest || joining) {
+      return;
+    }
+    setJoining(true);
+    try {
+      const chat = await AppService.JoinByInvite(
+        joinRequest.hash,
+        proxyUrl,
+        settings.ntp,
+      );
+      if (chat) {
+        mergeResolvedChat(chat);
+      }
+      setJoinRequest(null);
+      showToast(t("chat.joinedChat"));
+    } catch {
+      showToast(t("chat.joinFailed"));
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const rememberMiniApp = useCallback((launch: MiniAppLaunch) => {
+    setMiniApp(launch);
+    setMiniAppRecents((current) => {
+      const without = current.filter((item) => item.url !== launch.url);
+      return [launch, ...without].slice(0, 8);
+    });
+  }, []);
+
+  // Leaving a channel/group asks for confirmation like Telegram, then removes
+  // the dialog from the local list and lets the selection effect pick the next.
+  const requestLeaveChat = useCallback((target: Chat) => {
+    setLeaveRequest(target);
+  }, []);
+
+  const confirmLeaveChat = async () => {
+    if (!leaveRequest || leaving) {
+      return;
+    }
+    setLeaving(true);
+    try {
+      await AppService.LeaveChat(leaveRequest.id, proxyUrl, settings.ntp);
+      const leftID = leaveRequest.id;
+      setChatDTOs((current) => current.filter((item) => item.id !== leftID));
+      messageCache.current.delete(leftID);
+      setSelectedChatId((current) => (current === leftID ? "" : current));
+      setLeaveRequest(null);
+      showToast(t("chat.leftChat"));
+    } catch {
+      showToast(t("chat.leaveFailed"));
+    } finally {
+      setLeaving(false);
+    }
+  };
+
+  const openLinkedChat = useCallback(
+    (chatID: string) => {
+      const target = chatDTOs.find((item) => item.id === chatID);
+      if (target) {
+        setSelectedChatId(chatID);
+        setView("chats");
+        return;
+      }
+      showToast(t("chat.linkedChatUnavailable"));
+    },
+    [chatDTOs, showToast, t],
+  );
+
+  // Opens a bot Web App in the in-app overlay (Telegram Web browser panel):
+  // full webview buttons/menu go through messages.requestWebView, simple
+  // webviews use their raw URL.
+  const openBotWebView = useCallback(
+    async (request: BotWebViewRequest) => {
+      try {
+        if (request.simple) {
+          if (!request.url) {
+            showToast(t("toasts.webAppFailed"));
+            return;
+          }
+          rememberMiniApp({
+            url: request.url,
+            title: request.title || t("miniApp.windowTitle"),
+            fromBotMenu: false,
+          });
+          return;
+        }
+        const view = await AppService.RequestBotWebView(
+          request.chatId,
+          request.botId,
+          request.messageId,
+          request.url,
+          request.fromBotMenu,
+          proxyUrl,
+          settings.ntp,
+        );
+        const url = view?.url || request.url;
+        if (!url) {
+          showToast(t("toasts.webAppFailed"));
+          return;
+        }
+        rememberMiniApp({
+          url,
+          title: request.title || t("miniApp.windowTitle"),
+          fromBotMenu: request.fromBotMenu,
+        });
+      } catch {
+        showToast(t("toasts.webAppFailed"));
+      }
+    },
+    [proxyUrl, rememberMiniApp, settings.ntp, showToast, t],
+  );
+
   const chatState = useMemo(() => {
     // The archive query and the main dialog query can both contain a peer while
     // it is being moved. Keep one row and never let a stale non-archived copy
@@ -453,6 +647,8 @@ export default function App() {
           saved: true,
           title: t("chat.savedMessages"),
           initials: "S",
+          // Saved Messages never shows an unread badge in Telegram.
+          unread: undefined,
         };
       }
       return mapped;
@@ -1223,38 +1419,41 @@ export default function App() {
     [proxyUrl, settings.ntp, showToast, t],
   );
 
-  // Opens a bot Web App (inline webview button or the bot's menu button) in the
-  // detached mini-app window. Simple webviews skip requestWebView.
-  const openBotWebView = useCallback(
-    async (request: BotWebViewRequest) => {
-      try {
-        if (request.simple) {
-          await AppService.OpenMiniApp(request.url, request.title);
-          return;
-        }
-        await AppService.OpenBotWebView(
-          request.chatId,
-          request.botId,
-          request.messageId,
-          request.url,
-          request.fromBotMenu,
-          request.title,
-          proxyUrl,
-          settings.ntp,
-        );
-      } catch {
-        showToast(t("toasts.webAppFailed"));
-      }
-    },
-    [proxyUrl, settings.ntp, showToast, t],
-  );
-
   const sendCommand = async (command: string) => {
     if (!selectedChatId) {
       throw new Error("No chat selected");
     }
     const text = command.startsWith("/") ? command : `/${command}`;
     await sendMessage(text);
+  };
+
+  // Sticker / GIF send from the picker (no upload; existing documents).
+  const sendSticker = async (ref: string, replyToID?: number) => {
+    if (!selectedChatId) {
+      throw new Error("No chat selected");
+    }
+    await AppService.SendSticker(
+      selectedChatId,
+      ref,
+      replyToID ?? 0,
+      proxyUrl,
+      settings.ntp,
+    );
+    await refreshMessages();
+  };
+
+  const sendGif = async (ref: string, replyToID?: number) => {
+    if (!selectedChatId) {
+      throw new Error("No chat selected");
+    }
+    await AppService.SendGif(
+      selectedChatId,
+      ref,
+      replyToID ?? 0,
+      proxyUrl,
+      settings.ntp,
+    );
+    await refreshMessages();
   };
 
   const attachFiles = async (caption: string, replyToID?: number) => {
@@ -1283,6 +1482,41 @@ export default function App() {
       return false;
     }
   };
+
+  // t.me/<channel>/<post> links: page the history around the post id so a post
+  // older than the newest 50 messages can still be opened and scrolled to.
+  const loadMessagesAround = useCallback(
+    async (messageID: number): Promise<boolean> => {
+      if (!selectedChatId) {
+        return false;
+      }
+      try {
+        const [page, found] = await AppService.GetMessagesAround(
+          selectedChatId,
+          messageID,
+          50,
+          proxyUrl,
+          settings.ntp,
+        );
+        const list = page ?? [];
+        if (list.length > 0) {
+          setMessageDTOs((current) => {
+            const byID = new Map(current.map((message) => [message.id, message]));
+            for (const message of list) {
+              byID.set(message.id, message);
+            }
+            const next = [...byID.values()].sort((left, right) => left.id - right.id);
+            messageCache.current.set(selectedChatId, next);
+            return next;
+          });
+        }
+        return Boolean(found);
+      } catch {
+        return false;
+      }
+    },
+    [proxyUrl, selectedChatId, settings.ntp],
+  );
 
   const loadOlderMessages = useCallback(async () => {
     const oldestID = messageDTOs[0]?.id;
@@ -1659,6 +1893,14 @@ export default function App() {
                 onSendBotCallback={sendBotCallback}
                 onOpenBotWebView={openBotWebView}
                 onSendCommand={sendCommand}
+                onRequestLeaveChat={requestLeaveChat}
+                onOpenLinkedChat={openLinkedChat}
+                network={{ proxy: proxyUrl, ntp: settings.ntp }}
+                onSendSticker={sendSticker}
+                onSendGif={sendGif}
+                jumpToMessageId={pendingJumpId}
+                onJumpConsumed={() => setPendingJumpId(null)}
+                onLoadAround={loadMessagesAround}
                 liveVersion={chatInfoVersion}
                 onDownloadAll={() => downloadAll(selectedChat)}
                 onTogglePin={togglePin}
@@ -1710,6 +1952,78 @@ export default function App() {
         onUpdate={update}
         onOpenDownloadFolder={openDownloadFolder}
         onChooseDownloadFolder={chooseDownloadFolder}
+      />
+
+      {/* Invite links open a join confirmation inside the app, like Telegram. */}
+      <Dialog
+        open={Boolean(joinRequest)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setJoinRequest(null);
+          }
+        }}
+        title={t("chat.joinInviteTitle", {
+          title: joinRequest?.title ?? t("chat.inviteTitle"),
+        })}
+        description={
+          joinRequest?.members
+            ? t("chat.joinInviteMembers", {
+                title: joinRequest.title,
+                count: joinRequest.members,
+              })
+            : t("chat.joinInviteDescription")
+        }
+        closeLabel={t("common.close")}
+        width="380px"
+      >
+        <div className="f-dialog-actions">
+          <Button variant="ghost" onClick={() => setJoinRequest(null)}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            disabled={joining}
+            onClick={() => void confirmJoin()}
+          >
+            {t("chat.join")}
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Leaving a channel/group asks for confirmation, like Telegram. */}
+      <Dialog
+        open={Boolean(leaveRequest)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLeaveRequest(null);
+          }
+        }}
+        title={t("chat.leaveTitle", { title: leaveRequest?.title ?? "" })}
+        description={t("chat.leaveDescription")}
+        closeLabel={t("common.close")}
+        width="380px"
+      >
+        <div className="f-dialog-actions">
+          <Button variant="ghost" onClick={() => setLeaveRequest(null)}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            variant="danger"
+            disabled={leaving}
+            onClick={() => void confirmLeaveChat()}
+          >
+            {t("profile.leave")}
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Telegram Web's in-app browser panel: non-modal so the chat stays live. */}
+      <MiniAppOverlay
+        app={miniApp}
+        appearance={resolvedTheme}
+        onClose={() => setMiniApp(null)}
+        onToast={showToast}
+        onOpenLink={(url) => void Browser.OpenURL(url)}
+        recents={miniAppRecents}
       />
 
       {toastMessage ? <Toast message={toastMessage} /> : null}

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Browser, Events } from "@wailsio/runtime";
+import { openTelegramLink } from "../../lib/telegramLinks";
 import type {
   BotCallbackResult,
   BotWebViewRequest,
@@ -59,6 +60,16 @@ interface ChatViewProps {
   ) => Promise<BotCallbackResult | null>;
   onOpenBotWebView: (request: BotWebViewRequest) => void;
   onSendCommand: (command: string) => Promise<void>;
+  onRequestLeaveChat?: (chat: Chat) => void;
+  onOpenLinkedChat?: (chatID: string) => void;
+  /** Network params for auxiliary kernel RPCs (sticker/GIF picker). */
+  network: { proxy: string; ntp: string };
+  onSendSticker: (ref: string, replyToID?: number) => Promise<void>;
+  onSendGif: (ref: string, replyToID?: number) => Promise<void>;
+  /** Message id to scroll to after an in-app t.me post link opened this chat. */
+  jumpToMessageId?: number | null;
+  onJumpConsumed?: () => void;
+  onLoadAround?: (messageID: number) => Promise<boolean>;
   liveVersion?: number;
   downloads: DownloadTask[];
   onRefreshDownloads?: () => void;
@@ -108,6 +119,14 @@ export function ChatView({
   onSendBotCallback,
   onOpenBotWebView,
   onSendCommand,
+  onRequestLeaveChat,
+  onOpenLinkedChat,
+  network,
+  onSendSticker,
+  onSendGif,
+  jumpToMessageId,
+  onJumpConsumed,
+  onLoadAround,
   liveVersion,
   downloads,
   onRefreshDownloads,
@@ -349,6 +368,42 @@ export function ChatView({
     window.setTimeout(() => node.classList.remove("g-message-flash"), 1400);
   };
 
+  // t.me/<channel>/<post> links open this chat with the post to show. Once the
+  // page containing the id is loaded, scroll to it (and consume the request).
+  // When the post is older than the newest page, page the history around it.
+  const aroundRequested = useRef(0);
+  useEffect(() => {
+    if (!jumpToMessageId) {
+      return;
+    }
+    const loaded = messages.some((message) => message.id === jumpToMessageId);
+    if (loaded) {
+      jumpToMessage(jumpToMessageId);
+      onJumpConsumed?.();
+      return;
+    }
+    if (loading || messages.length === 0) {
+      return;
+    }
+    if (aroundRequested.current === jumpToMessageId) {
+      return;
+    }
+    aroundRequested.current = jumpToMessageId;
+    if (!onLoadAround) {
+      onToast(t("chat.postNotLoaded"));
+      onJumpConsumed?.();
+      return;
+    }
+    void onLoadAround(jumpToMessageId).then((found) => {
+      if (!found) {
+        onToast(t("chat.postNotLoaded"));
+        onJumpConsumed?.();
+      }
+    });
+    // jumpToMessage/onToast are stable enough for this one-shot effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpToMessageId, messages, loading]);
+
   // Actions taken in the detached viewer window come back as Wails events so
   // forwarding/deleting still use the chat's own pickers and confirmations.
   useEffect(() => {
@@ -472,6 +527,7 @@ export function ChatView({
           searchOpen={searchOpen}
           searchQuery={searchQuery}
           searchResultCount={filteredMessages.length}
+          savedMessagesCount={chat.saved ? profile?.messagesCount : undefined}
           onSearchQueryChange={setSearchQuery}
           onCloseSearch={() => {
             setSearchOpen(false);
@@ -484,6 +540,9 @@ export function ChatView({
             }
           }}
           onDownloadAll={onDownloadAll}
+          onTogglePin={onTogglePin}
+          onMarkRead={onMarkRead}
+          onArchive={onArchiveChat}
           onInfo={() =>
             setInfoOpen((open) => {
               const next = !open;
@@ -508,6 +567,12 @@ export function ChatView({
               icon="search_off"
               title={t("chat.noSearchResults", { query: searchQuery.trim() })}
               description={t("chat.searchLoadedHint")}
+            />
+          ) : chat.saved && messages.length === 0 ? (
+            <EmptyState
+              icon="bookmark"
+              title={t("chat.savedEmptyTitle")}
+              description={t("chat.savedEmptyDescription")}
             />
           ) : (
             <MessageList
@@ -590,6 +655,9 @@ export function ChatView({
           onOpenBotMenu={openBotMenu}
           onSendCommand={onSendCommand}
           onToggleMute={() => onToggleMute(chat.id)}
+          network={network}
+          onSendSticker={(ref) => onSendSticker(ref, replyingTo?.id)}
+          onSendGif={(ref) => onSendGif(ref, replyingTo?.id)}
           onToast={onToast}
           enterToSend={enterToSend}
         />
@@ -679,6 +747,9 @@ export function ChatView({
           onArchiveChat={() => onArchiveChat(chat)}
           onOpenBotWebView={openBotMenu}
           onFocusComposer={focusComposer}
+          onLeaveChat={() => onRequestLeaveChat?.(chat)}
+          onOpenDiscussion={(chatID) => onOpenLinkedChat?.(chatID)}
+          onOpenLink={openTelegramLink}
           onClose={() => setInfoOpen(false)}
           onTogglePin={onTogglePin}
           onToggleMute={onToggleMute}

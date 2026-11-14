@@ -78,20 +78,19 @@ Wails runtime `Window` API for minimise/maximise/close and CSS
   through the `mediaViewer:action` event so the chat window runs its own
   dialogs.
 
-### Bot mini-app window
+### Bot mini apps
 
-- `app.Service.OpenBotWebView(...)` asks the kernel for the authenticated mini-app
-  URL (`messages.requestWebView`), stores `{"url","title","botName","avatarUrl"}`
-  in memory and opens (or reuses) a transparent, frameless Wails window named
-  `mini-app` sized 480×688 and clamped to 90% of the primary work area.
-- The window always loads the local wrapper page `/miniapp.html?session=...`
-  (never the remote URL directly); the page reads the session through
-  `TakeMiniAppState` and embeds the app in a sandboxed iframe. `OpenMiniApp(url,
-  title)` opens a raw http(s) URL the same way for simple-webview buttons.
-- If `requestWebView` fails, `OpenBotWebView` still opens the raw button URL, so
-  plain URL/keyboard buttons keep working.
-- Closing the main window closes the mini app; closing the mini app focuses the
-  main window again.
+- Bot Web Apps are rendered **inside the main window** by the React
+  `MiniAppOverlay` (sandboxed iframe, Telegram Web K frame). There is no
+  separate Wails window any more.
+- The backend surface stays minimal: `kernel.RequestBotWebView(...)` asks
+  Telegram for the authenticated URL through `messages.requestWebView` (platform
+  `web`, reply-to for keyboard buttons, `from_bot_menu` for menu launches) and
+  `app.Service.RequestBotWebView` forwards it to the UI, which owns the overlay,
+  the iframe lifecycle and the browser fallback.
+- The old `mini-app` window, its `/miniapp.html` wrapper, `OpenBotWebView` /
+  `OpenMiniApp` / `TakeMiniAppState` bindings and the `MiniAppWindowName`
+  close-on-exit wiring were removed when the overlay landed.
 
 ## Kernel state and concurrency
 
@@ -106,6 +105,9 @@ Wails runtime `Window` API for minimise/maximise/close and CSS
   `messages.getDialogs` flood waits. Dialog mapping reads `dialog.folder_id`;
   folder 1 is marked archived even when it appears in the main dialog response;
 - download tasks and their persistence (`downloadMu`, `downloadSem`);
+- sticker/GIF picker caches (`stickerCacheMu`: installed sets, recent stickers,
+  set details, saved GIFs) and the opaque document-ref side map (`stickerRefsMu`,
+  bounded at 4096 entries); both are cleared on session reset;
 - a bounded in-memory image cache and the loopback image server.
 
 The shared session is keyed by proxy + NTP. The first call creates a tdl client,
@@ -219,12 +221,19 @@ Telegram Desktop fills the rest while connecting.
   `UsersGetFullUser`, `MessagesGetFullChat` or `ChannelsGetFullChannel` (60 s
   cache, like `GetChatInfo`) and maps the info-panel/composer shape: detected
   type (`user`/`bot`/`saved`/`group`/`channel`, Saved Messages = self peer),
-  bio/description, username, contact-only phone, member/subscriber count,
-  visible-member flag, admin/owner/forum flags, invite link (best effort),
-  linked chat, bot commands/menu button/privacy URL. Send rights are derived from
-  the tweb `hasRights` logic (creator; broadcast channels need
-  `post_messages`; megagroups need membership and no `send_messages` ban;
-  `send_plain` only blocks text; slow mode is reported separately so the
+  bio/description, username and every active username (`usernames[]`, preferred
+  first), contact-only phone, member/subscriber count, channel admin count,
+  star-gift count (`giftsCount`, from `stargifts_count`, decides the Web K Gifts
+  tab), visible-member flag, admin/owner/forum flags, invite link (best effort),
+  linked discussion chat (`linkedChatId` plus the mapped `linkedChat` DTO when
+  the full-info response carried the entity), bot commands/menu
+  button/privacy URL. Saved Messages (peer self) additionally gets
+  `messagesCount` from one `messages.getHistory` page for the "N messages"
+  header subtitle. Send rights are derived from the tweb `hasRights` logic
+  (creator; broadcast channels need `post_messages`;
+  megagroups need membership and no `send_messages` ban; `send_plain` only
+  blocks text; `send_stickers`/`send_gifs` block the picker
+  tabs; slow mode is reported separately so the
   composer can count down).
 - `SetChatMuted` / `SetChatPinned` write server state:
   `account.getNotifySettings` + `account.updateNotifySettings` (the update
@@ -257,6 +266,68 @@ Images are loaded natively through loopback URLs (`/thumb`, `/avatar`, `/photo`)
 and cached by the WebView; the kernel keeps only a bounded in-memory image cache.
 The old `data/thumbs` and `data/avatars` per-image files are no longer written and
 are removed on startup. Video/conversation scrolling stays lazy.
+
+### Stickers and GIFs
+
+`internal/kernel/stickers.go` + `stickers_media.go` back the emoji picker's
+Sticker and GIF tabs with the layer-222 `messages.*` sticker family (this TL
+layer has no `stickers.getStickerSet`):
+
+- `GetStickerPacks` runs `messages.getAllStickers` and
+  `messages.getRecentStickers` concurrently, filters mask/custom-emoji sets and
+  returns the recent row (max 20) plus installed-set headers. Set covers use
+  `InputStickerSetThumb` (`stickerSetCoverMedia`) when the set carries a
+  thumbnail; `GetStickerSet` additionally falls back to the first sticker's still
+  thumb so a cover appears once the section loads.
+- `GetStickerSet` calls `messages.getStickerSet` with hash 0 (the method is not
+  paginated; every document is returned) and maps all documents.
+- `GetSavedGifs` calls `messages.getSavedGifs`.
+- `SendSticker`/`SendGif` re-send an existing document with
+  `messages.sendMedia` + `inputMediaDocument` (no upload) and
+  `update_stickersets_order` for stickers. Rights/slow-mode/flood-wait failures
+  are mapped to readable errors from the server answer; `FILE_REFERENCE_*`
+  triggers one refetch of the source list (recent/set/saved-GIFs) and one retry.
+- Documents are addressed by opaque refs (`sdoc1_…`), sets by `sset1_…`; the
+  actual `*tg.Document` lives in a bounded kernel side map so a ref never leaks
+  `access_hash`/`file_reference` into the UI. Thumbnails and full TGS/WebM/MP4
+  payloads are registered with the existing loopback image server
+  (`registerImage`/`imageURL`), using a picker-specific ≤100 px thumb chooser and
+  extension-correct media names so `mediaMime` yields `image/webp`,
+  `application/x-tgsticker`, `video/webm`, `video/mp4`, etc.
+- Installed sets (5 min), recent stickers (60 s), set details (30 min) and saved
+  GIFs (60 s) are cached in memory. `UpdateStickerSets`/`UpdateNewStickerSet`/
+  `UpdateStickerSetsOrder`/`UpdateMoveStickerSetToTop` drop the set caches,
+  `UpdateRecentStickers`/`UpdateSavedGifs` drop their list, and every successful
+  send invalidates the matching cache. The session reset clears everything,
+  including the ref side map.
+
+### In-app Telegram links and membership actions
+
+`internal/kernel/links.go` routes `t.me` / `telegram.me` / `telegram.dog` /
+`tg://` clicks without opening the system browser:
+
+- `classifyTelegramLink` is a pure parser: exact host allow-list (plus the
+  `<username>.t.me` form), no userinfo/ports, `t.me/<name>[/<post>[/<thread>]]`,
+  `t.me/s/<name>`, `t.me/c/<id>/<post>`, `t.me/+<hash>` / `joinchat/<hash>`,
+  `tg://resolve|join|joinchat|user|privatepost`. Known non-chat sections
+  (`addstickers`, `boost`, `call`, …) and `t.me/+<phone>` classify as
+  unsupported; `javascript:`/`data:` and other schemes never pass the guard.
+- `ResolveTelegramLink` resolves public usernames/posts with
+  `contacts.resolveUsername` (returns a `ChatDTO` even when the peer is not in
+  the dialog list), private post links through the live peer index +
+  `channels.getChannels` (no access hash in the link; errors instead of guessing),
+  invites with `messages.checkChatInvite` (title/members/already-member chat) and
+  `tg://user?id` through the peer index + `users.getUsers` when cheap.
+- `JoinByInvite` uses `messages.importChatInvite` then re-checks the invite for
+  the joined `ChatDTO`; `JoinPublicChat` uses `channels.joinChannel`;
+  `LeaveChat` uses `channels.leaveChannel` for channels/supergroups and
+  `messages.deleteChat` for basic groups. Join/leave invalidate the dialogs and
+  per-chat profile/info caches. Invite expiry, invalid hashes, pending join
+  requests, channel limits and flood waits become readable errors.
+- `GetMessagesAround(chatID, messageID, limit)` loads one `messages.getHistory`
+  page ending at the target id (limit clamped 20–100, page not written to the
+  local snapshot cache) and reports whether the target was found, so a t.me post
+  link can be focused even when older than the newest history page.
 
 ## Local snapshots and fast paint
 
@@ -384,14 +455,22 @@ Component layers:
   panel (`composer/`: one floating plate with reply/edit header, bot menu pill,
   `/` command autocomplete, slow-mode hint, attach menu, send/mic button and the
   MessageComposer/FooterPlate/StartPlate/MessagingDisabledBar capability switch),
-  the emoji picker (`EmojiPicker` + `src/data/emoji*.ts`), and the right
-  chat-info pane (`ChatInfoPanel`: per-type title/action tiles, expandable bio
-  card, profile rows, shared-media tabs). Broadcast channels that cannot be
-  posted in use `ChannelBar`'s mute footer.
-- `src/miniapp` — the detached bot Web App window entry (`miniapp.html`,
-  `MiniAppWindow`): a local wrapper page with a Telegram-style header that
-  embeds the authenticated URL from `messages.requestWebView` in a sandboxed
-  iframe (theme params injected in the URL hash).
+  the emoji picker (`EmojiPicker` + `src/data/emoji*.ts`) with its Telegram Web K
+  sticker/GIF tabs (`picker/`: set rail, lazy sections, saved-GIF grid, preview
+  overlay, `src/lib/stickerApi.ts` RPC cache), and the right chat-info pane
+  (`ChatInfoPanel` + `PeerQrDialog`: per-type title/action tiles, expandable bio
+  card, profile rows, link/QR row, shared-media tabs). Broadcast channels that
+  cannot be posted in use `ChannelBar`'s mute footer.
+- `src/lib/telegramLinks.ts` — the single in-app link router used by message
+  text, mentions, profile rows, bot URL buttons and web previews: classifies
+  t.me/telegram.me/tg:// links, hands them to the App-level
+  `ResolveTelegramLink`/join navigator and falls back to the system browser for
+  everything else.
+- `components/chat/MiniAppOverlay` + `src/lib/miniAppTheme.ts` — the in-app bot
+  Web App overlay: a floating Telegram Web K style panel inside the main window
+  that embeds the authenticated URL (or a simple webview URL) from
+  `messages.requestWebView` in a sandboxed iframe; theme params are injected in
+  the URL hash. The former detached `miniapp.html` window entry is gone.
 - `components/media` — the detached media viewer: Telegram Desktop style photo
   stage with zoom/pan/rotate and open/close flight, caption plate, album strip,
   file info/action row and the tdesktop video controls (volume, play/pause,
@@ -471,6 +550,18 @@ name changes, update both Go and the frontend subscription and regenerate.
   alert/url/message/cache-time only, so non-alert callback toast text is not
   surfaced.
 - `botOwnerId` is empty: this TL layer does not expose a bot owner field.
+- Sticker/GIF picker v1 has no search (`messages.searchStickers`, inline-bot GIF
+  search), no favorites/clear-recent, no set install/uninstall/archive, and no
+  `messages.saveRecentSticker`/`messages.saveGif` upkeep: recents are whatever
+  the server returns, refreshed after a send. The Gifts tab data source
+  (`payments.getSavedStarGifts`) is not implemented; the profile only exposes the
+  `stargifts_count` that decides the tab. Set covers for sets without `Thumbs`
+  appear only after the set detail loads.
+- Telegram link routing v1 supports chat/post/invite/user links only; forum
+  thread/comment params are parsed but ignored, phone-number links, masked-link
+  warnings, `t.me` addstickers/boost/… sections and private-post links to channels
+  the account has never seen are unsupported or return a readable error (one
+  toast, never the system browser).
 - History loads 50 messages at a time and paginates on demand; live updates are
   delivered while the client is connected but there is no persisted updates
   gap-recovery state.

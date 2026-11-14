@@ -42,9 +42,31 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 - Bot inline 键盘：`SendBotCallback`（messages.getBotCallbackAnswer，FLOOD_WAIT/
   BOT_RESPONSE_TIMEOUT 转可读错误）回读被点击消息并以 `chat:event` edit 推送刷新；
   按钮 DTO 带行号/样式，simple webview 单独映射为 `webview_simple`。
-- Bot mini app：`RequestBotWebView`（messages.requestWebView）返回带签名的 URL；
-  `OpenBotWebView`/`OpenMiniApp` 复用透明无边框 `mini-app` 窗口（480×688，本地
-  `/miniapp.html` 包装页 + sandbox iframe，`TakeMiniAppState(session)` 传状态）。
+- Bot mini app：后端只保留 `RequestBotWebView`（messages.requestWebView）返回带签名
+  URL；前端改用主窗口内的 `MiniAppOverlay` iframe 浮层，原来的独立透明 `mini-app`
+  窗口、`/miniapp.html` 包装页、`OpenBotWebView`/`OpenMiniApp`/`TakeMiniAppState`
+  绑定和 `MiniAppWindowName` 关闭联动已删除（旧绑定方法从 `frontend/bindings` 消失）。
+- 贴纸/GIF 选择器后端（`internal/kernel/stickers.go`、`stickers_media.go`）：
+  `GetStickerPacks`（messages.getAllStickers + messages.getRecentStickers，最近 20 个 +
+  已安装套件，过滤 masks/emoji 套件）、`GetStickerSet`（messages.getStickerSet 全量
+  documents）、`GetSavedGifs`（messages.getSavedGifs）、`SendSticker`/`SendGif`
+  （messages.sendMedia + inputMediaDocument，不重新上传；慢速模式/权限/FLOOD_WAIT 由
+  服务端错误转可读文案，FILE_REFERENCE_* 刷新一次并重试）。文档用不透明 ref
+  （`sdoc1_…`，内核有界 side map 保存 *tg.Document），套件用 `sset1_…`；缩略图/TGS/
+  WebM/MP4 走既有 loopback 图片服务器，媒体名带正确扩展名；列表/套件/GIF 均有内存
+  TTL 缓存，并由 UpdateStickerSets/UpdateRecentStickers/UpdateSavedGifs 等推送失效。
+- 应用内 t.me 链接路由（`internal/kernel/links.go`）：`ResolveTelegramLink` 解析并解析
+  t.me/telegram.me/tg:// 的用户名、帖子、邀请、tg://user；`JoinByInvite` /
+  `JoinPublicChat` / `LeaveChat`（channels.leaveChannel；普通群 messages.deleteChat）+
+  `GetMessagesAround` 支持跳到旧帖子；邀请过期/无效、需审批、频道数量上限、FLOOD_WAIT
+  都返回可读错误；未知未支持类型统一 `unsupported`，不会漏到系统浏览器。
+- 频道资料补充：`ChatProfileDTO` 增加 `usernames[]`（全部有效用户名，主用户名在前）、
+  `canSendStickers`/`canSendGifs`（由 send_stickers/send_gifs 禁权推导）、
+  `giftsCount`（stargifts_count，决定礼物 tab 是否显示）、`adminsCount`；
+  `linkedChat`（full channel/full chat 响应带有关联讨论群实体时映射成 ChatDTO，可在
+  未出现在会话列表时直接打开；`linkedChatId` 保留）、Saved Messages 的
+  `messagesCount`（messages.getHistory 取一页读总数，用于 "N 条消息" 副标题）。
+  订阅数/成员数与慢速模式沿用 full channel 数据。
 - 聊天信息面板前端（`ChatInfoPanel`）：按资料类型显示 "用户信息/机器人信息/群组信息/
   频道信息/已保存消息"，头像/标题/N 位成员·订阅者；动作格按 Telegram 类型区分
   （用户：发消息/通话/静音/更多；机器人：发消息/静音/更多；群组：发消息/静音/更多；
@@ -66,6 +88,27 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
   离线打包（`data/emoji*.ts`，按语言懒加载关键词）。
 - 会话列表：已保存消息按语言显示为 "已保存消息"，频道显示 "N 位订阅者"，机器人
   副标题显示 @username。
+- 聊天顶栏按 Telegram Web K 重做：696px 车道、24px 圆角、48px 高、40px 头像、
+  16px/500 标题 + 14px 状态行、40px 搜索/更多按钮；更多菜单含置顶、标为已读、
+  归档、下载全部；在线状态用主题色文字而非绿点。
+- 频道信息面板对齐 Telegram Web：动作格 静音/讨论/离开/更多（最多 4 个），简介卡片
+  带 "个人信息" 标签，单个 t.me 链接行 + 二维码弹窗 + "还有 @x、@y" 多用户名，
+  订阅数只出现在 hero；离开聊天带确认并调用 `channels.leaveChannel`，讨论组尝试在
+  应用内打开。已保存消息信息面板只有共享媒体 tab（无 hero/动作格/资料行）。
+- 已保存消息行为对齐 Telegram：标题本地化、书签头像、无未读、顶栏 "N 条消息"
+  （`messages.getHistory` 计数）、空聊天显示"你的云存储"引导。
+- Bot mini app 改为应用内浮层（`MiniAppOverlay`）：非模态 480×688、24px 圆角、
+  半透明模糊、无独立窗口阴影；48px 头部含关闭、Bot 头像/标题、`+`（最近打开列表/
+  重新加载/浏览器打开）与最小化/还原（328×48，iframe 保活）；可拖动/缩放，
+  sandbox iframe + tgWebAppThemeParams；旧 `miniapp.html` 独立窗口已删除。
+- 贴纸/GIF 面板：安装的贴纸包封面栏 + 最近使用 + 按包分组网格（5×72px）、
+  已保存 GIF 3 列网格、悬停/长按单个动画预览、点击即发（`messages.sendMedia`，
+  无上传），带加载/空/受限/错误状态；内核新增 `GetStickerPacks`/`GetStickerSet`/
+  `GetSavedGifs`/`SendSticker`/`SendGif` 与不透明文档 ref。
+- Telegram 链接应用内跳转：`t.me` 用户名/帖子链接（含 `tg://`、多用户名后缀、
+  帖子 id 会通过 `GetMessagesAround` 翻页并定位）、邀请链接确认后
+  `messages.importChatInvite` 加入、`@用户名` 提及和资料链接走同一入口，不支持的
+  深链只提示不打开浏览器。
 - Telegram Web 风格的消息操作：右键/悬停菜单、回复、复制、转发、编辑自己的文本消息、
   为自己/所有人删除、链接自动识别、照片大图查看。
 - 实时消息推送：gotd `UpdateDispatcher` 处理新消息/编辑/删除/reaction/已读，通过
@@ -99,7 +142,11 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 
 - 服务端消息搜索、typing/在线状态、定时消息、多文件一次性发送为相册。
 - 聊天信息中的 Stories/Gifts/相似频道/群组等 Web 分类尚未接入（当前覆盖
-  成员、媒体、文件、链接、音乐、语音、动图）。
+  成员、媒体、文件、链接、音乐、语音、动图）；礼物 tab 只用 `stargifts_count` 判断是否
+  显示，礼物列表（payments.getSavedStarGifts）尚未实现。Sticker/GIF 面板 v1 未接搜索
+  （messages.searchStickers / inline bot GIF）、收藏/清除最近、套件安装/卸载/归档、
+  saveRecentSticker/saveGif 维护；t.me 论坛 thread/comment、手机号链接、addstickers 等
+  非聊天 link 归为 unsupported。
 - 输入框的 send-as / 匿名管理员 / 定时消息 / 语音录制与发送菜单未实现（相关按钮
   隐藏或给出提示）；未订阅频道的 JOIN/SUBSCRIBE 底栏依赖加入聊天功能，暂不涉及。
 - Bot mini app 还没有 Telegram JS bridge：`web_app_data_send`、`prolongWebView`、
@@ -107,6 +154,11 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
   层没有字段，保持为空。Emoji 面板暂无肤色选择，Windows 上国旗 emoji 渲染为字母对
   （Segoe UI Emoji 限制）；群组中的 bot 命令补全依赖资料里的 commands 数据。
 - 聊天资料里的"通话"按钮会提示本版本暂不支持（未接语音通话）。
+- 第二轮 Telegram 对齐遗留：频道"讨论"按钮只有在关联讨论组已在聊天列表时才能打开
+  （profile 里的 linkedChat DTO 尚未喂给前端路由）；礼物 tab 未实现；顶栏的
+  在线/最后上线状态仍是静态文案（没有 presence 数据），pinned-message 条未做；
+  贴纸/GIF 搜索、收藏、套件安装/归档未做；mini app 浮动层在跨域 iframe 持有焦点时
+  收不到 Esc（已知 WebView2/浏览器限制），也没有 web_app_data_send 桥。
 - 带本地 passcode 的 tdata 导入不支持。
 - 只导出主 DC 的 auth key；其余 DC key 由官方客户端连接时补齐。
 - Windows 以外的构建脚手架存在，但未做发布级验证。
@@ -131,14 +183,16 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 main.go                         Wails 入口、窗口、服务注册、WebView 迁移
 internal/app/service.go         Wails 适配层：只转调 kernel + 发事件
 internal/app/media_viewer.go    独立媒体查看器窗口
-internal/app/mini_app.go        Bot mini app 透明窗口（480×688、session、复用、焦点）
 internal/kernel/
   auth.go                       二维码/手机号/2FA 状态机、AuthEvent、tdata 导出触发
   session.go                    共享已授权 Telegram client
   session_user.go               RefreshUser + ensureTData
   chats.go                      会话/消息/操作/媒体 DTO 与 URL 映射
   chat_profile.go               聊天资料 DTO、发言权限推导、60s 缓存
-  chat_actions.go               服务端静音/取消静音、Pin/取消 Pin
+  chat_actions.go               服务端静音/取消静音、Pin/取消 Pin、LeaveChat
+  links.go                      t.me/tg:// 解析与解析、加入邀请/公开频道、GetMessagesAround
+  stickers.go                   贴纸/GIF 列表、发送、缓存与失效
+  stickers_media.go             透明 ref、缩略图选择、套件封面、loopback 媒体
   bots.go                       bot 回调答案、mini app requestWebView、错误转可读
   live.go                       Telegram updates → chat:event
   reactions.go                  表情回应
@@ -252,6 +306,7 @@ $env:TGDESK_WEBVIEW_DEBUG = "1"
 1. 持久化的 updates 序列/gap recovery 与虚拟列表；当前断线只靠 `updatesTooLong` 重载。
 2. Bot mini app 无 Telegram JS bridge（web_app_data_send、prolongWebView 未接）；
    `BotCallbackResultDTO` 不含非 alert 的 toast 文本；`botOwnerId` 本 TL 层无字段，留空。
+   现在 mini app 是主窗口内 iframe 浮层（不再有独立 OS 窗口）。
 3. 服务端搜索、typing/在线状态、定时消息、多文件一次性发相册。
 4. 下载 CDN redirect 的完整续传。
 5. 代理密码迁移到 Windows Credential Manager。

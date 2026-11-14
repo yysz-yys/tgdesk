@@ -25,6 +25,9 @@ type ChatProfileDTO struct {
 	About string `json:"about,omitempty"`
 	// Username is the main active username without the leading "@".
 	Username string `json:"username,omitempty"`
+	// Usernames lists every active username of the peer, main/preferred first
+	// (channels can own several collectible usernames, Web K shows "also @x").
+	Usernames []string `json:"usernames,omitempty"`
 	// Phone is only exposed for contacts; Telegram hides it for everyone else.
 	Phone string `json:"phone,omitempty"`
 	// Members is the participant/subscriber count (0 for private peers).
@@ -39,6 +42,16 @@ type ChatProfileDTO struct {
 	// CanSendPlain reports whether text messages are allowed. It is false for
 	// read-only "media allowed, text not allowed" restrictions.
 	CanSendPlain bool `json:"canSendPlain"`
+	// CanSendStickers / CanSendGifs report the per-media send rights so the
+	// emoji picker can show its blocked states before firing an RPC. They are
+	// false whenever CanSend is false.
+	CanSendStickers bool `json:"canSendStickers"`
+	CanSendGifs     bool `json:"canSendGifs"`
+	// GiftsCount is the number of star gifts the peer displays (Telegram Web K
+	// decides the Gifts tab from it; optional field in this TL layer).
+	GiftsCount int `json:"giftsCount,omitempty"`
+	// AdminsCount is the channel administrator count (0 when unknown).
+	AdminsCount int `json:"adminsCount,omitempty"`
 	// SendRestriction is the machine-readable reason when CanSend is false:
 	// "restricted" (rights/banned), "broadcast" (not an admin of a channel) or
 	// "not-member" (left the group / pending join).
@@ -56,7 +69,15 @@ type ChatProfileDTO struct {
 	InviteLink string `json:"inviteLink,omitempty"`
 	// LinkedChatID is the opaque peer id of the linked discussion group (or of
 	// the supergroup a migrated basic group points at), empty when unresolved.
-	LinkedChatID  string            `json:"linkedChatId,omitempty"`
+	LinkedChatID string `json:"linkedChatId,omitempty"`
+	// LinkedChat is the mapped linked discussion chat when the full-info response
+	// carried its entity, so the UI can open the discussion in-app even when it
+	// is not in the current dialog list. LinkedChatID is always kept.
+	LinkedChat *ChatDTO `json:"linkedChat,omitempty"`
+	// MessagesCount is the number of messages in Saved Messages (peer self),
+	// read from one messages.getHistory page; 0 for every other peer and on
+	// failure. Telegram Web renders it as the Saved Messages header subtitle.
+	MessagesCount int               `json:"messagesCount,omitempty"`
 	BotCommands   []BotCommandDTO   `json:"botCommands,omitempty"`
 	BotMenuButton *BotMenuButtonDTO `json:"botMenuButton,omitempty"`
 	// BotOwnerID is reserved for clients whose TL layer exposes the bot owner;
@@ -155,6 +176,9 @@ func (s *Service) GetChatProfile(chatID, kind, proxy, ntp string) (*ChatProfileD
 				user = fetchUserEntity(ctx, client, p)
 			}
 			profile = mapUserProfile(resp.FullUser, user, p.UserID == s.selfUserID())
+			if profile.Type == ChatProfileTypeSaved {
+				profile.MessagesCount = s.savedMessagesCount(ctx, client, peer)
+			}
 		case *tg.InputPeerChat:
 			resp, err := client.API().MessagesGetFullChat(ctx, p.ChatID)
 			if err != nil {
@@ -166,6 +190,7 @@ func (s *Service) GetChatProfile(chatID, kind, proxy, ntp string) (*ChatProfileD
 			}
 			chat := findChatEntity(resp.Chats, p.ChatID)
 			profile = mapBasicGroupProfile(full, chat)
+			profile.LinkedChat = s.linkedChatDTO(resp.Chats, profile.LinkedChatID, proxy, ntp)
 			if profile.InviteLink == "" && (chat == nil || !chat.GetLeft()) {
 				profile.InviteLink = exportChatInviteLink(ctx, client, peer)
 			}
@@ -192,6 +217,7 @@ func (s *Service) GetChatProfile(chatID, kind, proxy, ntp string) (*ChatProfileD
 				linked = s.resolveLinkedChatID(resp.Chats, raw)
 			}
 			profile = mapChannelProfile(full, channel, own, linked)
+			profile.LinkedChat = s.linkedChatDTO(resp.Chats, linked, proxy, ntp)
 			if profile.InviteLink == "" && profile.Username == "" && profile.IsAdmin {
 				profile.InviteLink = exportChatInviteLink(ctx, client, peer)
 			}
@@ -255,9 +281,14 @@ func cloneChatProfile(profile *ChatProfileDTO) *ChatProfileDTO {
 	}
 	clone := *profile
 	clone.BotCommands = append([]BotCommandDTO(nil), profile.BotCommands...)
+	clone.Usernames = append([]string(nil), profile.Usernames...)
 	if profile.BotMenuButton != nil {
 		button := *profile.BotMenuButton
 		clone.BotMenuButton = &button
+	}
+	if profile.LinkedChat != nil {
+		linked := *profile.LinkedChat
+		clone.LinkedChat = &linked
 	}
 	return &clone
 }
@@ -322,6 +353,83 @@ func fetchChannelEntity(ctx context.Context, client *telegram.Client, input *tg.
 	return nil
 }
 
+// linkedChatDTO maps the linked discussion chat when the full-info response
+// carried its entity (channels.getFullChannel and messages.getFullChat both
+// attach the linked/migrated chat to their Chat list in practice). The opaque
+// LinkedChatID stays available as the fallback when the entity is absent; the
+// peer index is not used here so the UI always gets complete title/members.
+func (s *Service) linkedChatDTO(
+	entities []tg.ChatClass,
+	linkedID string,
+	proxy, ntp string,
+) *ChatDTO {
+	if linkedID == "" {
+		return nil
+	}
+	peer, err := parsePeerID(linkedID)
+	if err != nil {
+		return nil
+	}
+	switch value := peer.(type) {
+	case *tg.InputPeerChannel:
+		if channel := findChannelEntity(entities, value.ChannelID); channel != nil {
+			chat, ok := s.chatDTOFromPeerEntities(
+				&tg.PeerChannel{ChannelID: channel.ID},
+				nil,
+				[]tg.ChatClass{channel},
+				proxy,
+				ntp,
+			)
+			if ok {
+				return chat
+			}
+		}
+	case *tg.InputPeerChat:
+		if entity := findChatEntity(entities, value.ChatID); entity != nil {
+			chat, ok := s.chatDTOFromPeerEntities(
+				&tg.PeerChat{ChatID: entity.ID},
+				nil,
+				[]tg.ChatClass{entity},
+				proxy,
+				ntp,
+			)
+			if ok {
+				return chat
+			}
+		}
+	}
+	return nil
+}
+
+// savedMessagesCount reads the total number of Saved Messages with one
+// messages.getHistory page (the server returns the total in the slice Count).
+// It is best effort: 0 on any failure so the profile still loads.
+func (s *Service) savedMessagesCount(
+	ctx context.Context,
+	client *telegram.Client,
+	peer tg.InputPeerClass,
+) int {
+	callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	resp, err := client.API().MessagesGetHistory(callCtx, &tg.MessagesGetHistoryRequest{
+		Peer:  peer,
+		Limit: 1,
+	})
+	if err != nil {
+		return 0
+	}
+	switch value := resp.(type) {
+	case *tg.MessagesMessagesSlice:
+		return value.Count
+	case *tg.MessagesMessages:
+		return len(value.Messages)
+	case *tg.MessagesChannelMessages:
+		return value.Count
+	default:
+		return 0
+	}
+}
+
 // resolveLinkedChatID turns a raw linked_chat_id into the opaque peer id the UI
 // navigates with. The linked chat is not always part of the response entities,
 // so the live peer index is used as a fallback.
@@ -350,9 +458,11 @@ func (s *Service) resolveLinkedChatID(entities []tg.ChatClass, linkedID int64) s
 // when the peer is the private chat with the current account (Saved Messages).
 func mapUserProfile(full tg.UserFull, user *tg.User, saved bool) *ChatProfileDTO {
 	profile := &ChatProfileDTO{
-		Type:         ChatProfileTypeUser,
-		CanSend:      true,
-		CanSendPlain: true,
+		Type:            ChatProfileTypeUser,
+		CanSend:         true,
+		CanSendPlain:    true,
+		CanSendStickers: true,
+		CanSendGifs:     true,
 	}
 
 	botInfo, hasBotInfo := full.GetBotInfo()
@@ -370,6 +480,9 @@ func mapUserProfile(full tg.UserFull, user *tg.User, saved bool) *ChatProfileDTO
 	if about, ok := full.GetAbout(); ok && about != "" {
 		profile.About = about
 	}
+	if gifts, ok := full.GetStargiftsCount(); ok {
+		profile.GiftsCount = gifts
+	}
 	if user != nil {
 		profile.Username = user.Username
 		if profile.Username == "" {
@@ -377,6 +490,8 @@ func mapUserProfile(full tg.UserFull, user *tg.User, saved bool) *ChatProfileDTO
 				profile.Username = preferredUsername(usernames)
 			}
 		}
+		usernames, _ := user.GetUsernames()
+		profile.Usernames = activeUsernameList(profile.Username, usernames)
 		if user.Contact || user.MutualContact {
 			if phone, ok := user.GetPhone(); ok {
 				profile.Phone = phone
@@ -421,6 +536,58 @@ func preferredUsername(usernames []tg.Username) string {
 		}
 	}
 	return fallback
+}
+
+// activeUsernameList returns every active username with the main/preferred one
+// first (Web K renders the extra names as "also @x" under the main link row).
+func activeUsernameList(primary string, usernames []tg.Username) []string {
+	ordered := make([]string, 0, len(usernames)+1)
+	seen := make(map[string]struct{}, len(usernames)+1)
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		ordered = append(ordered, name)
+	}
+	add(primary)
+	add(preferredUsername(usernames))
+	for _, username := range usernames {
+		if username.Active {
+			add(username.Username)
+		}
+	}
+	if len(ordered) == 0 {
+		return nil
+	}
+	return ordered
+}
+
+// deriveStickerGifRights applies the chat's default banned rights to the two
+// media classes the emoji picker sends. Sending stickers/GIFs still has to be
+// allowed at all (canSend), and an admin is not restricted by default bans.
+func deriveStickerGifRights(
+	canSend bool,
+	hasBannedRights bool,
+	bannedRights tg.ChatBannedRights,
+) (canSendStickers, canSendGifs bool) {
+	if !canSend {
+		return false, false
+	}
+	canSendStickers, canSendGifs = true, true
+	if hasBannedRights {
+		if bannedRights.SendStickers {
+			canSendStickers = false
+		}
+		if bannedRights.SendGifs {
+			canSendGifs = false
+		}
+	}
+	return canSendStickers, canSendGifs
 }
 
 func mapBotCommands(commands []tg.BotCommand) []BotCommandDTO {
@@ -526,6 +693,12 @@ func mapBasicGroupProfile(full *tg.ChatFull, chat *tg.Chat) *ChatProfileDTO {
 		left,
 		deactivated,
 		hasBanned,
+		bannedRights,
+	)
+	// Default banned rights apply to members, not to admins/owner.
+	profile.CanSendStickers, profile.CanSendGifs = deriveStickerGifRights(
+		profile.CanSend,
+		hasBanned && !profile.IsAdmin,
 		bannedRights,
 	)
 	return profile
@@ -697,6 +870,8 @@ func mapChannelProfile(
 				profile.Username = preferredUsername(usernames)
 			}
 		}
+		usernames, _ := channel.GetUsernames()
+		profile.Usernames = activeUsernameList(profile.Username, usernames)
 	}
 	if megagroup {
 		profile.Type = ChatProfileTypeGroup
@@ -724,6 +899,12 @@ func mapChannelProfile(
 		if pending, ok := full.GetRequestsPending(); ok {
 			requestsPending = pending
 		}
+		if gifts, ok := full.GetStargiftsCount(); ok {
+			profile.GiftsCount = gifts
+		}
+		if admins, ok := full.GetAdminsCount(); ok {
+			profile.AdminsCount = admins
+		}
 		profile.CanViewMembers = full.GetCanViewParticipants() && !full.GetParticipantsHidden()
 	}
 	// Broadcast channels never expose a member list, only the subscriber count.
@@ -745,6 +926,11 @@ func mapChannelProfile(
 		joinToSend:      joinToSend,
 		requestsPending: requestsPending,
 	})
+	profile.CanSendStickers, profile.CanSendGifs = deriveStickerGifRights(
+		profile.CanSend,
+		own.hasBannedRights,
+		own.bannedRights,
+	)
 	return profile
 }
 

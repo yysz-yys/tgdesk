@@ -3,6 +3,7 @@ import type { CSSProperties, MouseEvent, ReactNode } from "react";
 import { Browser } from "@wailsio/runtime";
 import type { DownloadTask, Message, MessageMedia } from "../../types";
 import { Icon } from "../../ui";
+import { openTelegramLink } from "../../lib/telegramLinks";
 import { captureViewerSource, type ViewerSource } from "../media/types";
 import { DownloadBadge } from "./DownloadBadge";
 import { MediaThumb } from "./MediaThumb";
@@ -638,7 +639,7 @@ function WebpageCard({
 }) {
   const open = () => {
     if (media.url) {
-      void Browser.OpenURL(media.url.startsWith("http") ? media.url : `https://${media.url}`);
+      openTelegramLink(media.url);
     } else {
       onToast?.("This preview has no URL");
     }

@@ -11,6 +11,7 @@ import {
   BarChart3,
   Bell,
   BellOff,
+  Bookmark,
   Bot,
   Camera,
   Check,
@@ -240,6 +241,7 @@ const ICONS: Record<string, LucideIcon> = {
   // Telegram-parity additions (info panel, composer, emoji picker, bot UI).
   at: AtSign,
   bot: Bot,
+  bookmark: Bookmark,
   sticker: Sticker,
   gif: Clapperboard,
   camera: Camera,

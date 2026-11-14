@@ -123,6 +123,47 @@ func (s *Service) SetChatPinned(chatID string, pinned bool, proxy, ntp string) e
 	return nil
 }
 
+// LeaveChat leaves a channel/supergroup (channels.leaveChannel) or removes a
+// basic group from the account (messages.deleteChat, the only "leave" call the
+// TL layer exposes for legacy groups). The dialogs and per-chat profile caches
+// are cleared afterwards so the UI edge states (Join plate, chat list) refresh.
+func (s *Service) LeaveChat(chatID, proxy, ntp string) error {
+	peer, err := parsePeerID(chatID)
+	if err != nil {
+		return err
+	}
+
+	s.chatMu.Lock()
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	err = s.withChatClient(ctx, proxy, ntp, func(ctx context.Context, client *telegram.Client) error {
+		switch value := peer.(type) {
+		case *tg.InputPeerChannel:
+			if _, err := client.API().ChannelsLeaveChannel(ctx, &tg.InputChannel{
+				ChannelID:  value.ChannelID,
+				AccessHash: value.AccessHash,
+			}); err != nil {
+				return readableRPCError("leave chat", err)
+			}
+			return nil
+		case *tg.InputPeerChat:
+			if _, err := client.API().MessagesDeleteChat(ctx, value.ChatID); err != nil {
+				return readableRPCError("leave chat", err)
+			}
+			return nil
+		default:
+			return fmt.Errorf("leave chat: this chat cannot be left")
+		}
+	})
+	s.chatMu.Unlock()
+	if err != nil {
+		return err
+	}
+	s.invalidateChatCaches(chatID)
+	return nil
+}
+
 // invalidateDialogsCache drops the short-lived dialog snapshot used by
 // GetChats/GetArchivedChats after a write that changes dialog state.
 func (s *Service) invalidateDialogsCache() {

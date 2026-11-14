@@ -2,6 +2,56 @@
 
 ## Unreleased
 
+### Telegram parity II: stickers/GIFs, in-app mini apps, links, header, Saved Messages
+
+- The emoji picker's **Stickers** and **GIFs** tabs now work like Telegram
+  Web K: installed sticker sets in a 49 px cover rail plus a recent-stickers
+  row and per-set grids (5 × 72 px cells, lazy sections), saved GIFs in a
+  3-column grid, still thumbnails in the grid with a single animated
+  hover/hold preview, click-to-send through `messages.sendMedia` (no upload),
+  pending/blocked/empty/error states and zh/ja/en strings. Sticker/GIF data is
+  fetched through new kernel APIs (`GetStickerPacks`, `GetStickerSet`,
+  `GetSavedGifs`, `SendSticker`, `SendGif`) with opaque document refs and
+  loopback thumb/stream URLs.
+- Bot **Web Apps now open in an in-app overlay**, matching Telegram Web's
+  browser panel instead of a separate frameless OS window: non-modal floating
+  480×688 panel (radius 24, translucent blurred wash, no dark corner wedges),
+  48 px header with close, bot avatar/title tab, a `+` Apps popover (recently
+  opened mini apps + reload + open in browser) and minimize/restore (328×48,
+  iframe kept alive); drag by the header, 8 resize strips, loading/error
+  states, sandboxed iframe with Telegram's allow list and theme params in the
+  URL hash. The old `miniapp.html` window plumbing is gone.
+- The chat **top bar** matches Telegram Web K: floating 696 px plate with
+  24 px radius, 48 px height, 40 px avatar, 16 px/500 title, 14 px status line,
+  40 px search/more buttons, Web K light/dark palette (online status is accent
+  text, not a dot), and the more menu now carries pin/unpin, mark as read,
+  archive/unarchive and download-all.
+- **Broadcast channel info** parity: Telegram's action tiles (Mute/Unmute,
+  Discussion, Leave, More), the `个人信息`/Info bio card, a single t.me link row
+  with a QR-code dialog and the alternate collectible usernames (“also @x, @y”),
+  subscriber counts in the hero, no more duplicate username/count rows, and
+  confirmed Leave (`channels.leaveChannel`) and Discussion navigation.
+  Profile DTOs gained multiple usernames, gift/admin counts and linked chat.
+- **Saved Messages** now behaves like Telegram: localized title and bookmark
+  avatar instead of initials, no unread badge, "N messages" header subtitle
+  (`messages.getHistory` count), a saved-specific info pane with shared-media
+  tabs only (no hero/action tiles/profile rows) and Telegram's “Your cloud
+  storage” empty state.
+- **Telegram links open inside the app**: t.me/telegram.me/tg:// username and
+  post links (including package-prefixed post links) are resolved through
+  `contacts.resolveUsername` and open the chat in-app, paging the history
+  around the post id when it is older than the loaded page; invite links ask
+  for confirmation and join via `messages.importChatInvite`; `@username`
+  mentions and profile links use the same router; unsupported deep links show a
+  toast instead of leaking to the browser. A new `ResolveTelegramLink`,
+  `JoinByInvite`, `JoinPublicChat`, `LeaveChat` and `GetMessagesAround` kernel
+  API backs it.
+- Internal: kernel sticker/GIF caches and ref map, in-app link classifier
+  (pure, unit-tested), removed the detached mini-app window API
+  (`OpenBotWebView`/`OpenMiniApp`/`TakeMiniAppState`), regenerated bindings,
+  new frontend `src/lib/telegramLinks.ts` + `MiniAppOverlay` component and
+  picker subcomponents, docs/CHANGELOG updated.
+
 ### Telegram parity: chat info, composer, bot buttons, mini apps, emoji
 
 - The chat-info pane is now a real Telegram profile instead of three generic

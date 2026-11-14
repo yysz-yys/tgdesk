@@ -31,6 +31,10 @@ export interface ChatComposerProps {
   onSendCommand?: (command: string) => Promise<void>;
   /** Server-side mute toggle for the channel footer. */
   onToggleMute?: () => void;
+  /** Sticker/GIF picker: network params for the kernel RPCs. */
+  network?: { proxy: string; ntp: string };
+  onSendSticker?: (ref: string) => void | Promise<unknown>;
+  onSendGif?: (ref: string) => void | Promise<unknown>;
 }
 
 /**
@@ -55,6 +59,9 @@ export function ChatComposer({
   onOpenBotMenu,
   onSendCommand,
   onToggleMute,
+  network,
+  onSendSticker,
+  onSendGif,
 }: ChatComposerProps) {
   const { t } = useTranslation();
   const channel = isChannelChat(chat, profile);
@@ -126,6 +133,9 @@ export function ChatComposer({
       onOpenBotMenu={onOpenBotMenu}
       onSendCommand={onSendCommand}
       onToast={onToast}
+      network={network}
+      onSendSticker={onSendSticker}
+      onSendGif={onSendGif}
     />
   );
 }

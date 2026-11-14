@@ -598,6 +598,14 @@ function Shell() {
           onSendBotCallback={() => Promise.resolve(null)}
           onOpenBotWebView={noop}
           onSendCommand={() => Promise.resolve()}
+          network={{ proxy: "", ntp: "" }}
+          onSendSticker={() => Promise.resolve()}
+          onSendGif={() => Promise.resolve()}
+          jumpToMessageId={null}
+          onJumpConsumed={noop}
+          onLoadAround={() => Promise.resolve(false)}
+          onRequestLeaveChat={noop}
+          onOpenLinkedChat={noop}
           onTogglePin={togglePin}
           onToggleMute={toggleMute}
           onMarkRead={markRead}

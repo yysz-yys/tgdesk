@@ -3,7 +3,8 @@ import type { Appearance } from "../ui/theme";
 /**
  * Telegram Mini Apps theme params (keys from
  * https://github.com/Telegram-Mini-Apps/tma.js/blob/master/apps/docs/platform/theming.md)
- * mapped onto the tgdesk F tokens / chat bubble palette.
+ * mapped onto the tgdesk F tokens / chat bubble palette. The in-app overlay
+ * injects them into the launch URL hash when the server did not provide them.
  */
 export type MiniAppThemeParams = Record<string, string>;
 

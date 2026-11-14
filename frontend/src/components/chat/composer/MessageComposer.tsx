@@ -46,6 +46,10 @@ export interface MessageComposerProps {
   onOpenBotMenu?: () => void;
   onSendCommand?: (command: string) => Promise<void>;
   onToast: (message: string) => void;
+  /** Sticker/GIF picker: network params for the kernel RPCs. */
+  network?: { proxy: string; ntp: string };
+  onSendSticker?: (ref: string) => void | Promise<unknown>;
+  onSendGif?: (ref: string) => void | Promise<unknown>;
 }
 
 /**
@@ -68,6 +72,9 @@ export function MessageComposer({
   onOpenBotMenu,
   onSendCommand,
   onToast,
+  network,
+  onSendSticker,
+  onSendGif,
 }: MessageComposerProps) {
   const { t } = useTranslation();
   const draftKey = `${DRAFT_PREFIX}${chatId}`;
@@ -95,6 +102,10 @@ export function MessageComposer({
         ? t("input.broadcast")
         : t("input.message");
   const canSendPlain = profile?.canSendPlain ?? true;
+  const canSendStickers = profile?.canSendStickers ?? true;
+  const canSendGifs = profile?.canSendGifs ?? true;
+  const canOpenPicker =
+    canSendPlain || canSendStickers || canSendGifs;
   const slowConfigured = profile?.slowModeSeconds ?? 0;
   const slowNextSend = profile?.slowModeNextSendDate ?? 0;
   const slowRemaining = slowNextSend > nowSeconds ? slowNextSend - nowSeconds : 0;
@@ -559,7 +570,7 @@ export function MessageComposer({
                 aria-haspopup="dialog"
                 aria-expanded={pickerOpen}
                 title={t("input.emoji")}
-                disabled={!canSendPlain}
+                disabled={!canOpenPicker}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={openEmojiPicker}
               >
@@ -597,6 +608,12 @@ export function MessageComposer({
             onOpenChange={setPickerOpen}
             onPick={insertEmoji}
             onToast={onToast}
+            network={network}
+            onSendSticker={onSendSticker}
+            onSendGif={onSendGif}
+            canSendStickers={canSendStickers}
+            canSendGifs={canSendGifs}
+            initialTab={canSendPlain ? undefined : "stickers"}
           />
         </div>
       </div>

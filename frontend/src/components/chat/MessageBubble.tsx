@@ -1,9 +1,12 @@
 import { Fragment, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Browser } from "@wailsio/runtime";
 import type { DownloadTask, Message, MessageButton, Reaction } from "../../types";
 import type { ViewerSource } from "../media/types";
+import {
+  openTelegramLink,
+  openTelegramUsername,
+} from "../../lib/telegramLinks";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -50,7 +53,7 @@ interface MessageBubbleProps {
   onOpenReactions?: (message: Message) => void;
   /** Bot inline-keyboard callback press (AppService.SendBotCallback). */
   onBotCallback?: (message: Message, button: MessageButton) => void;
-  /** Bot web app button press (AppService.OpenBotWebView / mini app window). */
+  /** Bot web app button press (opens the in-app mini app overlay). */
   onBotWebView?: (message: Message, button: MessageButton) => void;
   onToast: (message: string) => void;
 }
@@ -487,7 +490,7 @@ function AutoLinked({ text }: { text: string }) {
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              void Browser.OpenURL(part.url!);
+              openTelegramLink(part.url!);
             }}
           >
             {part.text}
@@ -591,11 +594,29 @@ export function RichText({
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            void Browser.OpenURL(href);
+            openTelegramLink(href);
           }}
         >
           {node}
         </a>
+      );
+    }
+
+    const mention = active.find((entity) => entity.type === "mention");
+    if (mention) {
+      // Telegram Web opens @username mentions as chats inside the app.
+      node = (
+        <button
+          type="button"
+          className="g-message-mention"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            openTelegramUsername(segment);
+          }}
+        >
+          {node}
+        </button>
       );
     }
 

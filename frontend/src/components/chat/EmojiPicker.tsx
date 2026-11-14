@@ -4,12 +4,23 @@
  * The panel is positioned by the caller: it renders `position: absolute` inside
  * the composer card (`inset-inline-end: 0; bottom: calc(100% + 8px)`) and the
  * composer card is the relatively positioned container. Geometry (382 × 420 px,
- * 20 px radius, 49 px footer, 38 px search field, 42 px/8-column grid) follows
- * the measured Telegram Web K values in temp/research/emoji-picker.md §3.
+ * 20 px radius, 49 px footer, 38 px search field, 42 px/8-column emoji grid)
+ * follows the measured Telegram Web K values in temp/research/emoji-picker.md §3.
  *
- * Data is bundled offline: ./../data/emoji.ts ships the ordered lists and
- * ./../data/emojiKeywords.*.ts the per-language search keywords (loaded lazily
- * on first open for the active UI language, cached afterwards).
+ * Tabs: emoji (bundled offline lists + localised keyword search), stickers and
+ * GIFs (real backend data via `src/lib/stickerApi.ts`, bodies in
+ * `./picker/**`). The emoji body owns the search row and category row; the
+ * stickers/GIF bodies are separate panels with their own geometry (5×72 sticker
+ * grid behind a 49 px set rail; 3×124 GIF grid) and keep the shared panel frame,
+ * pop animation, close/Escape/outside-click/focus behaviour and custom overlay
+ * scrollbar. Each new tab fetches lazily on its first open (module-level caches
+ * in stickerApi) and its cells send through the optional `onSendSticker` /
+ * `onSendGif` callbacks while the panel stays open.
+ *
+ * Data for the emoji tab is bundled offline: ./../data/emoji.ts ships the
+ * ordered lists and ./../data/emojiKeywords.*.ts the per-language search
+ * keywords (loaded lazily on first open for the active UI language, cached
+ * afterwards).
  *
  * Recents live in localStorage (`tgdesk.emoji.recent.v1`, MRU, max 32) and are
  * seeded with the "frequently used" list until the user picks their own emoji.
@@ -50,7 +61,12 @@ import {
   type EmojiKeywordTable,
 } from "../../data/emojiKeywords";
 import { cn } from "../../lib/cn";
+import type { PickerNetwork } from "../../lib/stickerApi";
+import { GifsTab } from "./picker/GifsTab";
+import { StickersTab } from "./picker/StickersTab";
 import "./emoji-picker.css";
+
+export type { PickerNetwork } from "../../lib/stickerApi";
 
 export type EmojiPickerTab = "emoji" | "stickers" | "gifs";
 
@@ -59,7 +75,23 @@ export interface EmojiPickerProps {
   onOpenChange: (open: boolean) => void;
   /** Called with the raw Unicode emoji; the caller inserts it at the caret. */
   onPick: (emoji: string) => void;
-  /** Optional toast channel used when the stickers/GIF placeholders are opened. */
+  /**
+   * Account transport for the stickers/GIF tabs (`proxyUrl` + `settings.ntp`),
+   * same pair the rest of AppService takes. Without it the two new tabs show
+   * their "unavailable" state instead of firing RPCs.
+   */
+  network?: PickerNetwork;
+  /** Sends a sticker document by its opaque kernel ref; panel stays open. */
+  onSendSticker?: (ref: string) => void | Promise<unknown>;
+  /** Sends a saved GIF document by its opaque kernel ref; panel stays open. */
+  onSendGif?: (ref: string) => void | Promise<unknown>;
+  /** Peer rights: when false the stickers tab shows the blocked message. */
+  canSendStickers?: boolean;
+  /** Peer rights: when false the GIF tab shows the blocked message. */
+  canSendGifs?: boolean;
+  /** Tab to open on the next panel open (e.g. stickers when text is banned). */
+  initialTab?: EmojiPickerTab;
+  /** Optional toast channel (send failures in the stickers/GIF tabs). */
   onToast?: (message: string) => void;
   /** Optional: the composer trigger; focus returns there when the panel closes. */
   triggerRef?: RefObject<HTMLButtonElement | null>;
@@ -319,12 +351,18 @@ export function EmojiPicker({
   open,
   onOpenChange,
   onPick,
+  network,
+  onSendSticker,
+  onSendGif,
+  canSendStickers,
+  canSendGifs,
+  initialTab,
   onToast,
   triggerRef,
   className,
 }: EmojiPickerProps) {
   const { t, i18n } = useTranslation();
-  const [tab, setTab] = useState<EmojiPickerTab>("emoji");
+  const [tab, setTab] = useState<EmojiPickerTab>(initialTab ?? "emoji");
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState<string[]>(readRecentEmojis);
   const [keywordState, setKeywordState] = useState<{
@@ -351,7 +389,8 @@ export function EmojiPicker({
   const restoredFocusRef = useRef(false);
   const suppressRestoreRef = useRef(false);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const toastedTabsRef = useRef<Set<EmojiPickerTab>>(new Set());
+  const initialTabRef = useRef<EmojiPickerTab>(initialTab ?? "emoji");
+  initialTabRef.current = initialTab ?? "emoji";
 
   const language = resolveEmojiKeywordLanguage(i18n.resolvedLanguage ?? i18n.language);
   const searchText = query.trim();
@@ -383,7 +422,8 @@ export function EmojiPicker({
   const normalLength = recent.length + EMOJI_ALL.length;
   const viewLength = searching ? (searchResults?.length ?? 0) : normalLength;
 
-  // Reset transient UI state every time the panel opens; focus the search field.
+  // Reset transient UI state every time the panel opens; focus the search field
+  // (or, when the caller asks for stickers/GIFs, the tab body focuses itself).
   useEffect(() => {
     if (!open) {
       restoredFocusRef.current = false;
@@ -392,13 +432,17 @@ export function EmojiPicker({
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     suppressRestoreRef.current = false;
-    setTab("emoji");
+    const wantedTab = initialTabRef.current;
+    setTab(wantedTab);
     setQuery("");
     setRecent(readRecentEmojis());
     setFocusedIndex(0);
     setActiveCategory("recent");
-    toastedTabsRef.current.clear();
-    const frame = requestAnimationFrame(() => searchRef.current?.focus());
+    const frame = requestAnimationFrame(() => {
+      if (wantedTab === "emoji") {
+        searchRef.current?.focus();
+      }
+    });
     return () => cancelAnimationFrame(frame);
   }, [open]);
 
@@ -788,22 +832,15 @@ export function EmojiPicker({
     scroller.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
   }, []);
 
-  const selectTab = useCallback(
-    (nextTab: EmojiPickerTab) => {
-      setTab(nextTab);
-      if (nextTab === "emoji") {
-        requestAnimationFrame(() => searchRef.current?.focus());
-        return;
-      }
-      if (onToast && !toastedTabsRef.current.has(nextTab)) {
-        toastedTabsRef.current.add(nextTab);
-        onToast(
-          t(nextTab === "stickers" ? "emojiPicker.stickersSoon" : "emojiPicker.gifsSoon"),
-        );
-      }
-    },
-    [onToast, t],
-  );
+  // Switching tabs swaps the whole body: the emoji tab keeps its own markup and
+  // search row; the stickers/GIF tabs mount their real data bodies (the first
+  // mount of each is what triggers that tab's lazy fetch, cached module-side).
+  const selectTab = useCallback((nextTab: EmojiPickerTab) => {
+    setTab(nextTab);
+    if (nextTab === "emoji") {
+      requestAnimationFrame(() => searchRef.current?.focus());
+    }
+  }, []);
 
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
 
@@ -875,13 +912,13 @@ export function EmojiPicker({
       data-searching={searching ? "true" : undefined}
       data-tab={tab}
     >
-      <div
-        className="g-emoji-picker-body"
-        id="g-emoji-picker-panel-emoji"
-        role="tabpanel"
-        aria-labelledby="g-emoji-picker-tab-emoji"
-        hidden={tab !== "emoji"}
-      >
+      {tab === "emoji" ? (
+        <div
+          className="g-emoji-picker-body"
+          id="g-emoji-picker-panel-emoji"
+          role="tabpanel"
+          aria-labelledby="g-emoji-picker-tab-emoji"
+        >
         <div className="g-emoji-picker-search" role="search">
           <Search className="g-emoji-picker-search-icon" size={17} strokeWidth={1.9} aria-hidden="true" />
           <input
@@ -957,21 +994,36 @@ export function EmojiPicker({
             />
           </div>
         </div>
-      </div>
-
-      {tab === "emoji" ? null : (
+        </div>
+      ) : tab === "stickers" ? (
         <div
-          className="g-emoji-picker-body g-emoji-picker-soon"
-          id={`g-emoji-picker-panel-${tab}`}
+          className="g-emoji-picker-body"
+          id="g-emoji-picker-panel-stickers"
           role="tabpanel"
-          aria-labelledby={`g-emoji-picker-tab-${tab}`}
+          aria-labelledby="g-emoji-picker-tab-stickers"
         >
-          {tab === "stickers" ? (
-            <Sticker size={30} strokeWidth={1.6} aria-hidden="true" />
-          ) : (
-            <Clapperboard size={30} strokeWidth={1.6} aria-hidden="true" />
-          )}
-          <p>{t(tab === "stickers" ? "emojiPicker.stickersSoon" : "emojiPicker.gifsSoon")}</p>
+          <StickersTab
+            network={network}
+            canSend={canSendStickers ?? true}
+            onSend={onSendSticker}
+            onToast={onToast}
+            autoFocus
+          />
+        </div>
+      ) : (
+        <div
+          className="g-emoji-picker-body"
+          id="g-emoji-picker-panel-gifs"
+          role="tabpanel"
+          aria-labelledby="g-emoji-picker-tab-gifs"
+        >
+          <GifsTab
+            network={network}
+            canSend={canSendGifs ?? true}
+            onSend={onSendGif}
+            onToast={onToast}
+            autoFocus
+          />
         </div>
       )}
 
@@ -988,7 +1040,9 @@ export function EmojiPicker({
                 id={`g-emoji-picker-tab-${tabId}`}
                 className="g-emoji-picker-tab"
                 aria-selected={tab === tabId}
-                aria-controls={`g-emoji-picker-panel-${tabId}`}
+                aria-controls={
+                  tab === tabId ? `g-emoji-picker-panel-${tabId}` : undefined
+                }
                 aria-label={label}
                 title={label}
                 data-testid={`emoji-picker-tab-${tabId}`}
