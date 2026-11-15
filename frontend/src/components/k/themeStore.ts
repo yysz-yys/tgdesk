@@ -206,20 +206,19 @@ function wallpaperOf(settings?: ChatThemeSettingsDTO): ActiveWallpaper | undefin
     return undefined;
   }
   const base = settings?.baseTheme;
-  const tinted = base === "tinted";
-  // The reference's two dark render paths (tweb chatBackground):
-  //  - tinted (a cloud theme's night side): the gradient at full opacity with the
-  //    inverted pattern as a soft-light overlay at a fixed .38;
-  //  - night (the factory Night wallpaper): a black mask with the doodles
-  //    punched out, the gradient dimmed behind it.
-  const mask = !tinted && (base === "night" || wallpaper.dark === true);
+  // Every dark wallpaper (the factory Night one and a cloud theme's Tinted/Night
+  // side) uses the reference's mask render path in the dark shell: a black plate
+  // with the doodles punched out over the dimmed gradient — the official Web K
+  // Night look (black background, theme-coloured doodle line art). The
+  // full-brightness inverted-overlay path is only the Tinted *theme* variant in
+  // tweb, which this application does not expose.
+  const mask =
+    Boolean(wallpaper.dark) || base === "night" || base === "tinted";
   return {
     colors,
-    intensity: tinted
-      ? 0.38
-      : Math.max(0, Math.min(1, Math.abs(wallpaper.intensity ?? 50) / 100)),
+    intensity: Math.max(0, Math.min(1, Math.abs(wallpaper.intensity ?? 50) / 100)),
     patternUrl: wallpaper.patternUrl || DEFAULT_PATTERN_URL,
-    dark: tinted || mask || Boolean(wallpaper.dark),
+    dark: mask,
     mask,
   };
 }
@@ -320,12 +319,14 @@ function applyAccent(accent: string | undefined, night: boolean) {
   root.style.setProperty("--dark-primary-color", darkenHex(accent));
   root.style.setProperty("--primary-button-color", accent);
   root.style.setProperty("--link-color", accent);
-  // Saved Messages follows the theme's accent (the factory pair is accent + a
-  // 36% surface mix, see the light block's #78ace4 over #2d7ed5).
+  // Saved Messages follows the theme's accent. The reference always mixes its
+  // avatar top against white (tweb applyAppColor saved-color: lightenAlpha .64,
+  // mixColor white), so the gradient stays bright in the dark shell too — the
+  // factory pair is #b2a6eb over #8774e1 on Night and #78ace4 over #2d7ed5 on Day.
   root.style.setProperty("--saved-color", accent);
   root.style.setProperty(
     "--light-filled-saved-color",
-    mixHex(surface, accent, 0.36),
+    mixHex("#ffffff", accent, 0.64),
   );
 }
 

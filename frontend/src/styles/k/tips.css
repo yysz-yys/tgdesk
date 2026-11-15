@@ -289,6 +289,16 @@
   pointer-events: none;
 }
 
+/* The Night mask render of a tile's wallpaper (tweb's mask path): the gradient
+   only shows through the doodle lines, dimmed over the tile's black plate. */
+.k-root .k-tip-theme-mask {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 /* the miniature chat: outgoing bubble at the top end, incoming one below at the
    start, in the reference's fractions of the tile (40×20 at 8px/6px insets) */
 .k-root .k-tip-theme-bubble {

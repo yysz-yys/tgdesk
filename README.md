@@ -70,10 +70,12 @@ home for the sections that are not ported yet.
   fades) and off, and the choice is remembered.
 - **Dark mode across the Web K shell too**: the Dark Mode menu entry and the
   Appearance tip's System / Dark / Light pills flip the whole app. The K shell
-  gets Web K's Night token set (dark surfaces and wallpaper render paths — the
-  factory Night doodle-mask plate and the tinted cloud-theme gradients), the
-  dropdown menus follow, and an applied global theme switches to its night side
-  in the dark shell, back to its day side in the light one.
+  gets Web K's Night token set, the reference's doodle-mask wallpapers (every
+  dark wallpaper is an almost-black plate with the theme's gradient showing
+  through the doodles, exactly like the official Night look) and matching Night
+  avatar colours; the dropdown menus follow, and an applied global theme
+  switches to its night side in the dark shell, back to its day side in the
+  light one.
 - **Global themes**: the empty-column Appearance tip shows Telegram's theme
   strip — the factory tile plus the eight global themes 🐥 ⛄ 💎 👨‍🏫 🌷 💜 🎄 🎮,
   each with its wallpaper, pattern, bubbles and animated-emoji figure. The nine

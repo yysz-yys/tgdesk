@@ -202,7 +202,10 @@
   --danger-button-color: #ff595a;
 
   --saved-color: #8774e1;
-  --light-filled-saved-color: #453e66;
+  /* tweb applyAppColor mixes the saved avatar's top against white (lightenAlpha
+   * .64, mixColor white) in every theme, so Night keeps the bright purple top:
+   * mix(#8774e1, #ffffff, .64) = #b2a6eb. */
+  --light-filled-saved-color: #b2a6eb;
 
   /* text */
   --primary-text-color: #ffffff;

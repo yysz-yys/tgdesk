@@ -42,6 +42,7 @@ frontend/src/components/k/          the Web K UI
   KArchiveMenu.tsx                  the archived-chats header menu
   KChatTips.tsx                     the tips deck
   KThemeEmoticon.tsx                one theme tile's animated-emoji figure (Lottie)
+  KThemeTileMask.tsx                a tile's Night mask wallpaper (gradient × doodles canvas)
   themeEmojiAssets.ts               the nine bundled TGS figures (first-paint assets)
   themeEmojiCache.ts                figure resolution: bundled → IndexedDB/kernel URL
   themeStore.ts                     global-theme application (accent + wallpaper) and active-theme store
@@ -120,15 +121,19 @@ At a 1450×790 viewport this gives the same doodle tile (~398×816 CSS px) as th
 reference capture; the colours differ from the JPEG only by its wide-gamut (P3)
 capture encoding.
 
-The dark shell has two render paths, both ported from `chatBackground.tsx`: the
-factory Night wallpaper (negative intensity / `dark` pflags) uses the **mask**
-path — a black canvas with the doodles punched out (`destination-out`) over the
-gradient, which is dimmed to `max(.3, |intensity| / 2)` — while a cloud theme's
-night side (Tinted base) uses the **overlay** path: the gradient at full opacity
-with the inverted doodle pattern composited `soft-light` at the fixed `.38`.
-`KWallpaper` picks the path from the applied wallpaper, so the factory Night look
-is the reference's almost-black plate with colourful doodles, while a tinted
-theme keeps its navy/green gradient.
+The dark shell's wallpapers all use the reference's **mask** render path, the
+one tweb picks for a Night-base theme (`chatBackground.tsx`): the gradient is
+dimmed to `max(.3, |intensity| / 2)` and covered by a black canvas with the
+doodles punched out (`destination-out`), so the page reads almost black with the
+theme's gradient showing through the doodle line art. That is what the official
+Web K does for the factory Night wallpaper *and* for a cloud theme applied in
+dark mode — the chick theme becomes a black page with the zoo doodles in its
+night-green gradient, the snowman theme a black page with blue snowflakes, and
+so on. (tweb's full-opacity inverted-overlay blend only applies to its separate
+"Tinted" dark-blue theme, which this port does not expose.) The Appearance
+tiles preview the same look through `KThemeTileMask`: a 72×96 canvas that keeps
+the gradient only along the doodles, because a cross-origin SVG cannot be used
+as a CSS `mask-image` while drawing it into a canvas works.
 
 ## Components map to tweb markup
 

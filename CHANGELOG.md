@@ -12,16 +12,24 @@
   highlighting colour. The whole ported surface follows: chat list, folder chips,
   search, FAB, settings, new-chat pages, menus, window-chrome pill and the tips
   deck, all derived from tweb's `colorMap.night` + `base.scss .night` formulas.
-- **Night wallpapers render like the reference**: the factory Night wallpaper uses
-  the doodle *mask* path (an almost-black plate with the peach/pink/purple
-  gradient showing through the doodles, the gradient dimmed to `max(.3,
-  |intensity|/2)`), while a cloud theme's night (Tinted) side uses the inverted
-  doodle overlay at the fixed `.38` — both ported from tweb's `chatBackground`
-  renderer.
+- **Night wallpapers render like the reference**: every dark wallpaper uses the
+  doodle *mask* path from tweb's `chatBackground` — a black plate with the
+  doodles punched out, the gradient dimmed to `max(.3, |intensity|/2)` and
+  showing through the line art. That matches the official Web K for the factory
+  Night wallpaper and for a cloud theme applied in dark mode (the chick theme
+  becomes a black page with its zoo doodles in the theme's night-green gradient,
+  the snowman theme a black page with blue snowflakes, …); the Appearance tiles
+  preview the same look on a small canvas (a cross-origin SVG cannot be a CSS
+  mask, but it can be drawn into a canvas).
 - **Applied themes follow the shell**: a global theme now switches between its
   day (Classic/Day) and night (Tinted/Night) settings when the shell flips
   brightness — accent, derived mixes, highlighting and wallpaper all repaint in
   the same layout frame; the Appearance strip previews the matching side.
+- **The Saved Messages avatar keeps its bright gradient in dark mode**: its top
+  colour is the accent mixed with white (tweb `applyAppColor` saved-color:
+  `lightenAlpha .64`, `mixColor` white, in every theme), so a dark-shell theme
+  shows `#93bb99 → #56945f` for the chick theme instead of the dark-olive mix it
+  had before. The factory Night pair is `#b2a6eb → #8774e1`.
 - **Menus are portalled outside `.k-root`**, so the K dropdowns (hamburger,
   archive, new-chat, settings menu) key their Night plate/text/hover colours off
   the app-wide `html[data-theme="dark"]` signal instead of the K tokens; the

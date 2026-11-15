@@ -20,6 +20,7 @@ import {
 } from "./themeStore";
 import { DEFAULT_TILE_THEME, FALLBACK_GLOBAL_THEMES } from "./globalThemes";
 import { KThemeEmoticon, type KThemeEmoticonHandle } from "./KThemeEmoticon";
+import { KThemeTileMask } from "./KThemeTileMask";
 import { bundledThemeEmoji } from "./themeEmojiAssets";
 import {
   preloadThemeEmoji,
@@ -40,6 +41,16 @@ interface ThemePreview {
   patternOpacity: number;
   /** Dark wallpapers draw their black-on-transparent doodles inverted. */
   patternInvert: boolean;
+  /** /
+   * The reference's two wallpaper renders (tweb chatBackground): the light/tinted
+   * overlay (gradient + soft-light doodles) or the Night mask (a black plate with
+   * the doodles punched out over the dimmed gradient).
+   */
+  render: "overlay" | "mask";
+  /** Mask render: how much of the gradient shows through the doodles. */
+  maskOpacity: number;
+  /** Mask render: the wallpaper's four gradient stops (canvas needs them). */
+  stops: string[];
   /** The outgoing bubble: the theme's message gradient, else its accent. */
   outBubble: string;
   night: boolean;
@@ -91,6 +102,13 @@ function themePreview(theme: ChatThemeDTO, night: boolean): ThemePreview {
       Math.min(1, Math.abs(wallpaper?.intensity ?? 50) / 100),
     ),
     patternInvert: Boolean(wallpaper?.dark),
+    render: night && Boolean(wallpaper?.dark) ? "mask" : "overlay",
+    // tweb dims the mask-path gradient to max(.3, |intensity| / 2).
+    maskOpacity: Math.max(
+      0.3,
+      Math.min(1, Math.abs(wallpaper?.intensity ?? 50) / 200),
+    ),
+    stops,
     outBubble:
       messageColors.length > 1
         ? `linear-gradient(135deg, ${messageColors[messageColors.length - 1]}, ${messageColors[0]})`
@@ -395,21 +413,37 @@ export function KChatTips({
                     ? "k-tip-theme-preview is-night"
                     : "k-tip-theme-preview"
                 }
-                style={{ background: tile.preview.wallpaper }}
+                style={{
+                  background:
+                    tile.preview.render === "mask"
+                      ? "#000000"
+                      : tile.preview.wallpaper,
+                }}
               >
-                <img
-                  className="k-tip-theme-pattern"
-                  src={tile.preview.patternUrl}
-                  alt=""
-                  aria-hidden="true"
-                  draggable={false}
-                  style={{
-                    opacity: tile.preview.patternOpacity,
-                    filter: tile.preview.patternInvert
-                      ? "invert(1)"
-                      : undefined,
-                  }}
-                />
+                {tile.preview.render === "mask" ? (
+                  // The Night mask render: the gradient only shows through the
+                  // doodle lines, dimmed over a black plate (tweb chatBackground).
+                  <KThemeTileMask
+                    colors={tile.preview.stops}
+                    patternUrl={tile.preview.patternUrl}
+                    opacity={tile.preview.maskOpacity}
+                    enabled={!hidden}
+                  />
+                ) : (
+                  <img
+                    className="k-tip-theme-pattern"
+                    src={tile.preview.patternUrl}
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                    style={{
+                      opacity: tile.preview.patternOpacity,
+                      filter: tile.preview.patternInvert
+                        ? "invert(1)"
+                        : undefined,
+                    }}
+                  />
+                )}
                 <span
                   className="k-tip-theme-bubble is-out"
                   style={{ background: tile.preview.outBubble }}
