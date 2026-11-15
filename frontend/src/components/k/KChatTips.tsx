@@ -20,6 +20,12 @@ import {
 } from "./themeStore";
 import { DEFAULT_TILE_THEME, FALLBACK_GLOBAL_THEMES } from "./globalThemes";
 import { KThemeEmoticon, type KThemeEmoticonHandle } from "./KThemeEmoticon";
+import { bundledThemeEmoji } from "./themeEmojiAssets";
+import {
+  preloadThemeEmoji,
+  readCachedEmojiRefs,
+  saveCachedEmojiRefs,
+} from "./themeEmojiCache";
 import { useRipple } from "./useRipple";
 import { Service as AppService } from "../../../bindings/tgdesk/internal/app";
 
@@ -46,6 +52,8 @@ interface ThemeTile {
   preview: ThemePreview;
   /** Loopback Lottie URL of the theme's animated-emoji figure, if the kernel served one. */
   emoticonUrl?: string;
+  /** Sticker ref id remembered from an earlier launch (cache key before URLs arrive). */
+  emoticonRef?: string;
 }
 
 /**
@@ -125,9 +133,14 @@ export function KChatTips({
   const [chatFilter, setChatFilter] = useState("popular");
   const [themes, setThemes] = useState<ChatThemeDTO[] | null>(null);
   const [emoticonUrls, setEmoticonUrls] = useState<Record<string, string>>({});
+  // Sticker ref ids remembered from an earlier launch: they let the tiles draw
+  // their figures from the IndexedDB cache before the kernel's animated-emoji
+  // metadata arrives (the URLs themselves carry a new token every launch).
+  const [cachedEmoticonRefs, setCachedEmoticonRefs] =
+    useState<Record<string, string>>(() => readCachedEmojiRefs());
   const activeTheme = useActiveTheme();
   const stripRef = useRef<HTMLDivElement>(null);
-  const emoticonRefs = useRef(new Map<number, KThemeEmoticonHandle>());
+  const figureHandles = useRef(new Map<number, KThemeEmoticonHandle>());
   const playingEmoticon = useRef<KThemeEmoticonHandle | null>(null);
 
   // The cloud themes (account.getChatThemes through the kernel) fill the
@@ -179,10 +192,9 @@ export function KChatTips({
     };
   }, [proxyUrl, ntp]);
 
-  // The tiles' figures are Telegram's animated emoji (one Lottie/TGS file each),
-  // served by the kernel from the animated-emoji sticker set. They render paused
-  // on their first frame; clicking a tile plays that tile's micro-animation (see
-  // KThemeEmoticon). Without the kernel the tiles keep their plain emoji glyphs.
+  // The tiles' figures are Telegram's animated emoji (one TGS/Lottie file each).
+  // The stock ones ship with the app and load instantly; only an emoticon with
+  // no bundled file needs the kernel's animated-emoji endpoint.
   const emoticonList = useMemo(
     () =>
       Array.from(
@@ -195,17 +207,21 @@ export function KChatTips({
     [themes],
   );
 
+  // Emoticons the app does not carry a figure for: the kernel's live set is the
+  // only source, and its answer is cached for the next launches.
+  const kernelEmoticons = useMemo(
+    () => emoticonList.filter((emoticon) => !bundledThemeEmoji(emoticon)),
+    [emoticonList],
+  );
+
   useEffect(() => {
-    // The figures are only visible while the deck is open: defer the sticker-set
-    // round-trip and the nine Lottie files until then, so a launch that never
-    // opens the tips deck does not fetch them.
-    if (hidden || proxyUrl === undefined || emoticonList.length === 0) return;
+    if (proxyUrl === undefined || kernelEmoticons.length === 0) return;
     let alive = true;
     try {
       void AppService.GetAnimatedEmojiStickers(
         proxyUrl,
         ntp ?? "",
-        emoticonList,
+        kernelEmoticons,
       )
         .then((list) => {
           if (!alive) return;
@@ -214,6 +230,8 @@ export function KChatTips({
             if (item?.url) next[item.emoticon] = item.url;
           }
           setEmoticonUrls(next);
+          saveCachedEmojiRefs(next);
+          setCachedEmoticonRefs(readCachedEmojiRefs());
         })
         .catch(() => {
           // Keep the plain emoji glyphs; the strip still shows every theme.
@@ -224,7 +242,14 @@ export function KChatTips({
     return () => {
       alive = false;
     };
-  }, [proxyUrl, ntp, emoticonList, hidden]);
+  }, [proxyUrl, ntp, kernelEmoticons]);
+
+  // Warm the bundled figures once the deck is opened, so the first click plays a
+  // ready animation. Closed-deck launches do not parse them at all.
+  useEffect(() => {
+    if (hidden || emoticonList.length === 0) return;
+    void preloadThemeEmoji(emoticonList);
+  }, [hidden, emoticonList]);
 
   // A vertical mouse wheel scrolls the theme strip sideways, the way the
   // reference's scroll container does. Native listener: React's wheel handler
@@ -258,6 +283,9 @@ export function KChatTips({
         : themeName(theme, t("tips.colorTheme")),
       preview: themePreview(theme, resolvedNight),
       emoticonUrl: theme.emoticon ? emoticonUrls[theme.emoticon] : undefined,
+      emoticonRef: theme.emoticon
+        ? cachedEmoticonRefs[theme.emoticon]
+        : undefined,
     };
   });
 
@@ -328,7 +356,7 @@ export function KChatTips({
                 // cancelling one still running on another tile, then apply the
                 // theme — the reference starts both on the same click.
                 const figure =
-                  emoticonRefs.current.get(tile.theme.id) ?? null;
+                  figureHandles.current.get(tile.theme.id) ?? null;
                 if (
                   playingEmoticon.current &&
                   playingEmoticon.current !== figure
@@ -374,13 +402,17 @@ export function KChatTips({
                   <KThemeEmoticon
                     ref={(handle) => {
                       if (handle) {
-                        emoticonRefs.current.set(tile.theme.id, handle);
+                        figureHandles.current.set(tile.theme.id, handle);
                       } else {
-                        emoticonRefs.current.delete(tile.theme.id);
+                        figureHandles.current.delete(tile.theme.id);
                       }
                     }}
                     emoticon={tile.theme.emoticon}
+                    // The figures are only painted while the deck is open; the
+                    // bundled ones load from local assets the moment it opens.
                     url={tile.emoticonUrl}
+                    cacheRef={tile.emoticonRef}
+                    enabled={!hidden}
                   />
                 ) : null}
               </span>

@@ -42,6 +42,8 @@ frontend/src/components/k/          the Web K UI
   KArchiveMenu.tsx                  the archived-chats header menu
   KChatTips.tsx                     the tips deck
   KThemeEmoticon.tsx                one theme tile's animated-emoji figure (Lottie)
+  themeEmojiAssets.ts               the nine bundled TGS figures (first-paint assets)
+  themeEmojiCache.ts                figure resolution: bundled → IndexedDB/kernel URL
   themeStore.ts                     global-theme application (accent + wallpaper) and active-theme store
   globalThemes.ts                   the eight global themes + factory tile (offline/preview fallback)
   tipsStore.ts                      tips deck state (open/index, persisted)
@@ -62,6 +64,7 @@ frontend/src/styles/k/              plain CSS ported from tweb's SCSS
 frontend/public/assets/             bundled tweb assets
   img/pattern.svg                   doodle wallpaper pattern (1440×2960)
   tgs/UtyanSearch.json              the "No results" duck (Lottie, empty search state)
+  tgs/themes/*.tgs                  the nine Appearance figures (TGS = gzipped Lottie JSON)
   fonts/tgico.{ttf,woff}            Web K icon font
   fonts/KFO*.woff2                  Roboto subsets (400/500 latin + latin-ext)
   fonts/Roboto-LICENSE.txt          Apache-2.0 text
@@ -271,19 +274,24 @@ capture encoding.
   so the strip is complete even before the kernel answers.
 - **Animated tile figures**: the figure at the bottom of each tile is the theme's
   Telegram *animated emoji* (`🏠` for the factory tile, then the theme emoticon),
-  not a system font glyph. The kernel's `GetAnimatedEmojiStickers` reads
-  Telegram's animated-emoji sticker set (`messages.getStickerSet` with the
-  `inputStickerSetAnimatedEmoji` pseudo-set) and serves each TGS document lazily
-  on a second loopback endpoint (`/emoji/…`, gunzipped to Lottie JSON, cached);
-  `KThemeEmoticon.tsx` renders it with the bundled lottie-web paused on its first
-  frame. Clicking a tile plays the reference's micro-animation (tweb's
+  not a system font glyph. The nine the strip needs ship with the app as the
+  original TGS files (`public/assets/tgs/themes`, gzipped Lottie JSON, ~276 KB in
+  total), so the figures and their animations are ready on the very first launch,
+  offline, and in `KPreview`; `KThemeEmoticon.tsx` renders them with the bundled
+  lottie-web paused on their first frame. The kernel's `GetAnimatedEmojiStickers`
+  (Telegram's animated-emoji sticker set via `messages.getStickerSet` +
+  `inputStickerSetAnimatedEmoji`, served lazily on a `/emoji/…` loopback endpoint
+  as gunzipped Lottie JSON) remains the live source for any emoticon not bundled
+  — a theme Telegram adds later — and those downloads are cached in IndexedDB.
+  Clicking a tile plays the reference's micro-animation (tweb's
   `chatThemesPicker`): after a 250 ms beat the figure is scaled to 2× over the
   standard transition, the Lottie runs once to its last frame and the figure
-  settles back; a click on another tile cancels the previous one. The motion only
-  runs at the full animation level (2) with the OS reduce-motion preference off,
-  and the active tile is not a click target, both as in tweb. The animated set is
-  fetched only once the deck is opened, and the plain emoji glyph is the fallback
-  (also the dev-preview state, which has no kernel).
+  settles back; a click on another tile cancels the previous one, and a click that
+  lands while a non-bundled figure is still loading is replayed as soon as it is
+  ready. The motion only runs at the full animation level (2) with the OS
+  reduce-motion preference off, and the active tile is not a click target, both
+  as in tweb. Nothing is parsed while the deck is closed; the plain emoji glyph
+  is the fallback when a figure cannot be loaded.
 - **Chat-tips deck**: the lightbulb in the page's top-right corner folds the deck in and out
   (`KTipsToggle`, lamp ↔ cross), exactly like tweb `components/chatTips` after the macOS
   widget: a 320×320 card centred in the empty column with custom Previous / Next service
