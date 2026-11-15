@@ -3,15 +3,104 @@
  * a drag strip (with the 16 px wallpaper inset as its hit area) and a Web K
  * styled pill with minimise / maximise / close. */
 
+/* The caption strip starts below Windows' native frameless resize band (the
+ * outer 8 CSS px) so its plain caption cursor sits exactly on the part that
+ * actually drags; the resize frame below paints the resize cursors over the
+ * native resize band itself. */
 .k-window-drag-strip {
   position: fixed;
-  top: 0;
+  top: 8px;
   inset-inline: 0;
-  height: 16px;
+  height: 8px;
   z-index: 900;
   cursor: default;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* Wails answers the frameless window's WM_NCHITTEST with HTTOP/… for the outer
+ * `SM_CYSIZEFRAME + SM_CXPADDEDBORDER` band — 8 CSS px at every DPI, because
+ * the metrics scale with the DPI. The page's own cursor would otherwise be
+ * painted over that band (the WebView keeps its CSS cursor), so resize and drag
+ * looked identical along the top edge and a drag attempt near it could resize
+ * instead. These invisible strips only paint the system cursor for the native
+ * resize zones: 8 px edges and their corners, then the inner 8 px of the top
+ * strip is the plain caption cursor. Hidden while maximised (no resize border
+ * then). */
+.k-window-resize-frame {
+  --k-window-resize-edge: 8px;
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+}
+
+.k-window-resize {
+  position: absolute;
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.k-window-resize-top {
+  top: 0;
+  inset-inline: 0;
+  height: var(--k-window-resize-edge);
+  cursor: ns-resize;
+}
+
+.k-window-resize-bottom {
+  bottom: 0;
+  inset-inline: 0;
+  height: var(--k-window-resize-edge);
+  cursor: ns-resize;
+}
+
+.k-window-resize-left {
+  left: 0;
+  inset-block: 0;
+  width: var(--k-window-resize-edge);
+  cursor: ew-resize;
+}
+
+.k-window-resize-right {
+  right: 0;
+  inset-block: 0;
+  width: var(--k-window-resize-edge);
+  cursor: ew-resize;
+}
+
+.k-window-resize-top-left,
+.k-window-resize-top-right,
+.k-window-resize-bottom-left,
+.k-window-resize-bottom-right {
+  width: var(--k-window-resize-edge);
+  height: var(--k-window-resize-edge);
+  z-index: 1;
+}
+
+.k-window-resize-top-left {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.k-window-resize-top-right {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.k-window-resize-bottom-left {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+
+.k-window-resize-bottom-right {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
 }
 
 .k-window-controls {
@@ -98,10 +187,11 @@ html.k-chrome-visible .k-root .chat-tips-toggle {
   transition: opacity 0.15s ease, visibility 0s linear 0.15s;
 }
 
-/* Floating (narrow) layout insets the page by 8 px, so the caption hit area must
- * shrink with it — it must never cover the sidebar card. */
+/* Floating (narrow) layout insets the page by 8 px, exactly the native resize
+ * band: the top edge is resize-only there, and a drag strip would sit on card
+ * content, so it is hidden rather than shadowing clicks. */
 @media (max-width: 925px) {
   .k-window-drag-strip {
-    height: 8px;
+    display: none;
   }
 }

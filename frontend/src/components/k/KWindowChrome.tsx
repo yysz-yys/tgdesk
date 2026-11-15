@@ -49,6 +49,18 @@ const dragStyle = { "--wails-draggable": "drag" } as CSSProperties;
  *   - toggles maximise on double click,
  *   - reveals web K-styled minimise / maximise / close buttons while the pointer
  *     is near the top edge; they fade away again, so the idle page stays 1:1.
+ *
+ * The Windows frameless window also resizes from its outer edge: Wails answers
+ * WM_NCHITTEST with HTTOP/… for the outer `SM_CYSIZEFRAME + SM_CXPADDEDBORDER`
+ * band, which is 8 CSS px on any DPI (the system metrics scale with the DPI and
+ * cancel out in CSS px). Above the drag strip that band is a *resize* zone, but
+ * the page's cursor would still be whatever CSS the DOM under the pointer
+ * carries, so resize and drag looked identical along the whole top edge and a
+ * drag attempt could turn into a resize. The resize frame below paints the
+ * matching resize cursor exactly on that band (and on the other three edges and
+ * corners), leaving the inner 8 px of the strip as the plain caption cursor for
+ * dragging. It is hidden while the window is maximised, when Windows disables
+ * the resize border.
  */
 export function KWindowChrome() {
   const [visible, setVisible] = useState(false);
@@ -109,7 +121,9 @@ export function KWindowChrome() {
   return (
     <>
       {/* Invisible top strip: window drag surface + caption hover target. The
-          page's 16 px wallpaper inset means nothing interactive lives here. */}
+          page's 16 px wallpaper inset means nothing interactive lives here; the
+          outer 8 px are the native resize band, which the resize frame below
+          covers with its cursor. */}
       <div
         className="k-window-drag-strip"
         style={dragStyle}
@@ -117,6 +131,24 @@ export function KWindowChrome() {
         onMouseEnter={reveal}
         aria-hidden="true"
       />
+
+      {/* Resize cursor overlays for the native frameless resize border. Wails
+          resizes the window from the outer 8 CSS px, but the WebView keeps
+          painting its own cursor there, so these edge strips (and corners) give
+          the resize zones the system cursors; the inner part of the top strip
+          stays the caption cursor for dragging. */}
+      {!maximised && (
+        <div className="k-window-resize-frame" aria-hidden="true">
+          <div className="k-window-resize k-window-resize-top" />
+          <div className="k-window-resize k-window-resize-bottom" />
+          <div className="k-window-resize k-window-resize-left" />
+          <div className="k-window-resize k-window-resize-right" />
+          <div className="k-window-resize k-window-resize-top-left" />
+          <div className="k-window-resize k-window-resize-top-right" />
+          <div className="k-window-resize k-window-resize-bottom-left" />
+          <div className="k-window-resize k-window-resize-bottom-right" />
+        </div>
+      )}
 
       <div
         className={

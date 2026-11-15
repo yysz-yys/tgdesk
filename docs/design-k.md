@@ -516,6 +516,17 @@ so custom account themes show up too.
   corner; it hides itself again after the pointer leaves, and the tips lightbulb
   steps aside while it is up — at rest the page is indistinguishable from the
   reference. The maximise glyph switches to restore while maximised.
+  The frameless window resizes natively from Windows' outer border
+  (`SM_CYSIZEFRAME + SM_CXPADDEDBORDER`, 8 CSS px at any DPI), but the WebView
+  paints its own cursor over that band, so before the fix the whole top edge
+  showed the same arrow and trying to drag sometimes resized instead.
+  `KWindowChrome` therefore paints the matching system cursors on the native
+  resize band — `ns-resize` top/bottom, `ew-resize` sides, `nwse`/`nesw` corners
+  — and the caption strip starts below it (the inner 8 px of the wallpaper
+  inset) with the plain caption cursor; the band comes back when the window is
+  restored from maximised, where Windows disables the resize border, and the
+  floating narrow layout (8 px inset = only the resize band) hides the drag
+  strip instead of shadowing card clicks.
 
 ## Verification
 

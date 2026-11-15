@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Design K: resize and drag cursors on the frameless window
+
+- **The top edge now shows a resize cursor only where the window resizes**: the
+  frameless window resizes from Windows' native outer border
+  (`SM_CYSIZEFRAME + SM_CXPADDEDBORDER`, 8 CSS px at any DPI), but the WebView
+  kept painting the page's cursor over that band, so the top edge looked the same
+  everywhere and a drag attempt there could become a resize. `KWindowChrome` now
+  paints the matching system cursors exactly on the native resize band —
+  `ns-resize` on the top and bottom edges, `ew-resize` on the sides,
+  `nwse-resize`/`nesw-resize` on the corners — while the caption drag strip starts
+  below the band (the inner 8 px of the wallpaper inset) with the plain caption
+  cursor. The resize overlays hide again while the window is maximised (Windows
+  disables the resize border then); the floating narrow layout has only the 8 px
+  inset — all of it resize band — so it hides the drag strip rather than shadowing
+  card clicks. Native resize, Aero snap, double-click maximise and the fade-in
+  window controls are unchanged.
+
 ### Design K: the Stickers tip and the sticker-set preview popup
 
 - **The second first-run tip is now the real Web K Stickers card**: the
