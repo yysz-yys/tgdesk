@@ -68,6 +68,12 @@ home for the sections that are not ported yet.
   colours.
 - **Reduce/Disable Animations** cycles between full, reduced (slides become
   fades) and off, and the choice is remembered.
+- **Dark mode across the Web K shell too**: the Dark Mode menu entry and the
+  Appearance tip's System / Dark / Light pills flip the whole app. The K shell
+  gets Web K's Night token set (dark surfaces and wallpaper render paths — the
+  factory Night doodle-mask plate and the tinted cloud-theme gradients), the
+  dropdown menus follow, and an applied global theme switches to its night side
+  in the dark shell, back to its day side in the light one.
 - **Global themes**: the empty-column Appearance tip shows Telegram's theme
   strip — the factory tile plus the eight global themes 🐥 ⛄ 💎 👨‍🏫 🌷 💜 🎄 🎮,
   each with its wallpaper, pattern, bubbles and animated-emoji figure. The nine
@@ -75,7 +81,7 @@ home for the sections that are not ported yet.
   first launch and offline. Picking one plays the figure's micro-animation (the
   reference's scale-pop + one Lottie run) and repaints the accent and page
   wallpaper immediately, persisting across launches; System / Dark / Light switch
-  the strip between the day and night variants.
+  the shell (and so the theme's day or night side).
 
 
 
@@ -349,11 +355,6 @@ belong in git. A detailed checklist is in
 - The page-by-page Web K redesign is in progress: login, the conversation view,
   downloads, search results, the archive-view styling, the settings sub-pages and
   the expanded tips deck still use the F design (see docs/design-k.md).
-- Only the light "Day" Web K token set is ported so far; the Dark Mode menu
-  entry themes the classic screens, while Web K pages stay light until the dark
-  tokens land. The Appearance tip's global themes do apply their accent and
-  wallpaper on the light shell (day variants); their night previews switch the
-  strip but not the shell yet.
 - New chats are created without a profile photo (the avatar-edit button on the
   creation pages explains that the media editor is not ported yet).
 - Map tiles require network; the card falls back to a schematic surface.

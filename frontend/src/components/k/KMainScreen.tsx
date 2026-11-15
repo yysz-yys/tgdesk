@@ -1,12 +1,18 @@
+import { useLayoutEffect } from "react";
 import type { ReactNode } from "react";
 import { KIconDefs } from "./KIcon";
 import { KWallpaper } from "./KWallpaper";
 import { KWindowChrome } from "./KWindowChrome";
+import { syncShellTheme, useActiveTheme } from "./themeStore";
 
 /**
  * The logged-in Web K page shell: the page-wide wallpaper, #page-chats →
  * #main-columns with the left column and the middle column. Matches tweb's
  * index.html markup and pages/_chats.scss layout.
+ *
+ * The shell's brightness lives on this element (`data-k-theme`), which is what
+ * the dark token block in styles/k/tokens.css keys off; the applied cloud theme
+ * follows it — its day side paints the light shell, its night side the dark one.
  */
 export function KMainScreen({
   sidebar,
@@ -14,6 +20,7 @@ export function KMainScreen({
   overlay,
   chatOpen,
   animationLevel = 2,
+  theme = "light",
 }: {
   sidebar: ReactNode;
   center: ReactNode;
@@ -25,15 +32,27 @@ export function KMainScreen({
   chatOpen?: boolean;
   /** tweb liteMode animation level: 2 full, 1 reduced, 0 off. */
   animationLevel?: number;
+  /** The resolved appearance: the Web K shell's light or dark variant. */
+  theme?: "light" | "dark";
 }) {
+  const night = theme === "dark";
+  const activeTheme = useActiveTheme();
+
+  // Paint the applied theme's accent/highlighting for this brightness before the
+  // browser commits the frame, so switching System/Light/Dark repaints in sync
+  // with the dark tokens and the wallpaper swap.
+  useLayoutEffect(() => {
+    syncShellTheme(activeTheme, night);
+  }, [activeTheme, night]);
+
   return (
     <div
       className="k-root"
-      data-k-theme="light"
+      data-k-theme={theme}
       data-animation-level={animationLevel}
     >
       <KIconDefs />
-      <KWallpaper />
+      <KWallpaper night={night} />
       <KWindowChrome />
       <div className="whole page-chats" id="page-chats">
         <div id="main-columns" className="tabs-container" data-animation="navigation">

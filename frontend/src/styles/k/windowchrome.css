@@ -23,7 +23,10 @@
   gap: 2px;
   padding: 3px;
   border-radius: 9999px;
-  background-color: rgba(255, 255, 255, 0.72);
+  /* Frosted glass over the wallpaper: the surface at 72%. `--surface-color-rgb`
+     is white in the light block, so the light render is byte-identical to the
+     old literal and the Night block darkens the plate by itself. */
+  background-color: rgba(var(--surface-color-rgb), 0.72);
   -webkit-backdrop-filter: blur(24px) saturate(1.2);
   backdrop-filter: blur(24px) saturate(1.2);
   box-shadow:
@@ -62,13 +65,22 @@
 }
 
 .k-root .k-window-control:hover {
-  background-color: rgba(0, 0, 0, 0.08);
+  /* The neutral overlay: 8% black in the light block, 8% white in Night (the
+     same value tweb's ripples/plates use), so the literal is no longer light-only. */
+  background-color: var(--ripple-color);
 }
 
 .k-root .k-window-control:active {
   background-color: rgba(0, 0, 0, 0.14);
 }
 
+/* Same overlay a touch stronger; black 14% would be invisible on the Night plate. */
+.k-root[data-k-theme="dark"] .k-window-control:active {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+/* The red close-button plate is a platform convention, not a themed surface:
+   it keeps the same red with white glyphs in both shells. */
 .k-root .k-window-control.k-window-control-close:hover,
 .k-root .k-window-control.k-window-control-close:active {
   background-color: #e5484d;

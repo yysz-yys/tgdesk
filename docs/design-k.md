@@ -78,8 +78,13 @@ not needed to build or run tgdesk. Ported styles/logic were transcribed from the
 ## Tokens
 
 The theme is generated at runtime in tweb (`helpers/themeController.ts`, the
-`light` entry of `colorMap`) instead of living in SCSS. `styles/k/tokens.css`
-carries the resolved values:
+`light`/`night` entries of `colorMap` plus `base.scss`'s `:root`/`.night` blocks)
+instead of living in SCSS. `styles/k/tokens.css` carries the resolved values for
+both shells — the light block on `.k-root`, the Night block on
+`.k-root[data-k-theme="dark"]` (surface `#212121`, background `#181818`, accent
+`#8774E1`, secondary text `#AAAAAA`, the Night menu/ripple/shadow values, with
+`--light-filled-*` re-mixed against the Night surface and `--dark-*` keeping the
+same HSL `l-4` convention). The light values:
 
 - accent `#2D7ED5`; `--light-primary-color` = `rgba(45,126,213,.08)`;
   `--light-filled-primary-color` = `#EEF4FB` (`mix(accent, surface, .08)`).
@@ -114,6 +119,16 @@ tweb renders the factory wallpaper on canvas, not as a CSS gradient
 At a 1450×790 viewport this gives the same doodle tile (~398×816 CSS px) as the
 reference capture; the colours differ from the JPEG only by its wide-gamut (P3)
 capture encoding.
+
+The dark shell has two render paths, both ported from `chatBackground.tsx`: the
+factory Night wallpaper (negative intensity / `dark` pflags) uses the **mask**
+path — a black canvas with the doodles punched out (`destination-out`) over the
+gradient, which is dimmed to `max(.3, |intensity| / 2)` — while a cloud theme's
+night side (Tinted base) uses the **overlay** path: the gradient at full opacity
+with the inverted doodle pattern composited `soft-light` at the fixed `.38`.
+`KWallpaper` picks the path from the applied wallpaper, so the factory Night look
+is the reference's almost-black plate with colourful doodles, while a tinted
+theme keeps its navy/green gradient.
 
 ## Components map to tweb markup
 
@@ -244,8 +259,27 @@ capture encoding.
   (full → reduced → off → full, `settings.animations`); the K shell gets
   `data-animation-level` on `.k-root`, where reduced turns slides into fades and off
   disables transitions/animations. The saved preference survives restarts, like the
-  other settings. The Dark Mode entry toggles the app theme for the classic (F) screens;
-  Web K pages stay on the light theme until the dark token set is ported.
+  other settings. The Dark Mode entry (and the Appearance tip's System / Dark /
+  Light pills) toggles the whole app: the classic (F) screens through the Radix
+  theme root and the Web K shell through `data-k-theme`, both resolving the same
+  `settings.theme` preference.
+- **Dark shell**: the Web K shell's brightness is `data-k-theme="light|dark"` on
+  `.k-root` (`KMainScreen`), fed by `useTheme(settings.theme)` in `App.tsx`;
+  `styles/k/tokens.css` carries the light block and a
+  `.k-root[data-k-theme="dark"]` Night block ported from tweb's `colorMap.night`
+  and `base.scss .night` (surface `#212121`, background `#181818`, accent
+  `#8774E1`, white primary text, `#AAAAAA` secondary, Night menu/ripple/shadow/
+  scrollbar values; every accent-derived `--light-*`, `--light-filled-*` and
+  `--dark-*` value is re-mixed against the Night surface with tweb's formulas).
+  The applied cloud theme follows the shell's side: `KThemeEmoticon`/`KWallpaper`
+  aside, `themeStore.syncShellTheme` repaints `--primary-color` and its mixes from
+  the theme's day or night settings in a layout effect, so System↔Dark↔Light
+  switches repaint the accent, the wallpaper and the strip previews in one frame.
+  The wallpapers themselves switch to `KWallpaper`'s Night render paths (the
+  factory Night mask plate, the tinted overlay for cloud themes), and the
+  Radix-portalled K dropdown menus (which live outside `.k-root`) key their Night
+  colours off the app-wide `html[data-theme="dark"]` signal that `useTheme` sets,
+  so the menus, archive menu and new-chat menu follow too.
 
 - The hamburger is a webk icon button: a 40px round plate on
   `--light-secondary-text-color` while hovered or while its menu is open
@@ -268,8 +302,9 @@ capture encoding.
   instantly (accent + page wallpaper) and is persisted in
   `tgdesk.k.themeId`; the first tile restores the factory Day wallpaper. The
   System / Dark / Light pills set the app theme preference and switch the strip
-  between the day and night previews (the Web K shell itself is light-only until
-  the dark token set is ported, so the applied wallpaper uses the day variant).
+  between the day and night previews, and the applied theme follows the shell: its
+  day (Classic/Day) side paints the light shell, its night (Tinted/Night) side the
+  dark one, wallpaper included.
   `globalThemes.ts` carries the same eight themes as an offline/preview fallback,
   so the strip is complete even before the kernel answers.
 - **Animated tile figures**: the figure at the bottom of each tile is the theme's
@@ -384,8 +419,10 @@ cd frontend; npm run dev
 #                                                its submenu via CDP Input events)
 # ?tips=1                                        the chat-tips deck opened on the
 #                                                Appearance theme strip
-# ?night=1                                       night previews (theme strip uses
-#                                                the themes' night variants)
+# ?night=1                                       the whole K shell in its Night
+#                                                (dark) variant: dark tokens,
+#                                                Night wallpaper and night theme
+#                                                previews in the Appearance strip
 # ?lang=en|zh|ja                                 UI language of the fixture
 ```
 
@@ -407,9 +444,7 @@ structure/geometry directly, colours through a Display-P3 conversion.
    stickers, speakers and camera, devices, keyboard shortcuts, edit profile) and the
    settings search layer; the home screen is ported and those rows currently open the
    legacy settings dialog or announce themselves.
-5. Dark ("night"/"tinted") themes; the token file is ready for them. The main menu's
-   Dark Mode entry already toggles the classic screens' theme.
-6. Animated/moving wallpaper, custom chat backgrounds, stories rings, avatars
+5. Animated/moving wallpaper, custom chat backgrounds, stories rings, avatars
    videos — not part of the reference page.
-7. Avatar editing for new chats (the camera button on the new-channel/group pages
+6. Avatar editing for new chats (the camera button on the new-channel/group pages
    announces itself today: the media editor is still the F one).

@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Design K: the dark (Night) theme
+
+- **The Web K shell now has its Night theme**: dark mode (the menu entry and the
+  Appearance tip's System / Dark / Light pills) switches the K pages from the
+  light token set to Web K's Night one — `#212121` surfaces, `#181818` page and
+  search fields, white primary text, `#AAAAAA` secondary text, the `#8774E1`
+  factory accent, Night hover/ripple/scrollbar/menu/shadow values and the Night
+  highlighting colour. The whole ported surface follows: chat list, folder chips,
+  search, FAB, settings, new-chat pages, menus, window-chrome pill and the tips
+  deck, all derived from tweb's `colorMap.night` + `base.scss .night` formulas.
+- **Night wallpapers render like the reference**: the factory Night wallpaper uses
+  the doodle *mask* path (an almost-black plate with the peach/pink/purple
+  gradient showing through the doodles, the gradient dimmed to `max(.3,
+  |intensity|/2)`), while a cloud theme's night (Tinted) side uses the inverted
+  doodle overlay at the fixed `.38` — both ported from tweb's `chatBackground`
+  renderer.
+- **Applied themes follow the shell**: a global theme now switches between its
+  day (Classic/Day) and night (Tinted/Night) settings when the shell flips
+  brightness — accent, derived mixes, highlighting and wallpaper all repaint in
+  the same layout frame; the Appearance strip previews the matching side.
+- **Menus are portalled outside `.k-root`**, so the K dropdowns (hamburger,
+  archive, new-chat, settings menu) key their Night plate/text/hover colours off
+  the app-wide `html[data-theme="dark"]` signal instead of the K tokens; the
+  light theme is pixel-identical (verified by A/B screenshots).
+- `?night=1` on the preview harness now renders the whole shell dark; the light
+  theme, layout geometry, typography and motion are unchanged.
+
 ### Design K: Telegram Web K main screen
 
 - **Signed-in main screen rebuilt 1:1 from Telegram Web K (tweb)**, light "Day"

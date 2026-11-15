@@ -29,6 +29,11 @@ const darkPreview = params.get("night") === "1";
 
 void i18n.changeLanguage(params.get("lang") ?? "zh");
 document.documentElement.dataset.loggedIn = "true";
+// The dark-shell signal the F-side CSS (and the Radix-portalled K menus, which
+// live outside .k-root) key their Night colours off, exactly like the real app's
+// useTheme hook sets it.
+document.documentElement.dataset.theme = darkPreview ? "dark" : "light";
+document.documentElement.style.colorScheme = darkPreview ? "dark" : "light";
 
 const noop = () => undefined;
 
@@ -196,7 +201,7 @@ function Preview() {
   const accountName = "Geraldine";
   const accountInitials = "G";
   const avatarBackground = peerAvatarBackground(4242);
-  const nightMode = false;
+  const nightMode = darkPreview;
   const animationLevel = 2;
 
   const superTabStack: KSuperTabEntry[] = [];
@@ -266,7 +271,7 @@ function Preview() {
   );
 
   return (
-    <AppTheme appearance="light">
+    <AppTheme appearance={darkPreview ? "dark" : "light"}>
       <KMainScreen
         sidebar={
           <KChatList
@@ -309,6 +314,7 @@ function Preview() {
         overlay={showChat || sidebarPage ? null : <KTipsToggle />}
         chatOpen={showChat}
         animationLevel={animationLevel}
+        theme={darkPreview ? "dark" : "light"}
       />
     </AppTheme>
   );

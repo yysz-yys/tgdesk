@@ -66,6 +66,12 @@
   background-color: rgba(0, 0, 0, 0.08);
 }
 
+/* K menus are portalled outside `.k-root` (see archive.css), so the Night
+   divider is the spelled-out neutral white 8% the light one mirrors. */
+html[data-theme="dark"] .k-menu .k-menu-separator {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
 .k-menu .k-menu-item-count {
   margin-inline-start: auto;
   padding-inline-start: 0.75rem;
@@ -74,10 +80,19 @@
   font-size: 0.875rem;
 }
 
+/* Night secondary text (#aaaaaa), as on the menu icons. */
+html[data-theme="dark"] .k-menu .k-menu-item-count {
+  color: #aaaaaa;
+}
+
 /* The More row stays lit while its submenu is open, as tweb's hover-opened
  * `.submenu-trigger` plate does (Radix marks the open submenu trigger). */
 .k-menu .btn-menu-item[data-state="open"] {
   background-color: rgba(140, 142, 145, 0.08);
+}
+
+html[data-theme="dark"] .k-menu .btn-menu-item[data-state="open"] {
+  background-color: rgba(170, 170, 170, 0.08);
 }
 
 /* Web K's More row has no trailing chevron; Radix draws one for sub-triggers. */
@@ -93,7 +108,8 @@
 /* tweb `.btn-menu-footer`: the muted version line under the More submenu,
  * "Telegram WebK 2.3 (687)". A caption here, not the changelog link. The colour
  * is the light theme's `--input-placeholder-color` spelled out, because the
- * menu is portalled out of `.k-root` where that token is defined. */
+ * menu is portalled out of `.k-root` where that token is defined; the Night
+ * block inherits the same placeholder colour, so one value serves both shells. */
 .k-menu .k-menu-version {
   display: flex;
   height: 2rem;

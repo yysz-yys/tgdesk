@@ -40,9 +40,7 @@ export interface ChatThemeDTO {
   wallpaper?: ChatThemeWallpaperDTO;
 }
 
-/** The base a theme is previewed/applied on. The Web K shell is light-only, so
- * the *applied* theme always uses the day variant; previews follow the current
- * System/Light/Dark selection like the reference client. */
+/** The base a theme is previewed/applied on: light shell → day, dark shell → night. */
 export type ThemeBase = "day" | "night";
 
 export interface ActiveWallpaper {
@@ -52,27 +50,51 @@ export interface ActiveWallpaper {
   intensity: number;
   /** Pattern SVG URL (the kernel's loopback endpoint or the bundled default). */
   patternUrl: string;
-  /** Dark wallpapers draw their pattern as a mask in the reference client. */
+  /** Dark wallpapers draw their pattern as a light overlay in the reference client. */
   dark: boolean;
+  /** The reference's mask render path (factory Night): a black plate with the
+   * doodles punched out, the gradient only showing through them. */
+  mask: boolean;
+}
+
+/** One side (day or night) of the applied cloud theme. */
+export interface ThemeVariantState {
+  accentHex?: string;
+  wallpaper?: ActiveWallpaper;
 }
 
 export interface ActiveTheme {
   /** null = the factory "no custom theme" tile. */
   id: number | null;
-  accentHex?: string;
-  wallpaper?: ActiveWallpaper;
+  /** The theme's Classic/Day variant, used by the light shell. */
+  day?: ThemeVariantState;
+  /** The theme's Tinted/Night variant, used by the dark shell. */
+  night?: ThemeVariantState;
 }
 
-/** The bundled factory doodle pattern (used before the kernel served themes load). */
+/** The bundle's factory doodle pattern, used by the factory and fallback wallpapers. */
 export const DEFAULT_PATTERN_URL = "/assets/img/pattern.svg";
 
-/** The factory light wallpaper of the Web K "Day" theme. */
+/** The factory light wallpaper of the Web K "Day" theme (Android Day). */
 export const DEFAULT_WALLPAPER: ActiveWallpaper = {
   colors: ["#b1e0fa", "#82b0d8", "#a0d8e8", "#e5f0f8"],
   intensity: 0.5,
   patternUrl: DEFAULT_PATTERN_URL,
   dark: false,
+  mask: false,
 };
+
+/** The factory dark wallpaper: tweb DEFAULT_THEME's Night variant (pink→purple). */
+export const DEFAULT_NIGHT_WALLPAPER: ActiveWallpaper = {
+  colors: ["#fec496", "#dd6cb9", "#962fbf", "#4f5bd5"],
+  intensity: 0.5,
+  patternUrl: DEFAULT_PATTERN_URL,
+  dark: true,
+  mask: true,
+};
+
+/** The surfaces the accent derivations are mixed against (tweb colorMap night/day). */
+const SHELL_SURFACE = { light: "#ffffff", dark: "#212121" } as const;
 
 const STORAGE_KEY = "tgdesk.k.themeId";
 
@@ -95,14 +117,44 @@ function parseHex(hex: string) {
   ] as const;
 }
 
-function mixHex(hex: string, other: string, amount: number) {
-  const a = parseHex(hex);
+/** `mix(a, b, amount)` = the value `amount` of the way from `a` to `b`. */
+function mixHex(base: string, other: string, amount: number) {
+  const a = parseHex(base);
   const b = parseHex(other);
   const mix = (x: number, y: number) =>
     Math.round(x + (y - x) * amount)
       .toString(16)
       .padStart(2, "0");
   return `#${mix(a[0], b[0])}${mix(a[1], b[1])}${mix(a[2], b[2])}`;
+}
+
+/**
+ * The reference's `--dark-<colour>`: the accent with its HSL lightness moved
+ * down 4 percentage points (tokens.css calls the same value for the factory
+ * accent, e.g. `#2d7ed5` → `hsl(211.0714, 66.6667%, 46.5882%)`).
+ */
+function darkenHex(hex: string) {
+  const [r, g, b] = parseHex(hex).map((value) => value / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+  let hue = 0;
+  let saturation = 0;
+  if (max !== min) {
+    const delta = max - min;
+    saturation =
+      lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+    if (max === r) {
+      hue = (g - b) / delta + (g < b ? 6 : 0);
+    } else if (max === g) {
+      hue = (b - r) / delta + 2;
+    } else {
+      hue = (r - g) / delta + 4;
+    }
+    hue *= 60;
+  }
+  const nextLightness = Math.max(0, (lightness - 0.04) * 100);
+  return `hsl(${hue.toFixed(4)}, ${(saturation * 100).toFixed(4)}%, ${nextLightness.toFixed(4)}%)`;
 }
 
 export function variantColors(settings?: ChatThemeSettingsDTO): string[] {
@@ -153,12 +205,50 @@ function wallpaperOf(settings?: ChatThemeSettingsDTO): ActiveWallpaper | undefin
   if (!wallpaper) {
     return undefined;
   }
+  const base = settings?.baseTheme;
+  const tinted = base === "tinted";
+  // The reference's two dark render paths (tweb chatBackground):
+  //  - tinted (a cloud theme's night side): the gradient at full opacity with the
+  //    inverted pattern as a soft-light overlay at a fixed .38;
+  //  - night (the factory Night wallpaper): a black mask with the doodles
+  //    punched out, the gradient dimmed behind it.
+  const mask = !tinted && (base === "night" || wallpaper.dark === true);
   return {
     colors,
-    intensity: Math.max(0, Math.min(1, Math.abs(wallpaper.intensity ?? 50) / 100)),
+    intensity: tinted
+      ? 0.38
+      : Math.max(0, Math.min(1, Math.abs(wallpaper.intensity ?? 50) / 100)),
     patternUrl: wallpaper.patternUrl || DEFAULT_PATTERN_URL,
-    dark: Boolean(wallpaper.dark),
+    dark: tinted || mask || Boolean(wallpaper.dark),
+    mask,
   };
+}
+
+function variantOf(theme: ChatThemeDTO, base: ThemeBase): ThemeVariantState {
+  const settings = themeVariant(theme, base);
+  return {
+    accentHex: variantAccentHex(settings),
+    wallpaper: wallpaperOf(settings),
+  };
+}
+
+/** The applied theme's side for a light or dark shell. */
+export function variantFor(
+  theme: ActiveTheme | null,
+  night: boolean,
+): ThemeVariantState | null {
+  if (!theme) return null;
+  return (night ? theme.night : theme.day) ?? null;
+}
+
+/** The wallpaper a shell paints: the active theme's side, else the factory one. */
+export function activeWallpaper(
+  theme: ActiveTheme | null,
+  night: boolean,
+): ActiveWallpaper {
+  const variant = variantFor(theme, night);
+  const wallpaper = variant?.wallpaper;
+  return wallpaper ?? (night ? DEFAULT_NIGHT_WALLPAPER : DEFAULT_WALLPAPER);
 }
 
 let active: ActiveTheme | null = null;
@@ -191,48 +281,51 @@ export function storedThemeId(): number | null {
   }
 }
 
-function applyAccent(accent: string | undefined) {
+const ACCENT_PROPERTIES = [
+  "--primary-color",
+  "--primary-color-rgb",
+  "--light-primary-color",
+  "--light-filled-primary-color",
+  "--dark-primary-color",
+  "--primary-button-color",
+  "--link-color",
+  "--saved-color",
+  "--light-filled-saved-color",
+] as const;
+
+function clearAccent(root: HTMLElement) {
+  for (const property of ACCENT_PROPERTIES) {
+    root.style.removeProperty(property);
+  }
+}
+
+function applyAccent(accent: string | undefined, night: boolean) {
   const root = resetRoot();
   if (!root) return;
   if (!accent) {
-    for (const property of [
-      "--primary-color",
-      "--primary-color-rgb",
-      "--light-primary-color",
-      "--light-filled-primary-color",
-      "--dark-primary-color",
-      "--primary-button-color",
-      "--link-color",
-      "--saved-color",
-      "--light-filled-saved-color",
-    ]) {
-      root.style.removeProperty(property);
-    }
+    clearAccent(root);
     return;
   }
+  const surface = night ? SHELL_SURFACE.dark : SHELL_SURFACE.light;
   const [r, g, b] = parseHex(accent);
   root.style.setProperty("--primary-color", accent);
   root.style.setProperty("--primary-color-rgb", `${r}, ${g}, ${b}`);
   root.style.setProperty("--light-primary-color", `rgba(${r}, ${g}, ${b}, 0.08)`);
-  // tweb's derivative: the "filled" (8% accent over the surface) plate behind the
-  // selected folder chip, not 8% away from the accent (that stayed nearly the
-  // accent and made the accent-coloured label unreadable on it).
+  // tweb's derivative: the "filled" plate behind the selected folder chip is an
+  // 8% accent mix over this shell's surface (light: near-white, dark: near-surface).
   root.style.setProperty(
     "--light-filled-primary-color",
-    mixHex("#ffffff", accent, 0.08),
+    mixHex(surface, accent, 0.08),
   );
-  root.style.setProperty(
-    "--dark-primary-color",
-    mixHex(accent, "#000000", 0.08),
-  );
+  root.style.setProperty("--dark-primary-color", darkenHex(accent));
   root.style.setProperty("--primary-button-color", accent);
   root.style.setProperty("--link-color", accent);
-  // Saved Messages follows the theme's accent too (the factory pair is
-  // accent + a 36% white mix, see tokens.css #78ace4 over #2d7ed5).
+  // Saved Messages follows the theme's accent (the factory pair is accent + a
+  // 36% surface mix, see the light block's #78ace4 over #2d7ed5).
   root.style.setProperty("--saved-color", accent);
   root.style.setProperty(
     "--light-filled-saved-color",
-    mixHex("#ffffff", accent, 0.36),
+    mixHex(surface, accent, 0.36),
   );
 }
 
@@ -256,22 +349,29 @@ function applyHighlight(colors: string[] | undefined) {
 }
 
 /**
- * Applies a global chat theme like tweb's themeController: the theme's accent
- * repaints every shell token (`--primary-color` + derived mixes) and its
- * wallpaper (gradient colours + tiled pattern) becomes the page canvas. The
- * Web K shell only has the light token set, so the day (Classic/Day) variant is
- * what gets applied even while the appearance strip previews the night one.
+ * Re-applies the applied cloud theme's shell tokens for the current brightness,
+ * like tweb's `themeController`: the theme's side for this shell supplies the
+ * accent (`--primary-color` + every derived mix) and the wallpaper average
+ * supplies the highlighting colour. With no custom theme the inline values are
+ * removed so the factory tokens of the shell (tokens.css, light/dark blocks)
+ * take over.
+ */
+export function syncShellTheme(theme: ActiveTheme | null, night: boolean) {
+  const variant = variantFor(theme, night);
+  applyAccent(variant?.accentHex, night);
+  applyHighlight(variant?.wallpaper?.colors);
+}
+
+/**
+ * Applies a global chat theme like tweb's themeController: its day (Classic/Day)
+ * and night (Tinted/Night) variants are kept, and the shell tokens/wallpaper
+ * follow whichever side the current appearance resolves to (see `KMainScreen`).
  */
 export function applyChatTheme(theme: ChatThemeDTO) {
-  const day = themeVariant(theme, "day");
-  const accent = variantAccentHex(day) ?? variantAccentHex(themeVariant(theme, "night"));
-  const wallpaper = wallpaperOf(day) ?? wallpaperOf(themeVariant(theme, "night"));
-  applyAccent(accent);
-  applyHighlight(wallpaper?.colors);
   active = {
     id: theme.id,
-    accentHex: accent,
-    wallpaper,
+    day: variantOf(theme, "day"),
+    night: variantOf(theme, "night"),
   };
   try {
     localStorage.setItem(STORAGE_KEY, String(theme.id));
@@ -281,10 +381,8 @@ export function applyChatTheme(theme: ChatThemeDTO) {
   emit();
 }
 
-/** Restores the factory light theme (the first, "no custom theme" tile). */
+/** Restores the factory look of the current shell (the first, "no theme" tile). */
 export function resetChatTheme() {
-  applyAccent(undefined);
-  applyHighlight(undefined);
   active = null;
   try {
     localStorage.removeItem(STORAGE_KEY);

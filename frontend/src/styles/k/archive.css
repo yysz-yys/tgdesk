@@ -50,6 +50,12 @@
 
 /* ---------- Web K dropdown menu (tweb .btn-menu, desktop metrics) ---------- */
 
+/* tweb's Night plate: rgba(surface, .75) with the same 50px backdrop blur, and
+   the Night text colour. K menus are portalled by Radix to <body>, outside
+   `.k-root`, so neither the design tokens nor a `.k-root[data-k-theme]` scope
+   reach them: the dark values are spelled out here and keyed off the document
+   theme (the same global signal ui/f.css uses for its portalled `.f-menu`).
+   The box shadow is not repeated: tweb keeps the black menu shadow in Night. */
 .k-menu {
   min-width: 11.25rem;
   width: max-content;
@@ -65,6 +71,11 @@
   color: #333333;
   transform-origin: var(--radix-dropdown-menu-content-transform-origin);
   animation: k-menu-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html[data-theme="dark"] .k-menu {
+  background-color: rgba(33, 33, 33, 0.75);
+  color: #ffffff;
 }
 
 .k-menu[data-state="closed"] {
@@ -118,6 +129,12 @@
   background-color: rgba(140, 142, 145, 0.08);
 }
 
+/* the Night hover/selection plate: tweb's `--light-secondary-text-color`
+   (secondary #aaaaaa at 8%) — grey over a dark plate instead of black. */
+html[data-theme="dark"] .k-menu .btn-menu-item[data-highlighted] {
+  background-color: rgba(170, 170, 170, 0.08);
+}
+
 .k-menu .btn-menu-item:active {
   transform: scale(0.96);
 }
@@ -128,6 +145,11 @@
   font-size: 1.25rem;
   margin-inline-end: 1.25rem;
   color: #8c8e91;
+}
+
+/* Night secondary text (#aaaaaa) on the dark plate. */
+html[data-theme="dark"] .k-menu .btn-menu-item-icon {
+  color: #aaaaaa;
 }
 
 .k-menu .btn-menu-item-text {

@@ -224,24 +224,30 @@ export function renderGradient(
   context.putImageData(image, 0, 0);
 }
 
-/**
- * Tiles the doodle pattern over a page-sized canvas the way tweb does: the tile
- * is as tall as `500 + windowHeight / 2.5` CSS px, centred vertically, repeated
- * up and down, and the pattern is painted black-on-transparent for `soft-light`.
- */
-export function renderPattern(
+/** Sizes a canvas to the viewport and returns its 2D context. */
+function prepareCanvas(
   canvas: HTMLCanvasElement,
-  source: HTMLImageElement,
   width: number,
   height: number,
-  dpr = Math.min(2, window.devicePixelRatio || 1),
+  dpr: number,
 ) {
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
+  return canvas.getContext("2d");
+}
 
-  const context = canvas.getContext("2d");
-  if (!context) return;
-
+/**
+ * Tiles a pattern image over the canvas the way tweb does: the tile is as tall
+ * as `500 + windowHeight / 2.5` CSS px, centred vertically and repeated up,
+ * down and across.
+ */
+function tilePattern(
+  context: CanvasRenderingContext2D,
+  source: HTMLImageElement,
+  canvas: HTMLCanvasElement,
+  height: number,
+  dpr: number,
+) {
   const sourceWidth = source.naturalWidth || source.width;
   const sourceHeight = source.naturalHeight || source.height;
   const patternHeight = (500 + height / 2.5) * dpr;
@@ -270,4 +276,42 @@ export function renderPattern(
   ) {
     drawRow(bottomY);
   }
+}
+
+/**
+ * The overlay pattern: the doodles painted black-on-transparent for the
+ * `soft-light` composite over the gradient (the light theme, and the tinted
+ * wallpapers whose inverted print is the Night one).
+ */
+export function renderPattern(
+  canvas: HTMLCanvasElement,
+  source: HTMLImageElement,
+  width: number,
+  height: number,
+  dpr = Math.min(2, window.devicePixelRatio || 1),
+) {
+  const context = prepareCanvas(canvas, width, height, dpr);
+  if (!context) return;
+  tilePattern(context, source, canvas, height, dpr);
+}
+
+/**
+ * The Night mask pattern (tweb's mask render path): the canvas is filled black
+ * and the doodles are punched out of it (`destination-out`), so over the
+ * gradient the page reads as an almost-black wallpaper with the gradient
+ * showing through the doodle shapes — the reference's factory Night look.
+ */
+export function renderPatternMask(
+  canvas: HTMLCanvasElement,
+  source: HTMLImageElement,
+  width: number,
+  height: number,
+  dpr = Math.min(2, window.devicePixelRatio || 1),
+) {
+  const context = prepareCanvas(canvas, width, height, dpr);
+  if (!context) return;
+  context.fillStyle = "#000000";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.globalCompositeOperation = "destination-out";
+  tilePattern(context, source, canvas, height, dpr);
 }

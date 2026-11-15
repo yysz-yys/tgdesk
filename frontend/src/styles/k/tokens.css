@@ -163,3 +163,89 @@
     --left-column-width: 360px;
   }
 }
+
+/*
+ * Telegram Web K — Telegram "Night" theme (baseThemeNight) design tokens.
+ * Ported from the same tweb sources as the light block above: the `night`
+ * entry of helpers/themeController.ts `colorMap` (plus `applyAppColor`'s
+ * dark/light/light-filled derivations and `applyNewTheme`'s 36%-mixed saved
+ * colour), the `.night` block of `base.scss`, and the baseThemeNight colour in
+ * config/state.ts DEFAULT_HIGHLIGHTING_COLORS.
+ * Derived values keep the light block's formulas and rounding, so light and
+ * dark stay consistent (mixColors, as in tweb, floors):
+ *   light-filled = floor(surface + (rgb - surface) * .08)
+ *   saved top    = floor(#212121 + (#8774e1 - #212121) * .36)
+ *   dark         = hsl(h, s%, l - 4)
+ * The attribute selector out-specifies the plain `.k-root` block, and this
+ * block comes last, so the Night values always win.
+ * Tokens intentionally left inherited from the light block: the avatar palette
+ * (its saved/online `var()` refs re-derive from the Night accent), geometry,
+ * typography, motion, layout, --hover-alpha, --white, --ripple-duration/scales,
+ * --input-placeholder-color, --input-label-color, --badge-text-color,
+ * --menu-box-shadow and --menu-backdrop-filter.
+ */
+
+.k-root[data-k-theme="dark"] {
+  /* accent + derived (tweb colorMap.night) */
+  --primary-color: #8774e1;
+  --primary-color-rgb: 135, 116, 225;
+  --light-primary-color: rgba(135, 116, 225, 0.08);
+  --light-filled-primary-color: #292730;
+  --dark-primary-color: hsl(250.4587, 64.4970%, 62.8627%);
+  --primary-button-color: #8774e1;
+  --link-color: #8774e1;
+
+  --danger-color: #ff595a;
+  --danger-color-rgb: 255, 89, 90;
+  --light-danger-color: rgba(255, 89, 90, 0.08);
+  --dark-danger-color: hsl(359.6386, 100.0000%, 63.4510%);
+  --danger-button-color: #ff595a;
+
+  --saved-color: #8774e1;
+  --light-filled-saved-color: #453e66;
+
+  /* text */
+  --primary-text-color: #ffffff;
+  --primary-text-color-rgb: 255, 255, 255;
+  --secondary-text-color: #aaaaaa;
+  --secondary-text-color-rgb: 170, 170, 170;
+  --secondary-button-color: #aaaaaa;
+  --light-secondary-text-color: rgba(170, 170, 170, 0.08);
+  --light-filled-secondary-text-color: #2b2b2b;
+
+  /* surfaces */
+  --surface-color: #212121;
+  --surface-color-rgb: 33, 33, 33;
+  --background-color: #181818;
+  --background-color-rgb: 24, 24, 24;
+  --body-background-color: #181818;
+  --body-background-color-rgb: 24, 24, 24;
+  --border-color: #0f0f0f;
+  --secondary-color: #707579;
+  --green-color: #5cc85e;
+
+  /* controls */
+  --input-search-background-color: #181818;
+  --input-search-border-color: #2f2f2f;
+  --old-input-background-color: var(--background-color);
+  --original-ripple-color: rgba(255, 255, 255, 0.08);
+  --ripple-color: var(--original-ripple-color);
+  --scrollbar-color: rgba(255, 255, 255, 0.2);
+
+  /* chat list (the unread badge keeps the light block's white text) */
+  --chatlist-pinned-color: var(--secondary-color);
+
+  /* service plates (the empty-column pill and the tips toggle): the factory
+   * baseThemeNight highlighting colour hsla(299.142857, 44.166666%,
+   * 37.470588%, .4), its rgb converted with tweb's hslaToRgba (Math.round) */
+  --message-highlighting-color: hsla(299.142857, 44.166666%, 37.470588%, 0.4);
+  --message-highlighting-color-rgb: 137, 53, 138;
+  --message-highlighting-alpha: 0.4;
+
+  /* shadows + menu plate (base.scss .night shadow colours; menu is tweb's
+   * rgba(surface-rgb, var(--backdrop-opacity)) with its Night .75) */
+  --column-box-shadow: 0px 0px 4px 0px rgba(0, 0, 0, 0.24);
+  --section-box-shadow: 0px 1px 4px 0px rgba(0, 0, 0, 0.12);
+  --section-box-shadow-big: 0px 1px 8px 0px rgba(0, 0, 0, 0.24);
+  --menu-background-color: rgba(33, 33, 33, 0.75);
+}

@@ -2337,6 +2337,7 @@ export default function App() {
         }
         chatOpen={view === "downloads" || Boolean(selectedChat)}
         animationLevel={animationLevel}
+        theme={nightMode ? "dark" : "light"}
       />
 
       <SettingsDialog
