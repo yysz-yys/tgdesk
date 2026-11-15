@@ -2,6 +2,54 @@
 
 ## Unreleased
 
+### Design K: the Stickers tip and the sticker-set preview popup
+
+- **The second first-run tip is now the real Web K Stickers card**: the
+  "Suggest Stickers by Emoji" title and the None / My Sets / All Sets segmented
+  row (tweb's `appSettings.stickers.suggest`, default `all`, persisted in
+  `tgdesk.settings`), the Trending Stickers content with three 88×88 looping
+  pack covers (Telegram's `messages.getFeaturedStickers` showcase, first
+  document of each set) over the pack names, and the description linking into
+  the ported Stickers-and-Emoji page. Opening a pack opens the sticker-set
+  popup; the content row keeps the reference's geometry in every language (the
+  description reserves two lines) and an empty/failed featured read leaves the
+  row blank like tweb.
+- **Sticker-set preview popup ported 1:1** (tweb `popups/stickers.tsx` over
+  `PopupElement`): 420×420 container, 40px radius, 30% black backdrop, 56px
+  header (close / 20/26 bold set title / three-dot menu), a 5-column grid of
+  80px sticker cells on an 82px pitch with the 12px hover plate, and the
+  floating footer whose white gradient fades the last row under the 48px pill
+  button. The footer button installs or removes the set — `ADD 40 STICKERS`
+  filled in the accent, `REMOVE 40 STICKERS` on the framed danger plate — and
+  closes when the RPC resolves, exactly like the reference; the menu copies the
+  `t.me/addstickers` link and archives an installed set. Opening plays tweb's
+  150ms fade + 48px slide-up, Esc and the backdrop close it, the scroll area
+  uses the Web K custom scrollbar and draws the reference's top hairline once
+  scrolled. While loading it keeps tweb's preloader, "Loading..." title and
+  secondary footer button.
+- **Premium effect locks**: the kernel now exposes `StickerDocDTO.effect`
+  (from the document's `video_thumbs`, tweb `getStickerEffectThumb`), and the
+  popup paints tweb's 20px lock badge at the bottom centre of premium "sticker
+  effect" documents, tinted from the sticker's own bottom-centre colour
+  (`computeLockColor`) — the Duck pack's four effect stickers match the
+  reference plate for plate. Premium accounts hide the badge
+  (`AuthUser.premium`, mirroring tweb's `body.is-premium`).
+- **Sticker cells load like the rest of the app**: still thumbnails paint
+  immediately, TGS/WebM players mount only for the cells in view (staggered
+  40ms each) and the still frame stays under a player until its first frame is
+  painted, so a forty-sticker pack neither builds forty Lottie instances in one
+  frame nor shows blank cells while the loopback server streams the files.
+- **New "Stickers and Emoji" page** (opened by the tip's description link and
+  by the Settings row): the first 40 featured packs as K setting rows (cover,
+  title, "N stickers", Add/Added pill), each row opening the same popup. Web K's
+  installed/archived sections, search and older featured pages remain future
+  work.
+- i18n: the tip and popup strings live in `tips.*` / `stickerSet.*` for
+  en/zh/ja, using the official WebK zh wording where it exists ("根据表情符号建议贴纸",
+  "不推荐", "我的表情包", "全部", "热门贴纸", "添加 N 张表情") and matching ja labels;
+  the lock badge and popup menu strings are covered too. `AddStickersCount`'s
+  Japanese word order is baked into the per-language strings.
+
 ### Design K: the dark (Night) theme
 
 - **The Web K shell now has its Night theme**: dark mode (the menu entry and the

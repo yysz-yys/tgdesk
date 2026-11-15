@@ -23,7 +23,16 @@ export interface AppSettings {
   ntp: string;
   enterToSend: boolean;
   tdlStreaming: boolean;
+  /**
+   * tweb appSettings `stickers.suggest`: which sets the composer may suggest
+   * for an emoji — none, the installed ones, or every set. The Stickers tip
+   * writes it through the same segmented row the reference uses.
+   */
+  stickersSuggest: StickerSuggestMode;
 }
+
+/** tweb `StateSettings['stickers']['suggest']`. */
+export type StickerSuggestMode = "none" | "installed" | "all";
 
 export const defaultSettings: AppSettings = {
   language: "system",
@@ -46,6 +55,7 @@ export const defaultSettings: AppSettings = {
   ntp: "",
   enterToSend: true,
   tdlStreaming: false,
+  stickersSuggest: "all",
 };
 
 const STORAGE_KEY = "tgdesk.settings";

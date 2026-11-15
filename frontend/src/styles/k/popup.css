@@ -1,0 +1,409 @@
+/* Web K modal popups and the sticker-set preview.
+ *
+ * Ported from tweb:
+ *   scss/partials/popups/_popup.scss      overlay, container, header, scroll, footer
+ *   scss/partials/popups/_stickers.scss   .popup-stickers sizing and the sticker grid
+ *   scss/partials/_button.scss            .btn-primary / .btn-primary-transparent
+ *   components/popups/indexTsx.tsx        PopupElement.Header/Scrollable/Body/Footer
+ *   components/popups/stickers.tsx         the sticker-set popup itself
+ *
+ * tweb paints its popups in an overlay outside the page: the dimmed page below
+ * is rgba(0,0,0,.3), the card is `--surface-color` with a 40px radius, and it
+ * springs up 48px while fading in over 150ms. `--popup-*` custom properties are
+ * the same the reference sets; `.popup-stickers` overrides them to the
+ * reference's 420×420 modal with the floating, gradient footer.
+ *
+ * The popup is rendered inside `.k-root` (KMainScreen's overlay slot) so the
+ * design tokens and the Night block reach it without duplicating values. */
+
+.k-root .popup {
+  --popup-width: auto;
+  --popup-height: auto;
+  --popup-min-width: var(--popup-width);
+  --popup-max-width: var(--popup-width);
+  --popup-min-height: var(--popup-height);
+  --popup-max-height: auto;
+  --popup-border-radius: 2.5rem;
+  --popup-background-color: var(--background-color);
+  --popup-footer-padding: 1rem;
+  --popup-footer-button-height: 48px;
+  --popup-footer-height: calc(
+    var(--popup-footer-padding) * 2 + var(--popup-footer-button-height)
+  );
+  --popup-footer-gradient-start: 50%;
+  --popup-transition-function: cubic-bezier(0.4, 0, 0.2, 1);
+  --popup-transition-time: 0.15s;
+
+  position: fixed !important;
+  inset: 0;
+  /* Above the sidebar super tabs (5) and the picker preview (60), below the
+   * app toast (400) and the window chrome (900), so a result toast stays
+   * visible and the caption buttons still work over the backdrop. tweb uses 4
+   * in its own layer stack; this app's layers differ. */
+  z-index: 300;
+  --wails-draggable: no-drag;
+  margin: 0;
+  padding: 1.875rem;
+  display: flex;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.3);
+  color: var(--primary-text-color);
+  font-size: 1rem;
+  opacity: 0;
+  visibility: hidden;
+  transition-property: opacity, visibility;
+  transition-duration: var(--popup-transition-time), 0s;
+  transition-delay: 0s, var(--popup-transition-time);
+  transition-timing-function: var(--popup-transition-function);
+  overscroll-behavior: contain;
+}
+
+.k-root .popup.active {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s, 0s;
+}
+
+/* tweb `.popup.old` — the sticker popup is one of the older screens that keep
+ * the plain surface instead of the page background. */
+.k-root .popup.old {
+  --popup-background-color: var(--surface-color);
+}
+
+.k-root .popup-container {
+  --translateX: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: var(--popup-width);
+  height: var(--popup-height);
+  min-width: min(100%, var(--popup-min-width));
+  max-width: min(100%, var(--popup-max-width));
+  min-height: min(100%, var(--popup-min-height));
+  max-height: min(100%, var(--popup-max-height));
+  margin: auto;
+  border-radius: var(--popup-border-radius);
+  background-color: var(--popup-background-color);
+  backface-visibility: hidden;
+  transform: translate3d(var(--translateX), 3rem, 0);
+  transition: transform var(--popup-transition-time)
+    var(--popup-transition-function);
+}
+
+.k-root .popup.active .popup-container {
+  transform: translate3d(var(--translateX), 0, 0);
+}
+
+/* reduced: the popup fades in where it stands */
+.k-root[data-animation-level="1"] .popup-container,
+.k-root[data-animation-level="0"] .popup-container {
+  transition: none;
+}
+
+/* disabled: no fade either */
+.k-root[data-animation-level="0"] .popup {
+  transition: none;
+}
+
+.k-root .popup-header {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  height: 3.5rem;
+  padding: 0 1rem;
+}
+
+.k-root .popup-header .btn-icon {
+  flex: 0 0 auto;
+}
+
+.k-root .popup-close {
+  z-index: 3;
+  justify-self: center;
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-inline-end: 1rem;
+}
+
+.k-root .popup-title {
+  flex: 1;
+  margin: 0;
+  padding-inline: 0 1rem;
+  font-size: var(--font-size-20);
+  line-height: var(--line-height-20);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.k-root .popup-menu-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  justify-self: center;
+}
+
+/* The scroll is the container's own flex child (tweb: a scroll is absolutely
+ * positioned by default, so it is restated as relative). */
+.k-root .popup .popup-container > .popup-scrollable {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* tweb Scrollable's `withBorders="top"`: the line under the header only exists
+ * once the content has scrolled away from its start. */
+.k-root .popup-scrollable {
+  border-top: 1px solid transparent;
+  transition: border-top-color var(--transition-standard-in);
+}
+
+.k-root .popup-scrollable:not(.scrolled-start) {
+  border-top-color: var(--border-color);
+}
+
+.k-root .popup-scrollable > .popup-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+.k-root .popup-footer {
+  flex: 0 0 auto;
+  padding: var(--popup-footer-padding);
+  min-height: var(--popup-footer-height);
+}
+
+/* A floating footer is painted over the end of the scroll: the last row of
+ * stickers shows through the top of this white → transparent gradient. */
+.k-root .popup-footer-floating {
+  position: absolute;
+  bottom: 0;
+  inset-inline: 0;
+  z-index: 1;
+  background: linear-gradient(
+    0deg,
+    var(--popup-background-color) var(--popup-footer-gradient-start),
+    transparent 100%
+  );
+}
+
+/* ---------- buttons (tweb partials/_button.scss) ---------- */
+
+.k-root .btn-primary {
+  text-align: center;
+  width: 100%;
+  height: 3rem;
+  padding: 0;
+  border: none;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height);
+  text-transform: uppercase;
+  transition:
+    opacity var(--transition-standard-out),
+    background-color var(--transition-standard-out),
+    color var(--transition-standard-out);
+}
+
+.k-root .btn-primary:disabled {
+  opacity: 0.3;
+  pointer-events: none !important;
+}
+
+.k-root .btn-color-primary {
+  background: var(--primary-color);
+  color: #ffffff;
+}
+
+.k-root .btn-primary-transparent {
+  color: var(--primary-color);
+  background-color: transparent;
+}
+
+/* Loading footer (tweb passes `color="secondary"` → `btn-transparent primary
+ * text-bold`): an unfilled label-coloured button in the flow footer. */
+.k-root .btn-transparent {
+  color: var(--primary-text-color);
+  background-color: transparent;
+}
+
+.k-root .btn-transparent.primary {
+  color: var(--primary-color);
+}
+
+.k-root .text-bold {
+  font-weight: var(--font-weight-bold);
+}
+
+/* A footer that sits in the flow below the content. While the set is loading
+ * it draws no line (there is no content behind it yet). */
+.k-root .popup-footer-shaded {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid transparent;
+  background-color: transparent;
+}
+
+/* tweb `.popup-footer-floating .btn-primary-transparent.danger`: the framed
+ * button sits on the surface with the reference's soft shadow. */
+.k-root .popup-footer-floating .btn-primary-transparent.danger {
+  background: var(--surface-color);
+  box-shadow: 0 0 12px 4px rgba(0, 0, 0, 0.05);
+}
+
+@media (hover: hover) {
+  .k-root .popup-footer-floating .btn-primary-transparent.danger:hover,
+  .k-root .popup-footer-floating .btn-primary-transparent.danger:active {
+    background-color: var(--danger-color);
+    color: #ffffff;
+  }
+}
+
+.k-root .popup-footer-button.btn-primary {
+  display: block;
+  padding: 0 1.0625rem;
+  height: var(--popup-footer-button-height);
+  line-height: var(--popup-footer-button-height);
+  border-radius: calc(var(--popup-footer-button-height) / 2);
+  text-transform: uppercase;
+}
+
+/* ---------- sticker-set preview (tweb partials/popups/_stickers.scss) ---------- */
+
+.k-root .popup-stickers {
+  --popup-width: 420px;
+  --popup-max-height: 420px;
+  --popup-footer-gradient-start: 0%;
+  --popup-sticker-size: 80px;
+}
+
+.k-root .popup-stickers .popup-scrollable {
+  padding-bottom: var(--popup-footer-height);
+}
+
+.k-root .popup-stickers .popup-scrollable.is-loading {
+  min-height: 9rem;
+  position: relative;
+}
+
+.k-root .popup-stickers .sticker-set {
+  margin: 0.0625rem 0;
+}
+
+.k-root .popup-stickers .sticker-set-stickers {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding: 0 5px;
+}
+
+.k-root .popup-stickers .media-sticker-wrapper {
+  position: relative;
+  width: var(--popup-sticker-size);
+  height: var(--popup-sticker-size);
+  margin-bottom: 2px;
+  justify-self: center;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .k-root .popup-stickers .media-sticker-wrapper:hover,
+  .k-root .popup-stickers .media-sticker-wrapper:active {
+    background-color: var(--light-secondary-text-color);
+    border-radius: 12px;
+  }
+}
+
+/* tweb handhelds: 68px cells, 4 per row, 8px below each cell. */
+@media only screen and (max-width: 600px) {
+  .k-root .popup-stickers {
+    --popup-sticker-size: 68px;
+  }
+
+  .k-root .popup-stickers .sticker-set-stickers {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .k-root .popup-stickers .media-sticker-wrapper {
+    margin-bottom: 8px;
+  }
+}
+
+.k-root .popup-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.k-root .k-popup-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+/* ---------- sticker artwork ---------- */
+
+.k-root .k-sticker-media {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.k-root .k-sticker-media-img,
+.k-root .k-sticker-media-anim {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.k-root .k-sticker-media-anim svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Web K's premium effect lock badge (tweb `wrapSticker({withLock: true})` and
+ * the `.premium-sticker-lock` rule): a 20px circle at the sticker's bottom
+ * centre, tinted with the sticker's own bottom-centre colours (`--lock-url`, a
+ * computed JPEG) over the plain 20% black plate, with the white `premium_lock`
+ * glyph. `body.is-premium` hides it in tweb; here the popup simply does not
+ * pass `withLock` for a Premium account. */
+.k-root .k-sticker-media .premium-sticker-lock {
+  position: absolute;
+  bottom: 0.125rem;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.2);
+  background-image: var(--lock-url);
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1;
+  pointer-events: none;
+}

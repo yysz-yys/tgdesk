@@ -1,0 +1,73 @@
+/* The ported "Stickers and Emoji" settings page (see KStickersPage.tsx).
+ *
+ * It reuses the K settings atoms (`.k-section`, `.k-row`, `KScrollArea`); this
+ * file only adds the pack row's cover and the Add/Added pill, which the settings
+ * home has no equivalent for. Sizes follow tweb's sticker-set rows: a 44px
+ * cover, the pack title and "N stickers" subtitle, a 30px rounded button. */
+
+.k-root .k-stickers-row {
+  cursor: pointer;
+}
+
+.k-root .k-stickers-row-cover {
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-inline-end: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--secondary-text-color);
+}
+
+.k-root .k-stickers-row-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.k-root .k-stickers-row-cover .tgico {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.k-root .k-stickers-add {
+  flex: 0 0 auto;
+  height: 1.875rem;
+  padding: 0 0.75rem;
+  border: none;
+  border-radius: 1rem;
+  background-color: var(--light-filled-primary-color);
+  color: var(--primary-color);
+  font-family: inherit;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.k-root .k-stickers-add.is-installed {
+  background-color: var(--light-secondary-text-color);
+  color: var(--secondary-text-color);
+}
+
+.k-root .k-stickers-add:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.k-root .k-stickers-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 0;
+}
+
+.k-root .k-stickers-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--secondary-text-color);
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-14);
+}

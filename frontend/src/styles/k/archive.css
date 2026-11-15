@@ -129,6 +129,12 @@ html[data-theme="dark"] .k-menu {
   background-color: rgba(140, 142, 145, 0.08);
 }
 
+/* tweb `.btn-menu-item.disabled`: the entry stays in the menu, dimmed. */
+.k-menu .btn-menu-item[data-disabled] {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
 /* the Night hover/selection plate: tweb's `--light-secondary-text-color`
    (secondary #aaaaaa at 8%) — grey over a dark plate instead of black. */
 html[data-theme="dark"] .k-menu .btn-menu-item[data-highlighted] {

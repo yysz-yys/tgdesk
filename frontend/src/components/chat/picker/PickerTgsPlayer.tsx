@@ -15,6 +15,8 @@ interface PickerTgsPlayerProps {
   posterUrl?: string;
   /** Extra class for the host element (sizing lives with the caller). */
   className?: string;
+  /** Called once the animation has loaded and painted its first frame. */
+  onLoaded?: () => void;
 }
 
 interface LottieAnimation {
@@ -31,11 +33,20 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-export function PickerTgsPlayer({ src, posterUrl, className }: PickerTgsPlayerProps) {
+export function PickerTgsPlayer({
+  src,
+  posterUrl,
+  className,
+  onLoaded,
+}: PickerTgsPlayerProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const animationRef = useRef<LottieAnimation | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Keep the latest callback out of the effect's dependency list so a parent
+  // re-render does not reload the animation.
+  const onLoadedRef = useRef(onLoaded);
+  onLoadedRef.current = onLoaded;
 
   useEffect(() => {
     setLoaded(false);
@@ -81,6 +92,13 @@ export function PickerTgsPlayer({ src, posterUrl, className }: PickerTgsPlayerPr
           animation.goToAndStop(0, true);
         }
         setLoaded(true);
+        // Report after the SVG has actually been painted once, so a caller that
+        // keeps a still poster up drops it only when there is something to see.
+        window.requestAnimationFrame(() => {
+          if (!cancelled) {
+            onLoadedRef.current?.();
+          }
+        });
       } catch {
         if (!cancelled) {
           setFailed(true);

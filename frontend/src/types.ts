@@ -13,6 +13,8 @@ export interface AuthUser {
   color: string;
   /** Telegram Web K avatar gradient index (abs(user id) % 7). */
   colorIndex: number;
+  /** Telegram Premium: Web K hides the sticker-effect lock badges for it. */
+  premium?: boolean;
 }
 
 export type AuthEventState =
@@ -275,6 +277,11 @@ export interface StickerDoc {
   w?: number;
   h?: number;
   sizeBytes?: number;
+  /**
+   * A premium "sticker effect" document (tweb `getStickerEffectThumb`): Web K
+   * paints the premium lock badge over it in the sticker-set preview.
+   */
+  effect?: boolean;
 }
 
 /** Installed or archived sticker set summary. */

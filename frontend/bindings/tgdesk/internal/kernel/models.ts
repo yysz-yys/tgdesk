@@ -119,6 +119,12 @@ export interface AuthUser {
      * ColorIndex is the Web K avatar gradient index (abs(user id) % 7).
      */
     "colorIndex": number;
+
+    /**
+     * Premium mirrors the account's Telegram Premium status: Web K hides the
+     * premium lock badges on sticker effects when the user has Premium.
+     */
+    "premium"?: boolean;
 }
 
 /**
@@ -805,6 +811,10 @@ export interface StarGiftDTO {
 /**
  * StickerDocDTO is one sticker document in the picker grid. Ref is the opaque
  * token needed to send it; StreamURL/PhotoURL are loopback media URLs.
+ * StickerDocDTO is one sticker document as exposed by the sticker picker API.
+ * Effect marks a premium "sticker effect" document (tweb `getStickerEffectThumb`
+ * = the document's video_thumbs): Web K paints the premium lock badge over those
+ * cells in the sticker-set preview.
  */
 export interface StickerDocDTO {
     "ref": string;
@@ -818,6 +828,7 @@ export interface StickerDocDTO {
     "w"?: number;
     "h"?: number;
     "sizeBytes"?: number;
+    "effect"?: boolean;
 }
 
 /**

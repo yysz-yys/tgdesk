@@ -26,6 +26,8 @@ export interface KSettingsProps {
   onBack: () => void;
   /** Opens the existing settings screen (data storage / general settings). */
   onOpenLegacySettings: () => void;
+  /** Opens the ported "Stickers and Emoji" page (trending packs). */
+  onOpenStickers?: () => void;
   onLogOut: () => void;
   onOpenQrCode: () => void;
   onToast: (message: string) => void;
@@ -76,6 +78,7 @@ export function KSettings({
   backLabel,
   onBack,
   onOpenLegacySettings,
+  onOpenStickers,
   onLogOut,
   onOpenQrCode,
   onToast,
@@ -139,6 +142,13 @@ export function KSettings({
       case "general":
       case "language":
         onOpenLegacySettings();
+        return;
+      case "stickers":
+        if (onOpenStickers) {
+          onOpenStickers();
+        } else {
+          soon();
+        }
         return;
       case "faq":
         onOpenUrl("https://telegram.org/faq#general-questions");

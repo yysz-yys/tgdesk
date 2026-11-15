@@ -54,6 +54,8 @@ import { KChatList } from "./components/k/KChatList";
 import { KEmptyChatSurface, KTipsToggle } from "./components/k/KEmptyChat";
 import { KMainScreen } from "./components/k/KMainScreen";
 import { KSettings } from "./components/k/KSettings";
+import { KStickersPage } from "./components/k/KStickersPage";
+import { KStickerSetPopupHost } from "./components/k/KStickerSetPopup";
 import { KNewChatFlow } from "./components/k/KNewChatFlow";
 import type { KSuperTabEntry } from "./components/k/KSuperTab";
 import type { KAppMenuMoreAction } from "./components/k/KAppMenu";
@@ -153,9 +155,9 @@ export default function App() {
   const [authImportError, setAuthImportError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  /** The left column's super-tab stack: "settings" or the new-chat flow. */
+  /** The left column's super-tab stack: "settings", "stickers" or the new-chat flow. */
   const [sidebarPage, setSidebarPage] = useState<
-    "settings" | "new-channel" | "new-group" | null
+    "settings" | "stickers" | "new-channel" | "new-group" | null
   >(null);
   const [qrOpen, setQrOpen] = useState(false);
   /** Active Telegram sessions, shown on the Settings "Devices" row. */
@@ -2149,6 +2151,20 @@ export default function App() {
           }}
           onToast={showToast}
           onOpenUrl={(url) => void Browser.OpenURL(url)}
+          onOpenStickers={() => setSidebarPage("stickers")}
+        />
+      ),
+    });
+  } else if (sidebarPage === "stickers") {
+    superTabStack.push({
+      key: "stickers",
+      body: (
+        <KStickersPage
+          proxy={proxyUrl}
+          ntp={settings.ntp}
+          backLabel={t("kSettings.back")}
+          onBack={() => setSidebarPage(null)}
+          onToast={showToast}
         />
       ),
     });
@@ -2370,12 +2386,29 @@ export default function App() {
                   )
                 }
                 resolvedNight={nightMode}
+                stickerSuggest={settings.stickersSuggest}
+                onStickerSuggestChange={(mode) =>
+                  update("stickersSuggest", mode)
+                }
+                onOpenTrending={() => setSidebarPage("stickers")}
+                animationLevel={animationLevel}
               />
             )}
           </>
         }
         overlay={
-          view === "downloads" || selectedChat ? null : <KTipsToggle />
+          view === "downloads" || selectedChat ? null : (
+            <>
+              <KTipsToggle />
+              <KStickerSetPopupHost
+                proxy={proxyUrl}
+                ntp={settings.ntp}
+                animationsEnabled={animationLevel > 0}
+                premiumLocksHidden={authUser?.premium === true}
+                onToast={showToast}
+              />
+            </>
+          )
         }
         chatOpen={view === "downloads" || Boolean(selectedChat)}
         animationLevel={animationLevel}

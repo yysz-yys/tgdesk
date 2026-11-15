@@ -60,6 +60,29 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
   `JoinPublicChat` / `LeaveChat`（channels.leaveChannel；普通群 messages.deleteChat）+
   `GetMessagesAround` 支持跳到旧帖子；邀请过期/无效、需审批、频道数量上限、FLOOD_WAIT
   都返回可读错误；未知未支持类型统一 `unsupported`，不会漏到系统浏览器。
+- 首次进入 Tips 的第二张「根据表情符号建议贴纸」卡片按 Telegram Web K 1:1 完成
+  （`frontend/src/components/k/KChatTips.tsx`）：`stickers.suggest` 三档分段按钮
+  （None / My Sets / All Sets，默认 all，持久化在 `tgdesk.settings` 的 `stickersSuggest`；
+  输入框的表情→贴纸建议本身尚未实现，设置先存着）、三连热门贴纸（`messages.getFeaturedStickers`
+  前三，套件首文档作 88px 循环封面，静态兜底用套件缩略图）、说明行固定两行并链接到新的
+  「贴纸与表情」页；i18n 文案 en/zh/ja 全部补齐（`tips.*` + `stickerSet.*`）。
+- 贴纸集预览弹窗（`frontend/src/components/k/KStickerSetPopup.tsx`，tweb
+  `popups/stickers.tsx` 的 1:1 移植）：420×420、40px 圆角、56px 头部（关闭 / 标题 /
+  三点菜单）、5×80px 网格（82px 步距、悬停 12px 圆角底板）与浮动渐变底栏的 48px 药丸按钮；
+  150ms 淡入 + 48px 上滑，Esc / 点遮罩关闭；底栏按钮 `messages.installStickerSet` /
+  `uninstallStickerSet` 安装/移除后关闭弹窗（与官方一致），菜单复制 `t.me/addstickers/<short_name>`、
+  已安装时可归档（`messages.toggleStickerSets`）；加载中沿用官方 preloader + “Loading...”
+  标题 + 次级底栏按钮；滚动时顶部出现 1px 分隔线并复用 Web K 自定义滚动条。
+- Premium 特效贴纸锁标：内核 `StickerDocDTO` 新增 `effect`（取自 document.video_thumbs，
+  对应 tweb `getStickerEffectThumb`），弹窗在特效贴纸底部中央画 20px 锁标；徽标底色按
+  tweb `computeLockColor` 从贴纸首帧底部取色压灰（Duck 套件末尾 4 张特效贴纸与参考一致），
+  账号为 Premium 时隐藏（`AuthUser.premium`，bindings 已重新生成）。贴纸单元格先画静帧，
+  TGS/WebM 仅在视口内按 40ms 步距挂载并循环播放，加载完成前保留静帧，避免一次创建几十个
+  Lottie 实例和空白格子。
+- 新的「贴纸与表情」设置页（`KStickersPage.tsx`）：Tips 说明链接 和 Settings 的
+  「Stickers and Emoji」行都会打开它；目前是精简版热门贴纸列表（前 40 个 featured 套件，
+  封面 / 标题 / N 张贴纸 / 添加-已添加按钮），行点击打开同一贴纸集弹窗。完整的
+  installed/archived 分区、搜索和旧热门分页仍待补。
 - 频道资料补充：`ChatProfileDTO` 增加 `usernames[]`（全部有效用户名，主用户名在前）、
   `canSendStickers`/`canSendGifs`（由 send_stickers/send_gifs 禁权推导）、
   `giftsCount`（stargifts_count，决定礼物 tab 是否显示）、`adminsCount`；
@@ -159,6 +182,9 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
   按价值排序、Collections 和发送礼物流程。
 - Sticker/GIF：贴纸搜索只取一页（无翻页），GIF 搜索走 inline bot 分页；套件封面若
   是 TGS/WebM 动画则回退为首字母（静态图仍显示）；"添加后隐藏 Add" 的瞬时状态未做。
+- 输入框尚未实现「根据表情符号建议贴纸」的实际建议逻辑（Tips 卡片里的
+  `stickersSuggest` 设置已持久化，等输入框接上 `getStickersByEmoticon` 后再消费）；
+  Premium 特效贴纸只显示锁标和循环贴纸动画，发送时的一次性特效播放未做。
 - t.me 论坛 thread/comment、手机号链接、addstickers 等非聊天 link 归为 unsupported。
 - 输入框的 send-as / 匿名管理员 / 定时消息 / 语音录制与发送菜单未实现（相关按钮
   隐藏或给出提示）；未订阅频道的 JOIN/SUBSCRIBE 底栏依赖加入聊天功能，暂不涉及。

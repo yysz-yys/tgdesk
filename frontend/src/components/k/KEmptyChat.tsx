@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Window as WailsWindow } from "@wailsio/runtime";
 import type { Chat } from "../../types";
 import type { ThemePreference } from "../../hooks/useTheme";
+import type { StickerSuggestMode } from "../../hooks/useSettings";
 import { KChatTips } from "./KChatTips";
 import { KIcon } from "./KIcon";
 import { toggleTips, useTipsState } from "./tipsStore";
@@ -28,6 +29,13 @@ interface KEmptyChatSurfaceProps {
   ) => void;
   /** The brightness the app currently resolves to (system included). */
   resolvedNight: boolean;
+  /** tweb appSettings `stickers.suggest`, mirrored into the Stickers tip pills. */
+  stickerSuggest?: StickerSuggestMode;
+  onStickerSuggestChange?: (mode: StickerSuggestMode) => void;
+  /** The Stickers tip's "Trending Stickers" description link. */
+  onOpenTrending?: () => void;
+  /** tweb lite mode level: 0 disables sticker animations too. */
+  animationLevel?: number;
 }
 
 /** Empty-chat column wrapper; also the window's drag surface when no chat is open. */
@@ -40,6 +48,10 @@ export function KEmptyChatSurface({
   themePreference,
   onThemePreferenceChange,
   resolvedNight,
+  stickerSuggest,
+  onStickerSuggestChange,
+  onOpenTrending,
+  animationLevel = 2,
 }: KEmptyChatSurfaceProps) {
   const { hidden } = useTipsState();
   const { t } = useTranslation();
@@ -72,6 +84,10 @@ export function KEmptyChatSurface({
           themePreference={themePreference}
           onThemePreferenceChange={onThemePreferenceChange}
           resolvedNight={resolvedNight}
+          stickerSuggest={stickerSuggest}
+          onStickerSuggestChange={onStickerSuggestChange}
+          onOpenTrending={onOpenTrending}
+          animationsEnabled={animationLevel > 0}
         />
         <div
           className={

@@ -11,13 +11,14 @@ signed-in main screen (chat list + empty chat column, light "Day" theme).
 | Screen | State |
 |---|---|
 | Signed-in main screen (chat list, folder chips, archive row, empty chat column, tips lightbulb, new-message FAB) | **Port done** (light theme) |
+| Stickers tip card (suggest mode + trending packs) and its sticker-set preview popup | **Port done** (light/Night, en/zh/ja) |
 | Settings (Web K home: self profile header, phone, sections, header menu, version) | **Port done** (light theme) |
 | New Channel / New Group / Add Members flow | **Port done** (light theme) |
 | Main menu (hamburger) with the More submenu and the Downloads entry | **Port done** |
 | Letter avatars (non-photo peers, sender avatars, account avatar) | **Unified** on Web K's peer-colour gradients |
 | Login / auth flow | still the F design |
 | Conversation view (bubbles, composer, header) | still the F design |
-| Downloads screen, search results, chat info sidebar, expanded tips deck | still the F screens (the chat list's K frame is around them) |
+| Downloads screen, search results, chat info sidebar | still the F screens (the chat list's K frame is around them) |
 
 The reference capture is the Web K **`light`** AppTheme (`baseThemeDay`, the blue
 "Day" palette) — not the older Classic `day` theme (green wallpaper/outgoing
@@ -41,6 +42,11 @@ frontend/src/components/k/          the Web K UI
   KNewMenu.tsx                      the pencil/new-chat menu
   KArchiveMenu.tsx                  the archived-chats header menu
   KChatTips.tsx                     the tips deck
+  KStickerMedia.tsx                 one sticker (still frame, looping TGS/WebM, premium lock)
+  KStickerSetPopup.tsx              the sticker-set preview popup (tweb popups/stickers)
+  stickerPopupStore.ts              popup state; App renders it in the page overlay slot
+  stickerLockColor.ts               premium effect lock plate tint (tweb computeLockColor)
+  KStickersPage.tsx                 "Stickers and Emoji" page: the trending pack list
   KThemeEmoticon.tsx                one theme tile's animated-emoji figure (Lottie)
   KThemeTileMask.tsx                a tile's Night mask wallpaper (gradient × doodles canvas)
   themeEmojiAssets.ts               the nine bundled TGS figures (first-paint assets)
@@ -62,6 +68,7 @@ frontend/src/styles/k/              plain CSS ported from tweb's SCSS
   supertab.css / forms.css          sidebar super tabs + shared page atoms (sections, rows, inputs)
   settings.css / newchat.css        the two new page families
   archive.css / menu.css / scrollable.css / windowchrome.css / tips.css
+  popup.css / stickers.css          the sticker-set popup + the Stickers settings page
 frontend/public/assets/             bundled tweb assets
   img/pattern.svg                   doodle wallpaper pattern (1440×2960)
   tgs/UtyanSearch.json              the "No results" duck (Lottie, empty search state)
@@ -371,11 +378,60 @@ so custom account themes show up too.
   itself scaling down to .1 and fading out to the "Select a chat to start messaging" pill
   underneath (state persisted). Tips: **Appearance** (System / Dark / Light segmented row,
   the cloud-theme strip with live previews, and the description linking into Settings),
-  **Stickers** (suggest mode row; the trending packs await the sticker data sync) and
+  **Stickers** (the `stickers.suggest` segmented row, the three trending packs and the
+  description linking into the Stickers-and-Emoji page — see the next bullet) and
   **Chats** (a 4×2 grid of recent chats, click to open). Strings live in `tips.*` for
   en/zh/ja. A fresh profile starts with the deck collapsed — only the
   "Select a chat to start messaging" pill is on the wallpaper, like the
   reference capture.
+- **Stickers tip card** (tweb `chatTips/stickersCard.tsx`): the segmented row is the real
+  app setting — `tgdesk.settings` `stickersSuggest` with tweb's default `all`, three
+  options None / My Sets / All Sets (`SuggestStickersNone/Installed/All`); the composer has
+  no emoji→sticker suggestion feature yet, so the preference is stored for the future
+  rather than consumed. The content is Telegram's `messages.getFeaturedStickers` showcase:
+  the first three packs, each with the first document of `messages.getStickerSet` as an
+  88×88 looping cover (static fallback = the pack thumbnail) over the pack title, fetched
+  when the deck is opened and cached by the sticker API. Clicking a pack opens the
+  sticker-set preview popup. The description (`ChatTips.Stickers.Description`, two lines
+  reserved so the row sits where the reference has it in every language) links to the new
+  Stickers-and-Emoji page. An empty/failed featured read keeps the content title and
+  leaves the row blank, like tweb.- **Sticker-set preview popup** (tweb `popups/stickers.tsx` + `PopupElement`): a page-level
+  modal, 30% black backdrop, 420×420 container with a 40px radius, a 56px header (40px
+  close, 20/26 bold set title, three-dot menu) and a 5-column grid of 80px sticker cells
+  (82px pitch, 2px row gap, hover plate at 12px radius) over a floating footer whose
+  white→transparent gradient fades the last row under the 48px full-width pill button.
+  Opening plays the reference's 150ms fade + 48px slide-up; Esc or a backdrop click closes
+  it, and the page's overlay stack means the sidebar super tab behind stays put. The
+  footer button installs/uninstalls the set (`messages.installStickerSet` /
+  `messages.uninstallStickerSet`) — "ADD 40 STICKERS" filled in the accent, then
+  "REMOVE 40 STICKERS" on the framed danger plate — and closes the popup when the RPC
+  resolves, exactly like tweb; failures surface a toast. The three-dot menu offers Copy
+  Link (`https://t.me/addstickers/<short_name>`) and, once installed, Archive Stickers
+  (`messages.toggleStickerSets` via the existing kernel call). While the set and its first
+  25 still frames load, the popup keeps tweb's preloader, the title reads "Loading..." and
+  the footer is the unfilled secondary button. The scroll area uses the same Web K custom
+  scrollbar as the chat list (5px capsule, fades in on hover) and draws the reference's
+  top hairline once scrolled away from the start.
+- **Sticker rendering**: cells paint the kernel's still thumbnail first and hand the loop
+  to the picker's TGS/WebM players only while they are in view, staggered 40ms per cell, so
+  opening a 40-sticker pack never builds forty Lottie instances in one frame and a loading
+  cell is never blank (the still frame stays under the player until its first painted
+  frame). Static documents use the full image. With animations disabled (lite mode 0) the
+  grid stays on stills.
+- **Premium effect locks**: Web K paints a 20px lock badge at the bottom centre of a
+  premium "sticker effect" document (`withLock: true` in tweb's `wrapSticker`). The kernel
+  now exposes `StickerDocDTO.effect` (the document's `video_thumbs`, i.e. tweb
+  `getStickerEffectThumb`) and the badge uses tweb's `computeLockColor`: the sticker's
+  bottom-centre colour dimmed by the grey 30% plate, so the Duck pack's four effect
+  stickers wear the same warm plate as the reference. Premium accounts get no badge
+  (`AuthUser.premium`, mirroring tweb's `body.is-premium`).
+- **Stickers and Emoji page** (`KStickersPage`): the tips description link and the
+  Settings "Stickers and Emoji" row open this ported settings page. It is reduced to the
+  Trending block — the first 40 of `messages.getFeaturedStickers` as K setting rows (cover,
+  title, "N stickers", Add/Added pill); a row opens the same sticker-set popup and the
+  pill installs/removes the set. The full tweb page (installed/archived sections, search,
+  older featured pages, animated covers) remains future work; the composer's picker still
+  owns day-to-day sticker management.
 - **Archived chats** are a sidebar screen of their own, not a swapped list:
   `KChatList` keeps two tabs in tweb's `.sidebar-slider.tabs-container`
   (`item-main` + the archived tab) and opens the second one with the same
@@ -470,16 +526,26 @@ in the real desktop Web K.
 The reference was normalized from a P3 (wide-gamut) 2× screenshot; compare
 structure/geometry directly, colours through a Display-P3 conversion.
 
+The Stickers tip card and its sticker-set popup need the kernel's sticker API, so they
+are checked in the running app rather than the fixture harness: launch the build with
+`TGDESK_WEBVIEW_DEBUG=1`, open the tips deck on the second card (the deck's state is
+persisted in `tgdesk.k.chatTips.*`), then click a trending pack; `Page.captureScreenshot`
+over the DevTools endpoint at 1100×760@2 gives the same 640/840-device-pixel geometry the
+official Web K reference has. The kernel's `TGDESK_HOME` override keeps those checks off
+the real portable data.
+
 ## Remaining work (page-by-page)
 
 1. Conversation view + composer + chat header (the biggest F page left).
 2. Login/auth screens (their F caption bar is still the window chrome).
-3. Downloads screen, search results, archive-view styling, chat-info column and the
-   expanded tips deck — still the F screens inside the K frame.
+3. Downloads screen, search results, archive-view styling and the chat-info column —
+   still the F screens inside the K frame.
 4. Settings sub-pages (notifications, data and storage, privacy, chat folders,
    stickers, speakers and camera, devices, keyboard shortcuts, edit profile) and the
    settings search layer; the home screen is ported and those rows currently open the
-   legacy settings dialog or announce themselves.
+   legacy settings dialog or announce themselves. The "Stickers and Emoji" page is
+   ported for the Trending block only (see above); its installed/archived sections,
+   search and older featured pages are still missing.
 5. Animated/moving wallpaper, custom chat backgrounds, stories rings, avatars
    videos — not part of the reference page.
 6. Avatar editing for new chats (the camera button on the new-channel/group pages

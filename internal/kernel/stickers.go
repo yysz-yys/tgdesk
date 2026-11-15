@@ -29,6 +29,10 @@ const (
 
 // StickerDocDTO is one sticker document in the picker grid. Ref is the opaque
 // token needed to send it; StreamURL/PhotoURL are loopback media URLs.
+// StickerDocDTO is one sticker document as exposed by the sticker picker API.
+// Effect marks a premium "sticker effect" document (tweb `getStickerEffectThumb`
+// = the document's video_thumbs): Web K paints the premium lock badge over those
+// cells in the sticker-set preview.
 type StickerDocDTO struct {
 	Ref       string `json:"ref"`
 	ID        string `json:"id"`
@@ -41,6 +45,7 @@ type StickerDocDTO struct {
 	W         int    `json:"w,omitempty"`
 	H         int    `json:"h,omitempty"`
 	SizeBytes int64  `json:"sizeBytes,omitempty"`
+	Effect    bool   `json:"effect,omitempty"`
 }
 
 // StickerSetDTO is one installed or search/featured sticker set header (rail
@@ -198,6 +203,10 @@ func (s *Service) mapStickerDocWithToken(
 		W:         width,
 		H:         height,
 		SizeBytes: doc.Size,
+		// tweb's `getStickerEffectThumb(doc)`: a premium sticker effect has a
+		// video thumbnail on the document, and the sticker-set popup paints the
+		// lock badge over it (`withLock: true`).
+		Effect: len(doc.VideoThumbs) > 0,
 	}
 }
 

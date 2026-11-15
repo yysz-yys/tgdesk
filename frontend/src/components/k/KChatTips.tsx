@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import type { Chat } from "../../types";
+import type { Chat, StickerDoc, StickerSetInfo } from "../../types";
 import type { ThemePreference } from "../../hooks/useTheme";
+import type { StickerSuggestMode } from "../../hooks/useSettings";
+import {
+  loadFeaturedStickerSets,
+  loadStickerSet,
+  type PickerNetwork,
+} from "../../lib/stickerApi";
 import { KAvatar } from "./KAvatar";
 import { KIcon } from "./KIcon";
+import { KStickerMedia } from "./KStickerMedia";
+import { openStickerPopup } from "./stickerPopupStore";
 import { setTipsIndex, TIPS_COUNT, useTipsState } from "./tipsStore";
 import {
   applyChatTheme,
@@ -134,6 +142,14 @@ interface KChatTipsProps {
   ) => void;
   /** The brightness the app currently resolves to (system included). */
   resolvedNight: boolean;
+  /** tweb appSettings `stickers.suggest` — the Stickers card's segmented row. */
+  stickerSuggest?: StickerSuggestMode;
+  onStickerSuggestChange?: (mode: StickerSuggestMode) => void;
+  /** The description's "Trending Stickers" link (the reference opens the
+   * Stickers-and-Emoji settings screen). */
+  onOpenTrending?: () => void;
+  /** False when the app runs with animations disabled (tweb lite mode 0). */
+  animationsEnabled?: boolean;
 }
 
 /**
@@ -152,13 +168,31 @@ export function KChatTips({
   themePreference,
   onThemePreferenceChange,
   resolvedNight,
+  stickerSuggest,
+  onStickerSuggestChange,
+  onOpenTrending,
+  animationsEnabled = true,
 }: KChatTipsProps) {
   const { t } = useTranslation();
   const { hidden, index } = useTipsState();
-  const [suggestMode, setSuggestMode] = useState("installed");
+  const [localSuggestMode, setLocalSuggestMode] =
+    useState<StickerSuggestMode>("all");
+  const suggestMode = stickerSuggest ?? localSuggestMode;
   const [chatFilter, setChatFilter] = useState("popular");
   const [themes, setThemes] = useState<ChatThemeDTO[] | null>(null);
   const [emoticonUrls, setEmoticonUrls] = useState<Record<string, string>>({});
+  // The Stickers card's Trending row (tweb `stickersCard`): the featured packs
+  // plus the first document of each pack, which is what the reference paints as
+  // the looping 88px cover.
+  const [featuredSets, setFeaturedSets] = useState<StickerSetInfo[] | null>(null);
+  const [featuredCovers, setFeaturedCovers] = useState<Record<string, StickerDoc>>(
+    {},
+  );
+  const network = useMemo<PickerNetwork | null>(
+    () =>
+      proxyUrl === undefined ? null : { proxy: proxyUrl, ntp: ntp ?? "" },
+    [ntp, proxyUrl],
+  );
   // Sticker ref ids remembered from an earlier launch: they let the tiles draw
   // their figures from the IndexedDB cache before the kernel's animated-emoji
   // metadata arrives (the URLs themselves carry a new token every launch).
@@ -271,6 +305,46 @@ export function KChatTips({
       alive = false;
     };
   }, [proxyUrl, ntp, kernelEmoticons]);
+
+  // The Stickers card's Trending row. tweb fetches `messages.getFeaturedStickers`
+  // when the deck mounts and, per pack, the full set to find the cover sticker
+  // (only the pack headers are cached by the featured read). Here the fetch waits
+  // until the deck is open: the deck is always mounted in the empty column, and a
+  // collapsed deck has no business hitting the sticker API right at sign-in.
+  useEffect(() => {
+    if (!network || hidden) {
+      return;
+    }
+    let alive = true;
+    void loadFeaturedStickerSets(network)
+      .then((sets) => {
+        if (!alive) return;
+        const top = sets.slice(0, 3);
+        setFeaturedSets(top);
+        for (const set of top) {
+          void loadStickerSet(network, set.ref)
+            .then((detail) => {
+              if (!alive) return;
+              const cover = detail.stickers[0];
+              if (!cover) return;
+              setFeaturedCovers((current) =>
+                current[set.ref] ? current : { ...current, [set.ref]: cover },
+              );
+            })
+            .catch(() => {
+              // The pack's own cover (when the header carries one) stays.
+            });
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setFeaturedSets([]);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [hidden, network]);
 
   // Warm the bundled figures and the lottie renderer while the page is idle: the
   // deck then paints finished figures (no frame of the fallback glyph) and the
@@ -502,7 +576,7 @@ export function KChatTips({
       </div>
     </div>,
 
-    /* ----- Stickers ----- */
+    /* ----- Stickers (tweb components/chatTips/stickersCard.tsx) ----- */
     <div className="k-tip-card" role="group" aria-labelledby="k-tip-stickers">
       <div className="k-tip-card-title" id="k-tip-stickers">
         {t("tips.stickersTitle")}
@@ -518,7 +592,10 @@ export function KChatTips({
                 selected ? "k-tip-button is-selected" : "k-tip-button"
               }
               aria-pressed={selected}
-              onClick={() => setSuggestMode(button.id)}
+              onClick={() => {
+                setLocalSuggestMode(button.id);
+                onStickerSuggestChange?.(button.id);
+              }}
             >
               <KIcon name={button.icon} className="k-tip-button-icon" />
               <span className="k-tip-button-text">{button.label}</span>
@@ -528,9 +605,70 @@ export function KChatTips({
       </div>
       <div className="k-tip-content">
         <div className="k-tip-content-title">{t("tips.trending")}</div>
-        <div className="k-tip-empty">{t("tips.stickersEmpty")}</div>
+        {featuredSets === null ? (
+          <div className="k-tip-sticker-sets" aria-hidden="true">
+            {[0, 1, 2].map((slot) => (
+              <span key={slot} className="k-tip-sticker-set">
+                <span className="k-tip-sticker-set-cover k-tip-sticker-skeleton" />
+              </span>
+            ))}
+          </div>
+        ) : featuredSets.length > 0 ? (
+          <div className="k-tip-sticker-sets">
+            {featuredSets.map((set) => {
+              const cover = featuredCovers[set.ref];
+              return (
+                <button
+                  key={set.ref}
+                  type="button"
+                  className="k-tip-sticker-set"
+                  aria-label={set.title}
+                  title={set.title}
+                  onClick={() => openStickerPopup(set)}
+                >
+                  <span className="k-tip-sticker-set-cover">
+                    {cover ? (
+                      <KStickerMedia
+                        doc={cover}
+                        enabled={!hidden && animationsEnabled}
+                        withLock
+                      />
+                    ) : set.coverUrl &&
+                      set.coverKind !== "tgs" &&
+                      set.coverKind !== "webm" ? (
+                      <img
+                        src={set.coverUrl}
+                        alt=""
+                        draggable={false}
+                        decoding="async"
+                      />
+                    ) : null}
+                  </span>
+                  <span className="k-tip-sticker-set-name">{set.title}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          // tweb renders nothing when the featured read failed or came back
+          // empty; the content title stays, the row is blank.
+          <div className="k-tip-sticker-sets" aria-hidden="true" />
+        )}
       </div>
-      <div className="k-tip-description">{t("tips.stickersDescription")}</div>
+      <div className="k-tip-description k-tip-description-two-lines">
+        <Trans
+          i18nKey="tips.stickersDescription"
+          components={{
+            trending: (
+              <button
+                type="button"
+                className="k-tip-link"
+                onClick={() => onOpenTrending?.()}
+              />
+            ),
+          }}
+        />
+      </div>
     </div>,
 
     /* ----- Chats ----- */

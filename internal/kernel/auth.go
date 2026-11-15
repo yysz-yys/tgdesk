@@ -68,6 +68,9 @@ type AuthUser struct {
 	Color       string `json:"color"`
 	// ColorIndex is the Web K avatar gradient index (abs(user id) % 7).
 	ColorIndex int `json:"colorIndex"`
+	// Premium mirrors the account's Telegram Premium status: Web K hides the
+	// premium lock badges on sticker effects when the user has Premium.
+	Premium bool `json:"premium,omitempty"`
 }
 
 // AuthStatus is returned on app startup. It checks the tdl bolt session
@@ -1075,6 +1078,7 @@ func makeAuthUser(user *tg.User) AuthUser {
 		ColorIndex:  contactColorIndex(user.ID),
 		Restricted:  user.Restricted,
 		Restriction: restriction,
+		Premium:     user.Premium,
 	}
 }
 
