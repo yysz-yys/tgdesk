@@ -1,73 +1,166 @@
-/* The ported "Stickers and Emoji" settings page (see KStickersPage.tsx).
+/* "Stickers and Emoji" tab — the trending sticker browser Web K opens from the
+ * Stickers tip (and from Settings' Stickers row).
  *
- * It reuses the K settings atoms (`.k-section`, `.k-row`, `KScrollArea`); this
- * file only adds the pack row's cover and the Add/Added pill, which the settings
- * home has no equivalent for. Sizes follow tweb's sticker-set rows: a 44px
- * cover, the pack title and "N stickers" subtitle, a 30px rounded button. */
+ * tweb: the settings tab `sidebarLeft/tabs/stickersAndEmoji.tsx` swaps its title
+ * for the 44px `InputSearch` header field and hosts the trending browser
+ * `sidebarRight/tabs/stickers.tsx`; the layout rules live in `_sidebarRight.scss`
+ * under `#stickers-container` and are reproduced here one to one:
+ *   .sticker-sets        margin-top 16, column
+ *   .sticker-set         140px, column (header + 68px previews)
+ *   .sticker-set-header  padding-inline-start 16, padding-bottom 12, space-between
+ *   .sticker-set-name    16 bold, .sticker-set-count 14 secondary
+ *   .sticker-set-button  30px, radius 16, 12/13 padding, 15px regular
+ *   .sticker-set-stickers space-around, .sticker-set-sticker 68×68
+ * Night colours come from the K tokens (the page is the fixed left column:
+ * #181818 background, #212121 header once scrolled, #2f2f2f search ring). */
 
-.k-root .k-stickers-row {
+.k-root .k-stickers-page {
+  background-color: var(--background-color);
+}
+
+/* Header = back button + the super-tab search field (the tab's title slot). */
+.k-root .k-stickers-header {
+  position: relative;
+  padding-inline: 1rem;
+}
+
+.k-root .k-stickers-header .sidebar-close-button {
+  flex: 0 0 auto;
+}
+
+.k-root .k-stickers-header .input-search {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+/* tweb's `.scrollable-y-bordered:not(.scrolled-start) .sidebar-header`: while the
+ * trending list is scrolled, the header switches to the surface colour and
+ * draws its hairline (the reference is at the top, so it has neither). */
+.k-root .k-stickers-header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 1px;
+  background-color: var(--border-color);
+  opacity: 0;
+  transition: opacity var(--transition-standard-in);
+}
+
+.k-root .k-stickers-header.is-scrolled {
+  background-color: var(--surface-color);
+}
+
+.k-root .k-stickers-header.is-scrolled::after {
+  opacity: 1;
+}
+
+.k-root .k-stickers-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ---------- the trending list (tweb #stickers-container) ---------- */
+
+.k-root .k-sticker-sets {
+  display: flex;
+  flex-direction: column;
+  margin-top: 1rem;
+}
+
+.k-root .k-sticker-set {
+  display: flex;
+  flex-direction: column;
+  height: 8.75rem; /* 140px */
   cursor: pointer;
 }
 
-.k-root .k-stickers-row-cover {
-  flex: 0 0 auto;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin-inline-end: 1rem;
+.k-root .k-sticker-set:focus-visible {
+  outline: none;
+}
+
+.k-root .k-sticker-set:focus-visible .k-sticker-set-name {
+  text-decoration: underline;
+}
+
+.k-root .k-sticker-set-header {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--secondary-text-color);
+  justify-content: space-between;
+  padding-inline-start: 1rem;
+  padding-bottom: 0.75rem;
 }
 
-.k-root .k-stickers-row-cover img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+.k-root .k-sticker-set-details {
+  min-width: 0;
 }
 
-.k-root .k-stickers-row-cover .tgico {
-  font-size: 1.75rem;
-  line-height: 1;
+/* tweb's html base line-height is 1.5 (unitless), so the name line box is 24px
+ * and the 14px count line box 21px — the header adds up to 45 + 12 padding and
+ * puts the preview row at 129px inside the fixed 140px section. */
+.k-root .k-sticker-set {
+  font-size: var(--font-size-16);
 }
 
-.k-root .k-stickers-add {
-  flex: 0 0 auto;
-  height: 1.875rem;
-  padding: 0 0.75rem;
-  border: none;
-  border-radius: 1rem;
-  background-color: var(--light-filled-primary-color);
-  color: var(--primary-color);
-  font-family: inherit;
-  font-size: var(--font-size-14);
+.k-root .k-sticker-set-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--font-size-16);
+  line-height: 1.5;
   font-weight: var(--font-weight-bold);
-  line-height: 1;
-  cursor: pointer;
+  color: var(--primary-text-color);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.k-root .k-stickers-add.is-installed {
-  background-color: var(--light-secondary-text-color);
+.k-root .k-sticker-set-count {
   color: var(--secondary-text-color);
+  font-size: var(--font-size-14);
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.k-root .k-stickers-add:disabled {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.k-root .k-stickers-loading {
+/* `.btn-primary` paints the pill; this overrides it to tweb's 30px pack button. */
+.k-root .k-sticker-set-button {
+  flex: 0 0 auto;
+  width: auto;
+  height: 1.875rem;
+  margin-inline-end: 1rem;
+  padding-inline: 0.75rem 0.8125rem;
+  border-radius: 1rem;
+  font-size: var(--font-size-15);
+  font-weight: var(--font-weight-normal);
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2.5rem 0;
+  white-space: nowrap;
 }
 
-.k-root .k-stickers-empty {
-  padding: 1.5rem 1rem;
-  text-align: center;
+.k-root .k-sticker-set-button.is-gray {
   color: var(--secondary-text-color);
-  font-size: var(--font-size-14);
-  line-height: var(--line-height-14);
+  /* tweb keeps this literal light plate in both themes, as the reference's
+   * "已添加" pill shows. */
+  background: #f1f3f4;
+}
+
+.k-root .k-sticker-set-stickers {
+  display: flex;
+  justify-content: space-around;
+}
+
+.k-root .k-sticker-set-sticker {
+  position: relative;
+  width: 4.25rem; /* 68px */
+  height: 4.25rem;
+  flex: 0 0 auto;
+}
+
+@media (hover: hover) {
+  .k-root .k-sticker-set-sticker:hover {
+    background-color: var(--light-secondary-text-color);
+    border-radius: 12px;
+  }
 }

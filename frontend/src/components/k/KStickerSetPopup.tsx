@@ -158,7 +158,7 @@ function KStickerSetPopup({
         return;
       }
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
       close();
     };
     window.addEventListener("keydown", onKeyDown, true);

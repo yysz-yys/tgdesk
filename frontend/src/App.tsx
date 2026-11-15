@@ -2165,6 +2165,7 @@ export default function App() {
           backLabel={t("kSettings.back")}
           onBack={() => setSidebarPage(null)}
           onToast={showToast}
+          animationsEnabled={animationLevel > 0}
         />
       ),
     });

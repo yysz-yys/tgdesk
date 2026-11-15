@@ -11,9 +11,11 @@ import { KChatList } from "../components/k/KChatList";
 import { KEmptyChatSurface, KTipsToggle } from "../components/k/KEmptyChat";
 import { KMainScreen } from "../components/k/KMainScreen";
 import { KSettings } from "../components/k/KSettings";
+import { KStickersPage } from "../components/k/KStickersPage";
 import { KNewChatFlow, type KNewChatMember } from "../components/k/KNewChatFlow";
 import type { KSuperTabEntry } from "../components/k/KSuperTab";
 import { setTipsHidden, setTipsIndex } from "../components/k/tipsStore";
+import { createStickersPageFixture } from "./kStickersFixture";
 import "../app.css";
 import "../components/layout/layout.css";
 import "../components/layout/shell-f.css";
@@ -26,6 +28,7 @@ const page = params.get("page");
 const openMenu = params.get("menu") === "1";
 const showTips = params.get("tips") === "1";
 const darkPreview = params.get("night") === "1";
+const stickersFixture = createStickersPageFixture();
 
 void i18n.changeLanguage(params.get("lang") ?? "zh");
 document.documentElement.dataset.loggedIn = "true";
@@ -166,8 +169,18 @@ if (showTips) {
 
 function Preview() {
   const [query, setQuery] = useState("");
-  const [sidebarPage, setSidebarPage] = useState<"settings" | "channel" | "group" | null>(
-    page === "settings" ? "settings" : page === "channel" ? "channel" : page === "group" ? "group" : null,
+  const [sidebarPage, setSidebarPage] = useState<
+    "settings" | "stickers" | "channel" | "group" | null
+  >(
+    page === "settings"
+      ? "settings"
+      : page === "stickers"
+        ? "stickers"
+        : page === "channel"
+          ? "channel"
+          : page === "group"
+            ? "group"
+            : null,
   );
 
   // Auto-open the hamburger menu for CDP screen captures. Radix opens the menu
@@ -224,6 +237,18 @@ function Preview() {
           onOpenQrCode={noop}
           onToast={toast}
           onOpenUrl={noop}
+        />
+      ),
+    });
+  } else if (sidebarPage === "stickers") {
+    superTabStack.push({
+      key: "stickers",
+      body: (
+        <KStickersPage
+          backLabel="Back"
+          onBack={() => setSidebarPage(null)}
+          onToast={toast}
+          preview={stickersFixture}
         />
       ),
     });

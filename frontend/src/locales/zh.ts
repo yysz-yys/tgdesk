@@ -1173,6 +1173,10 @@ export default {
     chatsEmpty: "暂无最近会话。",
   },
   stickerSet: {
+    searchPlaceholder: "查找贴纸",
+    add: "添加",
+    added: "已添加",
+    stickerCount: "{{count}} 张表情",
     addCount: "添加 {{count}} 张表情",
     removeCount: "移除 {{count}} 张表情",
     loading: "加载中…",

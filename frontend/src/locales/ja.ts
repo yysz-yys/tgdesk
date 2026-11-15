@@ -1173,6 +1173,10 @@ export default {
     chatsEmpty: "最近のチャットはありません。",
   },
   stickerSet: {
+    searchPlaceholder: "ステッカーを検索",
+    add: "追加",
+    added: "追加しました",
+    stickerCount: "ステッカー {{count}}枚",
     addCount: "ステッカー {{count}} 枚を追加",
     removeCount: "ステッカー {{count}} 枚を削除",
     loading: "取得中…",

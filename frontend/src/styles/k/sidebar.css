@@ -161,6 +161,18 @@
   color: var(--primary-color);
 }
 
+/* InputSearch's default style (super-tab headers): the bordered field that
+ * takes the accent border on focus. The chat list uses `.old-style` instead. */
+.k-root .input-search:not(.old-style) .input-search-input {
+  background-color: var(--input-search-background-color);
+  border-color: var(--input-search-border-color);
+}
+
+.k-root .input-search:not(.old-style) .input-search-input:focus {
+  background-color: transparent;
+  border-color: var(--primary-color);
+}
+
 .k-root .input-search-placeholder {
   position: absolute;
   top: 50%;

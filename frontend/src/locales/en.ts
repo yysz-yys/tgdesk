@@ -1183,6 +1183,11 @@ export default {
     chatsEmpty: "No recent chats.",
   },
   stickerSet: {
+    searchPlaceholder: "Search Stickers",
+    add: "Add",
+    added: "Added",
+    stickerCount_one: "{{count}} sticker",
+    stickerCount_other: "{{count}} stickers",
     addCount_one: "Add {{count}} sticker",
     addCount_other: "Add {{count}} stickers",
     removeCount_one: "Remove {{count}} sticker",

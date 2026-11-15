@@ -79,10 +79,18 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
   账号为 Premium 时隐藏（`AuthUser.premium`，bindings 已重新生成）。贴纸单元格先画静帧，
   TGS/WebM 仅在视口内按 40ms 步距挂载并循环播放，加载完成前保留静帧，避免一次创建几十个
   Lottie 实例和空白格子。
-- 新的「贴纸与表情」设置页（`KStickersPage.tsx`）：Tips 说明链接 和 Settings 的
-  「Stickers and Emoji」行都会打开它；目前是精简版热门贴纸列表（前 40 个 featured 套件，
-  封面 / 标题 / N 张贴纸 / 添加-已添加按钮），行点击打开同一贴纸集弹窗。完整的
-  installed/archived 分区、搜索和旧热门分页仍待补。
+- 新的「贴纸与表情」侧栏页（`KStickersPage.tsx`，tweb
+  `sidebarLeft/tabs/stickersAndEmoji.tsx` + 热门贴纸面板
+  `sidebarRight/tabs/stickers.tsx` 的 1:1 移植）：标题位换成 44px `InputSearch`
+  搜索框（“查找贴纸”），每个热门套件一节 —— 套件名 16 粗体 / “N 张表情” 14 灰色、
+  右侧 30px 添加/已添加药丸（官方灰底 `#f1f3f4` + secondary 文字）、下方 5 张 68×68
+  预览贴纸（`space-around`，节高 140px，与官方 `#stickers-container` 规则一致）；
+  预览按节懒加载，点套件或其贴纸打开贴纸集弹窗，添加/已添加直接安装/移除并刷新状态，
+  滚动时头部切换 surface 底 + 1px 发际线，滚动条沿用 Web K 自定义样式。搜索在
+  trending + 已安装列表里按标题本地过滤（官方用 `messages.searchStickerSets`，内核目前
+  只给输入框用）；Night 主题用 K tokens（`#181818` 页 / `#2f2f2f` 搜索框描边）与官方一致。
+  预置截图入口 `k-preview.html?page=stickers`（fixture 套件）。installed/archived 分区、
+  服务端搜索和旧热门分页仍待补。
 - 频道资料补充：`ChatProfileDTO` 增加 `usernames[]`（全部有效用户名，主用户名在前）、
   `canSendStickers`/`canSendGifs`（由 send_stickers/send_gifs 禁权推导）、
   `giftsCount`（stargifts_count，决定礼物 tab 是否显示）、`adminsCount`；

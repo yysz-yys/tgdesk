@@ -40,15 +40,38 @@
   painted, so a forty-sticker pack neither builds forty Lottie instances in one
   frame nor shows blank cells while the loopback server streams the files.
 - **New "Stickers and Emoji" page** (opened by the tip's description link and
-  by the Settings row): the first 40 featured packs as K setting rows (cover,
-  title, "N stickers", Add/Added pill), each row opening the same popup. Web K's
-  installed/archived sections, search and older featured pages remain future
-  work.
+  by the Settings row): initially a reduced trending list; it now says goodbye to
+  the row layout and becomes the full trending tab described below.
 - i18n: the tip and popup strings live in `tips.*` / `stickerSet.*` for
   en/zh/ja, using the official WebK zh wording where it exists ("根据表情符号建议贴纸",
   "不推荐", "我的表情包", "全部", "热门贴纸", "添加 N 张表情") and matching ja labels;
   the lock badge and popup menu strings are covered too. `AddStickersCount`'s
   Japanese word order is baked into the per-language strings.
+
+### Design K: the trending Stickers tab
+
+- **The "Stickers and Emoji" tab is now the real Web K trending browser**: the
+  tab Web K opens from the Stickers tip's "Trending Stickers" link (and from the
+  Settings row) swaps its title slot for the 44px `InputSearch` field and lists
+  Telegram's featured packs under tweb's `#stickers-container` rules — a 140px
+  section per pack with the name (16 bold) over "N 张表情" (14 secondary), a 30px
+  Add/Added pill (accent fill, or tweb's literal `#f1f3f4` plate with secondary
+  text once added) and the pack's first five stickers at 68×68 spaced
+  `space-around`. The previews load lazily as each section scrolls into view,
+  pressing a pack (or one of its previews) opens the sticker-set popup, the pill
+  installs/removes the set through the same kernel calls as the popup, scrolling
+  switches the header to the surface plate with its hairline, and the page uses
+  the Web K custom scrollbar. The Night surface (`#181818` page, `#2f2f2f` search
+  ring) and text tokens are the reference's. Search filters the trending and
+  installed packs by title in the client (the reference asks
+  `messages.searchStickerSets`, which the kernel exposes only to the composer);
+  the installed/archived sections and older featured pages remain future work.
+- `?page=stickers` on the preview harness (`k-preview.html`) renders the tab with
+  fixture packs, so its layout can be captured without a kernel or network.
+- Verified against the reference capture from a live account, driven headless
+  through the server-mode build: the search ring (44px), back arrow, title/count
+  baselines, 140px section pitch, Add/Added pills and the 68px preview grid land
+  within one device pixel, and the pill installs/removes the real set.
 
 ### Design K: the dark (Night) theme
 

@@ -11,7 +11,7 @@ signed-in main screen (chat list + empty chat column, light "Day" theme).
 | Screen | State |
 |---|---|
 | Signed-in main screen (chat list, folder chips, archive row, empty chat column, tips lightbulb, new-message FAB) | **Port done** (light theme) |
-| Stickers tip card (suggest mode + trending packs) and its sticker-set preview popup | **Port done** (light/Night, en/zh/ja) |
+| Stickers tip card (suggest mode + trending packs), its sticker-set preview popup and the trending Stickers tab | **Port done** (light/Night, en/zh/ja) |
 | Settings (Web K home: self profile header, phone, sections, header menu, version) | **Port done** (light theme) |
 | New Channel / New Group / Add Members flow | **Port done** (light theme) |
 | Main menu (hamburger) with the More submenu and the Downloads entry | **Port done** |
@@ -425,13 +425,27 @@ so custom account themes show up too.
   bottom-centre colour dimmed by the grey 30% plate, so the Duck pack's four effect
   stickers wear the same warm plate as the reference. Premium accounts get no badge
   (`AuthUser.premium`, mirroring tweb's `body.is-premium`).
-- **Stickers and Emoji page** (`KStickersPage`): the tips description link and the
-  Settings "Stickers and Emoji" row open this ported settings page. It is reduced to the
-  Trending block — the first 40 of `messages.getFeaturedStickers` as K setting rows (cover,
-  title, "N stickers", Add/Added pill); a row opens the same sticker-set popup and the
-  pill installs/removes the set. The full tweb page (installed/archived sections, search,
-  older featured pages, animated covers) remains future work; the composer's picker still
-  owns day-to-day sticker management.
+- **Stickers and Emoji tab** (`KStickersPage`): the tips description link and the
+  Settings "Stickers and Emoji" row open the tab Web K composes from
+  `sidebarLeft/tabs/stickersAndEmoji.tsx` + its trending body
+  `sidebarRight/tabs/stickers.tsx`. The tab title slot holds the 44px `InputSearch`
+  field ("查找贴纸" / "Search Stickers") next to the back button, and the content is
+  one section per trending pack under tweb's `#stickers-container` rules: 140px
+  `.sticker-set` blocks with the pack name (16 bold) over "N 张表情" (14 secondary),
+  an Add/Added pill at the end (30px, radius 16, accent fill / tweb's literal
+  `#f1f3f4` + secondary text plate), and the pack's first five stickers at 68×68
+  spaced `space-around` (82px+ section rhythm). The previews load per section as it
+  scrolls near the viewport; pressing a pack or one of its stickers opens the
+  sticker-set popup, the Add/Added pill installs/removes the set with the same
+  kernel calls as the popup, and scrolling switches the header to the surface
+  colour plus its hairline (tweb's `scrollable-y-bordered`) over the Web K custom
+  scrollbar. Search filters the trending + installed lists by title in the client —
+  the reference asks `messages.searchStickerSets`, which the kernel exposes only to
+  the composer today. The Night palette comes from the K tokens, matching the
+  reference's `#181818` page / `#2f2f2f` search ring. The full tweb tab (installed
+  and archived sections, server search, older featured pages) remains future work;
+  the composer's picker still owns day-to-day sticker management. Dev screenshots
+  for this page use `k-preview.html?page=stickers` with fixture packs.
 - **Archived chats** are a sidebar screen of their own, not a swapped list:
   `KChatList` keeps two tabs in tweb's `.sidebar-slider.tabs-container`
   (`item-main` + the archived tab) and opens the second one with the same
@@ -505,6 +519,8 @@ cd frontend; npm run dev
 # http://127.0.0.1:9245/k-preview.html            main screen (empty state)
 # http://127.0.0.1:9245/k-preview.html?chat=1     open-chat layout check
 # ?page=settings                                 Settings home
+# ?page=stickers                                 the Stickers-and-Emoji trending tab
+#                                                (fixture packs; dark/light by ?night)
 # ?page=channel / ?page=group                    the new-chat flows (group: click
 #                                                the corner arrow for Add Members)
 # ?menu=1                                        the hamburger menu (hover More for
@@ -526,13 +542,28 @@ in the real desktop Web K.
 The reference was normalized from a P3 (wide-gamut) 2× screenshot; compare
 structure/geometry directly, colours through a Display-P3 conversion.
 
-The Stickers tip card and its sticker-set popup need the kernel's sticker API, so they
-are checked in the running app rather than the fixture harness: launch the build with
-`TGDESK_WEBVIEW_DEBUG=1`, open the tips deck on the second card (the deck's state is
-persisted in `tgdesk.k.chatTips.*`), then click a trending pack; `Page.captureScreenshot`
-over the DevTools endpoint at 1100×760@2 gives the same 640/840-device-pixel geometry the
-official Web K reference has. The kernel's `TGDESK_HOME` override keeps those checks off
-the real portable data.
+The Stickers tip card, its sticker-set popup and the trending Stickers tab need the
+kernel's sticker API, so they are also checked against the reference in the running
+app rather than the fixture harness. Two ways to do that without an app window in the
+foreground:
+
+```powershell
+# 1. server mode serves the same build over HTTP (no WebView window at all)
+go build -tags server -o bin/tgdesk-server.exe .   # embedded frontend/dist
+$env:TGDESK_HOME = "E:\tg\tgdesk-verify"            # throwaway portable root
+bin/tgdesk-server.exe                                # http://localhost:8080
+# 2. drive it from headless Chrome over CDP
+chrome.exe --headless=new --remote-debugging-port=9222 --user-data-dir=temp/chrome-verify about:blank
+#    then Page.navigate to http://localhost:8080, set tgdesk.settings
+#    (language/theme/proxy) in localStorage and use Emulation + Page.captureScreenshot
+```
+
+The trending tab was captured this way with the real featured packs and matches the
+reference's 720×1518-device-pixel card crop on the search ring, back arrow,
+title/count baselines, section pitch, Add/Added pills and preview grid. Use a copy of
+`bin/tdata` in the throwaway root (and remove it afterwards) so account checks never
+run on the only `tdata`; install/uninstall checks are reverted in the same session.
+`k-preview.html?page=stickers` stays the offline check for the tab's layout.
 
 ## Remaining work (page-by-page)
 
@@ -543,9 +574,10 @@ the real portable data.
 4. Settings sub-pages (notifications, data and storage, privacy, chat folders,
    stickers, speakers and camera, devices, keyboard shortcuts, edit profile) and the
    settings search layer; the home screen is ported and those rows currently open the
-   legacy settings dialog or announce themselves. The "Stickers and Emoji" page is
-   ported for the Trending block only (see above); its installed/archived sections,
-   search and older featured pages are still missing.
+   legacy settings dialog or announce themselves. The "Stickers and Emoji" tab's
+   trending browser is ported (see above); its installed/archived sections, the
+   server-side `messages.searchStickerSets` search it opens with, and older featured
+   pages are still missing.
 5. Animated/moving wallpaper, custom chat backgrounds, stories rings, avatars
    videos — not part of the reference page.
 6. Avatar editing for new chats (the camera button on the new-channel/group pages

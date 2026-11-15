@@ -7,20 +7,33 @@ interface KSearchFieldProps {
   onChange: (value: string) => void;
   onFocus?: () => void;
   placeholder: string;
+  /**
+   * The chat list's "old style" pill (grey plate, no ring). Super-tab headers
+   * (the Stickers tab) use the default InputSearch ring: bordered, transparent
+   * fill that turns accent on focus.
+   */
+  oldStyle?: boolean;
 }
 
 /**
- * Web K sidebar search: the old-style 44px pill (`InputSearch` with
- * `old-style`), a 24px magnifier, and a clear button that appears once text is
- * typed. On focus the pill turns transparent with an accent border.
+ * Web K sidebar search: the 44px pill (`InputSearch`), a 24px magnifier, and a
+ * clear button that appears once text is typed. The default style is the
+ * bordered super-tab header field; `oldStyle` is the chat list's grey plate. On
+ * focus the pill turns transparent with an accent border.
  */
-export function KSearchField({ value, onChange, onFocus, placeholder }: KSearchFieldProps) {
+export function KSearchField({
+  value,
+  onChange,
+  onFocus,
+  placeholder,
+  oldStyle = true,
+}: KSearchFieldProps) {
   const { t } = useTranslation();
   const clearRipple = useRipple<HTMLButtonElement>();
   const isEmpty = value.length === 0;
 
   return (
-    <div className="input-search old-style">
+    <div className={oldStyle ? "input-search old-style" : "input-search"}>
       <input
         className={
           isEmpty
