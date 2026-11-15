@@ -288,10 +288,11 @@ capture encoding.
   standard transition, the Lottie runs once to its last frame and the figure
   settles back; a click on another tile cancels the previous one, and a click that
   lands while a non-bundled figure is still loading is replayed as soon as it is
-  ready. The motion only runs at the full animation level (2) with the OS
-  reduce-motion preference off, and the active tile is not a click target, both
-  as in tweb. Nothing is parsed while the deck is closed; the plain emoji glyph
-  is the fallback when a figure cannot be loaded.
+  ready. The figures and the lottie renderer are warmed at idle, so opening the
+  deck paints finished figures instead of flashing the fallback glyph. The motion
+  only runs at the full animation level (2) with the OS reduce-motion preference
+  off, and the active tile is not a click target, both as in tweb. The plain emoji
+  glyph is only painted when no figure can be loaded at all.
 - **Chat-tips deck**: the lightbulb in the page's top-right corner folds the deck in and out
   (`KTipsToggle`, lamp ↔ cross), exactly like tweb `components/chatTips` after the macOS
   widget: a 320×320 card centred in the empty column with custom Previous / Next service

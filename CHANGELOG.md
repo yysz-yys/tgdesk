@@ -184,9 +184,12 @@
   (`public/assets/tgs/themes`, ~276 KB), so the very first launch — and the
   offline/dev-preview state — shows and animates them without waiting for a
   download; a click that lands while a non-bundled figure is still loading is
-  replayed once it is ready. The kernel's animated-emoji sticker-set endpoint
-  remains the live source for any emoticon not bundled (a theme Telegram adds
-  later), with its answer cached in IndexedDB.
+  replayed once it is ready. The figures and the lottie renderer are warmed at
+  idle, and the fallback glyph is now only painted when no figure can be loaded at
+  all - tiles no longer flash the system emoji for a moment before their artwork
+  appears. The kernel's animated-emoji sticker-set endpoint remains the live
+  source for any emoticon not bundled (a theme Telegram adds later), with its
+  answer cached in IndexedDB.
 
 ### Telegram parity III: Saved Messages 2.0, gifts, search, presence, pinned bar, live emoji
 

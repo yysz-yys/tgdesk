@@ -23,6 +23,7 @@ import { KThemeEmoticon, type KThemeEmoticonHandle } from "./KThemeEmoticon";
 import { bundledThemeEmoji } from "./themeEmojiAssets";
 import {
   preloadThemeEmoji,
+  preloadThemeEmojiRenderer,
   readCachedEmojiRefs,
   saveCachedEmojiRefs,
 } from "./themeEmojiCache";
@@ -244,12 +245,28 @@ export function KChatTips({
     };
   }, [proxyUrl, ntp, kernelEmoticons]);
 
-  // Warm the bundled figures once the deck is opened, so the first click plays a
-  // ready animation. Closed-deck launches do not parse them at all.
+  // Warm the bundled figures and the lottie renderer while the page is idle: the
+  // deck then paints finished figures (no frame of the fallback glyph) and the
+  // first click animates at once, rather than paying for the module and TGS
+  // parsing on the click that needs them.
   useEffect(() => {
-    if (hidden || emoticonList.length === 0) return;
-    void preloadThemeEmoji(emoticonList);
-  }, [hidden, emoticonList]);
+    if (emoticonList.length === 0) return;
+    let timer = 0;
+    let idle = 0;
+    const warm = () => {
+      void preloadThemeEmojiRenderer();
+      void preloadThemeEmoji(emoticonList);
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      idle = window.requestIdleCallback(warm, { timeout: 1500 });
+    } else {
+      timer = window.setTimeout(warm, 250);
+    }
+    return () => {
+      if (idle) window.cancelIdleCallback(idle);
+      window.clearTimeout(timer);
+    };
+  }, [emoticonList]);
 
   // A vertical mouse wheel scrolls the theme strip sideways, the way the
   // reference's scroll container does. Native listener: React's wheel handler

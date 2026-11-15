@@ -12,11 +12,10 @@
  *    with the OS reduce-motion preference off, like tweb's `liteMode.motion`.
  *
  * Because the stock figures ship with the app, the first launch animates
- * immediately; a click that still lands before the figure has loaded is
- * remembered and replayed once it is ready, so it is not silently lost.
- *
- * Until the data arrives, or when it cannot be loaded, the plain emoji glyph is
- * shown instead, exactly like tweb's `is-static` fallback.
+ * immediately; `KChatTips` also preloads them at idle, so opening the deck shows
+ * finished figures rather than flashing the fallback glyph. A plain emoji glyph
+ * is only drawn when no figure can be loaded at all, and a click that still lands
+ * before the figure is ready is replayed once it is.
  */
 import {
   forwardRef,
@@ -26,7 +25,7 @@ import {
   useState,
 } from "react";
 import type { AnimationItem } from "lottie-web";
-import { loadThemeEmoji } from "./themeEmojiCache";
+import { loadThemeEmoji, loadThemeEmojiRenderer } from "./themeEmojiCache";
 
 export interface KThemeEmoticonHandle {
   /** Plays the click micro-animation (a no-op unless full animations are on). */
@@ -82,7 +81,11 @@ export const KThemeEmoticon = forwardRef<
   const animationRef = useRef<AnimationItem | null>(null);
   const timerRef = useRef(0);
   const pendingPlayRef = useRef(0);
-  const [ready, setReady] = useState(false);
+  // "loading" paints nothing (no fallback flash); only a hard failure falls back
+  // to the emoji glyph.
+  const [figureState, setFigureState] = useState<
+    "loading" | "ready" | "failed"
+  >("loading");
 
   useEffect(() => {
     const host = hostRef.current;
@@ -96,7 +99,9 @@ export const KThemeEmoticon = forwardRef<
       try {
         const animationData = await loadThemeEmoji(emoticon, url, cacheRef);
         if (cancelled) return;
-        const lottie = (await import("lottie-web")).default as unknown as LottieApi;
+        const lottie = (
+          (await loadThemeEmojiRenderer()) as { default: LottieApi }
+        ).default;
         if (cancelled) return;
         animation = lottie.loadAnimation({
           container: host,
@@ -113,7 +118,7 @@ export const KThemeEmoticon = forwardRef<
         } else {
           animation.addEventListener("DOMLoaded", settle);
         }
-        setReady(true);
+        setFigureState("ready");
         // A click made while the figure was still loading must not be lost.
         const pending = pendingPlayRef.current;
         pendingPlayRef.current = 0;
@@ -121,7 +126,9 @@ export const KThemeEmoticon = forwardRef<
           playAnimation();
         }
       } catch {
-        // Keep the static emoji: the tile still explains its theme.
+        // No figure available (no bundled file and no kernel URL): fall back to
+        // the plain emoji glyph, as tweb's is-static does.
+        setFigureState("failed");
       }
     };
 
@@ -131,7 +138,7 @@ export const KThemeEmoticon = forwardRef<
       window.clearTimeout(timerRef.current);
       animation?.destroy();
       animationRef.current = null;
-      setReady(false);
+      setFigureState("loading");
     };
   }, [emoticon, url, cacheRef, enabled]);
 
@@ -187,11 +194,11 @@ export const KThemeEmoticon = forwardRef<
       {enabled ? (
         <span ref={hostRef} className="k-tip-theme-lottie" aria-hidden="true" />
       ) : null}
-      {ready ? null : (
+      {figureState === "failed" ? (
         <span className="k-tip-theme-emoticon-static" aria-hidden="true">
           {emoticon}
         </span>
-      )}
+      ) : null}
     </span>
   );
 });

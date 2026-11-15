@@ -22,6 +22,25 @@ const REF_MAP_KEY = "tgdesk.k.themeEmojiRefs.v1";
 
 const memory = new Map<string, Promise<unknown>>();
 
+let rendererPromise: Promise<unknown> | null = null;
+
+/** Loads the lottie-web renderer now (it is a lazily imported chunk), so the
+ * first tile that needs it does not pay the module load on a click. */
+export function preloadThemeEmojiRenderer(): Promise<unknown> {
+  if (!rendererPromise) {
+    rendererPromise = import("lottie-web").catch((error: unknown) => {
+      rendererPromise = null;
+      throw error;
+    });
+  }
+  return rendererPromise;
+}
+
+/** The lottie-web module, shared by every tile. */
+export function loadThemeEmojiRenderer(): Promise<unknown> {
+  return preloadThemeEmojiRenderer();
+}
+
 /** The stable sticker ref id at the end of a kernel animated-emoji URL. */
 export function emojiRefId(url: string | undefined): string | undefined {
   if (!url) return undefined;
