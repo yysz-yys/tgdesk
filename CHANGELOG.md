@@ -39,6 +39,16 @@
 
 ### Design K: cloud-theme accents on the dark shell
 
+- **The light shell uses the Day palette of a global theme**: the official
+  theme objects carry a separate `baseThemeDay` palette from Classic, and the
+  reference's light mode paints the Day entry (a slightly different accent —
+  e.g. 💎 `#9475c8` instead of Classic `#b858d1`). Its own wallpaper is usually
+  the "plain day white" no-file wallpaper, so the reference borrows the Classic
+  pastel doodle wallpaper instead (tweb's `getCloudThemeWallpaper`). The shell
+  now does the same: light mode picks the Day accent and keeps the Classic
+  wallpaper, matching the official folder chip (plate `#f5f3f9`), Saved
+  Messages gradient and Appearance tiles.
+
 - **Global themes use the reference's Night palette in dark mode**: the official
   theme objects carry four palette variants — Day, Classic, Night
   (`baseThemeNight`) and Tinted — and the Night entry defines the dark shell's

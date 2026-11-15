@@ -148,8 +148,11 @@ theme's Night accent is `#7db55d` (an olive green pencil button) where Tinted is
 Day/Classic/Night/Tinted entries for all eight themes; `themeStore` prefers the
 Night entry for dark mode, and the live list is merged onto the bundled one so
 the kernel's pattern-document URLs still paint the wallpapers. The light shell
-keeps the Classic/Day palettes and the factory Day/Night accents are untouched.
-The Appearance strip fetches its themes the way the reference does —
+prefers the Day entry (`baseThemeDay`), which is a slightly different accent from
+Classic (💎 `#9475c8` vs `#b858d1`) and whose own wallpaper is the plain white
+day no-file one, so the Classic pastel doodle wallpaper is kept instead — the
+reference's `getCloudThemeWallpaper` behaviour. The Appearance strip fetches its
+themes the way the reference does —
 `account.getThemes` with the `macos` format first, then `account.getChatThemes` —
 so custom account themes show up too.
 

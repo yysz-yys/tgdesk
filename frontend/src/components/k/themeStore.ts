@@ -195,14 +195,34 @@ export function themeVariant(
     entry.baseTheme === "classic" ||
     entry.baseTheme === "day" ||
     entry.dark === false;
+  if (base === "day") {
+    // The light shell is the Day base: the reference uses the theme's
+    // baseThemeDay palette for it (a slightly different accent from Classic).
+    // Its wallpaper, though, is often the "plain day white" no-file wallpaper;
+    // tweb's getCloudThemeWallpaper then borrows the Classic wallpaper, which is
+    // the pastel doodle page the official light mode shows.
+    const day = settings.find((entry) => entry.baseTheme === "day");
+    const classic = settings.find((entry) => entry.baseTheme === "classic");
+    if (!day) {
+      return classic ?? settings.find(isDay) ?? settings[0];
+    }
+    const dayWallpaper = day.wallpaper;
+    const plainDay =
+      Boolean(dayWallpaper) &&
+      (dayWallpaper?.colors?.length ?? 0) === 1 &&
+      dayWallpaper?.colors?.[0] === 0xffffff;
+    if (plainDay && classic?.wallpaper) {
+      return { ...day, wallpaper: classic.wallpaper };
+    }
+    return day;
+  }
   // The official theme set carries an explicit baseThemeNight entry; prefer it
   // over the Tinted one so the dark shell gets the reference's night palette.
-  const wanted =
-    base === "day"
-      ? settings.find(isDay)
-      : settings.find((entry) => entry.baseTheme === "night") ??
-        settings.find((entry) => !isDay(entry));
-  return wanted ?? settings[0];
+  return (
+    settings.find((entry) => entry.baseTheme === "night") ??
+    settings.find((entry) => !isDay(entry)) ??
+    settings[0]
+  );
 }
 
 function wallpaperOf(settings?: ChatThemeSettingsDTO): ActiveWallpaper | undefined {
