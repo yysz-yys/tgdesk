@@ -1,0 +1,361 @@
+/*
+ * Telegram Web K message grammar — component-owned overrides for the message
+ * list. Ported from temp/tweb (`src/scss/partials/_chatBubble.scss`,
+ * `_reactions.scss`, `_reaction.scss`, `base.scss` geometry and theme tokens).
+ *
+ * chat.css is still the Lead's file: these rules are scoped with `.k-root` so
+ * they out-specify the old values regardless of stylesheet order, and the
+ * leftovers the Lead still has to remove are listed in the R4 report.
+ */
+
+/* Web K's `--message-highlighting-color` tint for date pills and service
+   plates; the K tokens (styles/k/tokens.css) already carry the exact value, so
+   this is only the fallback for outside the shell (media preview pages). */
+:root[data-theme="light"] {
+  --tg-highlight: hsla(210, 67.7419%, 50.5882%, 0.4);
+}
+
+:root[data-theme="dark"] {
+  --tg-highlight: hsla(299.142857, 44.166666%, 37.470588%, 0.4);
+}
+
+/* ── date plate (Web K `.bubble.service.is-date .service-msg`) ────────────── */
+
+.k-root .g-date-chip {
+  position: sticky;
+  top: 3px;
+  z-index: 2;
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  margin: 6px auto 5px;
+  border-radius: 14px;
+  background: var(--message-highlighting-color, var(--tg-highlight));
+  padding: 4.5px 10px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0;
+  text-align: center;
+  box-shadow: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+/* ── sender name inside the plate (Web K `.name`) ─────────────────────────── */
+
+.k-root .g-message-bubble > .k-message-name {
+  display: flow-root;
+  overflow: clip;
+  max-width: 100%;
+  margin: 0 0 4px;
+  color: rgb(var(--peer-color-rgb, var(--primary-color-rgb)));
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: normal;
+}
+
+.k-root .g-message-row[data-out] .g-message-bubble > .k-message-name {
+  color: rgb(var(--peer-color-rgb, var(--primary-color-rgb)));
+}
+
+.k-root .g-message-bubble > .k-message-name .g-message-emoji-status {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+  vertical-align: -4px;
+}
+
+/* ── message text + plate (Web K `_chatBubble.scss:568-596,1432-1444`) ────── */
+
+/* Web K caps the plate at 85% of the 696px message lane (CHAT_WIDTH_MAX).
+   A percentage here would resolve against the shrink-to-fit stack, so the
+   85% of 696 is written as its pixel value and clamps with 100% on narrow
+   windows. */
+.k-root .g-message-bubble {
+  max-width: min(591px, 100%);
+  padding: 4px 8px 5px;
+  font-size: var(--messages-text-size, 16px);
+  line-height: 1.3125;
+}
+
+.k-root .g-message-row[data-bleed] .g-message-bubble {
+  max-width: min(591px, 100%);
+}
+
+/* incoming gutter: Web K indents every incoming wrapper by the 32px avatar +
+   14px gap (`_chatBubble.scss` / `.bubbles-inner.is-chat`) */
+.k-root .g-message-row:not([data-out]) .g-message-stack {
+  max-width: calc(100% - 46px);
+  margin-left: 46px !important;
+}
+
+.k-root .g-message-row[data-avatar-space]:not([data-out]) .g-message-stack {
+  margin-left: 46px;
+}
+
+/* ── tail (`_chatBubble.scss:2346-2365,4019-4057`): 11x20 clip-path, a sibling
+      of the plate in Web K, a pseudo-element of it here ───────────────────── */
+
+.k-root .g-message-row[data-last]:not([data-sticker]):not([data-bare-media]) .g-message-bubble::before {
+  content: "";
+  display: block;
+  position: absolute;
+  bottom: 0;
+  left: -8.4px;
+  width: 11px;
+  height: 20px;
+  border: 0;
+  background: var(--tg-bubble-in);
+  clip-path: path("M3 19h6V2c-.193 2.84-.876 5.767-2.05 8.782-.904 2.325-2.446 4.485-4.625 6.48A1 1 0 0 0 3 19z");
+  transform: translateY(1px);
+  pointer-events: none;
+}
+
+.k-root .g-message-row[data-last]:not([data-out]):not([data-sticker]):not([data-bare-media]) .g-message-bubble {
+  border-end-start-radius: 0;
+}
+
+.k-root .g-message-row[data-last][data-out]:not([data-sticker]):not([data-bare-media]) .g-message-bubble::before {
+  right: -8px;
+  bottom: -1px;
+  left: auto;
+  background: var(--tg-bubble-out);
+  clip-path: path("M8 19H2V2c.193 2.84.876 5.767 2.05 8.782.904 2.325 2.446 4.485 4.625 6.48A1 1 0 0 1 8 19z");
+  transform: none;
+}
+
+.k-root .g-message-row[data-last][data-out]:not([data-sticker]):not([data-bare-media]) .g-message-bubble {
+  border-end-end-radius: 0;
+}
+
+/* ── time / views / checks (Web K `.time`, `.time-inner`, `_chatBubble.scss:
+      1898-1971,4046-4069`) ─────────────────────────────────────────────────── */
+
+.k-root .g-message-meta {
+  position: relative;
+  display: block;
+  float: right;
+  height: 12px;
+  margin: 0 0 0 5px;
+  color: var(--tg-bubble-time);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.k-root .g-message-row[data-out] .g-message-meta {
+  color: var(--tg-bubble-time-out);
+}
+
+.k-root .k-message-meta-spacer {
+  display: inline-flex;
+  height: 12px;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1;
+  visibility: hidden;
+}
+
+.k-root .k-message-meta-inner {
+  position: absolute;
+  bottom: -1px;
+  inset-inline-end: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.k-root .g-message-caption > .k-message-meta .k-message-meta-inner {
+  bottom: -1px;
+}
+
+.k-root .g-message-views {
+  gap: 2px;
+  margin-inline: 0;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.k-root .g-message-views svg {
+  width: 18px;
+  height: 18px;
+}
+
+.k-root .g-message-edited {
+  margin-inline-end: 2px;
+  color: var(--tg-bubble-secondary);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.k-root .g-message-checks {
+  width: 19px;
+  height: 19px;
+}
+
+/* a document with no caption carries its time inside the row (Web K appends
+   `.time` into `.document`, bubbles.ts:11756-11762) so the plate keeps its
+   79px height instead of growing a line below the row */
+.k-root .g-message-bubble:has(> .k-document) > .k-message-meta {
+  position: absolute;
+  inset-inline-end: 8px;
+  bottom: 5px;
+  z-index: 1;
+  float: none;
+  height: 12px;
+  margin: 0;
+}
+
+/* the time reserved its room in the text's last line: keep the float in flow */
+.k-root .g-message-caption {
+  display: flow-root;
+}
+
+/* ── reactions row (Web K `_reactions.scss`, `_reaction.scss:19-238`) ─────── */
+
+.k-root .g-message-reactions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 5px 0 1px;
+  padding-top: 0;
+}
+
+.k-root .g-message-reactions .g-reaction {
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  border: 0;
+  border-radius: 30px;
+  background: var(--light-filled-primary-color, rgba(45, 126, 213, 0.08));
+  padding: 0 8px;
+  color: var(--primary-color, #2d7ed5);
+  box-shadow: none;
+  font-size: 15px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.k-root .g-message-reactions .g-reaction:hover {
+  background: color-mix(in srgb, var(--primary-color, #2d7ed5) 16%, var(--surface-color, #ffffff));
+  transform: none;
+}
+
+.k-root .g-message-reactions .g-reaction[data-chosen] {
+  background: var(--primary-color, #2d7ed5);
+  color: #ffffff;
+}
+
+.k-root .g-message-reactions .g-reaction[data-chosen]:hover {
+  background: var(--primary-color, #2d7ed5);
+}
+
+.k-root .g-message-reactions .g-reaction-emoji {
+  font-size: 22px;
+  line-height: 22px;
+}
+
+.k-root .g-message-reactions .g-reaction-custom {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.k-root .g-message-reactions .g-reaction-count {
+  margin-inline: 0 1px;
+  color: var(--primary-color, #2d7ed5);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.k-root .g-message-reactions .g-reaction[data-chosen] .g-reaction-count {
+  color: #ffffff;
+}
+
+/* the time moves into the reaction row (Web K `.message .reactions-like-block
+   .time`, bubbles.ts:13127-13169) */
+.k-root .g-message-reaction-meta {
+  display: inline-flex;
+  margin-left: auto;
+  align-items: center;
+}
+
+.k-root .g-message-reactions .g-message-meta {
+  position: static;
+  display: inline-flex;
+  float: none;
+  height: auto;
+  margin: 2px 0 0 6px;
+  order: 100;
+}
+
+.k-root .g-message-reactions .k-message-meta-spacer {
+  display: none;
+}
+
+.k-root .g-message-reactions .k-message-meta-inner {
+  position: static;
+  display: inline-flex;
+}
+
+/* a media-only message's time is the floating pill over its corner
+   (`_chatBubble.scss:2009-2038`, `mixins/_floatingTime.scss`) */
+.k-root .g-message-row[data-bleed]:not(:has(.g-message-caption)) .g-message-meta {
+  position: absolute;
+  inset-inline-end: 3px;
+  bottom: 3px;
+  right: auto;
+  z-index: 2;
+  height: 20px;
+  margin: 0;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0 5px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 20px;
+  backdrop-filter: none;
+}
+
+.k-root .g-message-row[data-bleed]:not(:has(.g-message-caption)) .k-message-meta-inner {
+  position: static;
+  height: 20px;
+  color: #fff;
+}
+
+.k-root .g-message-row[data-bleed]:not(:has(.g-message-caption)) .g-message-views,
+.k-root .g-message-row[data-bleed]:not(:has(.g-message-caption)) .g-message-edited {
+  color: #fff;
+}
+
+/* stickers keep their old pill until the sticker bubble is ported */
+.k-root .g-message-row[data-sticker] .k-message-meta-inner {
+  position: static;
+  display: inline-flex;
+  height: auto;
+}
+
+/* ── channel / admin posts ────────────────────────────────────────────────── */
+
+.k-root .g-message-row[data-out] .g-message-signature {
+  font-size: 12px;
+  font-style: normal;
+}

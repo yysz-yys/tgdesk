@@ -19,6 +19,7 @@ import { PeerAvatar } from "./PeerAvatar";
 import { EmojiText } from "./EmojiText";
 import { MessageMediaView, isBleedMedia } from "./MessageMediaView";
 import { BotKeyboard } from "./BotKeyboard";
+import "./bubble-k.css";
 
 export interface MessageAuthor {
   name: string;
@@ -267,8 +268,14 @@ export function MessageBubble({
             >
               {showSender ? (
                 <span
-                  className="g-message-author"
-                  style={{ "--peer-color": author.color } as CSSProperties}
+                  className="g-message-author k-message-name"
+                  dir="auto"
+                  style={
+                    {
+                      "--peer-color": author.color,
+                      "--peer-color-rgb": peerColorRgb(author.color),
+                    } as CSSProperties
+                  }
                 >
                   <span>{author.name}</span>
                   {message.senderEmojiStatusUrl ? (
@@ -510,25 +517,62 @@ function AutoLinked({ text }: { text: string }) {
 /** Renders Telegram message entities (bold, code, spoilers, links, quotes) without a markdown parser. */
 function MessageMeta({ message }: { message: Message }) {
   const { t } = useTranslation();
-  return (
-    <span className="g-message-meta">
+  // Web K's `.time`: a hidden copy takes the layout room in the text's last
+  // line, and `.time-inner` paints the visible row at the bubble's bottom end
+  // (`_chatBubble.scss:1898-1971`).
+  const content = (
+    <>
       {message.editDate ? <span className="g-message-edited">{t("chat.edited")}</span> : null}
       {message.views ? (
         <span className="g-message-views">
-          <Icon name="visibility" size={13} />
+          <Icon name="visibility" size={18} />
           {formatCompact(message.views)}
         </span>
       ) : null}
-      <span>{message.time}</span>
+      <span className="k-message-meta-time">{message.time}</span>
       {message.checks ? (
         message.checks === "read" ? (
-          <Icon name="done_all" size={15} className="g-message-checks" />
+          <Icon name="done_all" size={19} className="g-message-checks" />
         ) : (
-          <Icon name="done" size={15} className="g-message-checks" />
+          <Icon name="done" size={19} className="g-message-checks" />
         )
       ) : null}
+    </>
+  );
+  return (
+    <span className="g-message-meta k-message-meta">
+      <span className="k-message-meta-spacer" aria-hidden="true">
+        {content}
+      </span>
+      <span className="k-message-meta-inner">{content}</span>
     </span>
   );
+}
+
+function peerColorRgb(color?: string): string | undefined {
+  if (!color) {
+    return undefined;
+  }
+  if (!color.startsWith("#")) {
+    return undefined;
+  }
+  let hex = color.slice(1);
+  if (hex.length === 3) {
+    hex = hex
+      .split("")
+      .map((value) => value + value)
+      .join("");
+  }
+  if (hex.length < 6) {
+    return undefined;
+  }
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  if (![red, green, blue].every((value) => Number.isFinite(value))) {
+    return undefined;
+  }
+  return `${red}, ${green}, ${blue}`;
 }
 
 function formatCompact(value: number) {

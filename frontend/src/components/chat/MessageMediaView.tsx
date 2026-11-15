@@ -6,6 +6,7 @@ import { Icon } from "../../ui";
 import { openTelegramLink } from "../../lib/telegramLinks";
 import { captureViewerSource, type ViewerSource } from "../media/types";
 import { DownloadBadge } from "./DownloadBadge";
+import { FileDocumentRow } from "./FileDocumentRow";
 import { MediaThumb } from "./MediaThumb";
 import { LocationPreview } from "./LocationPreview";
 
@@ -90,21 +91,31 @@ export function MessageMediaView({
   onResumeDownload,
 }: MessageMediaViewProps) {
   const media = message.media;
+  // Web K shows no download badge while a message's media is idle: the corner
+  // indicator only appears for a transfer that exists (active/paused/failed).
+  // Finished transfers draw nothing at all. File bubbles have their own
+  // hover-revealed indicator (FileDocumentRow).
   const downloadBadge = (
     id: number,
     variant: "corner" | "file" = "corner",
-  ): ReactNode => (
-    <DownloadBadge
-      asSpan
-      variant={variant}
-      messageID={id}
-      task={downloads?.get(id)}
-      onStart={onDownloadInline}
-      onOpen={onOpenDownloaded}
-      onPause={onPauseDownload}
-      onResume={onResumeDownload}
-    />
-  );
+  ): ReactNode => {
+    const task = downloads?.get(id);
+    if (!task) {
+      return null;
+    }
+    return (
+      <DownloadBadge
+        asSpan
+        variant={variant}
+        messageID={id}
+        task={task}
+        onStart={onDownloadInline}
+        onOpen={onOpenDownloaded}
+        onPause={onPauseDownload}
+        onResume={onResumeDownload}
+      />
+    );
+  };
   if (album && album.length > 1) {
     return (
       <AlbumGrid
@@ -250,10 +261,13 @@ export function MessageMediaView({
       );
     default:
       return (
-        <FileCard
+        <FileDocumentRow
           media={media}
-          downloadBadge={downloadBadge(message.id, "file")}
-          onDownload={() => onDownloadInline?.([message.id])}
+          task={downloads?.get(message.id)}
+          onStart={() => onDownloadInline?.([message.id])}
+          onPause={onPauseDownload}
+          onResume={onResumeDownload}
+          onOpen={onOpenDownloaded}
         />
       );
   }
@@ -843,41 +857,6 @@ function RichCard({
   );
 }
 
-function FileCard({
-  media,
-  downloadBadge,
-  onDownload,
-}: {
-  media: MessageMedia;
-  downloadBadge?: ReactNode;
-  onDownload?: () => void;
-}) {
-  const icon =
-    media.kind === "voice" || media.kind === "audio"
-      ? "audio_file"
-      : media.kind === "video"
-        ? "movie"
-        : "description";
-  return (
-    <button type="button" className="g-file" onClick={onDownload}>
-      <span className="g-file-icon-wrap">
-        <span className="g-file-icon" style={{ background: media.color || "#7c9cf5" }}>
-          <Icon name={icon} size={20} />
-        </span>
-        {downloadBadge}
-      </span>
-      <span className="g-file-copy">
-        <span className="g-file-name">{media.name}</span>
-        <span className="g-file-size">
-          {[media.size, media.duration ? formatDuration(media.duration) : "", media.ext]
-            .filter(Boolean)
-            .join(" · ")}
-        </span>
-      </span>
-    </button>
-  );
-}
-
 function AlbumGrid({
   items,
   onOpenPhoto,
@@ -906,17 +885,18 @@ function AlbumGrid({
         }
         const isVideo = media.kind === "video" || media.kind === "video_note";
         const isPhoto = media.kind === "photo";
-        const badge = (
+        const task = downloads?.get(item.id);
+        const badge = task ? (
           <DownloadBadge
             asSpan
             messageID={item.id}
-            task={downloads?.get(item.id)}
+            task={task}
             onStart={onDownloadInline}
             onOpen={onOpenDownloaded}
             onPause={onPauseDownload}
             onResume={onResumeDownload}
           />
-        );
+        ) : null;
         const content = (
           <>
             <MediaPlaceholder media={media} />

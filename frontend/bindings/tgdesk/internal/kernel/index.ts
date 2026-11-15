@@ -32,6 +32,7 @@ export type {
     MessageDTO,
     MessageEntityDTO,
     MessageMediaDTO,
+    PinnedMessageDTO,
     PortablePaths,
     ReactionDTO,
     ResolvedTelegramLinkDTO,

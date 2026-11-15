@@ -5,12 +5,21 @@ import { Service as AppService } from "../bindings/tgdesk/internal/app";
 import { resolveLanguage } from "./i18n";
 import { setTelegramLinkNavigator } from "./lib/telegramLinks";
 import { formatPhoneNumber } from "./lib/phone";
+import { applyTypingEvent, resetTyping } from "./lib/typingStore";
+import {
+  pushRecentlyClosed,
+  pushRecentSearch,
+} from "./components/k/recentPeersStore";
 import {
   getChatGifts as getChatGiftsRPC,
   getPinnedMessage as getPinnedMessageRPC,
+  getPinnedMessageInfo as getPinnedMessageInfoRPC,
   getSavedChats as getSavedChatsRPC,
+  startBot as startBotRPC,
   unpinAllMessages as unpinAllMessagesRPC,
+  updatePinnedMessage as updatePinnedMessageRPC,
 } from "./lib/telegramExtra";
+import { notifyTyping, resetTypingThrottle } from "./lib/typingApi";
 
 import {
   mapChat,
@@ -57,6 +66,11 @@ import { KSettings } from "./components/k/KSettings";
 import { KStickersPage } from "./components/k/KStickersPage";
 import { KStickerSetPopupHost } from "./components/k/KStickerSetPopup";
 import { KNewChatFlow } from "./components/k/KNewChatFlow";
+import {
+  KNewPrivateChat,
+  type KNewPrivateContact,
+} from "./components/k/KNewPrivateChat";
+import type { PinnedMessageInfo } from "./components/chat/PinnedMessageBar";
 import type { KSuperTabEntry } from "./components/k/KSuperTab";
 import type { KAppMenuMoreAction } from "./components/k/KAppMenu";
 import { ChatView } from "./components/chat/ChatView";
@@ -157,7 +171,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   /** The left column's super-tab stack: "settings", "stickers" or the new-chat flow. */
   const [sidebarPage, setSidebarPage] = useState<
-    "settings" | "stickers" | "new-channel" | "new-group" | null
+    "settings" | "stickers" | "new-channel" | "new-group" | "new-private" | null
   >(null);
   const [qrOpen, setQrOpen] = useState(false);
   /** Active Telegram sessions, shown on the Settings "Devices" row. */
@@ -708,6 +722,49 @@ export default function App() {
     [language, proxyUrl, settings.ntp, t],
   );
 
+  // Web K's floating pinned plate needs the newest pin plus the pin count and
+  // the account's canPin right, not just the message (counter, dashed border and
+  // the pin menu depend on them).
+  const loadPinnedMessageInfo = useCallback(
+    async (chatID: string): Promise<PinnedMessageInfo | null> => {
+      const raw = await getPinnedMessageInfoRPC(chatID, proxyUrl, settings.ntp);
+      if (!raw?.message) {
+        return null;
+      }
+      const message = mapMessage(
+        raw.message as KernelMessage,
+        language,
+        t,
+      );
+      return {
+        message,
+        count: raw.count && raw.count > 0 ? raw.count : 1,
+        maxId: raw.maxId || message.id,
+        canPin: Boolean(raw.canPin),
+      };
+    },
+    [language, proxyUrl, settings.ntp, t],
+  );
+
+  const updatePinnedMessage = useCallback(
+    async (chatID: string, messageID: number) => {
+      try {
+        await updatePinnedMessageRPC(
+          chatID,
+          messageID,
+          true,
+          false,
+          proxyUrl,
+          settings.ntp,
+        );
+        setPinnedVersion((version) => version + 1);
+      } catch {
+        showToast(t("chat.unpinFailed"));
+      }
+    },
+    [proxyUrl, settings.ntp, showToast, t],
+  );
+
   const unpinAllMessages = useCallback(
     async (chatID: string) => {
       await unpinAllMessagesRPC(chatID, proxyUrl, settings.ntp);
@@ -715,6 +772,30 @@ export default function App() {
     },
     [proxyUrl, settings.ntp],
   );
+
+  // Web K's START plate on a bot without history: messages.startBot, with the
+  // optional deep-link start parameter.
+  const startBot = useCallback(
+    async (chatID: string, startParam = "") => {
+      try {
+        await startBotRPC(chatID, startParam, proxyUrl, settings.ntp);
+      } catch {
+        showToast(t("input.startFailed"));
+      }
+    },
+    [proxyUrl, settings.ntp, showToast, t],
+  );
+
+  // Output typing (messages.setTyping): the composer calls onTyping while the
+  // field holds text; typingApi throttles to one event per 6s and sends cancel
+  // when the field empties. The throttle window resets on every chat switch.
+  const typingNetwork = useMemo(
+    () => ({ proxy: proxyUrl, ntp: settings.ntp }),
+    [proxyUrl, settings.ntp],
+  );
+  useEffect(() => {
+    resetTypingThrottle();
+  }, [selectedChatId]);
 
   // Opens a bot Web App in the in-app overlay (Telegram Web browser panel):
   // full webview buttons/menu go through messages.requestWebView, simple
@@ -806,6 +887,61 @@ export default function App() {
   }, [chatDTOs, language, t, authUser?.id]);
 
   const selectedChat = chatState.find((chat) => chat.id === selectedChatId);
+
+  // Web K's Chats tip card remembers the peer that was open when the user
+  // switched away ("Closed") and the peers opened from a sidebar search
+  // ("Searched"); both lists live in the frontend store.
+  const chatStateRef = useRef<Chat[]>([]);
+  chatStateRef.current = chatState;
+  const previousChatIdRef = useRef("");
+  useEffect(() => {
+    const previous = previousChatIdRef.current;
+    if (previous && previous !== selectedChatId && loggedIn) {
+      const chat = chatStateRef.current.find((item) => item.id === previous);
+      if (chat) {
+        pushRecentlyClosed(chat);
+      }
+    }
+    previousChatIdRef.current = selectedChatId;
+  }, [selectedChatId, loggedIn]);
+
+  // The Chats tip's description links to search mode (and Ctrl+F does the same):
+  // leave any open sidebar page and focus the chat-list search field.
+  const focusChatSearch = useCallback(() => {
+    setSidebarPage(null);
+    setView("chats");
+    window.setTimeout(() => {
+      document
+        .querySelector<HTMLInputElement>("#column-left .input-search-input")
+        ?.focus();
+    }, 60);
+  }, []);
+
+  useEffect(() => {
+    if (!loggedIn) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) {
+        return;
+      }
+      if (event.key.toLowerCase() !== "f") {
+        return;
+      }
+      // Popups and the tips deck own their own keyboard handling.
+      if (
+        document.querySelector(
+          '[role="dialog"], [role="menu"][data-state="open"], .k-chat-tips-carousel:not(.is-hidden)',
+        )
+      ) {
+        return;
+      }
+      event.preventDefault();
+      focusChatSearch();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusChatSearch, loggedIn]);
   const messages = useMemo(() => {
     // Saved Messages is a chat with yourself: Telegram clients render every
     // saved message as outgoing (right aligned) even when the API returns the
@@ -1886,6 +2022,13 @@ export default function App() {
       const raw = payload.message as KernelMessage | undefined;
       const belongs = chatID !== "" && chatID === selectedChatId;
 
+      // Web K typing indicators (updateUserTyping / updateChatUserTyping /
+      // updateChannelUserTyping): pure UI state, no history reload.
+      if (payload.kind === "typing") {
+        applyTypingEvent(payload);
+        return;
+      }
+
       // Real presence from updateUserStatus: patch the matching private row
       // (and therefore the open header) without reloading the dialog list.
       if (payload.kind === "presence" && payload.userId) {
@@ -2123,6 +2266,7 @@ export default function App() {
     void (async () => {
       try {
         await AppService.Logout();
+        resetTyping();
         setAuthUser(null);
         setLoggedIn(false);
         setSettingsOpen(false);
@@ -2239,11 +2383,45 @@ export default function App() {
     [proxyUrl, settings.ntp],
   );
 
-  const handleChatCreated = (chatId: string) => {
+  // Web K's New Private Chat page lists the account's contacts
+  // (contacts.getContacts); the page searches/sorts them locally.
+  const loadContacts = useCallback(async (): Promise<KNewPrivateContact[]> => {
+    const contacts = await AppService.GetContacts(proxyUrl, settings.ntp);
+    return (contacts ?? []).map((contact) => ({
+      id: contact.id,
+      peerId: contact.peerId,
+      name: contact.name,
+      username: contact.username || undefined,
+      avatarUrl: contact.avatarUrl || undefined,
+      colorIndex: contact.colorIndex,
+      online: contact.online,
+      lastSeen: contact.lastSeen || undefined,
+      status: contact.status || undefined,
+    }));
+  }, [proxyUrl, settings.ntp]);
+
+  // Web K keeps the picked photo on the page and uploads it after the chat
+  // exists (SetChatPhoto → channels.editPhoto/messages.editChatPhoto); the chat
+  // stays created when the photo upload fails.
+  const handleChatCreated = (chatId: string, photoBase64?: string) => {
     setSidebarPage(null);
     void (async () => {
       await refreshChats();
       openChat(chatId);
+      if (!photoBase64) {
+        return;
+      }
+      try {
+        await AppService.SetChatPhoto(
+          proxyUrl,
+          settings.ntp,
+          chatId,
+          photoBase64,
+        );
+        await refreshChats();
+      } catch {
+        showToast(t("kNewChat.photoFailed"));
+      }
     })();
   };
 
@@ -2307,6 +2485,23 @@ export default function App() {
         />
       ),
     });
+  } else if (sidebarPage === "new-private") {
+    superTabStack.push({
+      key: "new-private",
+      body: (
+        <KNewPrivateChat
+          onBack={() => setSidebarPage(null)}
+          onLoadContacts={loadContacts}
+          onSelectContact={(peerId) => {
+            setSidebarPage(null);
+            setView("chats");
+            openChat(peerId);
+          }}
+          onAddContact={() => showToast(t("kContacts.addSoon"))}
+          onToast={showToast}
+        />
+      ),
+    });
   }
 
   if (!authChecked) {
@@ -2354,6 +2549,15 @@ export default function App() {
               }
             }}
             onSelectChat={(id) => {
+              // Picking a peer out of the sidebar search is what Web K records
+              // in its "Searched" recent-peer list; the search closes on pick.
+              if (query.trim()) {
+                const picked = chatState.find((chat) => chat.id === id);
+                if (picked) {
+                  pushRecentSearch(picked);
+                }
+                setQuery("");
+              }
               setView("chats");
               openChat(id);
             }}
@@ -2369,6 +2573,7 @@ export default function App() {
             onSettings={() => setSidebarPage("settings")}
             onNewChannel={() => setSidebarPage("new-channel")}
             onNewGroup={() => setSidebarPage("new-group")}
+            onNewPrivate={() => setSidebarPage("new-private")}
             superTabStack={superTabStack}
             nightMode={nightMode}
             onToggleNightMode={toggleNightMode}
@@ -2457,6 +2662,8 @@ export default function App() {
                 onOpenSavedChat={openSavedChat}
                 onLoadChatGifts={loadChatGifts}
                 onLoadPinnedMessage={loadPinnedMessage}
+                onLoadPinnedMessageInfo={loadPinnedMessageInfo}
+                onUpdatePinnedMessage={updatePinnedMessage}
                 onUnpinAllMessages={unpinAllMessages}
                 pinnedVersion={pinnedVersion}
                 network={{ proxy: proxyUrl, ntp: settings.ntp }}
@@ -2477,6 +2684,29 @@ export default function App() {
                 onForwardMessage={forwardMessage}
                 onReactMessage={reactMessage}
                 onAttach={attachFiles}
+                onStartBot={(startParam) => {
+                  void startBot(selectedChat.id, startParam);
+                }}
+                onTyping={() => {
+                  if (
+                    selectedChat.kind === "channel" ||
+                    selectedChat.bot ||
+                    selectedChat.saved
+                  ) {
+                    return;
+                  }
+                  notifyTyping(selectedChat.id, "typing", typingNetwork);
+                }}
+                onTypingStop={() => {
+                  if (
+                    selectedChat.kind === "channel" ||
+                    selectedChat.bot ||
+                    selectedChat.saved
+                  ) {
+                    return;
+                  }
+                  notifyTyping(selectedChat.id, "cancel", typingNetwork);
+                }}
                 upload={upload ?? undefined}
                 onToast={showToast}
                 enterToSend={settings.enterToSend}
@@ -2498,6 +2728,7 @@ export default function App() {
                   setView("chats");
                   openChat(id);
                 }}
+                onOpenSearch={focusChatSearch}
                 onSettings={() => setSidebarPage("settings")}
                 proxyUrl={proxyUrl}
                 ntp={settings.ntp}

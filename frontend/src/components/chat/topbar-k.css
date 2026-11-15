@@ -1,0 +1,329 @@
+/* Telegram Web K chat topbar (header) — `components/chat/topbar.ts:128-304`,
+ * `scss/partials/_chatTopbar.scss:43-250`, `scss/partials/_topbarSearch.scss`.
+ *
+ * The topbar floats over the wallpaper in the 696 px lane: 48 px tall, 24 px
+ * radius, surface plate with `0 1px 5px -1px rgba(0,0,0,.21)`. It hosts the
+ * avatar (40), the title/status column (16/24 medium + 14/20 subtitle, accent
+ * while online/typing), the 40×40 search/more buttons (24 px glyphs, 4 px gap)
+ * and the in-chat search overlay (40 px input, radius 21, starting 58 px in).
+ *
+ * The same file carries the shared chrome colour tokens for the three chrome
+ * components (header, pinned stack, go-down button); they are Web K's palette
+ * exactly (themeController.ts:127-157), not the F shell's aliases.
+ */
+
+.g-chat-pane:has(> .f-chat-header.k-topbar) {
+  /* Light (baseThemeDay). */
+  --tg-chrome-surface: #ffffff;
+  --tg-chrome-text: #000000;
+  --tg-chrome-secondary: #707579;
+  --tg-chrome-accent: #3390ec;
+  --tg-chrome-accent-dark: #2f84d8;
+  --tg-chrome-border: #dfe1e5;
+  --tg-chrome-input: #f1f3f5;
+  --tg-chrome-hover-primary: rgba(51, 144, 236, 0.08);
+  --tg-chrome-hover-secondary: rgba(112, 117, 121, 0.08);
+  --tg-chrome-secondary-solid: #c4c9cc;
+  --tg-chrome-badge-text: #ffffff;
+  --tg-chrome-elevation: 0 1px 5px -1px rgba(0, 0, 0, 0.21);
+  --tg-chrome-elevation-round: 0 1px 8px 1px rgba(0, 0, 0, 0.12);
+
+  position: relative;
+}
+
+html[data-theme="dark"] .g-chat-pane:has(> .f-chat-header.k-topbar),
+.radix-themes.dark .g-chat-pane:has(> .f-chat-header.k-topbar),
+.radix-themes.dark-theme .g-chat-pane:has(> .f-chat-header.k-topbar) {
+  /* Night (baseThemeNight). */
+  --tg-chrome-surface: #212121;
+  --tg-chrome-text: #ffffff;
+  --tg-chrome-secondary: #aaaaaa;
+  --tg-chrome-accent: #8774e1;
+  --tg-chrome-accent-dark: #7a68cc;
+  --tg-chrome-border: #0f0f0f;
+  --tg-chrome-input: #181818;
+  --tg-chrome-hover-primary: rgba(135, 116, 225, 0.08);
+  --tg-chrome-hover-secondary: rgba(170, 170, 170, 0.08);
+  --tg-chrome-secondary-solid: #707579;
+  --tg-chrome-badge-text: #ffffff;
+  --tg-chrome-elevation: 0 1px 5px -1px rgba(0, 0, 0, 0.21);
+  --tg-chrome-elevation-round: 0 1px 8px 1px rgba(0, 0, 0, 0.12);
+}
+
+/* ------------------------------------------------------------------ plate */
+
+.f-chat-header.k-topbar {
+  position: absolute;
+  top: 0;
+  inset-inline: 0;
+  z-index: 2;
+  display: flex;
+  width: 100%;
+  max-width: var(--tg-chat-lane, 696px);
+  height: 48px;
+  min-height: 48px;
+  flex: 0 0 auto;
+  align-items: center;
+  margin: 0 auto;
+  border: 0;
+  border-radius: 24px;
+  background-color: var(--tg-chrome-surface) !important;
+  padding: 0 4px;
+  box-shadow: var(--tg-chrome-elevation);
+  color: var(--tg-chrome-text);
+  font-size: var(--font-size, 16px);
+  line-height: var(--line-height, 1.3125);
+}
+
+/* Clickable peer area: avatar + title/status fills every pixel before the
+ * buttons (tweb `.chat-info` is `flex: 1 1 auto`). */
+.k-topbar .f-peer {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 16px;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: start;
+}
+
+.k-topbar .f-peer:focus-visible {
+  outline: 2px solid var(--tg-chrome-accent);
+  outline-offset: -2px;
+}
+
+.k-topbar .f-chat-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.k-topbar .f-peer-copy {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.k-topbar .f-peer-name {
+  display: flex;
+  max-width: calc(100% - 8px);
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  color: var(--tg-chrome-text);
+  font-size: 16px;
+  font-weight: var(--font-weight-bold, 500);
+  line-height: 24px;
+}
+
+.k-topbar .f-peer-title-text {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-topbar .f-peer-verified {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--tg-chrome-accent);
+}
+
+/* --------------------------------------------------------------- status line */
+
+.k-topbar .k-topbar-status {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  overflow: hidden;
+  color: var(--tg-chrome-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.k-topbar .k-topbar-status-online {
+  color: var(--tg-chrome-accent);
+}
+
+.k-topbar .k-topbar-status-inner {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Web K crossfades the status line (`crossfadeContent.ts:21`, 120 ms). */
+  animation: k-topbar-status-in 120ms ease-in-out;
+}
+
+.k-topbar .k-topbar-status-inner > .peer-typing-container {
+  color: inherit;
+}
+
+.k-topbar .k-topbar-status-inner .peer-typing-description {
+  margin-inline-start: 4px;
+}
+
+@keyframes k-topbar-status-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-topbar .k-topbar-status-inner {
+    animation: none;
+  }
+}
+
+/* ----------------------------------------------------------------- buttons */
+
+.k-topbar .k-topbar-utils {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+
+.k-topbar .k-topbar-action {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--tg-chrome-text);
+}
+
+@media (hover: hover) {
+  .k-topbar .k-topbar-action:hover,
+  .k-topbar .k-topbar-action[data-state="open"] {
+    background-color: var(--tg-chrome-hover-secondary);
+  }
+}
+
+/* ------------------------------------------------------------- search mode */
+
+/* Web K swaps the header buttons for the search field while searching
+ * (`topbar.ts` verifies chat-utils out); the overlay covers their space. */
+.f-chat-header.k-topbar[data-searching] .k-topbar-utils {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.k-topbar .k-topbar-search {
+  position: absolute;
+  inset-block: 0;
+  /* Web K: close (0) + avatar (42) + gap (0) + 1rem = 58 px from the lane start
+   * (`_topbarSearch.scss:10`). Absolute offsets are measured from the header's
+   * padding box, which starts at the lane's edge (no border). */
+  inset-inline-start: 58px;
+  inset-inline-end: 4px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+.k-topbar .k-topbar-search-plate {
+  display: flex;
+  width: 100%;
+  height: 40px;
+  align-items: center;
+  border-radius: 21px;
+  background-color: var(--tg-chrome-input);
+  transition:
+    background-color var(--transition-standard-in, 0.3s cubic-bezier(0.4, 0, 0.2, 1)),
+    box-shadow var(--transition-standard-in, 0.3s cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+.k-topbar .k-topbar-search-plate:focus-within {
+  background-color: var(--tg-chrome-surface);
+  box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.25);
+}
+
+.k-topbar .k-topbar-search-back,
+.k-topbar .k-topbar-search-clear {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--tg-chrome-secondary);
+}
+
+.k-topbar .k-topbar-search-clear {
+  margin-inline-end: 0;
+}
+
+.k-topbar .k-topbar-search-input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--tg-chrome-text);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.3125;
+  outline: none;
+}
+
+.k-topbar .k-topbar-search-input::placeholder {
+  color: var(--input-placeholder-color, #a2acb4);
+}
+
+/* --------------------------------------------------- search result footer */
+
+/* tweb `_chatTopbar.scss` / prod: 48 px surface bar, padding 0 8, top shadow,
+ * z-index 2, full lane width, count in bold; the composer is hidden below. */
+.k-chat-search-footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  width: 100%;
+  height: 3rem;
+  flex: none;
+  align-items: center;
+  overflow: hidden;
+  background-color: var(--tg-chrome-surface);
+  padding: 0 8px;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+  color: var(--tg-chrome-text);
+  font-size: 14px;
+  font-weight: var(--font-weight-bold, 500);
+}
+
+.k-chat-search-footer-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: var(--font-weight-bold, 500);
+}
+
+/* Web K hides the composer while the search footer is up. */
+.k-chat-search-footer + .tg-composer,
+.k-chat-search-footer ~ .tg-composer {
+  display: none;
+}

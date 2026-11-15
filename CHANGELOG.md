@@ -2,6 +2,97 @@
 
 ## Unreleased
 
+### Design K: the conversation view is now the real Web K chat page
+
+- **Pinned messages use Web K's floating plate**: the pinned bar is now the
+  48 px plate under the top bar (`topbar-floating-plates`), with the accent
+  "Pinned Message" title, the message preview (media label + text, no sender
+  prefix), a 40×40 media thumbnail, the dashed 3 px border and `#N` counter for
+  multiple pins, the pin menu (pinned list / unpin / hide, depending on
+  `canPin`), a single close button, the 8 % accent hover, the `.2s` row roll on
+  a pin switch and the per-chat "hidden until a newer pin" memory. The kernel
+  returns the pin count, newest pinned id and the account's `canPin`
+  (`GetPinnedMessageInfo`, `UpdatePinnedMessage`); `messages.updatePinnedMessage`
+  unpins one message instead of dropping every pin.
+- **The chat header is the Web K top bar**: 696 px lane, 48 px height, 24 px
+  radius, the surface plate with the reference shadow, a 40 px avatar with a
+  16 px gap, a 16/24 title with the verified badge, a 14/18 status line that
+  turns accent for online/typing (with the animated three-dot typing line),
+  search and more buttons as 40 px circles with 24 px glyphs and the in-chat
+  search overlay with its result counter.
+- **The scroll-to-bottom button is the real corner button**: 48 px circle at
+  the composer lane end, `bottom: 48px + 8px`, surface plate with the Web K
+  shadow, hidden with opacity/visibility (`.2s` standard-out transition,
+  visibility delayed on hide), visible only when the history is more than
+  300 px from the bottom (or the end is not loaded) and not in search mode, with
+  the unread counter badge (primary, secondary when muted) and a smooth jump.
+- **Composer per peer type, 1:1**: one 24 px/48 px plate shared by messages and
+  composer (`--tg-chat-lane` 696 px, 16 px bottom gap), 40×40 controls with
+  24 px glyphs, the morphing send/voice button and the official placeholders —
+  "Message", "Broadcast" for channel admins, "Send anonymously" for anonymous
+  admins, "Text is not Allowed" for read-only members — plus START (now via
+  `messages.startBot`), Unblock, JOIN, APPLY TO JOIN GROUP, SUBSCRIBE and the
+  Mute/Unmute footer with the gift button; restricted groups keep the normal
+  plate with a read-only field instead of a separate bar, the invented slow-mode
+  chip is gone (the send button shows the Web K tooltip countdown), bot commands
+  are anchored to the plate (`/cmd@bot` in groups), the attach menu follows the
+  Web K menu geometry and the emoji trigger gets the gray active plate.
+- **Typing indicators end-to-end**: the kernel now forwards
+  `updateUserTyping` / `updateChatUserTyping` / `updateChannelUserTyping` as
+  `chat:event` typing events (display name resolved from the update entities,
+  own user/bots/broadcast channels skipped) and sends `messages.setTyping`
+  (`SendTyping`), throttled to once per 6 s with cancel when the field empties.
+  The chat-list row swaps its preview for Web K's three animated dots plus
+  "typing" / "Name is typing" / pair / "Name and N others are typing" (6 s
+  expiry, 120 ms crossfade, white on the selected row), and the open chat's
+  header shows the same line in accent.
+- **Sent files are Web K document bubbles**: the 54 px document row (54×54
+  extension plate, middle-ellipsised 16 px name, 14 px size line without the
+  invented "· PDF"), extension colours (ZIP/PDF/APK/…), the dog-ear that opens
+  on hover, and the download arrow that only appears on hover over the icon
+  plate. Downloading morphs it into the Web K 12-dot preloader ring with the
+  centre cross, progress arc and dots wave, pause returns the arrow, failure
+  shows the retry glyph and a finished transfer removes the badge and opens the
+  file. The always-on corner download badges on photos/videos are gone, the date
+  plates are the accent-tinted 15 px pills, reaction chips are the 30 px
+  Web K chips, sender names moved inside the bubble and message time/ticks use
+  the reference sizes; the message column is the 696 px lane with the 46 px
+  incoming gutter.
+- **The third first-run tip is the real Web K Chats card** (`ChatTips.Chats`):
+  the Popular / Searched / Recently closed segmented row that only shows the
+  filters that have peers, the first-available fallback, the 4×2 grid of 54 px
+  avatar tiles with one-line names, the official
+  "Use Ctrl+F to enter search mode." description with a working search link
+  (`Ctrl+F` focuses the sidebar search), the empty state, the reference
+  card/nav geometry and the day/night colours. Popular comes from
+  `contacts.getTopPeers` (cached 24 h in the kernel, `GetTopPeers`); Searched /
+  Closed are recorded in the app's own recent-peer store from sidebar-search
+  picks and chat switches. i18n en/zh/ja (the zh-hans WebK pack still lacks
+  `ChatTips.*`, so those strings are app translations, documented).
+- **New Group / New Channel / New Private Chat flows match the reference**: New
+  Group starts on the Add Members page (search row with selected chips, results
+  list with checkboxes, the duck empty state, the always-available corner arrow)
+  and moves to the name/photo page with the Members section and a suggested
+  title. Both creation pages can pick a profile photo: the avatar circle opens
+  the file picker, the image is centre-cropped to an 800×800 JPEG in the canvas
+  and, after the chat exists, uploaded with the new `SetChatPhoto`
+  (`channels.editPhoto` / `messages.editChatPhoto` + `InputChatUploadedPhoto`);
+  a failed photo upload keeps the created chat and shows a toast. "New Private
+  Chat" opens Web K's contacts page (search pill, name/online sorting, 56 px
+  rows, corner add-contact button) backed by `contacts.getContacts`
+  (`GetContacts`).
+- **Settings home reaches the reference geometry**: the profile block starts
+  20 px from the top (the 4.5 px offset found by measuring the reference at the
+  same viewport), desktop rows get the 16 px hover plate and the version line
+  gets the reference bottom padding — the rest of the page already matched the
+  reference row pitch/card/icon metrics.
+- Tests cover the new kernel paths (top peers mapping/cache, typing action
+  mapping/peer decoding/self-bot-channel skips, contacts mapping with presence,
+  chat-photo validation/dispatch, pinned count/canPin) and the preview harness
+  gained the full chat-page scenario matrix (peers, pinned states, files'
+  download states, typing seeds, new-chat pages, tips data) used to verify the
+  reference geometry.
+
 ### Performance: media-heavy chats and older history feel like Telegram Web
 
 - **Message bubbles stopped fetching full-size photos**: `PhotoCard` used the

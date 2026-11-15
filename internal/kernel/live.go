@@ -25,6 +25,16 @@ type ChatEvent struct {
 	Online   bool   `json:"online,omitempty"`
 	LastSeen int64  `json:"lastSeen,omitempty"`
 	Status   string `json:"status,omitempty"`
+	// Typing fields, sent with Kind "typing" (updateUserTyping /
+	// updateChatUserTyping / updateChannelUserTyping). TypingAction is one of
+	// typing|cancel|upload_photo|upload_document|upload_video|record_voice|
+	// record_video|choose_sticker; TypingName is the sender's display name when
+	// the update carried their user entity (empty otherwise); ThreadID is the
+	// forum topic id (0 when the update is not in a topic).
+	TypingAction string `json:"typingAction,omitempty"`
+	TypingName   string `json:"typingName,omitempty"`
+	TypingUserID int64  `json:"typingUserId,omitempty"`
+	ThreadID     int    `json:"threadId,omitempty"`
 }
 
 // UploadEvent reports attachment upload progress to the composer.
@@ -188,6 +198,11 @@ func newLiveUpdateHandler(service *Service, proxy, ntp string) *liveUpdateHandle
 	h.dispatcher.OnReadHistoryOutbox(h.onReadHistoryOutbox)
 	h.dispatcher.OnChannelTooLong(h.onChannelTooLong)
 	h.dispatcher.OnUserStatus(h.onUserStatus)
+	// Typing indicators: updateUserTyping (private), updateChatUserTyping (basic
+	// group) and updateChannelUserTyping (supergroup/topic); see typing.go.
+	h.dispatcher.OnUserTyping(h.onUserTyping)
+	h.dispatcher.OnChatUserTyping(h.onChatUserTyping)
+	h.dispatcher.OnChannelUserTyping(h.onChannelUserTyping)
 	h.dispatcher.OnPinnedMessages(h.onPinnedMessages)
 	h.dispatcher.OnPinnedChannelMessages(h.onPinnedChannelMessages)
 	// Sticker/GIF picker caches: the installed set list, recent row and saved

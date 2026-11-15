@@ -34,6 +34,15 @@ interface KEmptyChatSurfaceProps {
   onStickerSuggestChange?: (mode: StickerSuggestMode) => void;
   /** The Stickers tip's "Trending Stickers" description link. */
   onOpenTrending?: () => void;
+  /** The Chats tip's description link: close the sidebar pages and focus the
+   * chat-list search (tweb's `closeAllTabsNaturally() + initSearch().open()`). */
+  onOpenSearch?: () => void;
+  /** The Chats tip's Popular list. The app leaves this undefined (the card
+   * fetches it through lib/topPeers); the dev preview hands a fixture. */
+  topPeers?: Chat[];
+  /** True while the top-peers fetch is in flight (the card draws the empty
+   * grid instead of its "Nothing here yet." line). */
+  topPeersLoading?: boolean;
   /** tweb lite mode level: 0 disables sticker animations too. */
   animationLevel?: number;
 }
@@ -51,6 +60,9 @@ export function KEmptyChatSurface({
   stickerSuggest,
   onStickerSuggestChange,
   onOpenTrending,
+  onOpenSearch,
+  topPeers,
+  topPeersLoading,
   animationLevel = 2,
 }: KEmptyChatSurfaceProps) {
   const { hidden } = useTipsState();
@@ -87,6 +99,9 @@ export function KEmptyChatSurface({
           stickerSuggest={stickerSuggest}
           onStickerSuggestChange={onStickerSuggestChange}
           onOpenTrending={onOpenTrending}
+          onOpenSearch={onOpenSearch}
+          topPeers={topPeers}
+          topPeersLoading={topPeersLoading}
           animationsEnabled={animationLevel > 0}
         />
         <div
@@ -122,8 +137,8 @@ export function KTipsToggle() {
       ref={ripple.ref}
       type="button"
       className="btn-icon chat-tips-toggle"
-      aria-label={t("chat.tips")}
-      title={t("chat.tips")}
+      aria-label={t("tips.title")}
+      title={t("tips.title")}
       aria-expanded={!hidden}
       onClick={() => toggleTips()}
       style={{ "--wails-draggable": "no-drag" } as React.CSSProperties}

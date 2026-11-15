@@ -1,10 +1,12 @@
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { Chat, ChatProfile, Message, UploadProgress } from "../../types";
 import { ChannelBar } from "./ChannelBar";
 import { MessageComposer } from "./composer/MessageComposer";
-import { MessagingDisabledBar } from "./composer/MessagingDisabledBar";
 import { StartPlate } from "./composer/StartPlate";
-import { isBotChat, isChannelChat } from "./composer/model";
+import { ControlPlate } from "./composer/ControlPlate";
+import { ComposerButton } from "./composer/ComposerButton";
+import { isBotChat, resolveComposerState } from "./composer/model";
 import "./composer/composer-f.css";
 
 export interface ChatComposerProps {
@@ -27,10 +29,24 @@ export interface ChatComposerProps {
   enterToSend: boolean;
   /** Opens the bot menu Web App (Web K pill when the bot exposes one). */
   onOpenBotMenu?: () => void;
-  /** Sends `/command` (and `/start`) through the app's send path. */
+  /** Sends `/command` through the app's send path (fallback for commands). */
   onSendCommand?: (command: string) => Promise<void>;
+  /** Calls messages.startBot for the START plate (optional until wired). */
+  onStartBot?: (startParam?: string) => Promise<void> | void;
+  /** JOIN / APPLY TO JOIN GROUP / SUBSCRIBE plate action (optional). */
+  onJoinChat?: () => void;
+  /** Unblock plate action for blocked private peers (optional). */
+  onUnblock?: () => void;
   /** Server-side mute toggle for the channel footer. */
   onToggleMute?: () => void;
+  /** Gift side button of the broadcast footer (not wired yet: toasts). */
+  onSendGift?: () => void;
+  /** Comments side button when a monoforum chat is linked (optional). */
+  onOpenComments?: () => void;
+  /** Typing-indicator signal, fired while the user edits the draft. */
+  onTyping?: () => void;
+  /** Typing signal cleared when the draft becomes empty. */
+  onTypingStop?: () => void;
   /** Sticker/GIF picker: network params for the kernel RPCs. */
   network?: { proxy: string; ntp: string };
   onSendSticker?: (ref: string) => void | Promise<unknown>;
@@ -39,9 +55,11 @@ export interface ChatComposerProps {
 }
 
 /**
- * Capability-based composer panel (Web K): writeable chats get the message
- * plate, broadcast channels without posting rights get the mute/unmute footer,
- * restricted chats get a read-only bar and never-started bots get START.
+ * Capability-based composer panel (Web K): the same floating plate renders the
+ * writing rows or a control plate (START / JOIN / SUBSCRIBE / MUTE / Unblock)
+ * and cross-fades between them in place. The decision ports tweb's
+ * `haveSomethingInControl` chain (input.ts:3329-3458) and the placeholder
+ * priority order (input.ts:3656-3732).
  */
 export function ChatComposer({
   chatId,
@@ -59,59 +77,29 @@ export function ChatComposer({
   enterToSend,
   onOpenBotMenu,
   onSendCommand,
+  onStartBot,
+  onJoinChat,
+  onUnblock,
   onToggleMute,
+  onSendGift,
+  onOpenComments,
+  onTyping,
+  onTypingStop,
   network,
   onSendSticker,
   onSendGif,
   onSendInlineGif,
 }: ChatComposerProps) {
   const { t } = useTranslation();
-  const channel = isChannelChat(chat, profile);
   const bot = isBotChat(chat, profile);
-  const restricted = profile != null && !profile.canSend;
+  const state = resolveComposerState({ chat, profile, hasMessages });
 
-  if (restricted) {
-    // Broadcast channels replace the composer with the Web K mute footer (§7).
-    if (channel && chat) {
-      return (
-        <ChannelBar
-          chat={chat}
-          onToast={onToast}
-          onToggleMute={onToggleMute}
-          profile={profile}
-        />
-      );
-    }
-    return (
-      <MessagingDisabledBar
-        text={t("input.sendRestricted")}
-        hint={t("input.textNotAllowed")}
-      />
-    );
-  }
-
-  if (bot && hasMessages === false) {
-    const start = async () => {
-      try {
-        if (onSendCommand) {
-          await onSendCommand("/start");
-        } else {
-          await onSend("/start");
-        }
-      } catch {
-        onToast(t("input.startFailed"));
-      }
-    };
-    return (
-      <StartPlate label={t("input.botStart")} onStart={() => void start()} />
-    );
-  }
-
-  // While the channel profile loads, keep the footer lane reserved with the same
-  // plate geometry instead of flashing a composer that may turn into a mute bar.
+  // While the channel profile loads there is no way to know whether this chat is
+  // a posting admin or a subscriber; keep the footer lane reserved with the same
+  // plate geometry instead of flashing the wrong composer.
   if (profileLoading && !profile && chat?.kind === "channel") {
     return (
-      <div className="tg-composer tg-composer--skeleton" aria-hidden="true">
+      <div className="tg-composer tg-composer--skeleton">
         <div className="tg-composer__lane">
           <div className="tg-composer__plate tg-composer__plate--skeleton" />
         </div>
@@ -119,22 +107,119 @@ export function ChatComposer({
     );
   }
 
+  const startBot = async () => {
+    try {
+      if (onStartBot) {
+        await onStartBot();
+        return;
+      }
+      // Legacy fallback until the StartBot binding is wired: send "/start".
+      if (onSendCommand) {
+        await onSendCommand("/start");
+      } else {
+        await onSend("/start");
+      }
+    } catch {
+      onToast(t("input.startFailed"));
+    }
+  };
+
+  const join = () => {
+    if (onJoinChat) {
+      onJoinChat();
+    } else {
+      onToast(t("profileHome.comingSoon"));
+    }
+  };
+
+  let control: ReactNode;
+  switch (state.control) {
+    case "start":
+      control = (
+        <StartPlate label={t("input.botStart")} onStart={() => void startBot()} />
+      );
+      break;
+    case "unblock":
+      control = (
+        <ControlPlate
+          center={
+            <ComposerButton
+              className="tg-composer__plate-button tg-composer__plate-button--transparent"
+              onClick={() => {
+                if (onUnblock) {
+                  onUnblock();
+                } else {
+                  onToast(t("profileHome.comingSoon"));
+                }
+              }}
+            >
+              {t("input.unblock")}
+            </ComposerButton>
+          }
+        />
+      );
+      break;
+    case "mute":
+      control = chat ? (
+        <ChannelBar
+          chat={chat}
+          onToast={onToast}
+          profile={profile}
+          onToggleMute={onToggleMute}
+          showGift={state.showGift}
+          onSendGift={onSendGift}
+          onOpenComments={onOpenComments}
+        />
+      ) : null;
+      break;
+    case "join":
+    case "apply":
+    case "subscribe": {
+      const label =
+        state.control === "join"
+          ? t("input.join")
+          : state.control === "apply"
+            ? t("input.applyToJoin")
+            : t("input.subscribe");
+      control = (
+        <ControlPlate
+          center={
+            <ComposerButton
+              className="tg-composer__plate-button tg-composer__plate-button--primary"
+              onClick={join}
+            >
+              {label}
+            </ComposerButton>
+          }
+        />
+      );
+      break;
+    }
+    default:
+      control = undefined;
+  }
+
   return (
     <MessageComposer
       chatId={chatId}
       chat={chat}
       profile={profile}
-      busy={profileLoading}
+      busy={profileLoading || (bot && !profile)}
       replyingTo={replyingTo}
       editing={editing}
       upload={upload}
       enterToSend={enterToSend}
+      placeholder={state.placeholder}
+      readOnly={state.readOnly}
+      control={control}
       onCancelContext={onCancelContext}
       onSend={onSend}
       onAttach={onAttach}
       onOpenBotMenu={onOpenBotMenu}
       onSendCommand={onSendCommand}
       onToast={onToast}
+      onTyping={onTyping}
+      onTypingStop={onTypingStop}
       network={network}
       onSendSticker={onSendSticker}
       onSendGif={onSendGif}

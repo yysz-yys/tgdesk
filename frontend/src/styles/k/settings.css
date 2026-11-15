@@ -27,7 +27,8 @@
   flex-direction: column;
   align-items: center;
   flex: 0 0 auto;
-  padding: 1.5rem 1rem 0;
+  /* Matches the reference capture: the profile block starts at 20px, not 24px. */
+  padding: 1.25rem 1rem 0;
 }
 
 .k-root .k-settings-avatar {
@@ -91,12 +92,19 @@
 }
 
 .k-root .k-settings-version {
-  padding: 0.25rem 1rem 1rem;
+  padding: 0.25rem 1rem 1.25rem;
   text-align: center;
   font-size: var(--font-size-14);
   line-height: var(--line-height-14);
   color: var(--secondary-text-color);
   user-select: none;
+}
+
+/* Desktop rows get tweb's 16px hover plate radius (settings row hover). */
+@media (min-width: 601px) {
+  .k-root .k-settings-page .k-row.k-row-clickable {
+    border-radius: 16px;
+  }
 }
 
 /* ---------- the header overflow menu (tweb settings' three-dot menu) ---------- */

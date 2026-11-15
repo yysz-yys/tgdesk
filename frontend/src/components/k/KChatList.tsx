@@ -46,6 +46,8 @@ interface KChatListProps {
   onNewChannel?: () => void;
   /** Opens the Web K new-group page in a sidebar super tab. */
   onNewGroup?: () => void;
+  /** Opens the Web K New Private Chat page (contacts list) in a super tab. */
+  onNewPrivate?: () => void;
   /** The super-tab stack rendered over the chat list (settings, new chat). */
   superTabStack: KSuperTabEntry[];
   /** tweb main-menu state: the night-mode toggle and the animation level. */
@@ -94,6 +96,7 @@ export function KChatList({
   onNewMessage,
   onNewChannel,
   onNewGroup,
+  onNewPrivate,
   superTabStack,
   nightMode,
   onToggleNightMode,
@@ -458,6 +461,10 @@ export function KChatList({
               }
               if (kind === "group") {
                 onNewGroup?.();
+                return;
+              }
+              if (kind === "private") {
+                onNewPrivate?.();
                 return;
               }
               onChats();

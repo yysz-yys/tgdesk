@@ -1,17 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { TFunction } from "i18next";
 import { Trans, useTranslation } from "react-i18next";
 import type { Chat, StickerDoc, StickerSetInfo } from "../../types";
 import type { ThemePreference } from "../../hooks/useTheme";
 import type { StickerSuggestMode } from "../../hooks/useSettings";
+import { mapChat } from "../../data/telegram";
 import {
   loadFeaturedStickerSets,
   loadStickerSet,
   type PickerNetwork,
 } from "../../lib/stickerApi";
+import { fetchTopPeers } from "../../lib/topPeers";
 import { KAvatar } from "./KAvatar";
 import { KIcon } from "./KIcon";
 import { KStickerMedia } from "./KStickerMedia";
 import { openStickerPopup } from "./stickerPopupStore";
+import {
+  useRecentlyClosed,
+  useRecentSearch,
+  type RecentPeer,
+} from "./recentPeersStore";
 import { setTipsIndex, TIPS_COUNT, useTipsState } from "./tipsStore";
 import {
   applyChatTheme,
@@ -129,6 +137,60 @@ function themePreview(theme: ChatThemeDTO, night: boolean): ThemePreview {
   };
 }
 
+/** The Chats card's three lists, in Web K's order (chatsCard.tsx `FILTERS`). */
+type ChatsFilter = "popular" | "recent" | "closed";
+
+const CHATS_FILTERS: readonly {
+  id: ChatsFilter;
+  icon: Parameters<typeof KIcon>[0]["name"];
+  labelKey: string;
+}[] = [
+  { id: "popular", icon: "newprivate", labelKey: "tips.chatsPopular" },
+  { id: "recent", icon: "search", labelKey: "tips.chatsSearched" },
+  { id: "closed", icon: "close", labelKey: "tips.chatsRecentlyClosed" },
+];
+
+/** The 4×2 grid holds at most 8 peers (tweb `PEERS_LIMIT`). */
+const CHATS_PEERS_LIMIT = 8;
+
+/** Stable empty list so the card's memos do not recompute on every render. */
+const NO_CHATS: Chat[] = [];
+
+// Module-level so the picked filter survives the card's remount (the empty
+// column unmounts while a chat is open), exactly like tweb's module-level
+// `filter` signal; deliberately not persisted.
+let chatsFilter: ChatsFilter = "popular";
+
+/**
+ * The peers behind one of the two stored lists, with the live dialog merged in
+ * by id (live wins): its title/avatar may have changed since it was recorded.
+ * A peer no longer in the dialog list still renders from the snapshot — Web K
+ * paints those from its cached peer data.
+ */
+function resolveRecentPeers(
+  entries: RecentPeer[],
+  live: Map<string, Chat>,
+  language: string,
+  t: TFunction,
+): Chat[] {
+  return entries.map((entry) => {
+    const chat = live.get(entry.id);
+    if (chat) return chat;
+    return mapChat(
+      {
+        id: entry.id,
+        title: entry.title,
+        kind: entry.kind,
+        preview: "",
+        bot: entry.bot,
+        colorIndex: entry.colorIndex,
+      },
+      language,
+      t,
+    );
+  });
+}
+
 interface KChatTipsProps {
   chats: Chat[];
   onOpenChat: (id: string) => void;
@@ -150,6 +212,16 @@ interface KChatTipsProps {
   onOpenTrending?: () => void;
   /** False when the app runs with animations disabled (tweb lite mode 0). */
   animationsEnabled?: boolean;
+  /** The Chats card's Popular list (contacts.getTopPeers correspondents). The
+   * app leaves this undefined and the card fetches it through lib/topPeers
+   * with proxyUrl/ntp; the dev preview hands a fixture instead. */
+  topPeers?: Chat[];
+  /** True while the top-peers fetch is in flight: the grid paints empty rather
+   * than the "Nothing here yet." line (tweb's `isEmpty`). */
+  topPeersLoading?: boolean;
+  /** The Chats description's "search" link — tweb closes the sidebar pages and
+   * opens its search; the app wires this to the chat-list search field. */
+  onOpenSearch?: () => void;
 }
 
 /**
@@ -172,13 +244,21 @@ export function KChatTips({
   onStickerSuggestChange,
   onOpenTrending,
   animationsEnabled = true,
+  topPeers,
+  topPeersLoading,
+  onOpenSearch,
 }: KChatTipsProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { hidden, index } = useTipsState();
   const [localSuggestMode, setLocalSuggestMode] =
     useState<StickerSuggestMode>("all");
   const suggestMode = stickerSuggest ?? localSuggestMode;
-  const [chatFilter, setChatFilter] = useState("popular");
+  const [filter, setFilterState] = useState<ChatsFilter>(chatsFilter);
+  // null = not fetched yet, [] = fetched (maybe empty). The card draws its empty
+  // grid while the ranking is still in flight (tweb's `topPeers.loading`).
+  const [fetchedTopPeers, setFetchedTopPeers] = useState<Chat[] | null>(null);
+  const recentSearched = useRecentSearch();
+  const recentlyClosed = useRecentlyClosed();
   const [themes, setThemes] = useState<ChatThemeDTO[] | null>(null);
   const [emoticonUrls, setEmoticonUrls] = useState<Record<string, string>>({});
   // The Stickers card's Trending row (tweb `stickersCard`): the featured packs
@@ -384,6 +464,25 @@ export function KChatTips({
     return () => strip.removeEventListener("wheel", onWheel);
   }, []);
 
+  // The Chats card's Popular list: contacts.getTopPeers{correspondents} through
+  // the kernel (Web K asks its users manager for the once-a-day cached ranking).
+  // Callers that hand `topPeers` in (the dev preview) and the preview page
+  // without a kernel skip the request; a failure resolves to [] and simply
+  // removes the Popular filter, like the reference state.
+  useEffect(() => {
+    if (topPeers !== undefined || proxyUrl === undefined) return;
+    let alive = true;
+    void fetchTopPeers(proxyUrl, ntp ?? "").then((peers) => {
+      if (!alive) return;
+      setFetchedTopPeers(
+        peers.map((peer) => mapChat(peer, i18n.language, t)),
+      );
+    });
+    return () => {
+      alive = false;
+    };
+  }, [topPeers, proxyUrl, ntp, i18n.language, t]);
+
   // Nine tiles: the factory "no custom theme" one, then the global themes. The
   // active id comes from the theme store (null = the factory tile); the variant
   // each card previews follows the resolved appearance, as in the reference.
@@ -416,9 +515,58 @@ export function KChatTips({
   const offsetOf = (i: number) =>
     (i - index + TIPS_COUNT) % TIPS_COUNT === 1 ? "50px" : "-50px";
 
-  const recentChats = chats
-    .filter((chat) => !chat.archived)
-    .slice(0, 8);
+  // The Chats card's three lists. Popular is the kernel ranking, the other two
+  // are the recorded snapshots merged against the live dialog list.
+  const liveChats = useMemo(
+    () => new Map(chats.map((chat) => [chat.id, chat])),
+    [chats],
+  );
+  const popularPeers = topPeers ?? fetchedTopPeers ?? NO_CHATS;
+  // In flight until the ranking (or its failure -> []) has landed; callers can
+  // pin this for a fixed state (`topPeersLoading`).
+  const rankPending =
+    topPeers === undefined && fetchedTopPeers === null && proxyUrl !== undefined;
+  const popularLoading = topPeersLoading ?? rankPending;
+  const chatsLists = useMemo<Record<ChatsFilter, Chat[]>>(
+    () => ({
+      popular: popularPeers,
+      recent: resolveRecentPeers(recentSearched, liveChats, i18n.language, t),
+      closed: resolveRecentPeers(recentlyClosed, liveChats, i18n.language, t),
+    }),
+    [popularPeers, recentSearched, recentlyClosed, liveChats, i18n.language, t],
+  );
+  // Only lists with peers get a pill (macOS drops a filter that has nothing
+  // behind it); the picked filter falls back to the first available one when it
+  // is not there, while the stored module-level filter stays what it was.
+  const availableFilters = CHATS_FILTERS.filter(
+    (candidate) => chatsLists[candidate.id].length > 0,
+  );
+  const currentFilter = availableFilters.some(
+    (candidate) => candidate.id === filter,
+  )
+    ? filter
+    : (availableFilters[0]?.id ?? filter);
+  const chatPeers = chatsLists[currentFilter].slice(0, CHATS_PEERS_LIMIT);
+  // No "nothing here" flash while the ranking is still in flight (tweb
+  // `isEmpty`); the other two lists are already there synchronously.
+  const chatsEmpty = chatPeers.length === 0 && !popularLoading;
+
+  const setChatsFilter = (value: ChatsFilter) => {
+    chatsFilter = value;
+    setFilterState(value);
+  };
+
+  const openSearch = () => {
+    if (onOpenSearch) {
+      onOpenSearch();
+      return;
+    }
+    // Without the app's handler (dev preview, tests): focus the chat-list
+    // search field directly — Web K's description link opens that search.
+    document
+      .querySelector<HTMLInputElement>("#column-left .input-search-input")
+      ?.focus();
+  };
 
   const modeButtons = [
     { id: "none", icon: "stop", label: t("tips.suggestNone") },
@@ -672,57 +820,59 @@ export function KChatTips({
     </div>,
 
     /* ----- Chats ----- */
+    /* ----- Chats (tweb components/chatTips/chatsCard.tsx) ----- */
     <div className="k-tip-card" role="group" aria-labelledby="k-tip-chats">
       <div className="k-tip-card-title" id="k-tip-chats">
         {t("tips.chatsTitle")}
       </div>
-      <div className="k-tip-buttons" role="toolbar">
-        {(
-          [
-            {
-              id: "popular",
-              icon: "newprivate",
-              label: t("tips.chatsPopular"),
-            },
-          ] as const
-        ).map((button) => {
-          const selected = chatFilter === button.id;
-          return (
-            <button
-              key={button.id}
-              type="button"
-              className={
-                selected ? "k-tip-button is-selected" : "k-tip-button"
-              }
-              aria-pressed={selected}
-              onClick={() => setChatFilter(button.id)}
-            >
-              <KIcon name={button.icon} className="k-tip-button-icon" />
-              <span className="k-tip-button-text">{button.label}</span>
-            </button>
-          );
-        })}
+      <div
+        className="k-tip-buttons"
+        role={availableFilters.length > 2 ? "toolbar" : "group"}
+        aria-labelledby="k-tip-chats"
+      >
+        {availableFilters.map((candidate) => (
+          <TipFilterButton
+            key={candidate.id}
+            icon={candidate.icon}
+            label={t(candidate.labelKey)}
+            selected={currentFilter === candidate.id}
+            onClick={() => setChatsFilter(candidate.id)}
+          />
+        ))}
       </div>
       <div className="k-tip-content">
-        {recentChats.length > 0 ? (
+        {chatsEmpty ? (
+          <div className="k-tip-empty">{t("tips.chatsEmpty")}</div>
+        ) : (
           <div className="k-tip-peers">
-            {recentChats.map((chat) => (
-              <button
-                key={chat.id}
-                type="button"
-                className="k-tip-peer"
-                onClick={() => onOpenChat(chat.id)}
-              >
-                <KAvatar chat={chat} size={40} />
-                <span className="k-tip-peer-name">{chat.title}</span>
-              </button>
+            {chatPeers.map((peer) => (
+              <TipPeerTile
+                key={peer.id}
+                chat={peer}
+                // Web K's search rows show a user's first name only; bots,
+                // groups and channels keep their full title.
+                onlyFirstName={peer.kind === "private" && !peer.bot}
+                onClick={() => onOpenChat(peer.id)}
+              />
             ))}
           </div>
-        ) : (
-          <div className="k-tip-empty">{t("tips.chatsEmpty")}</div>
         )}
       </div>
-      <div className="k-tip-description">{t("tips.chatsDescription")}</div>
+      <div className="k-tip-description">
+        <Trans
+          i18nKey="tips.chatsDescription"
+          components={{
+            bold: <b className="k-tip-strong" />,
+            search: (
+              <button
+                type="button"
+                className="k-tip-link"
+                onClick={() => openSearch()}
+              />
+            ),
+          }}
+        />
+      </div>
     </div>,
   ];
 
@@ -784,6 +934,73 @@ function TipNavButton({
       {iconAfter ? null : <KIcon name={icon} className="button-icon" />}
       <span>{label}</span>
       {iconAfter ? <KIcon name={icon} className="button-icon" /> : null}
+    </button>
+  );
+}
+
+/**
+ * One segmented pill of the Chats card (tweb `TipCardButton`, rendered through
+ * its ripple-enabled `A11yButton`): icon + ellipsized label, the selection is a
+ * ring rather than a border so moving it never shifts the row.
+ */
+function TipFilterButton({
+  icon,
+  label,
+  selected,
+  onClick,
+}: {
+  icon: Parameters<typeof KIcon>[0]["name"];
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const ripple = useRipple<HTMLButtonElement>();
+  return (
+    <button
+      ref={ripple.ref}
+      type="button"
+      className={selected ? "k-tip-button is-selected" : "k-tip-button"}
+      aria-pressed={selected}
+      onClick={onClick}
+    >
+      <KIcon name={icon} className="k-tip-button-icon" />
+      <span className="k-tip-button-text">{label}</span>
+    </button>
+  );
+}
+
+/**
+ * One peer tile of the Chats card. Web K builds it from its search sidebar's
+ * "people" item (`renderTopPeerItem` over `search-group-people`): a 54px avatar
+ * absolutely placed 8px below the tile's top over a single 12px title line at
+ * the tile's bottom, no subtitle, no status icons, press ripple.
+ */
+function TipPeerTile({
+  chat,
+  onlyFirstName,
+  onClick,
+}: {
+  chat: Chat;
+  onlyFirstName: boolean;
+  onClick: () => void;
+}) {
+  const ripple = useRipple<HTMLButtonElement>();
+  // tweb's title update for a user keeps the first name (`getPeerTitleText`);
+  // every other peer keeps the full title.
+  const title = onlyFirstName
+    ? chat.title.trim().split(/\s+/)[0] || chat.title
+    : chat.title;
+  return (
+    <button
+      ref={ripple.ref}
+      type="button"
+      className="k-tip-peer"
+      onClick={onClick}
+    >
+      <KAvatar chat={chat} size={54} />
+      <span className="k-tip-peer-name" dir="auto">
+        {title}
+      </span>
     </button>
   );
 }

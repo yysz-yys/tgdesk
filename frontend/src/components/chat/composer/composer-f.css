@@ -1,21 +1,29 @@
 /* Telegram Web K composer plate — tgdesk.
  *
- * Geometry and colours follow the Web K composer research (report
- * temp/research/composer.md §9): one floating 24 px card on a 696 px lane,
- * 48 px minimum height, 4 px padding/gap, 40 px round controls, single
- * morphing send/mic button, reply header and upload progress as rows inside
- * the same card. The local `--tg-composer-*` tokens mirror Web K's day/night
- * palette; the rest of the app's `--f-*`/Radix tokens are left untouched.
+ * Geometry and colours follow temp/research4/spec-composer.md (tweb 2.3
+ * `src/scss/partials/_chat.scss`, cross-checked in temp/webk-prod.css): one
+ * floating 24 px card on the chat lane (--chat-width clamped to 696 px), 48 px
+ * minimum height, 4 px padding/gap, 40 px round controls with 24 px glyphs, a
+ * single morphing send/mic button, and the reply header / upload progress as
+ * rows inside the same card. The capability footer (START/JOIN/SUBSCRIBE/MUTE/
+ * Unblock) renders in the same card and cross-fades over the writing rows.
+ *
+ * Web K tokens are mirrored into local `--tg-composer-*` variables so the rest
+ * of the app's `--f-*`/Radix tokens stay untouched. Every rule that sets a
+ * background starts with `.tg-composer` on purpose: the K reset
+ * `.k-root button { background: none }` (0,1,1) otherwise beats the component
+ * class (0,1,0) and made the START pill / send button transparent.
  */
 
 .tg-composer {
   /* ---- Web K day palette (themeController.ts:126-163) ------------------- */
-  --tg-composer-max-width: 696px;
   --tg-composer-radius: 24px;
   --tg-composer-height: 48px;
   --tg-composer-button: 40px;
+  --tg-composer-row-gap: 4px;
+  --tg-composer-row-padding: 4px;
   --tg-composer-bg: #ffffff;
-  --tg-composer-popover-bg: #ffffff;
+  --tg-composer-popover-bg: rgba(255, 255, 255, 0.85);
   --tg-composer-chip: rgba(112, 117, 121, 0.08);
   --tg-composer-chip-hover: rgba(112, 117, 121, 0.14);
   --tg-composer-text: #000000;
@@ -23,30 +31,35 @@
   --tg-composer-placeholder: #a2acb4;
   --tg-composer-primary: #3390ec;
   --tg-composer-primary-hover: #2f84d8;
+  --tg-composer-on-primary: #ffffff;
   --tg-composer-send-disabled: #c4c9cc;
   --tg-composer-divider: #dfe1e5;
+  /* The plate shadow is a static SCSS value in Web K, identical in both themes
+   * (0px 1px 8px 1px rgb(0 0 0 / 12%), _chatVariables.scss:5). */
   --tg-composer-shadow: 0 1px 8px 1px rgba(0, 0, 0, 0.12);
-  --tg-composer-popover-shadow:
-    0 1px 2px rgba(16, 24, 40, 0.06), 0 14px 34px -14px rgba(16, 24, 40, 0.32);
-  --tg-composer-font: var(--f-font);
+  --tg-composer-menu-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+  --tg-composer-font: var(--font-regular, var(--f-font));
 
   display: flex;
   width: 100%;
   flex: 0 0 auto;
   justify-content: center;
-  padding: 2px 10px 10px;
+  /* The chat page's `#column-center` inset is Web K's 16 px page padding, so the
+   * plate bottom lands 16 px above the window bottom with no extra padding
+   * (tweb `--chat-padding-bottom = chat-input-height + page-chats-padding`). */
+  padding: 0 8px;
   background: transparent;
   font-family: var(--tg-composer-font);
 }
 
-/* Web K night palette (``#212121`` surface, ``#8774e1`` primary). */
+/* Web K night palette (#212121 surface, #8774e1 primary, #aaaaaa secondary). */
 html[data-theme="dark"] .tg-composer,
 .radix-themes.dark .tg-composer,
 .radix-themes.dark-theme .tg-composer {
   --tg-composer-bg: #212121;
-  --tg-composer-popover-bg: #212121;
-  --tg-composer-chip: rgba(255, 255, 255, 0.08);
-  --tg-composer-chip-hover: rgba(255, 255, 255, 0.14);
+  --tg-composer-popover-bg: rgba(33, 33, 33, 0.85);
+  --tg-composer-chip: rgba(170, 170, 170, 0.08);
+  --tg-composer-chip-hover: rgba(170, 170, 170, 0.14);
   --tg-composer-text: #ffffff;
   --tg-composer-secondary: #aaaaaa;
   --tg-composer-placeholder: #a2acb4;
@@ -54,13 +67,12 @@ html[data-theme="dark"] .tg-composer,
   --tg-composer-primary-hover: #7a68cc;
   --tg-composer-send-disabled: #707579;
   --tg-composer-divider: #0f0f0f;
-  --tg-composer-shadow: 0 1px 8px 1px rgba(0, 0, 0, 0.3);
-  --tg-composer-popover-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.45), 0 18px 40px -16px rgba(0, 0, 0, 0.7);
 }
 
+/* -------------------------------------------------------------- plate shell */
+
 .tg-composer__lane {
-  width: min(var(--tg-composer-max-width), 100%);
+  width: min(var(--tg-chat-lane, 696px), 100%);
   margin: 0 auto;
 }
 
@@ -72,6 +84,7 @@ html[data-theme="dark"] .tg-composer,
 }
 
 .tg-composer__plate {
+  position: relative;
   display: flex;
   width: 100%;
   min-height: var(--tg-composer-height);
@@ -97,11 +110,74 @@ html[data-theme="dark"] .tg-composer,
   }
 }
 
+/* --------------------------------------------- writing rows / control plate
+ * Both rows stay mounted; Web K fades the pairs with
+ * `.rows-wrapper-wrapper.is-centering-to-control` (opacity .1s choreography,
+ * _chat.scss:913-961) so a chat channelling from writing to a control footer
+ * never pops. */
+
+.tg-composer__rows {
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.1s ease,
+    visibility 0s 0s;
+}
+
+.tg-composer__control {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.1s ease,
+    visibility 0s 0.2s;
+}
+
+.tg-composer__plate[data-mode="control"] .tg-composer__rows {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.075s ease,
+    visibility 0s 0.2s;
+}
+
+.tg-composer__plate[data-mode="control"] .tg-composer__control {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity 0.1s ease 0.075s,
+    visibility 0s 0s;
+}
+
 /* ------------------------------------------------------------- reply chip */
 
 .tg-composer__reply {
   display: flex;
-  padding: 4px 4px 0;
+  height: 0;
+  align-items: flex-end;
+  padding: 0 var(--tg-composer-row-padding);
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    height 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 150ms ease;
+}
+
+.tg-composer__reply[data-active] {
+  height: var(--tg-composer-height);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .tg-composer__reply-chip {
@@ -110,31 +186,21 @@ html[data-theme="dark"] .tg-composer,
   min-width: 0;
   min-height: var(--tg-composer-button);
   align-items: center;
-  gap: 6px;
+  gap: 0;
+  margin-bottom: var(--tg-composer-row-padding);
   border-radius: 8px;
   background: var(--tg-composer-chip);
-  padding: 0 2px 0 6px;
+  padding: 0;
+  overflow: hidden;
 }
 
 .tg-composer__reply-icon {
   display: grid;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
+  width: var(--tg-composer-button);
+  height: var(--tg-composer-button);
+  flex: 0 0 var(--tg-composer-button);
   place-items: center;
   color: var(--tg-composer-primary);
-}
-
-.tg-composer__reply[data-editing] .tg-composer__reply-icon {
-  color: var(--tg-composer-secondary);
-}
-
-.tg-composer__reply-accent {
-  width: 2px;
-  height: 24px;
-  flex: 0 0 2px;
-  border-radius: 1px;
-  background: var(--tg-composer-primary);
 }
 
 .tg-composer__reply-copy {
@@ -142,16 +208,16 @@ html[data-theme="dark"] .tg-composer,
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 1px;
-  padding: 4px 0;
+  gap: 0;
+  padding: 2px 0;
 }
 
 .tg-composer__reply-title {
   overflow: hidden;
   color: var(--tg-composer-primary);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  line-height: 1.25;
+  line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -159,10 +225,14 @@ html[data-theme="dark"] .tg-composer,
 .tg-composer__reply-text {
   overflow: hidden;
   color: var(--tg-composer-secondary);
-  font-size: 13px;
-  line-height: 1.25;
+  font-size: 14px;
+  line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tg-composer__reply-cancel {
+  flex: 0 0 var(--tg-composer-button);
 }
 
 /* --------------------------------------------------------- upload progress */
@@ -218,26 +288,27 @@ html[data-theme="dark"] .tg-composer,
   display: flex;
   min-height: var(--tg-composer-height);
   align-items: flex-end;
-  gap: 4px;
-  padding: 4px;
+  gap: var(--tg-composer-row-gap);
+  padding: var(--tg-composer-row-padding);
+  overflow-x: clip;
 }
 
 .tg-composer__input {
-  width: 100%;
+  width: 1%;
   min-width: 0;
   min-height: var(--tg-composer-button);
-  max-height: 30rem;
+  max-height: calc(30rem - var(--tg-composer-row-padding) * 2);
   flex: 1 1 auto;
   resize: none;
   overflow-y: auto;
   border: 0;
   outline: 0;
   background: transparent;
-  padding: 9px 4px 9px 6px;
+  padding: 9.5px 4px;
   color: var(--tg-composer-text);
   font-family: var(--tg-composer-font);
   font-size: 16px;
-  line-height: 22px;
+  line-height: 21px;
   scrollbar-width: thin;
 }
 
@@ -250,19 +321,22 @@ html[data-theme="dark"] .tg-composer,
   outline: 0;
 }
 
+/* The field stays editable-looking when text is banned: Web K merely makes it
+ * read-only and shows the restriction as the placeholder (input.ts:3809-3845). */
 .tg-composer__input[readonly] {
-  color: var(--tg-composer-secondary);
   cursor: default;
 }
 
 /* ----------------------------------------------------------- icon buttons */
 
-.tg-composer__icon {
+.tg-composer .tg-composer__icon {
+  position: relative;
   display: grid;
   width: var(--tg-composer-button);
   height: var(--tg-composer-button);
   flex: 0 0 var(--tg-composer-button);
   place-items: center;
+  overflow: hidden;
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -271,109 +345,179 @@ html[data-theme="dark"] .tg-composer,
   cursor: pointer;
   transition:
     background-color 150ms ease,
-    color 150ms ease;
+    color 150ms ease,
+    opacity 150ms ease;
 }
 
-.tg-composer__icon:hover {
+.tg-composer .tg-composer__icon:hover:not(:disabled) {
   background: var(--tg-composer-chip);
 }
 
-.tg-composer__icon[data-active] {
-  color: var(--tg-composer-primary);
+/* An open panel marks its icon with the gray plate, not a primary repaint
+ * (mixins/_hover.scss btn-icon-active-plate, _chat.scss:1275-1280). */
+.tg-composer .tg-composer__icon[data-active] {
+  color: var(--tg-composer-text);
+  background: var(--tg-composer-chip);
 }
 
-.tg-composer__icon:disabled {
+.tg-composer .tg-composer__icon:disabled {
   background: transparent;
   color: var(--tg-composer-secondary);
   cursor: default;
-  opacity: 0.45;
+  opacity: 0.3;
 }
 
-.tg-composer__icon:focus-visible {
+.tg-composer .tg-composer__icon:focus-visible {
   outline: 2px solid var(--tg-composer-primary);
   outline-offset: -2px;
 }
 
-.tg-composer__icon--compact {
-  width: 32px;
-  height: 32px;
-  flex-basis: 32px;
+/* The bot command-list toggle morphs menu → back arrow while its list is open
+ * (tweb animated-menu-close-icon `.state-back`). */
+.tg-composer__menu-icon {
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: transform 250ms ease;
+}
+
+.tg-composer__menu-icon::before,
+.tg-composer__menu-icon::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition:
+    transform 250ms ease,
+    opacity 125ms ease;
+}
+
+.tg-composer__menu-icon::before {
+  top: -5px;
+}
+
+.tg-composer__menu-icon::after {
+  top: 5px;
+}
+
+.tg-composer__menu-icon[data-back] {
+  transform: rotate(135deg);
+}
+
+.tg-composer__menu-icon[data-back]::before {
+  transform: rotate(45deg);
+  opacity: 0;
+}
+
+.tg-composer__menu-icon[data-back]::after {
+  transform: translate(0, -10px) rotate(90deg);
 }
 
 /* --------------------------------------------------- send / mic morph button */
 
-.tg-composer__send {
+.tg-composer .tg-composer__send {
+  position: relative;
   display: grid;
   width: var(--tg-composer-button);
   height: var(--tg-composer-button);
   flex: 0 0 var(--tg-composer-button);
   place-items: center;
+  overflow: hidden;
   border: 0;
   border-radius: 50%;
   background: var(--tg-composer-primary);
   padding: 0;
-  color: #ffffff;
+  color: var(--tg-composer-on-primary);
   cursor: pointer;
   transition:
     background-color 200ms ease,
     transform 120ms ease;
 }
 
-.tg-composer__send:hover:not(:disabled) {
+.tg-composer .tg-composer__send:hover:not(:disabled) {
   background: var(--tg-composer-primary-hover);
 }
 
-.tg-composer__send:active:not(:disabled) {
+.tg-composer .tg-composer__send:active:not(:disabled) {
   transform: scale(0.94);
 }
 
-.tg-composer__send:disabled {
+.tg-composer .tg-composer__send:disabled {
   background: var(--tg-composer-send-disabled);
-  color: #ffffff;
+  color: var(--tg-composer-on-primary);
   cursor: default;
 }
 
-.tg-composer__send:focus-visible {
+.tg-composer .tg-composer__send:focus-visible {
   outline: 2px solid var(--tg-composer-primary-hover);
   outline-offset: 2px;
 }
 
-.tg-composer__send[data-mode="send"] .f-icon {
+/* All glyphs stay in the DOM and cross-fade/scale where they stand (Web K
+ * animation-level-icon-in, .2s, _chat.scss:185-195). */
+.tg-composer__send-icons {
+  display: grid;
+  place-items: center;
+}
+
+.tg-composer__send-icon {
+  display: grid;
+  grid-area: 1 / 1;
+  place-items: center;
+  opacity: 0;
+  transform: scale(0.5);
+  transition:
+    opacity 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tg-composer__send-icon[data-visible] {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Web K's optical centring of the paper plane. */
+.tg-composer__send-icon[data-icon="send"] .f-icon {
   margin-bottom: -1px;
   margin-inline-start: -3px;
 }
 
 .tg-composer__send-spinner {
+  color: var(--tg-composer-on-primary);
+}
+
+/* ------------------------------------------------------- slow-mode tooltip */
+
+/* Web K tooltip look (_tooltip.scss): 15px radius, 9px/16px padding, 14px text,
+ * #fff on rgba(29,29,29,.74) + blur(25px), 0 2px 16px rgba(0,0,0,.23). */
+.tg-composer__slow-tooltip {
+  position: absolute;
+  z-index: 40;
+  inset-inline-end: 8px;
+  bottom: calc(100% + 6px);
+  max-width: 320px;
+  border-radius: 15px;
+  background: rgba(29, 29, 29, 0.74);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.23);
+  padding: 9px 16px;
   color: #ffffff;
-}
-
-/* ------------------------------------------------------------- slow mode */
-
-.tg-composer__slow {
-  display: inline-flex;
-  height: var(--tg-composer-button);
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 4px;
-  border-radius: 20px;
-  padding: 0 8px;
-  color: var(--tg-composer-secondary);
-  font-size: 12.5px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.tg-composer__slow[data-counting] {
-  color: var(--tg-composer-primary);
-}
-
-.tg-composer__slow-text {
-  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  line-height: 19px;
+  white-space: pre-line;
+  backdrop-filter: blur(25px);
+  pointer-events: none;
+  animation: tg-composer-pop-in 120ms ease-out;
 }
 
 /* --------------------------------------------------- bot menu pill / toggle */
 
-.tg-composer__bot-pill {
+.tg-composer .tg-composer__bot-pill {
   display: flex;
   height: var(--tg-composer-button);
   max-width: min(40vw, 260px);
@@ -384,7 +528,7 @@ html[data-theme="dark"] .tg-composer,
   border-radius: 20px;
   background: var(--tg-composer-primary);
   padding: 0 12px;
-  color: #ffffff;
+  color: var(--tg-composer-on-primary);
   cursor: pointer;
   font-family: var(--tg-composer-font);
   font-size: 15px;
@@ -392,11 +536,11 @@ html[data-theme="dark"] .tg-composer,
   transition: background-color 150ms ease;
 }
 
-.tg-composer__bot-pill:hover {
+.tg-composer .tg-composer__bot-pill:hover {
   background: var(--tg-composer-primary-hover);
 }
 
-.tg-composer__bot-pill:focus-visible {
+.tg-composer .tg-composer__bot-pill:focus-visible {
   outline: 2px solid var(--tg-composer-primary-hover);
   outline-offset: 2px;
 }
@@ -407,98 +551,145 @@ html[data-theme="dark"] .tg-composer,
   white-space: nowrap;
 }
 
-/* ------------------------------------------------- attach / command popovers */
+/* ---------------------------------------------------- attach / bot menu popover
+ * Generic `.btn-menu` from Web K (_button.scss:107-132,293-318): min-width
+ * 180px, 16px radius, 4px vertical padding, 32px items with 12px inset, 12px
+ * item radius, 20px icons with a 20px gap, translucent surface + blur(50px). */
 
-.tg-composer__attach-menu {
+.tg-composer__menu {
   position: absolute;
   z-index: 30;
   bottom: calc(100% + 8px);
   inset-inline-start: 0;
   display: flex;
-  min-width: 208px;
+  min-width: 180px;
+  width: max-content;
   flex-direction: column;
-  border-radius: 12px;
+  border-radius: 16px;
   background: var(--tg-composer-popover-bg);
-  box-shadow: var(--tg-composer-popover-shadow);
-  padding: 4px;
+  box-shadow: var(--tg-composer-menu-shadow);
+  padding: 4px 0;
+  backdrop-filter: blur(50px);
   animation: tg-composer-pop-in 120ms ease-out;
 }
 
-.tg-composer__attach-item {
+.tg-composer .tg-composer__menu-item {
+  position: relative;
   display: flex;
-  height: 44px;
+  height: 32px;
   align-items: center;
-  gap: 12px;
+  margin: 0 4px;
   border: 0;
-  border-radius: 8px;
-  background: transparent;
-  padding: 0 10px;
-  color: var(--tg-composer-text);
-  cursor: pointer;
-  font-family: var(--tg-composer-font);
-  font-size: 14px;
-  text-align: start;
-}
-
-.tg-composer__attach-item:hover {
-  background: var(--tg-composer-chip);
-}
-
-.tg-composer__attach-item .f-icon {
-  color: var(--tg-composer-secondary);
-}
-
-/* ----------------------------------------------------- bot command dropdown */
-
-.tg-composer__commands {
-  position: absolute;
-  z-index: 30;
-  bottom: calc(100% + 8px);
-  inset-inline: 0;
-  display: flex;
-  max-height: 207px;
-  flex-direction: column;
-  overflow-y: auto;
   border-radius: 12px;
-  background: var(--tg-composer-popover-bg);
-  box-shadow: var(--tg-composer-popover-shadow);
-  padding: 4px;
-  animation: tg-composer-pop-in 120ms ease-out;
-}
-
-.tg-composer__command {
-  display: flex;
-  min-height: 50px;
-  flex: 0 0 50px;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1px;
-  border: 0;
-  border-radius: 8px;
   background: transparent;
   padding: 0 12px;
   color: var(--tg-composer-text);
   cursor: pointer;
   font-family: var(--tg-composer-font);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
   text-align: start;
+  white-space: nowrap;
 }
 
-.tg-composer__command[data-active] {
+.tg-composer .tg-composer__menu-item:hover {
   background: var(--tg-composer-chip);
 }
 
+.tg-composer__menu-item .f-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin-inline-end: 20px;
+}
+
+/* ----------------------------------------------------- bot command dropdown
+ * Rises out of the plate: bottom = plate height - 24px, sides -8px, outer 8px
+ * padding, list radius 24 24 0 0, max-height 207px, 50px rows with the bot
+ * avatar at 12px and the two-line name/description column at 54px
+ * (_chatBotCommands.scss:5-44, botCommands.ts:36-44). */
+
+.tg-composer__commands {
+  position: absolute;
+  z-index: 30;
+  bottom: calc(100% - var(--tg-composer-height) / 2);
+  inset-inline: -8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--tg-composer-radius) var(--tg-composer-radius) 0 0;
+  padding: 8px 8px 0;
+  pointer-events: none;
+  animation: tg-composer-commands-in 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tg-composer__commands-list {
+  display: flex;
+  max-height: 207px;
+  flex-direction: column;
+  overflow-y: auto;
+  border-radius: inherit;
+  background: var(--tg-composer-bg);
+  box-shadow: var(--tg-composer-shadow);
+  pointer-events: auto;
+}
+
+.tg-composer .tg-composer__command {
+  position: relative;
+  display: flex;
+  min-height: 50px;
+  flex: 0 0 50px;
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 12px 0 54px;
+  color: var(--tg-composer-text);
+  cursor: pointer;
+  font-family: var(--tg-composer-font);
+  text-align: start;
+}
+
+.tg-composer .tg-composer__command[data-active] {
+  background: var(--tg-composer-chip);
+}
+
+.tg-composer__command-avatar {
+  position: absolute;
+  inset-inline-start: 12px;
+  top: 50%;
+  display: flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+}
+
+.tg-composer__command-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .tg-composer__command-name {
-  color: var(--tg-composer-primary);
+  overflow: hidden;
+  color: var(--tg-composer-text);
   font-size: 14px;
   font-weight: 500;
-  line-height: 1.3;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tg-composer__command-desc {
   overflow: hidden;
   color: var(--tg-composer-secondary);
-  font-size: 12.5px;
-  line-height: 1.3;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -514,65 +705,93 @@ html[data-theme="dark"] .tg-composer,
   }
 }
 
-/* --------------------------------------------------------- footer plate */
-
-.tg-composer__plate--footer {
-  justify-content: center;
+@keyframes tg-composer-commands-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
+/* --------------------------------------------------------- footer plate */
 
 .tg-composer__footer-row {
   display: flex;
   min-height: var(--tg-composer-height);
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-}
-
-.tg-composer__footer-center {
-  min-width: 0;
-  flex: 1;
+  gap: var(--tg-composer-row-gap);
+  padding: var(--tg-composer-row-padding);
 }
 
 .tg-composer__footer-side {
   display: flex;
-  flex: 0 0 auto;
+  height: var(--tg-composer-button);
+  flex: 0 0 var(--tg-composer-button);
   align-items: center;
+  justify-content: center;
 }
 
-.tg-composer__wide {
+/* With both sides empty the side slots go away and the centre spans the plate
+ * (controlPlate.tsx CHAT_INPUT_PLATE_SINGLE_CLASS). */
+.tg-composer__footer-row.is-single .tg-composer__footer-side {
+  display: none;
+}
+
+.tg-composer__footer-center {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+/* `.chat-input-plate-button`: height 40, radius 20, padding 0 1rem, 500 weight,
+ * ellipsised label (_chat.scss:828-837). */
+.tg-composer .tg-composer__plate-button {
+  display: flex;
   width: 100%;
+  max-width: 100%;
   height: var(--tg-composer-button);
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   border: 0;
-  border-radius: 20px;
+  border-radius: calc(var(--tg-composer-button) / 2);
   background: transparent;
   padding: 0 1rem;
   color: var(--tg-composer-text);
   cursor: pointer;
   font-family: var(--tg-composer-font);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
-  overflow: hidden;
+  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
   transition: background-color 150ms ease;
 }
 
-.tg-composer__wide:hover {
+.tg-composer .tg-composer__plate-button--transparent:hover {
   background: var(--tg-composer-chip);
 }
 
-.tg-composer__wide:focus-visible {
+/* The filled JOIN/SUBSCRIBE/START variants; `.tg-composer` prefix keeps the K
+ * reset from overriding the fill (the old bug: computed background transparent,
+ * dark label instead of Web K's filled primary pill). */
+.tg-composer .tg-composer__plate-button--primary {
+  background: var(--tg-composer-primary);
+  color: var(--tg-composer-on-primary);
+}
+
+.tg-composer .tg-composer__plate-button--primary:hover {
+  background: var(--tg-composer-primary-hover);
+}
+
+.tg-composer .tg-composer__plate-button:focus-visible {
   outline: 2px solid var(--tg-composer-primary);
   outline-offset: -2px;
-}
-
-.tg-composer__wide--primary {
-  background: var(--tg-composer-primary);
-  color: #ffffff;
-}
-
-.tg-composer__wide--primary:hover {
-  background: var(--tg-composer-primary-hover);
 }
 
 /* ------------------------------------------------------- read-only footer */
@@ -601,22 +820,22 @@ html[data-theme="dark"] .tg-composer,
   .tg-composer {
     padding-inline: 8px;
   }
-
-  .tg-composer__slow-text {
-    display: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tg-composer__attach-menu,
+  .tg-composer__menu,
   .tg-composer__commands,
+  .tg-composer__slow-tooltip,
   .tg-composer__plate--skeleton {
     animation: none;
   }
 
   .tg-composer__send,
   .tg-composer__icon,
-  .tg-composer__bot-pill {
+  .tg-composer__bot-pill,
+  .tg-composer__rows,
+  .tg-composer__control,
+  .tg-composer__send-icon {
     transition: none;
   }
 }

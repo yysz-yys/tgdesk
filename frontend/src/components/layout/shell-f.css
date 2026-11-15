@@ -794,6 +794,13 @@ html[data-theme="dark"] .f-chat-header,
 
 /* ---------------------------------------------------------------- composer */
 
+/* The chat pane is flush with the column bottom: the composer plate itself sits
+ * 16 px above the window edge (the #column-center page padding), exactly like
+ * Web K's `--chat-padding-bottom`. */
+.f-shell.k-center-host {
+  padding-bottom: 0;
+}
+
 /* The Telegram Web K composer plate (message composer + broadcast footer) now
  * lives with its components in components/chat/composer/composer-f.css. The
  * lane geometry (696 px, 24 px radius, 48 px plate, 40 px controls) and the

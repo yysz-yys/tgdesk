@@ -1,3 +1,5 @@
+import { useRipple } from "../../k/useRipple";
+
 /**
  * Telegram's "webview" glyph: a browser window with an accent title bar. Kept
  * inline so the shared Icon map does not need a new entry for one composer
@@ -46,8 +48,10 @@ export function BotMenuPill({
   text: string;
   onClick: () => void;
 }) {
+  const { ref } = useRipple<HTMLButtonElement>();
   return (
     <button
+      ref={ref}
       type="button"
       className="tg-composer__bot-pill"
       title={text}

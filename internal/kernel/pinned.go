@@ -54,6 +54,48 @@ func (s *Service) GetPinnedMessage(chatID, proxy, ntp string) (*MessageDTO, erro
 	return result, nil
 }
 
+// UpdatePinnedMessage pins or unpins one message (messages.updatePinnedMessage).
+// It is the action behind the pinned bar's X / "Unpin" item: Web K unpins the
+// message the plate shows, not the whole pinned list (tweb
+// `showPinMessagePopup(peerId, mid, true)`). The caller keeps UnpinAllMessages
+// for "Unpin all messages".
+func (s *Service) UpdatePinnedMessage(
+	chatID string,
+	messageID int,
+	unpin, silent bool,
+	proxy, ntp string,
+) error {
+	peer, err := parsePeerID(chatID)
+	if err != nil {
+		return err
+	}
+	if messageID <= 0 {
+		return fmt.Errorf("invalid message id")
+	}
+
+	s.chatMu.Lock()
+	defer s.chatMu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	return s.withChatClient(ctx, proxy, ntp, func(ctx context.Context, client *telegram.Client) error {
+		_, err := client.API().MessagesUpdatePinnedMessage(ctx, &tg.MessagesUpdatePinnedMessageRequest{
+			Peer:   peer,
+			ID:     messageID,
+			Unpin:  unpin,
+			Silent: silent,
+		})
+		if err != nil {
+			if unpin {
+				return fmt.Errorf("unpin message: %w", err)
+			}
+			return fmt.Errorf("pin message: %w", err)
+		}
+		return nil
+	})
+}
+
 // UnpinAllMessages removes every pinned message from the chat
 // (messages.unpinAllMessages). It is the action behind Telegram Web's
 // "Unpin all messages" in the pinned bar.

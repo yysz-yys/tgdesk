@@ -1,0 +1,347 @@
+/*
+ * Telegram Web K file/document bubble — ported from temp/tweb
+ * (`src/scss/partials/_document.scss`, `_preloader.scss`, `_chatBubble.scss`,
+ * and `src/components/wrappers/document.ts` / `preloaderRing.ts`).
+ *
+ * All class names are `k-document-*` / `k-doc-dl-*` so the old `.g-file` /
+ * `.f-info-download` rules in chat.css cannot leak into this component. Rules
+ * are scoped with `.k-root` because the K base stylesheet resets
+ * `.k-root button` (padding/margin/background) with a higher specificity than a
+ * lone class.
+ */
+
+/* ── the row (tweb `.document` inside a bubble, 54px) ─────────────────────── */
+
+.k-root .k-document {
+  --k-doc-plate: var(--tg-bubble-in, #ffffff);
+  position: relative;
+  display: flex;
+  height: 54px;
+  flex-direction: column;
+  justify-content: center;
+  border: 0;
+  margin: 8px 0;
+  background: none;
+  padding: 0;
+  padding-inline-start: 66px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+  white-space: normal;
+}
+
+.k-root .g-message-row[data-out] .k-document {
+  --k-doc-plate: var(--tg-bubble-out, #eeffde);
+}
+
+.k-root .k-document:focus-visible {
+  outline: 2px solid var(--primary-color, #2d7ed5);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* the 54x54 icon plate, at margin-inline-start:-66px of the padded row */
+.k-document-ico {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  width: 54px;
+  height: 54px;
+  border-radius: 6px;
+  background-color: var(--k-doc-bg, var(--primary-color, #2d7ed5));
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  text-align: center;
+  user-select: none;
+}
+
+/* the extension inside the plate (no-thumb documents only) */
+.k-document-ico-text {
+  display: block;
+  padding: 25px 4px 0;
+  overflow: hidden;
+  opacity: 1;
+  text-overflow: ellipsis;
+  text-transform: lowercase;
+  white-space: nowrap;
+}
+
+.k-root[data-animation-level="1"] .k-document-ico-text,
+.k-root[data-animation-level="2"] .k-document-ico-text {
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* the dog-ear (incoming): a folded corner painted in the bubble's colour */
+.k-document-ico::after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-style: solid;
+  border-width: 9px;
+  border-bottom-color: rgba(0, 0, 0, 0.25);
+  border-bottom-left-radius: 4px;
+  border-left-color: rgba(0, 0, 0, 0.25);
+  border-right-color: var(--k-doc-plate);
+  border-top-color: var(--k-doc-plate);
+}
+
+.k-root[data-animation-level="2"] .k-document-ico::after {
+  transition: border-width 0.2s ease-in-out;
+}
+
+/* the dog-ear (outgoing): cut out of the icon instead of painted over it */
+.k-root .g-message-row[data-out] .k-document .k-document-ico {
+  --k-dog-ear: 18px;
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--k-dog-ear)) 0,
+    100% var(--k-dog-ear),
+    100% 100%,
+    0 100%
+  );
+}
+
+.k-root[data-animation-level="2"]
+  .g-message-row[data-out]
+  .k-document
+  .k-document-ico {
+  transition: clip-path 0.2s ease-in-out;
+}
+
+.k-root .g-message-row[data-out] .k-document .k-document-ico::after {
+  border-right-color: transparent;
+  border-top-color: transparent;
+}
+
+/* opened on hover, and for as long as the transfer runs */
+.k-root .k-document[data-state="idle"]:hover .k-document-ico::after,
+.k-root .k-document[data-state="paused"]:hover .k-document-ico::after,
+.k-root .k-document[data-state="failed"]:hover .k-document-ico::after,
+.k-root .k-document[data-state="downloading"] .k-document-ico::after {
+  border-width: 0;
+}
+
+.k-root[data-animation-level="2"]
+  .g-message-row[data-out]
+  .k-document:not([data-state="done"]):hover
+  .k-document-ico,
+.k-root[data-animation-level="2"]
+  .g-message-row[data-out]
+  .k-document[data-state="downloading"]
+  .k-document-ico {
+  --k-dog-ear: 0px;
+}
+
+/* the extension makes way for the download arrow / progress ring */
+.k-root .k-document[data-state="idle"]:hover .k-document-ico-text,
+.k-root .k-document[data-state="downloading"] .k-document-ico-text,
+.k-root .k-document[data-state="paused"] .k-document-ico-text,
+.k-root .k-document[data-state="failed"] .k-document-ico-text {
+  opacity: 0;
+}
+
+/* ── name + size lines ────────────────────────────────────────────────────── */
+
+.k-document-name {
+  display: block;
+  margin-top: 1px;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* the full name keeps the row's width stable while the visible text is
+   middle-ellipsised — without it the shrink-to-fit bubble collapses onto the
+   shortened text and the ellipsis feeds on itself */
+.k-document-name-spacer {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.k-document-name-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.k-document-name-text {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.k-document-size {
+  display: block;
+  color: var(--secondary-text-color, var(--tg-bubble-secondary, #707579));
+  font-size: 14px;
+  line-height: 18px;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── the download indicator (tweb preloaderRing in a 40px box) ────────────── */
+
+.k-doc-dl {
+  --k-doc-dl-color: #fff;
+  position: absolute;
+  inset: 0;
+  width: 40px;
+  height: 40px;
+  margin: auto;
+  display: block;
+  opacity: 0;
+  container-type: size;
+  pointer-events: none;
+}
+
+.k-root[data-animation-level="1"] .k-doc-dl,
+.k-root[data-animation-level="2"] .k-doc-dl {
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* shown while downloading (also on the way out of it), and on hover when idle */
+.k-root .k-document[data-state="downloading"] .k-doc-dl,
+.k-root .k-document[data-state="paused"] .k-doc-dl,
+.k-root .k-document[data-state="failed"] .k-doc-dl,
+.k-root .k-document[data-state="idle"]:hover .k-doc-dl {
+  opacity: 1;
+}
+
+.k-root .k-document[data-state="done"] .k-doc-dl {
+  opacity: 0;
+}
+
+.k-doc-dl.is-leaving {
+  opacity: 0 !important;
+  transition: opacity 0.2s ease-in-out !important;
+}
+
+.k-doc-dl-disc,
+.k-doc-dl-arrow,
+.k-doc-dl-cross,
+.k-doc-dl-spin {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.k-doc-dl-disc {
+  display: block;
+  border-radius: 50%;
+  background-color: transparent;
+}
+
+.k-doc-dl-spin {
+  display: block;
+  transform-origin: center center;
+}
+
+/* a small box (a file's icon) has no room for the ring's margin: the whole
+   drawing grows so the ring reaches the box's edge, as tweb does */
+@container (width < 50px) {
+  .k-doc-dl-spin,
+  .k-doc-dl-arrow,
+  .k-doc-dl-cross {
+    scale: 1.263;
+  }
+}
+
+.k-doc-dl-dot {
+  fill: var(--k-doc-dl-color);
+}
+
+.k-doc-dl-line,
+.k-doc-dl-arrow,
+.k-doc-dl-cross {
+  fill: none;
+  stroke: var(--k-doc-dl-color);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.k-doc-dl-line {
+  stroke-width: 3;
+}
+
+.k-doc-dl-arrow {
+  stroke-width: 2;
+}
+
+.k-doc-dl-cross {
+  stroke-width: 1.8;
+}
+
+/* at rest the state says what is seen; the full level draws the change */
+.k-doc-dl.is-manual .k-doc-dl-spin,
+.k-doc-dl.is-going .k-doc-dl-spin,
+.k-doc-dl.is-manual .k-doc-dl-cross,
+.k-doc-dl:not(.is-manual) .k-doc-dl-arrow {
+  opacity: 0;
+}
+
+.k-root[data-animation-level="1"] .k-doc-dl-spin,
+.k-root[data-animation-level="1"] .k-doc-dl-arrow,
+.k-root[data-animation-level="1"] .k-doc-dl-cross,
+.k-root[data-animation-level="2"] .k-doc-dl-spin,
+.k-root[data-animation-level="2"] .k-doc-dl-arrow,
+.k-root[data-animation-level="2"] .k-doc-dl-cross {
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* the ring turns once in 8 s; reduced motion keeps the spinner */
+.k-root[data-animation-level="1"] .k-doc-dl.is-spinning .k-doc-dl-spin,
+.k-root[data-animation-level="2"] .k-doc-dl.is-spinning .k-doc-dl-spin {
+  animation: k-doc-dl-rotate 8s linear infinite;
+}
+
+@keyframes k-doc-dl-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* while nothing has come yet a wave runs round the dots (full level only) */
+.k-root[data-animation-level="2"] .k-doc-dl.is-waiting .k-doc-dl-dot {
+  animation: k-doc-dl-wave 1200ms ease-in-out infinite;
+}
+
+@keyframes k-doc-dl-wave {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  35% {
+    opacity: 1;
+  }
+}
+
+/* animations off: states swap, nothing moves */
+.k-root[data-animation-level="0"] .k-doc-dl,
+.k-root[data-animation-level="0"] .k-doc-dl * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.k-root[data-animation-level="0"] .k-document-ico-text,
+.k-root[data-animation-level="0"] .k-document-ico::after,
+.k-root[data-animation-level="0"] .k-document .k-document-ico {
+  transition: none !important;
+  animation: none !important;
+}

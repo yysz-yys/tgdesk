@@ -352,3 +352,160 @@ func TestCloneChatProfileDetachesSlices(t *testing.T) {
 		t.Fatal("nil clone is not nil")
 	}
 }
+
+func TestMapUserProfileComposerCapabilities(t *testing.T) {
+	botInfo := tg.BotInfo{}
+	botInfo.SetCommands([]tg.BotCommand{{Command: "start", Description: "Start"}})
+	full := tg.UserFull{}
+	full.SetBotInfo(botInfo)
+	full.SetBlocked(true)
+	bot := &tg.User{ID: 42, Bot: true, Username: "helper_bot"}
+
+	profile := mapUserProfile(full, bot, false)
+	if !profile.IsMember || !profile.CanSendMedia || profile.IsBroadcast {
+		t.Fatalf("private bot capabilities = %+v", profile)
+	}
+	if !profile.IsBlocked {
+		t.Fatal("blocked private bot not flagged")
+	}
+	if len(profile.BotCommands) != 1 || profile.BotCommands[0].BotUsername != "helper_bot" {
+		t.Fatalf("bot commands lack owner username: %+v", profile.BotCommands)
+	}
+
+	saved := mapUserProfile(tg.UserFull{}, &tg.User{ID: 42}, true)
+	if saved.IsBlocked || !saved.IsMember || !saved.CanSendMedia {
+		t.Fatalf("saved capabilities = %+v", saved)
+	}
+}
+
+func TestMapBasicGroupProfileComposerCapabilities(t *testing.T) {
+	botInfo := tg.BotInfo{UserID: 100}
+	botInfo.SetCommands([]tg.BotCommand{{Command: "start"}, {Command: "help"}})
+	otherBot := tg.BotInfo{UserID: 200}
+	otherBot.SetCommands([]tg.BotCommand{{Command: "start"}, {Command: "settings"}})
+	full := &tg.ChatFull{}
+	full.SetBotInfo([]tg.BotInfo{botInfo, otherBot})
+	users := []tg.UserClass{
+		&tg.User{ID: 100, Username: "helper_bot"},
+		&tg.User{ID: 200, Username: "other_bot"},
+	}
+	chat := &tg.Chat{ID: 5, Title: "Group", ParticipantsCount: 4}
+	profile := mapBasicGroupProfileWithUsers(full, chat, users)
+	if !profile.IsMember || profile.CanJoin || profile.IsBroadcast || profile.IsBlocked {
+		t.Fatalf("member group capabilities = %+v", profile)
+	}
+	commands := map[string]string{}
+	for _, command := range profile.BotCommands {
+		commands[command.Command+"@"+command.BotUsername] = command.Description
+	}
+	for _, want := range []string{"start@helper_bot", "help@helper_bot", "start@other_bot", "settings@other_bot"} {
+		if _, ok := commands[want]; !ok {
+			t.Fatalf("missing command %q in %+v", want, profile.BotCommands)
+		}
+	}
+
+	banned := tg.ChatBannedRights{SendMedia: true}
+	chat.SetDefaultBannedRights(banned)
+	bannedProfile := mapBasicGroupProfileWithUsers(nil, chat, nil)
+	if !bannedProfile.CanSend || bannedProfile.CanSendMedia {
+		t.Fatalf("media ban not reflected: %+v", bannedProfile)
+	}
+
+	left := &tg.Chat{ID: 6}
+	left.SetLeft(true)
+	leftProfile := mapBasicGroupProfileWithUsers(nil, left, nil)
+	if leftProfile.IsMember || leftProfile.CanJoin {
+		t.Fatalf("left basic group membership = %+v", leftProfile)
+	}
+}
+
+func TestMapChannelProfileComposerCapabilities(t *testing.T) {
+	// A posting broadcast admin: Broadcast placeholder, no control plate.
+	adminRights := channelOwnRights{
+		isAdmin:     true,
+		adminRights: tg.ChatAdminRights{PostMessages: true},
+	}
+	broadcast := &tg.Channel{ID: 9}
+	broadcast.SetBroadcast(true)
+	broadcast.SetUsername("news")
+	adminProfile := mapChannelProfileWithUsers(nil, broadcast, adminRights, "", nil)
+	if !adminProfile.IsBroadcast || !adminProfile.IsMember || adminProfile.IsBroadcastGroup {
+		t.Fatalf("broadcast admin capabilities = %+v", adminProfile)
+	}
+	if !adminProfile.CanSend || !adminProfile.CanSendMedia || adminProfile.CanJoin || adminProfile.IsBlocked {
+		t.Fatalf("broadcast admin rights = %+v", adminProfile)
+	}
+
+	// A plain subscriber: member, cannot post, MUTE plate, no JOIN.
+	subscriber := mapChannelProfileWithUsers(nil, broadcast, channelOwnRights{}, "", nil)
+	if !subscriber.IsMember || subscriber.CanJoin || subscriber.CanSend || subscriber.CanSendMedia {
+		t.Fatalf("broadcast subscriber capabilities = %+v", subscriber)
+	}
+	if !subscriber.IsBroadcast || subscriber.SendRestriction != ChatSendRestrictionBroadcast {
+		t.Fatalf("broadcast subscriber flags = %+v", subscriber)
+	}
+
+	// A non-member of a public broadcast channel: SUBSCRIBE plate.
+	leftBroadcast := &tg.Channel{ID: 10}
+	leftBroadcast.SetBroadcast(true)
+	leftBroadcast.SetUsername("news2")
+	leftBroadcast.SetLeft(true)
+	leftProfile := mapChannelProfileWithUsers(nil, leftBroadcast, channelOwnRights{}, "", nil)
+	if leftProfile.IsMember || !leftProfile.CanJoin || !leftProfile.IsBroadcast {
+		t.Fatalf("left broadcast capabilities = %+v", leftProfile)
+	}
+
+	// A gigagroup member: broadcast-group flag, MUTE plate.
+	gigagroup := &tg.Channel{ID: 11}
+	gigagroup.SetMegagroup(true)
+	gigagroup.SetGigagroup(true)
+	gigagroupProfile := mapChannelProfileWithUsers(nil, gigagroup, channelOwnRights{}, "", nil)
+	if !gigagroupProfile.IsBroadcastGroup || gigagroupProfile.IsBroadcast {
+		t.Fatalf("gigagroup flags = %+v", gigagroupProfile)
+	}
+	if !gigagroupProfile.IsMember || gigagroupProfile.CanSend {
+		t.Fatalf("gigagroup member should be read-only: %+v", gigagroupProfile)
+	}
+
+	// A megagroup left with join-request enabled: APPLY TO JOIN GROUP plate.
+	joinGroup := &tg.Channel{ID: 12}
+	joinGroup.SetMegagroup(true)
+	joinGroup.SetJoinRequest(true)
+	joinGroup.SetLeft(true)
+	joinProfile := mapChannelProfileWithUsers(nil, joinGroup, channelOwnRights{}, "", nil)
+	if joinProfile.IsMember || !joinProfile.CanJoin || !joinProfile.JoinRequest {
+		t.Fatalf("join-request group capabilities = %+v", joinProfile)
+	}
+
+	// An anonymous group admin gets the "Send anonymously" placeholder.
+	anon := &tg.Channel{ID: 13}
+	anon.SetMegagroup(true)
+	anonProfile := mapChannelProfileWithUsers(nil, anon, channelOwnRights{
+		isAdmin:     true,
+		adminRights: tg.ChatAdminRights{PostMessages: true, Anonymous: true},
+	}, "", nil)
+	if !anonProfile.IsAnonymous || !anonProfile.CanSend {
+		t.Fatalf("anonymous admin capabilities = %+v", anonProfile)
+	}
+
+	// A send_media ban keeps text posting but disables the attach menu.
+	mediaBanned := &tg.Channel{ID: 14}
+	mediaBanned.SetMegagroup(true)
+	mediaProfile := mapChannelProfileWithUsers(nil, mediaBanned, channelOwnRights{
+		hasBannedRights: true,
+		bannedRights:    tg.ChatBannedRights{SendMedia: true},
+	}, "", nil)
+	if !mediaProfile.CanSend || !mediaProfile.CanSendPlain || mediaProfile.CanSendMedia {
+		t.Fatalf("media-ban profile = %+v", mediaProfile)
+	}
+}
+
+func TestStartBotRejectsNonPrivatePeer(t *testing.T) {
+	service := &Service{}
+	if err := service.StartBot("channel:1:2", "", "", ""); err == nil {
+		t.Fatal("StartBot accepted a channel")
+	}
+	if err := service.StartBot("not-a-peer", "", "", ""); err == nil {
+		t.Fatal("StartBot accepted an invalid peer id")
+	}
+}

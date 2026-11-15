@@ -1,34 +1,46 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type {
-  BotCommandInfo,
   Chat,
   ChatProfile,
   Message,
   UploadProgress,
 } from "../../../types";
+import { chatColor } from "../../../data/telegram";
 import { insertEmojiAtCursor, restoreCaret } from "../../../lib/emojiInsert";
 import { Icon } from "../../../ui";
 import { EmojiPicker } from "../EmojiPicker";
 import { AttachMenu } from "./AttachMenu";
 import { BotCommandMenu } from "./BotCommandMenu";
 import { BotMenuPill } from "./BotMenuPill";
+import { ComposerButton } from "./ComposerButton";
 import { ComposerReplyBar } from "./ComposerReplyBar";
 import { ComposerUploadRow } from "./ComposerUploadRow";
 import { SendButton, type SendButtonMode } from "./SendButton";
-import { SlowModeHint } from "./SlowModeHint";
 import {
   canAutocompleteCommands,
+  commandInsertText,
   commandQuery,
   filterBotCommands,
   formatSlowTimer,
+  isBotChat,
   isChannelChat,
-  normalizeCommand,
+  type ComposerBotCommand,
+  type ComposerPlaceholder,
 } from "./model";
 
-const EMPTY_COMMANDS: BotCommandInfo[] = [];
+const EMPTY_COMMANDS: ComposerBotCommand[] = [];
 const DRAFT_PREFIX = "tgdesk.draft.";
+
+/** Web K placeholder keys in the reference priority order (input.ts:3656). */
+const PLACEHOLDER_KEYS: Record<ComposerPlaceholder, string> = {
+  message: "input.message",
+  broadcast: "input.broadcast",
+  textNotAllowed: "input.textNotAllowed",
+  sendAnonymously: "input.sendAnonymously",
+  comment: "input.comment",
+};
 
 export interface MessageComposerProps {
   chatId: string;
@@ -40,12 +52,25 @@ export interface MessageComposerProps {
   editing?: Message | null;
   upload?: UploadProgress;
   enterToSend: boolean;
+  /** Placeholder resolved from the capability state (Web K priority order). */
+  placeholder?: ComposerPlaceholder;
+  /** The text field is read-only (text posting is banned in this chat). */
+  readOnly?: boolean;
+  /**
+   * Footer control plate rendered inside the same card and cross-faded over the
+   * writing rows (tweb `.rows-wrapper-wrapper.is-centering-to-control`).
+   */
+  control?: ReactNode;
   onCancelContext: () => void;
   onSend: (text: string) => Promise<void>;
   onAttach: (caption: string) => Promise<boolean>;
   onOpenBotMenu?: () => void;
   onSendCommand?: (command: string) => Promise<void>;
   onToast: (message: string) => void;
+  /** Typing-indicator signal (throttled by the parent): fired on input edits. */
+  onTyping?: () => void;
+  /** Fired when the input becomes empty: stop the typing signal. */
+  onTypingStop?: () => void;
   /** Sticker/GIF picker: network params for the kernel RPCs. */
   network?: { proxy: string; ntp: string };
   onSendSticker?: (ref: string) => void | Promise<unknown>;
@@ -57,7 +82,9 @@ export interface MessageComposerProps {
 /**
  * Telegram Web K message composer plate: reply/edit header and upload progress
  * are rows inside the same 24 px floating card, followed by the input row
- * (bot pill / attach / editor / slow-mode chip / emoji / morphing send-mic).
+ * (bot pill / attach / editor / emoji / morphing send-mic). A capability footer
+ * (START / JOIN / MUTE / Unblock) renders in the same card and cross-fades over
+ * the writing rows without unmounting them.
  */
 export function MessageComposer({
   chatId,
@@ -68,12 +95,17 @@ export function MessageComposer({
   editing,
   upload,
   enterToSend,
+  placeholder: placeholderKind,
+  readOnly: readOnlyProp,
+  control,
   onCancelContext,
   onSend,
   onAttach,
   onOpenBotMenu,
   onSendCommand,
   onToast,
+  onTyping,
+  onTypingStop,
   network,
   onSendSticker,
   onSendGif,
@@ -94,28 +126,31 @@ export function MessageComposer({
   const [nowSeconds, setNowSeconds] = useState(() =>
     Math.floor(Date.now() / 1000),
   );
+  const [slowTooltipUntil, setSlowTooltipUntil] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const value = editing ? editText : text;
-  const placeholder = editing
-    ? t("input.editPlaceholder")
-    : replyingTo
-      ? t("input.replyPlaceholder")
-      : isChannelChat(chat, profile)
-        ? t("input.broadcast")
-        : t("input.message");
   const canSendPlain = profile?.canSendPlain ?? true;
+  const canPost = profile?.canSend ?? true;
+  const readOnly = readOnlyProp ?? (!canSendPlain || !canPost);
   const canSendStickers = profile?.canSendStickers ?? true;
   const canSendGifs = profile?.canSendGifs ?? true;
-  const canOpenPicker =
-    canSendPlain || canSendStickers || canSendGifs;
+  const canOpenPicker = canSendPlain || canSendStickers || canSendGifs;
+  const canAttach = canPost && (profile?.canSendMedia ?? true);
   const slowConfigured = profile?.slowModeSeconds ?? 0;
   const slowNextSend = profile?.slowModeNextSendDate ?? 0;
   const slowRemaining = slowNextSend > nowSeconds ? slowNextSend - nowSeconds : 0;
   const slowBlocked = slowRemaining > 0;
-  const slowTitle = slowBlocked
-    ? t("input.slowModeHint", { timer: formatSlowTimer(slowRemaining) })
-    : undefined;
+  const slowTooltipVisible =
+    slowBlocked && slowTooltipUntil > Date.now();
+  // Web K never changes the placeholder for reply/edit; it follows the chat
+  // capability only (input.ts:3656-3732).
+  const placeholderText = t(
+    PLACEHOLDER_KEYS[
+      placeholderKind ??
+        (isChannelChat(chat, profile) ? "broadcast" : "message")
+    ],
+  );
 
   const updateValue = (next: string) => {
     if (commandMenuOpen && next !== "" && !next.startsWith("/")) {
@@ -125,6 +160,11 @@ export function MessageComposer({
       setEditText(next);
     } else {
       setText(next);
+    }
+    if (next.length > 0) {
+      onTyping?.();
+    } else {
+      onTypingStop?.();
     }
   };
 
@@ -167,9 +207,10 @@ export function MessageComposer({
     node.style.height = `${node.scrollHeight}px`;
   }, [value]);
 
-  // Slow mode countdown ticks once a second while the chat has slow mode.
+  // Slow mode countdown ticks once a second while the chat has slow mode or
+  // its tooltip is visible.
   useEffect(() => {
-    if (!slowConfigured) {
+    if (!slowConfigured && !slowTooltipUntil) {
       return;
     }
     setNowSeconds(Math.floor(Date.now() / 1000));
@@ -177,7 +218,20 @@ export function MessageComposer({
       setNowSeconds(Math.floor(Date.now() / 1000));
     }, 1000);
     return () => window.clearInterval(id);
-  }, [slowConfigured, slowNextSend]);
+  }, [slowConfigured, slowNextSend, slowTooltipUntil]);
+
+  // The slow-mode tooltip hides by itself, matching Web K's auto tooltip
+  // (showSlowModeTooltipIfNeeded auto: true, input.ts:4706-4774).
+  useEffect(() => {
+    if (!slowTooltipUntil) {
+      return;
+    }
+    const id = window.setTimeout(
+      () => setSlowTooltipUntil(0),
+      Math.max(0, slowTooltipUntil - Date.now()),
+    );
+    return () => window.clearTimeout(id);
+  }, [slowTooltipUntil]);
 
   // Close the attach / command popovers when the pointer leaves them.
   useEffect(() => {
@@ -219,17 +273,17 @@ export function MessageComposer({
   }, [attachMenuOpen, commandMenuOpen]);
 
   // Bot command autocomplete (/typed at the message start, or the menu toggle).
-  const allCommands = profile?.botCommands;
+  const allCommands = (profile?.botCommands ?? EMPTY_COMMANDS) as ComposerBotCommand[];
   const query = editing ? null : commandQuery(value);
   const autocompleteEnabled = canAutocompleteCommands(chat, profile);
   const menuCommands = useMemo(() => {
     if (commandMenuOpen) {
-      return filterBotCommands(allCommands, query ?? "");
+      return filterBotCommands(allCommands, query ?? "") as ComposerBotCommand[];
     }
     if (query === null || !autocompleteEnabled) {
       return EMPTY_COMMANDS;
     }
-    return filterBotCommands(allCommands, query);
+    return filterBotCommands(allCommands, query) as ComposerBotCommand[];
   }, [allCommands, autocompleteEnabled, commandMenuOpen, query]);
   const showCommands =
     menuCommands.length > 0 &&
@@ -250,12 +304,22 @@ export function MessageComposer({
     );
   }, [menuCommands.length]);
 
+  const showSlowModeTooltip = () => {
+    setSlowTooltipUntil(Date.now() + Math.min(4000, Math.max(1500, slowRemaining * 1000)));
+  };
+
   const submit = async () => {
     if (sending) {
       return;
     }
+    if (readOnly) {
+      onToast(t("input.sendRestricted"));
+      return;
+    }
     if (slowBlocked) {
-      onToast(t("input.slowModeError"));
+      // Web K keeps the send button enabled: pressing it shows the slow-mode
+      // tooltip with the live countdown instead of sending (input.ts:4706).
+      showSlowModeTooltip();
       return;
     }
     const next = value.trim();
@@ -282,6 +346,10 @@ export function MessageComposer({
     if (attaching || sending) {
       return;
     }
+    if (!canAttach) {
+      onToast(t("input.sendRestricted"));
+      return;
+    }
     setAttachMenuOpen(false);
     setAttaching(true);
     try {
@@ -297,8 +365,9 @@ export function MessageComposer({
     }
   };
 
-  const runCommand = async (command: BotCommandInfo) => {
-    const payload = `/${normalizeCommand(command.command)}`;
+  const runCommand = async (command: ComposerBotCommand) => {
+    // Groups insert "/command@botusername" (commandsHelper.ts:24-30).
+    const payload = commandInsertText(command, chat, profile);
     setCommandMenuOpen(false);
     setSending(true);
     try {
@@ -340,6 +409,10 @@ export function MessageComposer({
 
   const openAttachMenu = () => {
     if (attaching || sending) {
+      return;
+    }
+    if (!canAttach) {
+      onToast(t("input.sendRestricted"));
       return;
     }
     setAttachMenuOpen((open) => !open);
@@ -442,40 +515,67 @@ export function MessageComposer({
       : textEmpty && !upload
         ? "voice"
         : "send";
+  // Slow mode never disables the button in Web K; only an empty/invalid state
+  // does (the field itself is read-only when text posting is banned).
   const sendDisabled =
     sending ||
-    !canSendPlain ||
-    (mode === "send" && (textEmpty || slowBlocked)) ||
-    (mode === "edit" && (textEmpty || slowBlocked));
+    (mode === "send" && textEmpty) ||
+    (mode === "edit" && textEmpty);
   const sendLabel = sending
     ? t("input.sending")
     : mode === "edit"
       ? t("input.saveEdit")
       : mode === "send"
-        ? slowBlocked
-          ? t("input.slowMode")
-          : t("input.send")
+        ? t("input.send")
         : t("input.recordVoice");
 
   const botMenu = profile?.botMenuButton;
   const showBotPill = botMenu?.type === "webapp";
   // Telegram Web K only puts the command-list menu button in front of the
-  // composer in a private bot chat; group chats still autocomplete "/" while
-  // typing but have no toggle icon.
+  // composer in a private bot chat and only while the field is empty
+  // (input.ts:3620-3625); groups still autocomplete "/" while typing.
   const isPrivateBotChat =
     chat?.kind === "private" && (Boolean(chat?.bot) || profile?.type === "bot");
   const showCommandsToggle =
     isPrivateBotChat &&
     !editing &&
-    Boolean(allCommands?.length) &&
+    textEmpty &&
+    Boolean(allCommands.length) &&
     botMenu?.type !== "webapp";
-  const attachingLabel = attaching ? t("input.attaching") : t("input.attach");
+  const attachingLabel = attaching
+    ? t("input.attaching")
+    : canPost
+      ? t("input.attach")
+      : t("input.textNotAllowed");
+
+  const commandAvatar = (command: ComposerBotCommand) => {
+    if (chat && isBotChat(chat, profile)) {
+      return {
+        title: chat.title,
+        initials: chat.initials,
+        color: chat.color,
+        seed: chat.id,
+        photo: chat.avatarUrl,
+      };
+    }
+    const name = command.botUsername || "bot";
+    const initials =
+      name
+        .replace(/[^A-Za-z0-9_]/g, "")
+        .slice(0, 2)
+        .toUpperCase() || "B";
+    return { title: name, initials, color: chatColor(name), seed: name, photo: undefined };
+  };
 
   const clickSend = () => {
     setAttachMenuOpen(false);
     setCommandMenuOpen(false);
     if (mode === "voice") {
-      onToast(t("input.voiceSoon"));
+      if (readOnly) {
+        onToast(t("input.sendRestricted"));
+      } else {
+        onToast(t("input.voiceSoon"));
+      }
       return;
     }
     void submit();
@@ -487,109 +587,117 @@ export function MessageComposer({
       data-busy={busy ? true : undefined}
       data-editing={editing ? true : undefined}
       data-reply={replyingTo ? true : undefined}
+      data-control={control ? true : undefined}
     >
       <div className="tg-composer__lane">
         <div className="tg-composer__anchor" data-emoji-picker-anchor>
-          <div className="tg-composer__plate">
-            <ComposerReplyBar
-              replyingTo={replyingTo}
-              editing={editing}
-              onCancel={onCancelContext}
-            />
-            {upload ? <ComposerUploadRow upload={upload} /> : null}
-            <div className="tg-composer__row">
-              {showBotPill ? (
-                <BotMenuPill
-                  text={botMenu?.text || t("input.botMenu")}
+          <div className="tg-composer__plate" data-mode={control ? "control" : "compose"}>
+            <div className="tg-composer__rows" aria-hidden={control ? true : undefined}>
+              <ComposerReplyBar
+                replyingTo={replyingTo}
+                editing={editing}
+                onCancel={onCancelContext}
+              />
+              {upload ? <ComposerUploadRow upload={upload} /> : null}
+              <div className="tg-composer__row">
+                {showBotPill ? (
+                  <BotMenuPill
+                    text={botMenu?.text || t("input.botMenu")}
+                    onClick={() => {
+                      setAttachMenuOpen(false);
+                      setCommandMenuOpen(false);
+                      setPickerOpen(false);
+                      if (onOpenBotMenu) {
+                        onOpenBotMenu();
+                      } else {
+                        onToast(t("input.botMenuUnavailable"));
+                      }
+                    }}
+                  />
+                ) : null}
+                {showCommandsToggle ? (
+                  <ComposerButton
+                    className="tg-composer__icon tg-composer__commands-toggle"
+                    data-active={commandMenuOpen ? true : undefined}
+                    data-composer-popover-trigger
+                    aria-label={t("input.botCommands")}
+                    aria-haspopup="listbox"
+                    aria-expanded={showCommands}
+                    title={t("input.botCommands")}
+                    onClick={toggleCommandList}
+                  >
+                    <span
+                      className="tg-composer__menu-icon"
+                      data-back={commandMenuOpen ? true : undefined}
+                      aria-hidden="true"
+                    />
+                  </ComposerButton>
+                ) : null}
+                <ComposerButton
+                  className="tg-composer__icon"
+                  data-composer-popover-trigger
+                  data-disabled={!canAttach ? true : undefined}
+                  aria-label={attachingLabel}
+                  aria-haspopup="menu"
+                  aria-expanded={attachMenuOpen}
+                  title={attachingLabel}
+                  disabled={attaching || sending || !canAttach}
+                  onClick={openAttachMenu}
+                >
+                  <Icon name="attach_file" size={24} />
+                </ComposerButton>
+                <textarea
+                  ref={inputRef}
+                  className="tg-composer-input tg-composer__input"
+                  rows={1}
+                  value={value}
+                  readOnly={readOnly}
+                  placeholder={placeholderText}
+                  aria-label={placeholderText}
+                  aria-busy={busy || sending ? true : undefined}
+                  title={readOnly ? t("input.textNotAllowed") : undefined}
+                  onChange={(event) => updateValue(event.target.value)}
+                  onKeyDown={handleKeyDown}
                   onClick={() => {
                     setAttachMenuOpen(false);
                     setCommandMenuOpen(false);
-                    setPickerOpen(false);
-                    if (onOpenBotMenu) {
-                      onOpenBotMenu();
-                    } else {
-                      onToast(t("input.botMenuUnavailable"));
+                    if (readOnly) {
+                      onToast(t("input.sendRestricted"));
                     }
                   }}
                 />
-              ) : null}
-              {showCommandsToggle ? (
-                <button
-                  type="button"
+                <ComposerButton
                   className="tg-composer__icon"
-                  data-active={commandMenuOpen ? true : undefined}
-                  data-composer-popover-trigger
-                  aria-label={t("input.botCommands")}
-                  aria-haspopup="listbox"
-                  aria-expanded={showCommands}
-                  title={t("input.botCommands")}
-                  onClick={toggleCommandList}
+                  data-active={pickerOpen ? true : undefined}
+                  aria-label={t("input.emoji")}
+                  aria-haspopup="dialog"
+                  aria-expanded={pickerOpen}
+                  title={t("input.emoji")}
+                  disabled={!canOpenPicker}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={openEmojiPicker}
                 >
-                  <Icon name="menu" size={22} />
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="tg-composer__icon"
-                data-composer-popover-trigger
-                aria-label={attachingLabel}
-                aria-haspopup="menu"
-                aria-expanded={attachMenuOpen}
-                title={attachingLabel}
-                disabled={attaching || sending}
-                onClick={openAttachMenu}
-              >
-                <Icon name="attach_file" size={22} />
-              </button>
-              <textarea
-                ref={inputRef}
-                className="tg-composer-input tg-composer__input"
-                rows={1}
-                value={value}
-                readOnly={!canSendPlain}
-                placeholder={placeholder}
-                aria-label={placeholder}
-                aria-busy={busy || sending ? true : undefined}
-                title={!canSendPlain ? t("input.textNotAllowed") : undefined}
-                onChange={(event) => updateValue(event.target.value)}
-                onKeyDown={handleKeyDown}
-                onClick={() => {
-                  setAttachMenuOpen(false);
-                  setCommandMenuOpen(false);
-                  if (!canSendPlain) {
-                    onToast(t("input.sendRestricted"));
-                  }
-                }}
-              />
-              <SlowModeHint
-                configuredSeconds={slowConfigured}
-                remainingSeconds={slowRemaining}
-              />
-              <button
-                type="button"
-                className="tg-composer__icon"
-                data-active={pickerOpen ? true : undefined}
-                aria-label={t("input.emoji")}
-                aria-haspopup="dialog"
-                aria-expanded={pickerOpen}
-                title={t("input.emoji")}
-                disabled={!canOpenPicker}
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={openEmojiPicker}
-              >
-                <Icon name="mood" size={22} />
-              </button>
-              <SendButton
-                mode={mode}
-                label={slowBlocked && mode !== "loading" ? slowTitle ?? sendLabel : sendLabel}
-                title={slowTitle}
-                disabled={sendDisabled}
-                onClick={clickSend}
-              />
+                  <Icon name="mood" size={24} />
+                </ComposerButton>
+                <SendButton
+                  mode={mode}
+                  label={sendLabel}
+                  title={slowTooltipVisible ? undefined : sendLabel}
+                  disabled={sendDisabled}
+                  onClick={clickSend}
+                />
+              </div>
             </div>
+            {control ? <div className="tg-composer__control">{control}</div> : null}
           </div>
+          {slowTooltipVisible ? (
+            <div className="tg-composer__slow-tooltip" role="status">
+              {t("input.slowModeHint", { timer: formatSlowTimer(slowRemaining) })}
+            </div>
+          ) : null}
           {attachMenuOpen ? (
             <AttachMenu
+              canSendMedia={canAttach}
               onPick={() => {
                 void attach();
               }}
@@ -600,9 +708,10 @@ export function MessageComposer({
               commands={menuCommands}
               activeIndex={commandIndex}
               label={t("input.botCommands")}
+              getAvatar={commandAvatar}
               onHover={setCommandIndex}
               onSelect={(command) => {
-                void runCommand(command);
+                void runCommand(command as ComposerBotCommand);
               }}
             />
           ) : null}

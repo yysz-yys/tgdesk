@@ -1,6 +1,11 @@
 /* Conversation surface: top app bar, message canvas and composer. */
 
 .g-chat-pane {
+  --tg-chat-lane: min(696px, 100%);
+  /* Web K message highlighting (date plates, service pills, selected bands):
+   * the theme's highlight colour, already defined per shell in tokens.css. */
+  --tg-highlight: var(--message-highlighting-color);
+
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -8,6 +13,9 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--app-chat-canvas);
+  /* Web K's chat lane is drawn in Roboto (the F shell's Inter stops at the
+   * K island edge). */
+  font-family: var(--font-regular, var(--f-font));
 }
 
 /* ── Top app bar ─────────────────────────────────────────────────────────── */
@@ -1956,7 +1964,8 @@
 
 :root[data-theme="dark"] {
   --tg-bubble-in: #212121;
-  --tg-bubble-out: #2b5278;
+  /* Web K Night's outgoing plate is the accent-tinted purple, not Web-Z blue. */
+  --tg-bubble-out: #8774e1;
   --tg-bubble-text: #f4f6f8;
   --tg-bubble-secondary: #a8b0b8;
   --tg-bubble-time: rgba(255, 255, 255, 0.54);
@@ -1981,9 +1990,43 @@
   background-size: 180px 180px, auto, auto;
 }
 
+/* The Web K chat canvas runs under the floating top bar and pinned plate: the
+ * scroller starts below them and fades its top edge out under the plates
+ * (`_chat.scss`: --chat-padding-top + the 5-stop top fade). PinnedMessageBar
+ * publishes --pinned-floating-height while its 48px plate is mounted. */
+.g-chat-pane .g-chat-canvas .g-message-scroll {
+  padding-top: calc(48px + var(--pinned-floating-height, 0px) + 16px);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    rgba(0, 0, 0, 0.24) 12px,
+    rgba(0, 0, 0, 0.55) 40px,
+    rgba(0, 0, 0, 0.85) calc(48px + var(--pinned-floating-height, 0px) - 8px),
+    #000 calc(48px + var(--pinned-floating-height, 0px) + 8px)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    rgba(0, 0, 0, 0.24) 12px,
+    rgba(0, 0, 0, 0.55) 40px,
+    rgba(0, 0, 0, 0.85) calc(48px + var(--pinned-floating-height, 0px) - 8px),
+    #000 calc(48px + var(--pinned-floating-height, 0px) + 8px)
+  );
+}
+
 .g-message-list {
-  max-width: 760px;
-  padding: 0 16px;
+  /* Web K's `--chat-width` lane (CHAT_WIDTH_MAX = 696): the message column, the
+   * top bar, the pinned plate and the composer all share it. */
+  width: 100%;
+  max-width: var(--tg-chat-lane, 696px);
+  margin: 0 auto;
+  padding: 0;
+}
+
+@media (max-width: 700px) {
+  .g-message-list {
+    padding: 0 8px;
+  }
 }
 
 .g-date-chip {

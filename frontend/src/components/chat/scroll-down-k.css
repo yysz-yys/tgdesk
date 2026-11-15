@@ -1,0 +1,141 @@
+/* Web K scroll-to-bottom button (`bubbles-go-down`).
+ * tweb: `components/chat/input.ts:884-896` (DOM), `scss/partials/_chat.scss`
+ * 1485-1737 (visible/hidden states, corner position, badge). Colours come from
+ * the shared chrome tokens declared in topbar-k.css. */
+
+.k-go-down {
+  position: absolute;
+  /* `bottom: calc(--chat-input-height + .5rem)`: 48 px composer + 8 px gap. */
+  bottom: calc(48px + 8px);
+  /* inline end of the centred 696 px lane (0 on narrow panes). */
+  inset-inline-end: max(0px, calc((100% - var(--tg-chat-lane, 696px)) / 2));
+  z-index: 2;
+  overflow: visible;
+  opacity: 0;
+  visibility: hidden;
+  cursor: default;
+  transform: none !important;
+  /* Hide: fade + delay visibility so it cannot be clicked while fading. */
+  transition:
+    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s 0.2s;
+}
+
+.k-go-down[data-visible] {
+  opacity: 1;
+  visibility: visible;
+  cursor: pointer;
+  transition:
+    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s 0s;
+}
+
+.k-root[data-animation-level="0"] .k-go-down,
+.k-root[data-animation-level="0"] .k-go-down[data-visible] {
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-go-down,
+  .k-go-down[data-visible] {
+    transition: none !important;
+  }
+}
+
+.k-go-down:not([data-visible]) .k-go-down-button {
+  pointer-events: none;
+}
+
+/* Two classes to beat the K reset's `.k-root button { background: none;
+ * color: inherit }` (base.css:31). */
+.k-go-down .k-go-down-button {
+  position: relative;
+  display: flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background-color: var(--tg-chrome-surface, #212121);
+  box-shadow: var(--tg-chrome-elevation-round, 0 1px 8px 1px rgba(0, 0, 0, 0.12));
+  color: var(--tg-chrome-text, #ffffff);
+  cursor: inherit;
+  font-size: 1.5rem;
+  padding: 0;
+}
+
+.k-go-down .k-go-down-button::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: " ";
+}
+
+@media (hover: hover) {
+  .k-go-down .k-go-down-button:hover::after {
+    background-color: var(--tg-chrome-hover-secondary, rgba(170, 170, 170, 0.08));
+  }
+}
+
+.k-go-down .k-go-down-button:focus-visible {
+  outline: 2px solid var(--tg-chrome-accent, #8774e1);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------ unread badge */
+
+.k-go-down .badge {
+  position: absolute;
+  top: -4px;
+  inset-inline-end: -4px;
+}
+
+.k-go-down .badge-24 {
+  display: inline-flex;
+  height: 24px;
+  min-width: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  padding: 0 8px;
+  color: var(--tg-chrome-badge-text, #ffffff);
+  font-size: 14px;
+  font-weight: var(--font-weight-bold, 500);
+  line-height: 24px;
+  text-align: center;
+}
+
+.k-go-down .badge-primary {
+  background-color: var(--tg-chrome-accent, #8774e1);
+}
+
+.k-go-down .badge-gray {
+  background-color: var(--tg-chrome-secondary-solid, #707579);
+}
+
+.k-go-down .badge.is-badge-empty {
+  display: none;
+}
+
+/* 200 ms roll when the counter changes (tweb setBadgeContent). */
+@keyframes k-go-down-badge-roll {
+  from {
+    transform: translateY(60%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.k-go-down .badge.is-rolling .k-go-down-badge-value {
+  animation: k-go-down-badge-roll 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-go-down .badge.is-rolling .k-go-down-badge-value {
+    animation: none;
+  }
+}

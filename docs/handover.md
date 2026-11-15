@@ -111,10 +111,40 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
   菜单行，再接原有共享媒体 tab。
 - 输入框按 Telegram Web K 重做（`composer/`）：同一块 24px 圆角浮动面板内放回复/编辑
   头、上传进度和输入行；按"能否发言"切换而不是按 chat.kind：私聊/机器人/已保存/群组
-  /频道管理员显示输入框（频道占位符 "广播"），不可发言的广播频道显示整条
-  Mute/取消静音 + 礼物按钮，受限群显示只读提示条。含 Bot 菜单胶囊（web app）、
-  `/` 命令自动补全（↑↓/Enter/Esc）、慢速模式倒计时、附件菜单、Emoji 面板、单一
-  morphing 发送/语音按钮、Enter/Shift+Enter/Ctrl+Enter 与草稿。
+  /频道管理员显示输入框（频道占位符 "广播"，匿名管理员 "匿名发送"，只读成员
+  "不允许发送文本"），不可发言的广播频道显示整条 Mute/取消静音 + 礼物、未加入显示
+  加入/订阅、申请加入显示申请加入、被屏蔽显示取消屏蔽（`ControlPlate`）。含 Bot 菜单
+  胶囊（web app）、`/` 命令自动补全（组内 `/cmd@bot`，↑↓/Enter/Esc）、慢速模式
+  发送按钮 tooltip 倒计时（不再有自造 chip）、附件菜单（Web K 菜单值）、Emoji 面板、
+  单一 morphing 发送/语音按钮、Enter/Shift+Enter/Ctrl+Enter 与草稿；机器人 START 走
+  `messages.startBot`（`StartBot`），配置能力字段来自 `ChatProfileDTO`
+  （isMember/isBroadcast/canJoin/joinRequest/isBlocked/isAnonymous/canSendMedia/…）。
+- 会话视图补齐全套 Web K chrome：浮动置顶消息板（`PinnedMessageBar`，计数/多条虚线
+  边框、40px 媒体缩略图、强调色标题、pin 菜单与取消置顶/隐藏逻辑、
+  `GetPinnedMessageInfo`/`UpdatePinnedMessage`）、聊天顶栏（48px/24r、40px 头像、
+  16/24 标题、14/18 状态行在线/输入中强调色、查找覆盖层）、回到底部圆钮
+  （`ScrollDownButton`，300px 阈值、48px 圆形、未读角标、显隐过渡）、输入中指示器
+  （内核 `typing.go` 转发三种 typing update + `SendTyping`，6s 节流/过期，会话列表行
+  三点动画 + 顶栏状态，官方措辞 en/zh/ja）。
+- 文件/文档气泡按 Web K 重做（`FileDocumentRow` + `DocumentDownload`）：54px 文档行、
+  54×54 扩展名色块、16/500 文件名中间省略、14px 字节大小、悬停才出现的下载箭头与
+  tweb preloaderRing 变形动画（12 点环、进度弧、暂停/重试/完成打开），照片/视频不再
+  常驻下载角标；日期牌、reaction chips、发送者名在气泡内、时间/已读字号、696px 车道
+  与 46px 入向缩进等气泡语法同步（夜主题出向气泡改为 Web K 的 #8774e1）。
+- 首屏第三条 Tips（Chats）：Popular/Searched/Recently closed 分段筛选（只显示非空
+  列表、默认选中第一个可用项）、4×2 54px 头像磁贴、官方 "Use Ctrl+F to enter search
+  mode." 说明（链接可用、Ctrl+F 聚焦侧栏搜索）、空状态；Popular 来自
+  `contacts.getTopPeers`（`GetTopPeers`，内核 24h 缓存），Searched/Closed 由前端
+  `recentPeersStore` 记录（侧栏搜索选中、切换会话时），en/zh/ja 齐备。
+- 新建群组改为 Web K 顺序：先"添加成员"页（搜索行内已选 chip、56px 复选行、鸭子空
+  状态、角标箭头），再"新建群组"页（头像、群名、成员行、2–4 人被邀请时的建议标题）；
+  新建频道/群组都支持点头像选图（canvas 居中裁剪 800×800 JPEG，创建后
+  `SetChatPhoto` → `channels.editPhoto`/`messages.editChatPhoto`，
+  `InputChatUploadedPhoto`），失败保留已创建会话。新建私聊改为联系人页
+  （`KNewPrivateChat`：44px 搜索、名称/在线排序、56px 行、添加联系人按钮，
+  `GetContacts`/`contacts.getContacts`）。
+- 设置主页按参考图对齐：资料块顶部 20px（同视口测量 4.5px 偏移）、桌面行 hover 16px
+  圆角、版本行底部留白；行高/图标/卡片/分组间距与同视口参考一致。
 - Bot 内联键盘前端（`BotKeyboard`）：按 `row` 还原 Telegram 行/等宽格子、`style`
   着色、点击态 spinner；URL/复制/回调/webview 全部可用；回调走
   `SendBotCallback`，alert/URL 结果即时反馈，被机器人编辑的消息由 `chat:event` 刷新。
@@ -202,7 +232,13 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 
 明确未实现：
 
-- 服务端消息搜索、typing/定时消息、多文件一次性发送为相册。
+- 服务端消息搜索、定时消息、多文件一次性发送为相册。
+- 会话视图剩余近似：相册 mosaic 布局（tdesktop Layouter 未移植，仍用网格）、回复
+  预览的 peer 色底、纯媒体气泡的浮动时间、悬停快捷回应/操作条、群组 send-as、
+  @ 提及自动补全、机器人 reply keyboard、定时消息/礼物浮动按钮、语音录制。
+- 新建聊天：添加联系人弹窗未实现（角标 + 只提示）；新建频道的成员邀请、频道头像
+  编辑器（裁剪界面简化为居中方形裁剪）；未加入频道的 JOIN/SUBSCRIBE 底栏已有 UI
+  分支但入口（未加入频道预览）未接。
 - 聊天信息中的 Stories/相似频道/群组等 Web 分类尚未接入（成员、媒体、文件、链接、
   音乐、语音、动图、礼物已接入）；礼物 tab 目前是基础网格/分页，尚未实现收藏柜筛选、
   按价值排序、Collections 和发送礼物流程。
@@ -212,8 +248,9 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
   `stickersSuggest` 设置已持久化，等输入框接上 `getStickersByEmoticon` 后再消费）；
   Premium 特效贴纸只显示锁标和循环贴纸动画，发送时的一次性特效播放未做。
 - t.me 论坛 thread/comment、手机号链接、addstickers 等非聊天 link 归为 unsupported。
-- 输入框的 send-as / 匿名管理员 / 定时消息 / 语音录制与发送菜单未实现（相关按钮
-  隐藏或给出提示）；未订阅频道的 JOIN/SUBSCRIBE 底栏依赖加入聊天功能，暂不涉及。
+- 输入框的 send-as / 定时消息 / 语音录制与发送菜单未实现（相关按钮隐藏或给出提示）；
+  匿名管理员目前只有占位符与能力字段，发送身份切换未接；未加入频道的 JOIN/SUBSCRIBE
+  底栏只有 UI 分支，应用内还没有"未加入频道预览"入口。
 - mini app 浮动层在跨域 iframe 持有焦点时收不到 Esc（已知 WebView2/浏览器限制）；
   `botOwnerId` 在 gotd v0.140 的 TL 层没有字段，保持为空。
 - Emoji 面板已按 Telegram Web 图集渲染，但输入框仍是原生 textarea（输入时显示系统
@@ -257,6 +294,12 @@ internal/kernel/
   live.go                       Telegram updates → chat:event
   reactions.go                  表情回应
   attachments.go                原生文件选择、上传与进度事件
+  top_peers.go                  contacts.getTopPeers（Chats tips 的 Popular，24h 缓存）
+  typing.go                     收/发输入中状态（update*UserTyping → chat:event、messages.setTyping）
+  start_bot.go                  messages.startBot（START 板）
+  contacts_dir.go               contacts.getContacts（新建私聊联系人页）
+  chat_photo.go                 新建频道/群组的头像上传（channels.editPhoto/messages.editChatPhoto）
+  pinned.go / pinned_multi.go   置顶消息读取/全部取消 + 多条置顶 DTO/单条取消置顶
   images.go                     loopback 缩略图/头像/照片服务与内存缓存
   thumbs.go                     缩略图尺寸与头像照片选择
   downloads.go                  下载管线、断点续传、进度
@@ -267,7 +310,14 @@ internal/paths/paths.go         便携路径解析
 frontend/src/
   App.tsx                       应用壳、会话/消息/下载状态、事件订阅
   components/auth/              登录页（F）各步骤 + 国家选择器
-  components/chat/              会话视图、消息与操作、图片/视频查看、右侧信息面板
+  components/chat/              会话视图、消息与操作、图片/视频查看、右侧信息面板；
+                                ChatHeader/PinnedMessageBar/ScrollDownButton 为 Web K chrome，
+                                FileDocumentRow/DocumentDownload 为文档气泡与下载动画，
+                                composer/ 为按能力的输入框
+  components/k/                 Web K 主界面（列表/空会话/tips/设置/新建聊天页）
+  lib/typingStore.ts            peer 输入中状态（6s 过期）供列表与顶栏共用
+  lib/typingApi.ts              messages.setTyping 6s 节流 / cancel
+  lib/topPeers.ts               GetTopPeers 的类型化封装
   components/downloads/         下载管理器
   components/layout/            TitleBar、AppMenu、Sidebar
   components/settings/          设置 Dialog
@@ -367,7 +417,8 @@ $env:TGDESK_WEBVIEW_DEBUG = "1"
 2. Bot mini app 无 Telegram JS bridge（web_app_data_send、prolongWebView 未接）；
    `BotCallbackResultDTO` 不含非 alert 的 toast 文本；`botOwnerId` 本 TL 层无字段，留空。
    现在 mini app 是主窗口内 iframe 浮层（不再有独立 OS 窗口）。
-3. 服务端搜索、typing/在线状态、定时消息、多文件一次性发相册。
+3. 服务端搜索、定时消息、多文件一次性发相册；会话视图的相册 mosaic/回复预览/
+   悬停操作条等近似项（见"明确未实现"）。
 4. 下载 CDN redirect 的完整续传。
 5. 代理密码迁移到 Windows Credential Manager。
 6. 设置面板继续补齐 Telegram 真实字段（目前只保留已接后端的项）。

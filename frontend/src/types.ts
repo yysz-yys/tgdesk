@@ -151,6 +151,8 @@ export type ChatProfileType = "user" | "bot" | "saved" | "group" | "channel";
 export interface BotCommandInfo {
   command: string;
   description?: string;
+  /** Bot that owns the command, for the group `/cmd@bot` insertion. */
+  botUsername?: string;
 }
 
 export interface BotMenuButtonInfo {
@@ -201,6 +203,24 @@ export interface ChatProfile {
   adminsCount?: number;
   /** Total message count (Saved Messages only, best effort). */
   messagesCount?: number;
+  /** Whether media may be attached (per-type send rights; Web K attach menu). */
+  canSendMedia?: boolean;
+  /** Whether the current account belongs to the peer (Web K composer branch). */
+  isMember?: boolean;
+  /** Broadcast channel (subscribers cannot post; admin composer reads Broadcast). */
+  isBroadcast?: boolean;
+  /** Broadcast-only "gigagroup". */
+  isBroadcastGroup?: boolean;
+  /** Non-member may join from the composer plate (JOIN / SUBSCRIBE). */
+  canJoin?: boolean;
+  /** Joining needs admin approval (APPLY TO JOIN GROUP). */
+  joinRequest?: boolean;
+  /** The current account blocked this private peer (Web K Unblock plate). */
+  isBlocked?: boolean;
+  /** The current admin posts anonymously (Send anonymously placeholder). */
+  isAnonymous?: boolean;
+  /** Direct-messages chat linked to a channel (comments button; reserved). */
+  linkedMonoforumId?: string;
 }
 
 /** Result of pressing an inline-keyboard callback button. */
@@ -564,7 +584,8 @@ export interface ChatEvent {
     | "read"
     | "readOutbox"
     | "presence"
-    | "pinned";
+    | "pinned"
+    | "typing";
   chatId?: string;
   message?: unknown;
   messageIds?: number[] | null;
@@ -577,6 +598,11 @@ export interface ChatEvent {
   online?: boolean;
   lastSeen?: number;
   status?: UserStatusKind;
+  /** typing events (Web K messages.setTyping / update*UserTyping) */
+  typingAction?: string;
+  typingName?: string;
+  typingUserId?: number;
+  threadId?: number;
 }
 
 export interface UploadEvent {

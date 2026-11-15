@@ -15,11 +15,37 @@ import type {
 } from "../types";
 
 interface ExtraBindings {
+  StartBot(
+    chatID: string,
+    startParam: string,
+    proxy: string,
+    ntp: string,
+  ): Promise<void>;
   GetPinnedMessage(
     chatID: string,
     proxy: string,
     ntp: string,
   ): Promise<KernelMessage | null>;
+  GetPinnedMessageInfo(
+    chatID: string,
+    proxy: string,
+    ntp: string,
+  ): Promise<KernelPinnedMessageInfo | null>;
+  UpdatePinnedMessage(
+    chatID: string,
+    messageID: number,
+    unpin: boolean,
+    silent: boolean,
+    proxy: string,
+    ntp: string,
+  ): Promise<void>;
+  GetContacts(proxy: string, ntp: string): Promise<KernelContact[] | null>;
+  SetChatPhoto(
+    proxy: string,
+    ntp: string,
+    chatID: string,
+    photoBase64: string,
+  ): Promise<void>;
   UnpinAllMessages(chatID: string, proxy: string, ntp: string): Promise<void>;
   GetSavedChats(
     proxy: string,
@@ -114,6 +140,76 @@ export function getPinnedMessage(
   ntp: string,
 ): Promise<KernelMessage | null> {
   return api.GetPinnedMessage(chatID, proxy, ntp);
+}
+
+/** Web K START plate: messages.startBot for a bot without a history. */
+export function startBot(
+  chatID: string,
+  startParam: string,
+  proxy: string,
+  ntp: string,
+): Promise<void> {
+  return api.StartBot(chatID, startParam, proxy, ntp);
+}
+
+/** Web K's floating pinned plate: newest pin + count + canPin. */
+export interface KernelPinnedMessageInfo {
+  message?: KernelMessage | null;
+  /** Number of pinned messages (>1 draws the dashed bar + #N counter). */
+  count?: number;
+  /** Newest pinned message id (hidden-until-newer-pin bookkeeping). */
+  maxId?: number;
+  /** Whether the account may (un)pin in this chat. */
+  canPin?: boolean;
+}
+
+/** One contact row of the New Private Chat page. */
+export interface KernelContact {
+  id?: number;
+  /** Opaque peer id (user:<id>:<accessHash>) for opening the chat. */
+  peerId?: string;
+  name?: string;
+  username?: string;
+  avatarUrl?: string;
+  colorIndex?: number;
+  online?: boolean;
+  lastSeen?: number;
+  status?: string;
+}
+
+export function getPinnedMessageInfo(
+  chatID: string,
+  proxy: string,
+  ntp: string,
+): Promise<KernelPinnedMessageInfo | null> {
+  return api.GetPinnedMessageInfo(chatID, proxy, ntp);
+}
+
+export function updatePinnedMessage(
+  chatID: string,
+  messageID: number,
+  unpin: boolean,
+  silent: boolean,
+  proxy: string,
+  ntp: string,
+): Promise<void> {
+  return api.UpdatePinnedMessage(chatID, messageID, unpin, silent, proxy, ntp);
+}
+
+export function getContacts(
+  proxy: string,
+  ntp: string,
+): Promise<KernelContact[]> {
+  return api.GetContacts(proxy, ntp).then((value) => value ?? []);
+}
+
+export function setChatPhoto(
+  proxy: string,
+  ntp: string,
+  chatID: string,
+  photoBase64: string,
+): Promise<void> {
+  return api.SetChatPhoto(proxy, ntp, chatID, photoBase64);
 }
 
 export function unpinAllMessages(

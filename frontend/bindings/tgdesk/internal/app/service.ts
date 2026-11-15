@@ -177,6 +177,14 @@ export function GetChats(proxy: string, ntp: string, limit: number, force: boole
     return $Call.ByID(393713803, proxy, ntp, limit, force);
 }
 
+/**
+ * GetContacts returns the account's contact list (Web K's New Private Chat
+ * page), with presence and the opaque peer id of each contact.
+ */
+export function GetContacts(proxy: string, ntp: string): $CancellablePromise<kernel$0.ContactDTO[] | null> {
+    return $Call.ByID(688083417, proxy, ntp);
+}
+
 export function GetDownloads(): $CancellablePromise<kernel$0.DownloadTaskDTO[] | null> {
     return $Call.ByID(337528261);
 }
@@ -243,6 +251,15 @@ export function GetPinnedMessage(chatID: string, proxy: string, ntp: string): $C
 }
 
 /**
+ * GetPinnedMessageInfo returns the chat's pinned message together with the pin
+ * count, the newest pinned id and whether the account may (un)pin, which is
+ * everything Web K's floating pinned plate renders (counter, dashes, menu).
+ */
+export function GetPinnedMessageInfo(chatID: string, proxy: string, ntp: string): $CancellablePromise<kernel$0.PinnedMessageDTO | null> {
+    return $Call.ByID(2349377133, chatID, proxy, ntp);
+}
+
+/**
  * GetSavedChats lists the source chats of Saved Messages (Saved Messages 2.0).
  */
 export function GetSavedChats(proxy: string, ntp: string): $CancellablePromise<kernel$0.SavedChatsDTO | null> {
@@ -279,6 +296,14 @@ export function GetStickerPacks(proxy: string, ntp: string): $CancellablePromise
  */
 export function GetStickerSet(ref: string, proxy: string, ntp: string): $CancellablePromise<kernel$0.StickerSetDetailDTO | null> {
     return $Call.ByID(3638745257, ref, proxy, ntp);
+}
+
+/**
+ * GetTopPeers returns the account's most-used correspondents (Web K's Chats tip
+ * card "Popular" list) from contacts.getTopPeers, cached for 24h in the kernel.
+ */
+export function GetTopPeers(proxy: string, ntp: string, limit: number): $CancellablePromise<kernel$0.ChatDTO[] | null> {
+    return $Call.ByID(3910129524, proxy, ntp, limit);
 }
 
 export function GetVideoStream(chatID: string, messageID: number, proxy: string, ntp: string, useTDL: boolean): $CancellablePromise<string> {
@@ -444,6 +469,15 @@ export function SendSticker(chatID: string, ref: string, replyToID: number, prox
 }
 
 /**
+ * SendTyping broadcasts the current user's typing state for a chat
+ * (messages.setTyping; Web K sends typing once per ~6s and cancel when the
+ * composer empties).
+ */
+export function SendTyping(chatID: string, action: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(4201140745, chatID, action, proxy, ntp);
+}
+
+/**
  * SendWebViewData relays a mini app web_app_data_send payload to its bot.
  */
 export function SendWebViewData(chatID: string, botPeerID: string, queryID: number, data: string, proxy: string, ntp: string): $CancellablePromise<void> {
@@ -459,6 +493,14 @@ export function SetChatArchived(chatID: string, archived: boolean, proxy: string
  */
 export function SetChatMuted(chatID: string, muted: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(3243533753, chatID, muted, proxy, ntp);
+}
+
+/**
+ * SetChatPhoto uploads a new profile photo (data URL / bare base64) for a
+ * channel or basic group created by the New Channel / New Group flow.
+ */
+export function SetChatPhoto(proxy: string, ntp: string, chatID: string, photoBase64: string): $CancellablePromise<void> {
+    return $Call.ByID(1900232702, proxy, ntp, chatID, photoBase64);
 }
 
 /**
@@ -480,6 +522,14 @@ export function SetGifSaved(ref: string, saved: boolean, proxy: string, ntp: str
  */
 export function SetStickerFaved(ref: string, faved: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(2294228465, ref, faved, proxy, ntp);
+}
+
+/**
+ * StartBot starts a bot conversation with messages.startBot (Web K's START
+ * plate), optionally with a deep-link start parameter.
+ */
+export function StartBot(chatID: string, startParam: string, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(2467220561, chatID, startParam, proxy, ntp);
 }
 
 export function StartDownload(chatID: string, chatTitle: string, messageIDs: number[] | null, proxy: string, ntp: string, dir: string, fileNameTemplate: string, options: kernel$0.DownloadOptions): $CancellablePromise<string[] | null> {
@@ -523,6 +573,13 @@ export function UninstallStickerSet(ref: string, proxy: string, ntp: string): $C
  */
 export function UnpinAllMessages(chatID: string, proxy: string, ntp: string): $CancellablePromise<void> {
     return $Call.ByID(2805468961, chatID, proxy, ntp);
+}
+
+/**
+ * UpdatePinnedMessage pins/unpins one message (messages.updatePinnedMessage).
+ */
+export function UpdatePinnedMessage(chatID: string, messageID: number, unpin: boolean, silent: boolean, proxy: string, ntp: string): $CancellablePromise<void> {
+    return $Call.ByID(1231473570, chatID, messageID, unpin, silent, proxy, ntp);
 }
 
 export function ValidateDownload(id: string): $CancellablePromise<boolean> {

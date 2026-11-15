@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import type { DownloadTask, Message, MessageButton, Reaction } from "../../types";
 import type { ViewerSource } from "../media/types";
 import { chatColor, chatInitials } from "../../data/telegram";
-import { Icon, Spinner } from "../../ui";
+import { Spinner } from "../../ui";
 import { useScrollThumb } from "../k/KScrollArea";
 import { MessageBubble, type MessageAuthor } from "./MessageBubble";
 
@@ -80,7 +79,6 @@ export function MessageList({
   onBotWebView,
   onToast,
 }: MessageListProps) {
-  const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
   // Web K's overlay scrollbar (5px capsule, fades in on hover) on the
   // conversation's own scroller; the thumb markup goes inside it below.
@@ -89,7 +87,6 @@ export function MessageList({
   const messageCount = useRef(messages.length);
   const stickToBottom = useRef(true);
   const loadingOlder = useRef(false);
-  const [showJump, setShowJump] = useState(false);
   const downloadsByMessage = useMemo(() => {
     const map = new Map<number, DownloadTask>();
     for (const task of downloads ?? []) {
@@ -167,7 +164,6 @@ export function MessageList({
     node.scrollTop = node.scrollHeight;
     messageCount.current = messages.length;
     stickToBottom.current = true;
-    setShowJump(false);
   }, [chatId]);
 
   useEffect(() => {
@@ -180,9 +176,6 @@ export function MessageList({
     if (stickToBottom.current || sentByMe) {
       node.scrollTop = node.scrollHeight;
       stickToBottom.current = true;
-      setShowJump(false);
-    } else {
-      setShowJump(true);
     }
     messageCount.current = messages.length;
   }, [messages.length]);
@@ -194,20 +187,9 @@ export function MessageList({
     }
     const distance = node.scrollHeight - node.scrollTop - node.clientHeight;
     stickToBottom.current = distance < 120;
-    setShowJump(distance > 180);
     if (node.scrollTop <= LOAD_OLDER_THRESHOLD) {
       maybeLoadOlder();
     }
-  };
-
-  const jumpToBottom = () => {
-    const node = scrollRef.current;
-    if (!node) {
-      return;
-    }
-    stickToBottom.current = true;
-    setShowJump(false);
-    node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
   };
 
   const byId = new Map(messages.map((message) => [message.id, message]));
@@ -226,15 +208,23 @@ export function MessageList({
   }, [messages]);
 
   const renderedMessages: ReactNode[] = [];
+  // Web K keeps the date plate sticky for as long as its day is on screen: the
+  // plate heads a group that holds every message of that day.
+  const dateGroups: Array<{ key: number; date: string; nodes: ReactNode[] }> = [];
+  let currentGroup: (typeof dateGroups)[number] | undefined;
   for (let index = 0; index < messages.length; ) {
     const message = messages[index];
     const previous = messages[index - 1];
     const showDate = !previous || previous.date !== message.date;
+    if (showDate) {
+      currentGroup = { key: message.id, date: message.date, nodes: [] };
+      dateGroups.push(currentGroup);
+    }
+    const group = currentGroup as { key: number; date: string; nodes: ReactNode[] };
 
     if (message.service) {
-      renderedMessages.push(
+      group.nodes.push(
         <div key={message.id} className="g-message-block" data-message-id={message.id}>
-          {showDate ? <div className="g-date-chip">{message.date}</div> : null}
           <div className="g-service-message">
             <span>{message.service}</span>
             <span className="g-service-time">{message.time}</span>
@@ -247,18 +237,18 @@ export function MessageList({
 
     let album: Message[] | undefined;
     if (message.groupedId) {
-      const group = [message];
+      const groupItems = [message];
       let cursor = index + 1;
       while (
         cursor < messages.length &&
         !messages[cursor].service &&
         messages[cursor].groupedId === message.groupedId
       ) {
-        group.push(messages[cursor]);
+        groupItems.push(messages[cursor]);
         cursor += 1;
       }
-      if (group.length > 1) {
-        album = group;
+      if (groupItems.length > 1) {
+        album = groupItems;
       }
     }
 
@@ -287,14 +277,13 @@ export function MessageList({
           avatarUrl: message.senderAvatarUrl || chatAvatarUrl,
         };
 
-    renderedMessages.push(
+    group.nodes.push(
       <div
         key={message.id}
         className="g-message-block"
         data-message-id={message.id}
         data-album-ids={album?.map((item) => item.id).join(" ") || undefined}
       >
-        {showDate ? <div className="g-date-chip">{message.date}</div> : null}
         <MessageBubble
           message={message}
           author={author}
@@ -329,6 +318,15 @@ export function MessageList({
     index = lastIndex + 1;
   }
 
+  for (const group of dateGroups) {
+    renderedMessages.push(
+      <div key={`date-${group.key}`} className="g-date-group">
+        <div className="g-date-chip">{group.date}</div>
+        {group.nodes}
+      </div>,
+    );
+  }
+
   return (
     <div className="g-message-layer">
       <div
@@ -353,20 +351,6 @@ export function MessageList({
         {renderedMessages}
         </div>
       </div>
-
-      {showJump ? (
-        <div className="g-jump-latest">
-          <button
-            type="button"
-            className="g-jump-button"
-            aria-label={t("chat.jumpLatest")}
-            title={t("chat.jumpLatest")}
-            onClick={jumpToBottom}
-          >
-            <Icon name="arrow_downward" size={22} />
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }

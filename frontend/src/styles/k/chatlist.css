@@ -116,6 +116,76 @@
   white-space: nowrap;
 }
 
+/* ---------- typing indicator (Web K _peerTyping.scss + _chatlist.scss) ---------- */
+
+/* tweb appends the activity to the last-message span and tags it
+ * `.user-typing` (`setDialogTyping`, autonomousDialogList/base.ts:37-67); the
+ * unread badge stays beside it. The preview spans fade out under it so the two
+ * contents crossfade over 120 ms (`STATUS_CROSSFADE_DURATION`,
+ * helpers/dom/crossfadeContent.ts:21). */
+.k-root .chatlist .dialog-subtitle-parts {
+  position: relative;
+}
+
+.k-root .chatlist .dialog-subtitle-parts > .dialog-subtitle-span {
+  transition: opacity 120ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.k-root .chatlist .dialog-subtitle-parts.user-typing > .dialog-subtitle-span {
+  opacity: 0;
+}
+
+/* The typing line itself: dots + description where the preview was. */
+.k-root .chatlist .k-chatlist-typing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  pointer-events: none;
+  animation: k-chatlist-typing-in 120ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.k-root .chatlist .k-chatlist-typing.is-leaving {
+  animation-name: k-chatlist-typing-out;
+  animation-fill-mode: forwards;
+}
+
+/* prod CSS: `.chatlist .peer-typing-container{--color:var(--secondary-text-color);
+ * white-space:nowrap;text-overflow:ellipsis;overflow:hidden}` and
+ * `.chatlist-chat.active .peer-typing-container{--color:#fff}`. The dots and
+ * their animation come from typing-dots.css via TypingDots. */
+.k-root .chatlist .peer-typing-container {
+  --peer-typing-color: var(--secondary-text-color);
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.k-root .chatlist .chatlist-chat.active .peer-typing-container {
+  --peer-typing-color: #ffffff;
+}
+
+@keyframes k-chatlist-typing-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes k-chatlist-typing-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 .k-root .row-title-row {
   align-items: baseline;
 }

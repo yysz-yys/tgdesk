@@ -1,0 +1,368 @@
+﻿/* Telegram Web K pinned-message plate.
+ *
+ * tweb sources: `components/chat/pinnedMessage.tsx:185-260`,
+ * `components/chat/topbarPlate.tsx`, `components/chat/pinnedMessageBorder.ts`,
+ * `scss/partials/_chatPinned.scss:247-479`, `scss/partials/_chatTopbar.scss:104-119`.
+ * Colours come from the K theme tokens (styles/k/tokens.css): surface, accent,
+ * primary/secondary text, border. Geometry follows the original exactly:
+ * 48 px plate in the 696 lane, 44 px body, 40 px controls, 3 px pin border.
+ */
+
+.k-topbar-plates {
+  position: absolute;
+  /* The stack starts one 8 px gap under the 48 px topbar (tweb
+   * `_chatTopbar.scss:104-119`: top = topbar height + .5rem). */
+  top: calc(48px + 8px);
+  inset-inline: 0;
+  z-index: 2;
+  display: flex;
+  width: 100%;
+  max-width: var(--tg-chat-lane, 696px);
+  margin-inline: auto;
+  flex-direction: column;
+  /* Plates are separated by a 1 px border-coloured divider and share the
+   * 24 px stack radius + topbar shadow. */
+  gap: 1px;
+  border-radius: 24px;
+  background-color: var(--border-color);
+  box-shadow: 0 1px 5px -1px rgba(0, 0, 0, 0.21);
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------- plate shell */
+
+.pinned-container {
+  --pinned-container-height: 48px;
+  position: relative;
+  inset-inline: 0;
+  display: flex;
+  width: auto;
+  height: var(--pinned-container-height);
+  max-height: var(--pinned-container-height);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--tg-chrome-surface, var(--surface-color)) !important;
+  padding: 0.25rem;
+}
+
+.pinned-container .btn-icon {
+  flex: 0 0 auto;
+  justify-content: center;
+  color: var(--tg-chrome-text, var(--primary-text-color));
+}
+
+.pinned-message {
+  --pm-item-height: 2.5rem;
+  --pm-row-height: 1.25rem;
+  --pm-media-offset: calc(var(--pm-item-height) + 0.375rem);
+  --pm-transition: 0.2s ease-in-out;
+  display: flex;
+  cursor: initial;
+}
+
+/* ---------------------------------------------------------------- body row */
+
+.pinned-container-wrapper {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  height: 100%;
+  max-width: 100%;
+  flex: 1 1 auto;
+  align-items: center;
+  order: 0;
+  overflow: hidden;
+  background: transparent;
+  padding: 0 1rem;
+  cursor: pointer;
+}
+
+/* The message plate's body: 44 px tall with an 8 % accent hover tint and an
+ * 8 px radius (declared after `.pinned-container-wrapper` so its size/padding
+ * win, exactly like tweb `_chatPinned.scss:294-368`). */
+.pinned-message-wrapper {
+  --ripple-color: var(--tg-chrome-hover-primary, var(--light-primary-color));
+  height: 2.75rem;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.5rem;
+}
+
+@media (hover: hover) {
+  .pinned-message-wrapper:hover {
+    background-color: var(--tg-chrome-hover-primary, var(--light-primary-color));
+  }
+}
+
+.pinned-message-wrapper:focus-visible {
+  outline: 2px solid var(--tg-chrome-accent, var(--primary-color));
+  outline-offset: -2px;
+}
+
+/* --------------------------------------------------------------- 3px border */
+
+.pinned-message-border {
+  position: relative;
+  width: 0.1875rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.pinned-message-border-wrapper-1 {
+  position: relative;
+  top: 50%;
+  width: 0.1875rem;
+  height: 2.5rem;
+  transform: translateY(-50%);
+  border-radius: 3px;
+  background: var(--tg-chrome-accent, var(--primary-color));
+}
+
+/* Multi-pin: the track (40 % accent) is clipped into per-pin dashes and the
+ * solid mark sits on the pin the plate shows (pinnedMessageBorder.ts). */
+.pinned-message-border-wrapper {
+  position: relative;
+  width: 0.1875rem;
+  color: var(--tg-chrome-accent, var(--primary-color));
+}
+
+.pinned-message-border-wrapper::before {
+  position: absolute;
+  inset: 0;
+  display: block;
+  content: " ";
+  background: var(--tg-chrome-accent, var(--primary-color));
+  opacity: 0.4;
+}
+
+.pinned-message-border-mark {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  width: 3px;
+  border-radius: 3px;
+  background: currentColor;
+}
+
+/* > 4 pins: 6 px top/bottom fades over the clipped track. */
+.pinned-message-border-mask {
+  --mask-height: 0.375rem;
+  --height: 2.5rem;
+  height: var(--height);
+  overflow: hidden;
+}
+
+.pinned-message-border-mask::before,
+.pinned-message-border-mask::after {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 1;
+  display: block;
+  height: var(--mask-height);
+  content: " ";
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.pinned-message-border-mask::before {
+  top: 0;
+  background: linear-gradient(var(--tg-chrome-surface, var(--surface-color)), transparent);
+}
+
+.pinned-message-border-mask::after {
+  bottom: 0;
+  background: linear-gradient(transparent, var(--tg-chrome-surface, var(--surface-color)));
+}
+
+.pinned-message-border-mask.mask-top::before,
+.pinned-message-border-mask.mask-bottom::after {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------- title / text */
+
+.pinned-container-content {
+  position: relative;
+  flex: 1 1 auto;
+  margin-inline-end: 0.5rem;
+  overflow: hidden;
+  color: inherit;
+  text-align: inherit;
+  pointer-events: none;
+}
+
+.pinned-message-content {
+  display: flex;
+  height: var(--pm-item-height);
+  flex-direction: column;
+  justify-content: flex-end;
+  margin-inline-start: 0.5rem;
+  overflow: visible !important;
+}
+
+.pinned-container-title,
+.pinned-container-subtitle {
+  position: relative;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.pinned-message-title,
+.pinned-message-subtitle {
+  position: relative;
+  height: var(--pm-row-height);
+  min-height: var(--pm-row-height);
+  transform: translateX(0);
+  transition: transform var(--pm-transition);
+}
+
+.pinned-message.is-media .pinned-message-title,
+.pinned-message.is-media .pinned-message-subtitle {
+  width: calc(100% - var(--pm-media-offset));
+  transform: translateX(var(--pm-media-offset));
+}
+
+.pinned-message-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: -2px;
+  color: var(--tg-chrome-accent, var(--primary-color));
+  font-weight: var(--font-weight-bold, 500);
+}
+
+.pinned-message-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pinned-message-subtitle {
+  color: var(--tg-chrome-text, var(--primary-text-color));
+}
+
+.pinned-message-subtitle-row {
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* #N counter: "#" comes from the pseudo element, the newest pin hides it
+ * (tweb `.animated-counter.is-last { scale(.68); opacity:0 }`). */
+.animated-counter {
+  flex: 0 0 auto;
+  margin-inline-start: 4px;
+  transition: transform var(--pm-transition), opacity var(--pm-transition);
+}
+
+.animated-counter::before {
+  content: "#";
+}
+
+/* --------------------------------------------------------------- media thumb */
+
+.pinned-message-media-container {
+  position: absolute;
+  inset-inline-start: -0.25rem;
+  top: 0;
+  width: var(--pm-item-height);
+  height: var(--pm-item-height);
+  transition: transform var(--pm-transition);
+}
+
+.pinned-message:not(.is-media) .pinned-message-media-container {
+  transform: scale(0);
+}
+
+.pinned-message-media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.25rem;
+  object-fit: cover;
+}
+
+/* -------------------------------------------------------------- action / X */
+
+.pinned-message-action {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.pinned-message-unpin {
+  flex: 0 0 auto;
+}
+
+/* ------------------------------------------------------------ pin-switch roll */
+
+@keyframes k-pinned-roll-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes k-pinned-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* .2s row roll on a pin switch; no open animation (tweb animated-super-row,
+ * `_animatedSuper.scss:3-30` + `base.scss:77`). Reduced motion fades in place. */
+.k-root[data-animation-level="1"] .pinned-message-title.is-rolling,
+.k-root[data-animation-level="1"] .pinned-message-subtitle.is-rolling {
+  animation: k-pinned-fade-in 0.2s ease-in-out;
+}
+
+.k-root[data-animation-level="2"] .pinned-message-title.is-rolling,
+.k-root[data-animation-level="2"] .pinned-message-subtitle.is-rolling {
+  animation: k-pinned-roll-in 0.2s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pinned-message-title.is-rolling,
+  .pinned-message-subtitle.is-rolling {
+    animation: k-pinned-fade-in 0.2s ease-in-out;
+  }
+
+  .pinned-message-title,
+  .pinned-message-subtitle,
+  .pinned-message-media-container {
+    transition: none;
+  }
+}
+
+/* --------------------------------------------------------------- menu count */
+
+.k-pinned-menu-count {
+  display: inline-flex;
+  min-width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  margin-inline-start: auto;
+  border-radius: 10px;
+  background: var(--tg-chrome-accent, var(--primary-color));
+  padding: 0 6px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: var(--font-weight-bold, 500);
+  line-height: 20px;
+}
+

@@ -144,11 +144,14 @@ export interface BotCallbackResultDTO {
 
 /**
  * BotCommandDTO is one entry of a bot's command list ("command" without the
- * leading slash, exactly like Telegram Web renders it).
+ * leading slash, exactly like Telegram Web renders it). BotUsername identifies
+ * the owning bot when a group flattens the commands of several bots: Web K
+ * inserts "/command@username" there (commandsHelper.ts:24-30).
  */
 export interface BotCommandDTO {
     "command": string;
     "description"?: string;
+    "botUsername"?: string;
 }
 
 /**
@@ -247,6 +250,19 @@ export interface ChatEvent {
     "online"?: boolean;
     "lastSeen"?: number;
     "status"?: string;
+
+    /**
+     * Typing fields, sent with Kind "typing" (updateUserTyping /
+     * updateChatUserTyping / updateChannelUserTyping). TypingAction is one of
+     * typing|cancel|upload_photo|upload_document|upload_video|record_voice|
+     * record_video|choose_sticker; TypingName is the sender's display name when
+     * the update carried their user entity (empty otherwise); ThreadID is the
+     * forum topic id (0 when the update is not in a topic).
+     */
+    "typingAction"?: string;
+    "typingName"?: string;
+    "typingUserId"?: number;
+    "threadId"?: number;
 }
 
 export interface ChatFolderDTO {
@@ -386,6 +402,68 @@ export interface ChatProfileDTO {
     "canSendGifs": boolean;
 
     /**
+     * CanSendMedia reports whether media may be attached in this chat (the
+     * attach menu's Photo/Document entries). It is CanSend minus a send_media
+     * ban, so a chat that only forbids text (CanSendPlain=false) keeps media.
+     */
+    "canSendMedia": boolean;
+
+    /**
+     * IsMember reports whether the current account belongs to the peer: always
+     * true for private chats and Saved Messages, otherwise the negation of the
+     * entity's `left` flag. The composer tells a subscriber's MUTE footer from a
+     * non-member's JOIN/SUBSCRIBE plate with it (input.ts:3336-3376).
+     */
+    "isMember": boolean;
+
+    /**
+     * IsBroadcast is true for broadcast channels: only admins may post, so a
+     * posting admin gets the "Broadcast" placeholder and everyone else the
+     * mute/subscribe control plate.
+     */
+    "isBroadcast"?: boolean;
+
+    /**
+     * IsBroadcastGroup is true for "gigagroups" (broadcast groups): admins post,
+     * members read; a non-member sees JOIN (input.ts:3344-3358).
+     */
+    "isBroadcastGroup"?: boolean;
+
+    /**
+     * CanJoin is true when a non-member may join from the composer plate; the
+     * plate then shows JOIN / SUBSCRIBE instead of MUTE. Derived from the
+     * entity's `left` flag (Web K: input.ts:3346,2571-2584).
+     */
+    "canJoin"?: boolean;
+
+    /**
+     * JoinRequest is true when joining this group/channel needs an admin's
+     * approval: the join plate reads APPLY TO JOIN GROUP (ChannelJoinRequest,
+     * input.ts:2522-2546).
+     */
+    "joinRequest"?: boolean;
+
+    /**
+     * IsBlocked is true when the current account has blocked this private peer.
+     * The composer then replaces the plate with the Unblock control (bots use
+     * START instead, matching input.ts:3421-3424 and chat.ts isStartButtonNeeded).
+     */
+    "isBlocked"?: boolean;
+
+    /**
+     * IsAnonymous reports that the current admin posts anonymously; the
+     * composer placeholder becomes "Send anonymously" (input.ts:3690-3695).
+     */
+    "isAnonymous"?: boolean;
+
+    /**
+     * LinkedMonoforumID is the direct-messages chat linked to this channel. The
+     * current TL layer (gotd v0.140) does not expose the field, so it stays
+     * empty and the channel footer simply has no comments side button.
+     */
+    "linkedMonoforumId"?: string;
+
+    /**
      * GiftsCount is the number of star gifts the peer displays (Telegram Web K
      * decides the Gifts tab from it; optional field in this TL layer).
      */
@@ -504,17 +582,24 @@ export interface ChecklistItemDTO {
 }
 
 /**
- * ContactDTO is one user row for the new-chat/new-group pickers. ID is the raw
- * Telegram user id (not an opaque peer id) because the pickers send the selected
- * ids back to CreateGroup/InviteToChannel. ColorIndex is the Web K avatar
- * gradient index (abs(user id) % 7).
+ * ContactDTO is one user row for the new-chat/new-group pickers and the New
+ * Private Chat contact list. ID is the raw Telegram user id because the
+ * pickers send the selected ids back to CreateGroup/InviteToChannel; PeerID is
+ * the opaque chat id ("user:<id>:<accessHash>") the private-chat page passes
+ * straight to openChat. ColorIndex is the Web K avatar gradient index
+ * (abs(user id) % 7). Online/LastSeen/Status are the peer's presence, the same
+ * shape ChatDTO uses (never set for bots or the logged-in account).
  */
 export interface ContactDTO {
     "id": number;
+    "peerId"?: string;
     "name": string;
     "username"?: string;
     "avatarUrl"?: string;
     "colorIndex": number;
+    "online"?: boolean;
+    "lastSeen"?: number;
+    "status"?: string;
 }
 
 export interface DownloadEvent {
@@ -720,6 +805,28 @@ export interface MessageMediaDTO {
     "spoiler"?: boolean;
     "round"?: boolean;
     "externalId"?: string;
+}
+
+/**
+ * PinnedMessageDTO is the pinned-message plate payload for the Web K chat
+ * chrome (tweb `components/chat/pinnedMessage.tsx`). A single
+ * `messages.search` with `inputMessagesFilterPinned` answers everything the
+ * plate needs for its first paint:
+ * 
+ *   - Message is the newest pinned message (nil when nothing is pinned);
+ *   - Count is the total number of pinned messages, for the "#N" counter and
+ *     the dashed multiple-pin border;
+ *   - MaxID is the newest pinned message id, so the frontend can keep a bar the
+ *     user hid hidden until a *newer* message is pinned (tweb
+ *     `appState.hiddenPinnedMessages[key] = maxId`);
+ *   - CanPin mirrors tweb `appPeersManager.canPinMessage` and decides whether
+ *     the bar's X unpins the message or hides the bar.
+ */
+export interface PinnedMessageDTO {
+    "message"?: MessageDTO | null;
+    "count": number;
+    "maxId"?: number;
+    "canPin": boolean;
 }
 
 /**

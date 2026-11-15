@@ -10,14 +10,17 @@ signed-in main screen (chat list + empty chat column, light "Day" theme).
 
 | Screen | State |
 |---|---|
-| Signed-in main screen (chat list, folder chips, archive row, empty chat column, tips lightbulb, new-message FAB) | **Port done** (light theme) |
+| Signed-in main screen (chat list, folder chips, archive row, empty chat column, tips lightbulb, new-message FAB) | **Port done** (light/Night) |
+| Chats tip card (Popular / Searched / Closed filters, 54px peer tiles) | **Port done** (light/Night, en/zh/ja) |
 | Stickers tip card (suggest mode + trending packs), its sticker-set preview popup and the trending Stickers tab | **Port done** (light/Night, en/zh/ja) |
-| Settings (Web K home: self profile header, phone, sections, header menu, version) | **Port done** (light theme) |
-| New Channel / New Group / Add Members flow | **Port done** (light theme) |
+| Settings (Web K home: self profile header, phone, sections, header menu, version) | **Port done** (light/Night) |
+| New Channel / New Group / Add Members flow (Add Members first for groups, photo upload) | **Port done** (light/Night) |
+| New Private Chat (contacts page with search + sort + add-contact) | **Port done** (light/Night) |
+| Conversation view 1:1 (floating pinned plate, top bar, scroll-to-bottom button, composer per peer type, document/file bubbles with the hover download morph, typing indicators, date/reaction/time grammar) | **Port done** (light/Night, en/zh/ja) |
+| Message grammar still approximated: album mosaic layout, reply preview tint, media-only plates, hover quick-reaction bar | partial |
 | Main menu (hamburger) with the More submenu and the Downloads entry | **Port done** |
 | Letter avatars (non-photo peers, sender avatars, account avatar) | **Unified** on Web K's peer-colour gradients |
 | Login / auth flow | still the F design |
-| Conversation view (bubbles, composer, header) | still the F design |
 | Downloads screen, search results, chat info sidebar | still the F screens (the chat list's K frame is around them) |
 
 The reference capture is the Web K **`light`** AppTheme (`baseThemeDay`, the blue
@@ -37,7 +40,12 @@ frontend/src/components/k/          the Web K UI
   KEmptyChat.tsx                    service pill + chatTips lightbulb (portalled to the page)
   KSuperTab.tsx                     tweb's SliderSuperTab stack + KSuperTabHeader (slide in/out)
   KSettings.tsx                     the Settings home (peer profile + all sections + header menu)
-  KNewChatFlow.tsx                  New Channel / New Group / Add Members pages
+  KNewChatFlow.tsx                  New Channel / New Group (Add Members first) pages
+  KNewPrivateChat.tsx               New Private Chat contacts page
+  recentPeersStore.ts               Searched / Recently closed peer lists for the Chats tip
+  lib/topPeers.ts                   typed façade over the kernel's contacts.getTopPeers
+  lib/typingStore.ts                peer typing state (6s expiry) for the list + header
+  lib/typingApi.ts                  messages.setTyping throttle (6s, cancel)
   KAppMenu.tsx                      main menu + the hover-opened More submenu
   KNewMenu.tsx                      the pencil/new-chat menu
   KArchiveMenu.tsx                  the archived-chats header menu
@@ -587,21 +595,117 @@ account checks never run on the only `tdata`; install/uninstall checks are rever
 in the same session. `k-preview.html?page=stickers` stays the offline check for the
 tab's layout.
 
+## Round 4: conversation view, first-run pages and new-chat flows
+
+The round-4 port (tweb `2e4bbb5`, cross-checked against the deployed
+`web.telegram.org/k` CSS bundle) replaced the remaining F chrome inside the
+conversation column and finished the empty-chat/new-chat pages:
+
+**Chat page geometry.** The message column, top bar, pinned plate and composer
+share the Web K lane (`--tg-chat-lane: min(696px, 100%)`, `CHAT_WIDTH_MAX` in
+`updateColumnWidths.ts`); `chat.css` owns the lane and the scroller top padding
+(`48px + var(--pinned-floating-height) + 16px`, ~120 px with the pinned plate,
+64 px without) plus the 5-stop top fade mask from `_chat.scss`; the composer
+plate sits 16 px above the window bottom (the `#column-center` page padding).
+
+**Chat chrome** (`frontend/src/components/chat/`):
+
+- `ChatHeader.tsx` + `topbar-k.css` — 48 px/24 r top bar on the lane, 40 px
+  avatar + 16 px gap, 16/24 title, 14/18 status (accent when online/typing,
+  wording from `TypingDots` + `typingStore`), 40x40 search/more (24 px
+  glyphs), the search overlay inset 58 px with a 48 px result footer.
+- `PinnedMessageBar.tsx` + `pinned-k.css` — the floating 48 px plate 8 px under
+  the top bar (`topbar-floating-plates`, radius 24, shadow
+  `0 1px 5px -1px rgba(0,0,0,.21)`, 44 px body r 8 with the 8 % accent hover),
+  the 3 px dashed/solid pin border with `#N`, 40x40 media thumb, accent
+  "Pinned Message" title 14/18, 14/18 rich preview (100-char cap, media label
+  from `chat.attach*`), pin menu at the start and one X at the end (unpin when
+  `canPin`, otherwise hide until a newer pin - localStorage per chat), `.2s`
+  row roll on a pin switch. Data: `GetPinnedMessageInfo`
+  (`PinnedMessageDTO{message,count,maxId,canPin}`) + `UpdatePinnedMessage`
+  (`messages.updatePinnedMessage`).
+- `ScrollDownButton.tsx` + `scroll-down-k.css` — 48 px corner circle at
+  `bottom: 48+8`, surface plate + `0 1px 8px 1px rgba(0,0,0,.12)`, the
+  `.2s cubic-bezier(.4,0,.2,1)` opacity/visibility choreography (hide delayed
+  `.2s`), the 300 px threshold + `loadedAll.bottom`, search-mode hiding, the
+  `.badge-24` unread counter (gray when muted) at top/right -4 and the smooth
+  jump to the end.
+- `composer/` — one 24 r/48 px plate (`composer-f.css`) with the reply/edit row
+  inside it, the 200 ms send-voice icon morph, the plate cross-fade between the
+  writeable composer and the capability plate (`ControlPlate`: START / Unblock /
+  JOIN / APPLY TO JOIN GROUP / SUBSCRIBE / Mute+gift), per-capability
+  placeholders (`input.broadcast`, `input.textNotAllowed`,
+  `input.sendAnonymously`), the official attach menu (16 r, 32 px rows), bot
+  commands anchored to the plate with the row avatar and `/cmd@bot` in groups,
+  the bot menu pill, the gray active emoji plate and the slow-mode tooltip
+  instead of the invented chip. Bot START calls `messages.startBot`
+  (`StartBot`); restricted groups keep the normal plate with a read-only field.
+- `FileDocumentRow.tsx` + `DocumentDownload.tsx` + `document-bubble.css` — the
+  54 px document row (54x54 extension plate at `margin-inline-start:-66px`,
+  name 16/500 middle ellipsis, 14 px bytes-only size line), ext colours
+  (ZIP/PDF/APK/...), dog-ear animation and the hover-revealed download arrow
+  that morphs into tweb's `preloaderRing` (12 dots R19, arc `progress*119.38`,
+  8 s spin, cross, LAND/LANDED timings) with pause/retry/done behaviour.
+- `bubble-k.css` + `MessageBubble`/`MessageList` — date plates become the 15 px
+  white-on-highlight pills (29 px/14 r), reaction chips the 30 px accent-8 %
+  chips with 22 px emoji and 15 px counts, the sender name moved inside the
+  bubble (14/500 peer colour), time/ticks at 12/19 px, the 46 px incoming
+  gutter and the 696 px column. `--tg-highlight` maps to the theme's
+  `--message-highlighting-color` (day classic/light/night values in
+  `tokens.css`).
+- `KChatRow.tsx` — the Web K typing line (three 6 px dots, `.6s` keyframes,
+  120 ms preview crossfade, white on the active row) replacing the message
+  preview while a peer types; the kernel side is `internal/kernel/typing.go`
+  (updates) + `SendTyping` (`messages.setTyping`, 6 s throttle in
+  `lib/typingApi.ts`).
+
+**First-run / new-chat pages.**
+
+- The Chats tip card (`ChatTips.Chats`) follows tweb `chatTips/chatsCard.tsx`:
+  3 filter tabs with only non-empty lists, first-available fallback, 8-peer cap,
+  4-column 72x90 tiles with 54 px avatars at top+8, 12 px one-line names, the
+  official Trans description with `<bold>Ctrl+F</bold>` and the search link,
+  the empty state only after the top-peers read settles, day/night tokens.
+  Popular = `contacts.getTopPeers` (`GetTopPeers`, 24 h kernel cache); Searched
+  and Recently closed are app-local (`recentPeersStore.ts`) and written from
+  sidebar-search picks/chat switches in `App.tsx`.
+- `KNewChatFlow.tsx` — groups start on Add Members (chips inside the search row,
+  56 px checkbox rows, duck empty state, corner arrow always available), then
+  the name/photo page with the Members rows and a suggested title for 2-4
+  invitees; the camera circle opens a file picker, centre-crops to 800x800 JPEG
+  in a canvas and the photo is uploaded after creation via `SetChatPhoto`
+  (`channels.editPhoto`/`messages.editChatPhoto` with `InputChatUploadedPhoto`).
+- `KNewPrivateChat.tsx` — the contacts page: back arrow, 44 px search pill,
+  name/online sort button, 56 px rows with 42 px avatars, corner add-contact
+  button; data from `GetContacts` (`contacts.getContacts` with presence).
+- Settings home: the measured 4.5 CSS px profile offset fixed
+  (`settings.css`), desktop row hover radius and version-line padding aligned.
+
+Verification lives in `temp/research4/` (gitignored): tweb/deployed-CSS
+measurement tables, a `k-preview.html` scenario matrix (`?page=chat&peer=...`,
+`pinned=`, `hover=file`, `state=typing`, new-chat pages, `tipsData=`), the
+screenshot helper `temp/r4shot.py`, and per-area assertion scripts. Album mosaic
+layout, reply-preview tint, media-only plates and the hover quick-reaction bar
+remain approximations (they need tweb's grouped-layout port / peer-colour
+quotes and are listed below).
+
 ## Remaining work (page-by-page)
 
-1. Conversation view + composer + chat header (the biggest F page left).
-2. Login/auth screens (their F caption bar is still the window chrome).
-3. Downloads screen, search results, archive-view styling and the chat-info column —
-   still the F screens inside the K frame.
-4. Settings sub-pages (notifications, data and storage, privacy, chat folders,
-   stickers, speakers and camera, devices, keyboard shortcuts, edit profile) and the
-   settings search layer; the home screen is ported and those rows currently open the
-   legacy settings dialog or announce themselves. The "Stickers and Emoji" tab's
-   trending browser is ported (see above, including its older-featured infinite
-   scroll); its installed/archived sections, the server-side
-   `messages.searchStickerSets` search it opens with and the read receipts are still
-   missing.
-5. Animated/moving wallpaper, custom chat backgrounds, stories rings, avatars
-   videos — not part of the reference page.
-6. Avatar editing for new chats (the camera button on the new-channel/group pages
-   announces itself today: the media editor is still the F one).
+1. Login/auth screens (their F caption bar is still the window chrome).
+2. Downloads screen, search results, archive-view styling and the chat-info
+   column - still the F screens inside the K frame.
+3. Settings sub-pages (notifications, data and storage, privacy, chat folders,
+   stickers, speakers and camera, devices, keyboard shortcuts, edit profile) and
+   the settings search layer; the home screen is ported and those rows currently
+   open the legacy settings dialog or announce themselves. The "Stickers and
+   Emoji" tab's trending browser is ported (see above, including its
+   older-featured infinite scroll); its installed/archived sections, the
+   server-side `messages.searchStickerSets` search it opens with and the read
+   receipts are still missing.
+4. Conversation-view leftovers: album mosaic (tdesktop Layouter), reply-preview
+   peer tint, media-only plate with the floating time pill, the hover
+   quick-reaction/action bar, group send-as, mention autocomplete, bot reply
+   keyboard, scheduled-message/gift floats and voice recording.
+5. Animated/moving wallpaper, custom chat backgrounds, stories rings and avatar
+   videos - not part of the reference page.
+6. Avatar editing entry points beyond the new-chat flow (profile photo editor).

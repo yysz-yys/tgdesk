@@ -26,11 +26,12 @@ import type {
   ViewerSource,
 } from "../media/types";
 import { viewerItemFor, viewerItemsFrom } from "../media/types";
-import { ChatHeader } from "./ChatHeader";
+import { ChatHeader, ChatSearchFooter } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { MessageList } from "./MessageList";
 import { ChatInfoPanel } from "./ChatInfoPanel";
-import { PinnedMessageBar } from "./PinnedMessageBar";
+import { PinnedMessageBar, type PinnedMessageInfo } from "./PinnedMessageBar";
+import { ScrollDownButton } from "./ScrollDownButton";
 import { ForwardDialog } from "./ForwardDialog";
 import { ReactionPickerDialog } from "./ReactionPickerDialog";
 import "./info-panel-f.css";
@@ -75,6 +76,12 @@ interface ChatViewProps {
   ) => Promise<ChatGiftsPage | null>;
   /** Pinned message for this chat (nil when none/unavailable). */
   onLoadPinnedMessage?: (chatID: string) => Promise<Message | null>;
+  /** Web K multi-pin payload: newest pin + count + canPin. */
+  onLoadPinnedMessageInfo?: (
+    chatID: string,
+  ) => Promise<PinnedMessageInfo | null>;
+  /** Unpins one message (messages.updatePinnedMessage unpin:true). */
+  onUpdatePinnedMessage?: (chatID: string, messageID: number) => Promise<void>;
   /** Removes every pinned message from this chat. */
   onUnpinAllMessages?: (chatID: string) => Promise<void>;
   /** Bumped by live pin/unpin updates so the bar refreshes. */
@@ -115,6 +122,15 @@ interface ChatViewProps {
   ) => Promise<void>;
   onToast: (message: string) => void;
   onAttach: (caption: string, replyToID?: number) => Promise<boolean>;
+  /** Web K START plate: messages.startBot for a bot without a history. */
+  onStartBot?: (startParam?: string) => Promise<void> | void;
+  /** Web K JOIN / SUBSCRIBE plate for peers the account is not a member of. */
+  onJoinChat?: () => void;
+  /** Web K Unblock plate for a blocked private peer/bot. */
+  onUnblock?: () => void;
+  /** Composer typing stream (messages.setTyping, throttled by the app). */
+  onTyping?: () => void;
+  onTypingStop?: () => void;
   upload?: UploadProgress;
   enterToSend: boolean;
   loading?: boolean;
@@ -147,6 +163,8 @@ export function ChatView({
   onOpenSavedChat,
   onLoadChatGifts,
   onLoadPinnedMessage,
+  onLoadPinnedMessageInfo,
+  onUpdatePinnedMessage,
   onUnpinAllMessages,
   pinnedVersion,
   network,
@@ -175,6 +193,11 @@ export function ChatView({
   onReactMessage,
   onToast,
   onAttach,
+  onStartBot,
+  onJoinChat,
+  onUnblock,
+  onTyping,
+  onTypingStop,
   upload,
   enterToSend,
   loading,
@@ -209,6 +232,7 @@ export function ChatView({
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [pinnedMessage, setPinnedMessage] = useState<Message | null>(null);
+  const [pinnedInfo, setPinnedInfo] = useState<PinnedMessageInfo | null>(null);
   const [pinnedHidden, setPinnedHidden] = useState(false);
 
   useEffect(() => {
@@ -216,7 +240,28 @@ export function ChatView({
   }, [chat.id]);
 
   // The pinned strip follows Telegram Web: it shows the first pinned message
-  // and refreshes when the live update stream reports a pin/unpin change.
+  // and refreshes when the live update stream reports a pin/unpin change. The
+  // multi-pin payload (newest pin + count + canPin) drives Web K's floating
+  // plate; the legacy single-message loader is the fallback.
+  useEffect(() => {
+    if (!onLoadPinnedMessageInfo) {
+      return;
+    }
+    let alive = true;
+    void onLoadPinnedMessageInfo(chat.id)
+      .then((info) => {
+        if (alive) {
+          setPinnedInfo(info);
+        }
+      })
+      .catch(() => {
+        // A failed pinned read only hides the plate.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [chat.id, onLoadPinnedMessageInfo, pinnedVersion]);
+
   useEffect(() => {
     if (!onLoadPinnedMessage) {
       return;
@@ -440,7 +485,7 @@ export function ChatView({
   };
 
   const jumpToPinned = () => {
-    const target = pinnedMessage;
+    const target = pinnedInfo?.message ?? pinnedMessage;
     if (!target) {
       return;
     }
@@ -660,7 +705,17 @@ export function ChatView({
           }
         />
 
-        {pinnedMessage && !pinnedHidden && !searchOpen ? (
+        {pinnedInfo && !searchOpen ? (
+          <PinnedMessageBar
+            info={pinnedInfo}
+            chatId={chat.id}
+            onJump={jumpToPinned}
+            onUnpinMessage={(messageID) => {
+              void onUpdatePinnedMessage?.(chat.id, messageID);
+            }}
+            onHidePinned={() => setPinnedHidden(true)}
+          />
+        ) : pinnedMessage && !pinnedHidden && !searchOpen ? (
           <PinnedMessageBar
             message={pinnedMessage}
             sender={chat.saved ? selfName : pinnedMessage.sender}
@@ -746,6 +801,10 @@ export function ChatView({
           )}
         </div>
 
+        {searchOpen ? (
+          <ChatSearchFooter resultCount={filteredMessages.length} />
+        ) : null}
+
         <ChatComposer
           key={chat.id}
           chatId={chat.id}
@@ -770,6 +829,11 @@ export function ChatView({
           }}
           onOpenBotMenu={openBotMenu}
           onSendCommand={onSendCommand}
+          onStartBot={onStartBot}
+          onJoinChat={onJoinChat}
+          onUnblock={onUnblock}
+          onTyping={onTyping}
+          onTypingStop={onTypingStop}
           onToggleMute={() => onToggleMute(chat.id)}
           network={network}
           onSendSticker={(ref) => onSendSticker(ref, replyingTo?.id)}
@@ -782,6 +846,19 @@ export function ChatView({
           }
           onToast={onToast}
           enterToSend={enterToSend}
+        />
+
+        <ScrollDownButton
+          chatId={chat.id}
+          unread={chat.unread}
+          muted={chat.muted}
+          searchActive={searchOpen}
+          bottomLoaded={!loading}
+          onJump={() => {
+            if (chat.unread) {
+              onMarkRead(chat.id);
+            }
+          }}
         />
 
         <ForwardDialog

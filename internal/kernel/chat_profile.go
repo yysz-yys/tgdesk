@@ -47,6 +47,41 @@ type ChatProfileDTO struct {
 	// false whenever CanSend is false.
 	CanSendStickers bool `json:"canSendStickers"`
 	CanSendGifs     bool `json:"canSendGifs"`
+	// CanSendMedia reports whether media may be attached in this chat (the
+	// attach menu's Photo/Document entries). It is CanSend minus a send_media
+	// ban, so a chat that only forbids text (CanSendPlain=false) keeps media.
+	CanSendMedia bool `json:"canSendMedia"`
+	// IsMember reports whether the current account belongs to the peer: always
+	// true for private chats and Saved Messages, otherwise the negation of the
+	// entity's `left` flag. The composer tells a subscriber's MUTE footer from a
+	// non-member's JOIN/SUBSCRIBE plate with it (input.ts:3336-3376).
+	IsMember bool `json:"isMember"`
+	// IsBroadcast is true for broadcast channels: only admins may post, so a
+	// posting admin gets the "Broadcast" placeholder and everyone else the
+	// mute/subscribe control plate.
+	IsBroadcast bool `json:"isBroadcast,omitempty"`
+	// IsBroadcastGroup is true for "gigagroups" (broadcast groups): admins post,
+	// members read; a non-member sees JOIN (input.ts:3344-3358).
+	IsBroadcastGroup bool `json:"isBroadcastGroup,omitempty"`
+	// CanJoin is true when a non-member may join from the composer plate; the
+	// plate then shows JOIN / SUBSCRIBE instead of MUTE. Derived from the
+	// entity's `left` flag (Web K: input.ts:3346,2571-2584).
+	CanJoin bool `json:"canJoin,omitempty"`
+	// JoinRequest is true when joining this group/channel needs an admin's
+	// approval: the join plate reads APPLY TO JOIN GROUP (ChannelJoinRequest,
+	// input.ts:2522-2546).
+	JoinRequest bool `json:"joinRequest,omitempty"`
+	// IsBlocked is true when the current account has blocked this private peer.
+	// The composer then replaces the plate with the Unblock control (bots use
+	// START instead, matching input.ts:3421-3424 and chat.ts isStartButtonNeeded).
+	IsBlocked bool `json:"isBlocked,omitempty"`
+	// IsAnonymous reports that the current admin posts anonymously; the
+	// composer placeholder becomes "Send anonymously" (input.ts:3690-3695).
+	IsAnonymous bool `json:"isAnonymous,omitempty"`
+	// LinkedMonoforumID is the direct-messages chat linked to this channel. The
+	// current TL layer (gotd v0.140) does not expose the field, so it stays
+	// empty and the channel footer simply has no comments side button.
+	LinkedMonoforumID string `json:"linkedMonoforumId,omitempty"`
 	// GiftsCount is the number of star gifts the peer displays (Telegram Web K
 	// decides the Gifts tab from it; optional field in this TL layer).
 	GiftsCount int `json:"giftsCount,omitempty"`
@@ -97,10 +132,13 @@ type ChatProfileDTO struct {
 }
 
 // BotCommandDTO is one entry of a bot's command list ("command" without the
-// leading slash, exactly like Telegram Web renders it).
+// leading slash, exactly like Telegram Web renders it). BotUsername identifies
+// the owning bot when a group flattens the commands of several bots: Web K
+// inserts "/command@username" there (commandsHelper.ts:24-30).
 type BotCommandDTO struct {
 	Command     string `json:"command"`
 	Description string `json:"description,omitempty"`
+	BotUsername string `json:"botUsername,omitempty"`
 }
 
 // BotMenuButtonDTO mirrors the bot menu button that sits in front of the
@@ -196,7 +234,7 @@ func (s *Service) GetChatProfile(chatID, kind, proxy, ntp string) (*ChatProfileD
 				return fmt.Errorf("unexpected full chat %T", resp.FullChat)
 			}
 			chat := findChatEntity(resp.Chats, p.ChatID)
-			profile = mapBasicGroupProfile(full, chat)
+			profile = mapBasicGroupProfileWithUsers(full, chat, resp.Users)
 			profile.LinkedChat = s.linkedChatDTO(resp.Chats, profile.LinkedChatID, proxy, ntp)
 			if profile.InviteLink == "" && (chat == nil || !chat.GetLeft()) {
 				profile.InviteLink = exportChatInviteLink(ctx, client, peer)
@@ -223,7 +261,7 @@ func (s *Service) GetChatProfile(chatID, kind, proxy, ntp string) (*ChatProfileD
 			if raw, ok := full.GetLinkedChatID(); ok && raw != 0 {
 				linked = s.resolveLinkedChatID(resp.Chats, raw)
 			}
-			profile = mapChannelProfile(full, channel, own, linked)
+			profile = mapChannelProfileWithUsers(full, channel, own, linked, resp.Users)
 			profile.LinkedChat = s.linkedChatDTO(resp.Chats, linked, proxy, ntp)
 			if profile.InviteLink == "" && profile.Username == "" && profile.IsAdmin {
 				profile.InviteLink = exportChatInviteLink(ctx, client, peer)
@@ -470,6 +508,8 @@ func mapUserProfile(full tg.UserFull, user *tg.User, saved bool) *ChatProfileDTO
 		CanSendPlain:    true,
 		CanSendStickers: true,
 		CanSendGifs:     true,
+		CanSendMedia:    true,
+		IsMember:        true,
 	}
 
 	botInfo, hasBotInfo := full.GetBotInfo()
@@ -505,6 +545,11 @@ func mapUserProfile(full tg.UserFull, user *tg.User, saved bool) *ChatProfileDTO
 			}
 		}
 	}
+	// Blocking is only meaningful for human/bot private chats: the composer
+	// swaps the plate for the Unblock (or bot START) control, input.ts:3421.
+	if !saved {
+		profile.IsBlocked = full.Blocked
+	}
 	// Presence is only meaningful for human private peers; Saved Messages and
 	// bots keep the zero values (see userPresence).
 	if user != nil && !isBot && !saved {
@@ -520,7 +565,7 @@ func mapUserProfile(full tg.UserFull, user *tg.User, saved bool) *ChatProfileDTO
 			profile.About = description
 		}
 		if commands, ok := botInfo.GetCommands(); ok {
-			profile.BotCommands = mapBotCommands(commands)
+			profile.BotCommands = mapBotCommands(commands, profile.Username)
 		}
 		if button, ok := botInfo.GetMenuButton(); ok {
 			profile.BotMenuButton = mapBotMenuButton(button)
@@ -602,7 +647,21 @@ func deriveStickerGifRights(
 	return canSendStickers, canSendGifs
 }
 
-func mapBotCommands(commands []tg.BotCommand) []BotCommandDTO {
+// deriveCanSendMedia applies a send_media ban to the attach rights. It is kept
+// separate from the sticker/GIF rights because a chat can allow media while
+// banning text (CanSendPlain=false) and the other way round.
+func deriveCanSendMedia(
+	canSend bool,
+	hasBannedRights bool,
+	bannedRights tg.ChatBannedRights,
+) bool {
+	if !canSend {
+		return false
+	}
+	return !hasBannedRights || !bannedRights.SendMedia
+}
+
+func mapBotCommands(commands []tg.BotCommand, botUsername string) []BotCommandDTO {
 	if len(commands) == 0 {
 		return nil
 	}
@@ -617,7 +676,11 @@ func mapBotCommands(commands []tg.BotCommand) []BotCommandDTO {
 			continue
 		}
 		seen[name] = struct{}{}
-		result = append(result, BotCommandDTO{Command: name, Description: command.Description})
+		result = append(result, BotCommandDTO{
+			Command:     name,
+			Description: command.Description,
+			BotUsername: botUsername,
+		})
 	}
 	if len(result) == 0 {
 		return nil
@@ -659,15 +722,34 @@ func mapBotPrivacyURL(botInfo tg.BotInfo, commands []BotCommandDTO) string {
 // mapBasicGroupProfile maps messages.getFullChat. A basic group has no separate
 // subscriber concept and no slow mode; its rights come from the tg.Chat entity
 // (creator flag, admin rights, left/deactivated flags and legacy default bans).
+// It is the users-less wrapper around mapBasicGroupProfileWithUsers, kept for
+// callers (and tests) that do not need bot usernames.
 func mapBasicGroupProfile(full *tg.ChatFull, chat *tg.Chat) *ChatProfileDTO {
-	profile := &ChatProfileDTO{Type: ChatProfileTypeGroup, CanSend: true, CanSendPlain: true}
+	return mapBasicGroupProfileWithUsers(full, chat, nil)
+}
+
+// mapBasicGroupProfileWithUsers is mapBasicGroupProfile with the response's
+// user entities, used to stamp each bot command with its owning bot's username
+// (groups insert "/cmd@username", commandsHelper.ts:24-30).
+func mapBasicGroupProfileWithUsers(
+	full *tg.ChatFull,
+	chat *tg.Chat,
+	users []tg.UserClass,
+) *ChatProfileDTO {
+	profile := &ChatProfileDTO{
+		Type:         ChatProfileTypeGroup,
+		CanSend:      true,
+		CanSendPlain: true,
+		CanSendMedia: true,
+		IsMember:     true,
+	}
 	if full != nil {
 		profile.About = full.GetAbout()
 		if invite, ok := full.GetExportedInvite(); ok {
 			profile.InviteLink = exportedInviteLink(invite)
 		}
 		if bots, ok := full.GetBotInfo(); ok {
-			profile.BotCommands = flattenBotCommands(bots)
+			profile.BotCommands = flattenBotCommands(bots, users)
 		}
 	}
 
@@ -699,6 +781,10 @@ func mapBasicGroupProfile(full *tg.ChatFull, chat *tg.Chat) *ChatProfileDTO {
 	profile.IsOwner = isOwner
 	profile.IsAdmin = isOwner || hasAnyAdminRight(adminRights)
 	profile.CanViewMembers = !left
+	// A basic group cannot be re-joined without an invite, so the footer never
+	// offers JOIN; being "left" only means the composer stays read-only.
+	profile.IsMember = chat == nil || (!left && !deactivated)
+	profile.CanJoin = false
 	profile.CanSend, profile.CanSendPlain, profile.SendRestriction = deriveBasicGroupRights(
 		isOwner,
 		profile.IsAdmin,
@@ -707,12 +793,14 @@ func mapBasicGroupProfile(full *tg.ChatFull, chat *tg.Chat) *ChatProfileDTO {
 		hasBanned,
 		bannedRights,
 	)
+	bannedBinds := hasBanned && !profile.IsAdmin
 	// Default banned rights apply to members, not to admins/owner.
 	profile.CanSendStickers, profile.CanSendGifs = deriveStickerGifRights(
 		profile.CanSend,
-		hasBanned && !profile.IsAdmin,
+		bannedBinds,
 		bannedRights,
 	)
+	profile.CanSendMedia = deriveCanSendMedia(profile.CanSend, bannedBinds, bannedRights)
 	return profile
 }
 
@@ -742,16 +830,52 @@ func deriveBasicGroupRights(
 	return canSend, canSendPlain, ""
 }
 
-// flattenBotCommands merges the command lists of every bot that is a member of
-// a group, deduplicated by command name.
-func flattenBotCommands(bots []tg.BotInfo) []BotCommandDTO {
-	var commands []tg.BotCommand
+// flattenBotCommands merges the command lists of every bot that is a member of a
+// group. Each command keeps its owning bot's username so groups can insert
+// "/command@username" (commandsHelper.ts:24-30); users carries the full-info
+// response entities that hold those usernames (tg.BotInfo only has the user id).
+func flattenBotCommands(bots []tg.BotInfo, users []tg.UserClass) []BotCommandDTO {
+	if len(bots) == 0 {
+		return nil
+	}
+	var result []BotCommandDTO
+	seen := make(map[string]struct{})
 	for _, bot := range bots {
-		if list, ok := bot.GetCommands(); ok {
-			commands = append(commands, list...)
+		list, ok := bot.GetCommands()
+		if !ok || len(list) == 0 {
+			continue
+		}
+		username := ""
+		if bot.UserID != 0 {
+			username = botUsernameByID(users, bot.UserID)
+		}
+		for _, command := range mapBotCommands(list, username) {
+			key := command.Command + "@" + command.BotUsername
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
+			result = append(result, command)
 		}
 	}
-	return mapBotCommands(commands)
+	return result
+}
+
+// botUsernameByID resolves a bot's active username from the user entities of a
+// full-info response.
+func botUsernameByID(users []tg.UserClass, userID int64) string {
+	user := findUserEntity(users, userID)
+	if user == nil {
+		return ""
+	}
+	if user.Username != "" {
+		return user.Username
+	}
+	usernames, ok := user.GetUsernames()
+	if !ok {
+		return ""
+	}
+	return preferredUsername(usernames)
 }
 
 func encodeInputChannel(channel tg.InputChannelClass) string {
@@ -843,16 +967,32 @@ func (s *Service) fetchOwnChannelRights(
 // exactly like tweb hasRights: creators and admins with post_messages can post
 // in broadcast channels, megagroup members unless banned, slow mode is not part
 // of the rights (the composer renders the countdown from the slow-mode fields).
+// It is the users-less wrapper around mapChannelProfileWithUsers, kept for
+// callers (and tests) that do not need bot usernames.
 func mapChannelProfile(
 	full *tg.ChannelFull,
 	channel *tg.Channel,
 	own channelOwnRights,
 	linkedChatID string,
 ) *ChatProfileDTO {
+	return mapChannelProfileWithUsers(full, channel, own, linkedChatID, nil)
+}
+
+// mapChannelProfileWithUsers is mapChannelProfile with the response's user
+// entities so group bot commands can carry their owning bot's username.
+func mapChannelProfileWithUsers(
+	full *tg.ChannelFull,
+	channel *tg.Channel,
+	own channelOwnRights,
+	linkedChatID string,
+	users []tg.UserClass,
+) *ChatProfileDTO {
 	profile := &ChatProfileDTO{
 		Type:           ChatProfileTypeChannel,
 		CanSend:        true,
 		CanSendPlain:   true,
+		CanSendMedia:   true,
+		IsMember:       true,
 		LinkedChatID:   linkedChatID,
 		IsAdmin:        own.isAdmin || own.isOwner,
 		IsOwner:        own.isOwner,
@@ -907,7 +1047,7 @@ func mapChannelProfile(
 		if invite, ok := full.GetExportedInvite(); ok {
 			profile.InviteLink = exportedInviteLink(invite)
 		}
-		profile.BotCommands = flattenBotCommands(full.GetBotInfo())
+		profile.BotCommands = flattenBotCommands(full.GetBotInfo(), users)
 		if pending, ok := full.GetRequestsPending(); ok {
 			requestsPending = pending
 		}
@@ -943,6 +1083,20 @@ func mapChannelProfile(
 		own.hasBannedRights,
 		own.bannedRights,
 	)
+	profile.CanSendMedia = deriveCanSendMedia(
+		profile.CanSend,
+		own.hasBannedRights,
+		own.bannedRights,
+	)
+	// Capability flags for the composer's control plate (input.ts:3336-3458):
+	// a broadcast channel/gigagroup non-member gets SUBSCRIBE/JOIN, a broadcast
+	// subscriber gets MUTE, and a restricted member keeps the read-only field.
+	profile.IsBroadcast = broadcast
+	profile.IsBroadcastGroup = gigagroup
+	profile.IsMember = channel == nil || !left
+	profile.CanJoin = left
+	profile.JoinRequest = joinRequest
+	profile.IsAnonymous = own.adminRights.Anonymous
 	return profile
 }
 

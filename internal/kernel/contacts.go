@@ -10,16 +10,23 @@ import (
 	"github.com/gotd/td/tg"
 )
 
-// ContactDTO is one user row for the new-chat/new-group pickers. ID is the raw
-// Telegram user id (not an opaque peer id) because the pickers send the selected
-// ids back to CreateGroup/InviteToChannel. ColorIndex is the Web K avatar
-// gradient index (abs(user id) % 7).
+// ContactDTO is one user row for the new-chat/new-group pickers and the New
+// Private Chat contact list. ID is the raw Telegram user id because the
+// pickers send the selected ids back to CreateGroup/InviteToChannel; PeerID is
+// the opaque chat id ("user:<id>:<accessHash>") the private-chat page passes
+// straight to openChat. ColorIndex is the Web K avatar gradient index
+// (abs(user id) % 7). Online/LastSeen/Status are the peer's presence, the same
+// shape ChatDTO uses (never set for bots or the logged-in account).
 type ContactDTO struct {
 	ID         int64  `json:"id"`
+	PeerID     string `json:"peerId,omitempty"`
 	Name       string `json:"name"`
 	Username   string `json:"username,omitempty"`
 	AvatarURL  string `json:"avatarUrl,omitempty"`
 	ColorIndex int    `json:"colorIndex"`
+	Online     bool   `json:"online,omitempty"`
+	LastSeen   int64  `json:"lastSeen,omitempty"`
+	Status     string `json:"status,omitempty"`
 }
 
 // SearchContacts searches the account's contacts and global Telegram users with
@@ -60,16 +67,22 @@ func (s *Service) SearchContacts(proxy, ntp, query string, limit int) ([]Contact
 			if name == "" {
 				continue
 			}
+			online, lastSeen, status := userPresence(user, s.selfUserID())
 			peer := &tg.InputPeerUser{UserID: user.ID, AccessHash: user.AccessHash}
 			// Remember the access hash so the picked ids can be turned back into
-			// inputUser constructors by CreateGroup/InviteToChannel.
-			s.rememberPeer(peer)
+			// inputUser constructors by CreateGroup/InviteToChannel, and so the
+			// opaque peer id below can be opened as a chat.
+			peerID := s.rememberPeer(peer)
 			result = append(result, ContactDTO{
 				ID:         user.ID,
+				PeerID:     peerID,
 				Name:       name,
 				Username:   user.Username,
 				AvatarURL:  s.userAvatarURL(peer, user, proxy, ntp),
 				ColorIndex: contactColorIndex(user.ID),
+				Online:     online,
+				LastSeen:   lastSeen,
+				Status:     status,
 			})
 			if len(result) >= limit {
 				break

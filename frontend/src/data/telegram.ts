@@ -133,7 +133,11 @@ export function mapChatProfile(
     if (!name) {
       continue;
     }
-    commands.push({ command: name, description: command.description || undefined });
+    commands.push({
+      command: name,
+      description: command.description || undefined,
+      botUsername: command.botUsername || undefined,
+    });
   }
   const menuType = profile.botMenuButton?.type;
   return {
@@ -179,6 +183,15 @@ export function mapChatProfile(
     giftsCount: profile.giftsCount || undefined,
     adminsCount: profile.adminsCount || undefined,
     messagesCount: profile.messagesCount || undefined,
+    canSendMedia: profile.canSendMedia !== false,
+    isMember: profile.isMember !== false,
+    isBroadcast: Boolean(profile.isBroadcast),
+    isBroadcastGroup: Boolean(profile.isBroadcastGroup),
+    canJoin: Boolean(profile.canJoin),
+    joinRequest: Boolean(profile.joinRequest),
+    isBlocked: Boolean(profile.isBlocked),
+    isAnonymous: Boolean(profile.isAnonymous),
+    linkedMonoforumId: profile.linkedMonoforumId || undefined,
   };
 }
 
@@ -281,7 +294,11 @@ export interface KernelChatProfile {
   online?: boolean;
   lastSeen?: number;
   status?: string;
-  botCommands?: { command: string; description?: string }[] | null;
+  botCommands?: {
+    command: string;
+    description?: string;
+    botUsername?: string;
+  }[] | null;
   botMenuButton?: { type?: string; text?: string; url?: string } | null;
   botOwnerId?: string;
   botPrivacyUrl?: string;
@@ -291,6 +308,16 @@ export interface KernelChatProfile {
   giftsCount?: number;
   adminsCount?: number;
   messagesCount?: number;
+  /** Round-4 Web K composer capability fields. */
+  canSendMedia?: boolean;
+  isMember?: boolean;
+  isBroadcast?: boolean;
+  isBroadcastGroup?: boolean;
+  canJoin?: boolean;
+  joinRequest?: boolean;
+  isBlocked?: boolean;
+  isAnonymous?: boolean;
+  linkedMonoforumId?: string;
 }
 
 export interface KernelReaction {
