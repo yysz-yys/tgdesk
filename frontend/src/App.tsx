@@ -894,9 +894,30 @@ export default function App() {
       // A corrupt snapshot only loses the head start.
     }
 
+    // The folder round trip is the fragile one on a cold start (a direct
+    // connection can come up a moment after the chat list): retry a couple of
+    // times before giving up, and never let a failed attempt replace the chip
+    // strip's last good snapshot.
+    const loadFoldersWithRetry = async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
+        }
+        try {
+          const list = await AppService.GetFolders(proxyUrl, settings.ntp);
+          if (list && list.length > 0) {
+            return list;
+          }
+        } catch {
+          // Try again after the short delay.
+        }
+      }
+      return [];
+    };
+
     void Promise.all([
       AppService.GetArchivedChats(proxyUrl, settings.ntp, 100, false).catch(() => []),
-      AppService.GetFolders(proxyUrl, settings.ntp).catch(() => []),
+      loadFoldersWithRetry(),
     ]).then(([archived, folderList]) => {
       if (!alive) {
         return;

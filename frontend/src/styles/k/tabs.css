@@ -111,6 +111,19 @@
   flex: 1 1 auto;
 }
 
+/* With a single chip (the folder list has not arrived yet) the reference's
+ * space-around strip would stretch "All" across the whole plate; keep it a
+ * compact left-aligned pill like the official one. */
+.k-root .folders-tabs-scrollable .menu-horizontal-div:has(> .menu-horizontal-div-item:only-child) {
+  justify-content: flex-start;
+  padding-inline-start: 0.5rem;
+}
+
+.k-root .folders-tabs-scrollable .menu-horizontal-div > .menu-horizontal-div-item:only-child {
+  flex: 0 0 auto;
+  min-width: 5rem;
+}
+
 .k-root .menu-horizontal-div-item {
   height: 100%;
   padding: 0 1rem;

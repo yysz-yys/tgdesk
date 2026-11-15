@@ -3,7 +3,9 @@ package kernel
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,6 +15,8 @@ import (
 	"github.com/gotd/td/telegram/query"
 	"github.com/gotd/td/telegram/query/dialogs"
 	"github.com/gotd/td/tg"
+
+	"tgdesk/internal/paths"
 )
 
 // ChatDTO is the stable chat-list shape used by the React UI. The ID is opaque:
@@ -323,11 +327,14 @@ func (s *Service) SetChatArchived(chatID string, archived bool, proxy, ntp strin
 
 // GetFolders exposes Telegram's official dialog filters. Explicit peer lists
 // and the common category flags are preserved; the frontend applies them to the
-// loaded dialog list.
+// loaded dialog list. The last successful answer is cached on disk so a folder
+// round trip that fails (a briefly down direct connection, a flood wait) still
+// leaves the folder chip strip in place instead of wiping it.
 func (s *Service) GetFolders(proxy, ntp string) ([]ChatFolderDTO, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	cachePath := filepath.Join(paths.Data(), "folders-cache.json")
 	var result []ChatFolderDTO
 	err := s.withChatClient(ctx, proxy, ntp, func(ctx context.Context, client *telegram.Client) error {
 		filters, err := client.API().MessagesGetDialogFilters(ctx)
@@ -364,9 +371,28 @@ func (s *Service) GetFolders(proxy, ntp string) ([]ChatFolderDTO, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return readCachedFolders(cachePath, err)
+	}
+	if len(result) > 0 {
+		if data, marshalErr := json.Marshal(result); marshalErr == nil {
+			_ = os.WriteFile(cachePath, data, 0o600)
+		}
 	}
 	return result, nil
+}
+
+// readCachedFolders returns the last successful folder list, or the original
+// error when no cache exists yet.
+func readCachedFolders(path string, fetchErr error) ([]ChatFolderDTO, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fetchErr
+	}
+	var cached []ChatFolderDTO
+	if json.Unmarshal(data, &cached) != nil || len(cached) == 0 {
+		return nil, fetchErr
+	}
+	return cached, nil
 }
 
 func peerKeys(groups ...[]tg.InputPeerClass) []string {
