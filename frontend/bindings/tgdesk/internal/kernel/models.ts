@@ -664,6 +664,14 @@ export interface MessageMediaDTO {
     "kind": string;
     "name": string;
     "thumbUrl"?: string;
+
+    /**
+     * PlaceholderURL is the tiny blurred preview Telegram embeds in the message
+     * (a JPEG data URL). Telegram Web paints it instantly while the real
+     * thumbnail downloads, so the UI does not need a loopback fetch for the
+     * first paint.
+     */
+    "placeholderUrl"?: string;
     "photoUrl"?: string;
     "streamUrl"?: string;
     "size"?: string;

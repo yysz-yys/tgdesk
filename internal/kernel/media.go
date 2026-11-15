@@ -3,6 +3,8 @@ package kernel
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -125,11 +127,11 @@ func (s *Service) startMediaServerLocked() error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	token, err := randomToken()
+	token, err := mediaToken(dir)
 	if err != nil {
 		return err
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := listenMedia(dir)
 	if err != nil {
 		return err
 	}
@@ -231,6 +233,61 @@ func randomToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(buffer), nil
+}
+
+// mediaToken returns the loopback-path token for this portable install,
+// creating it once and keeping it in data/media. A stable token — together with
+// the stable port chosen in listenMedia — makes every image URL identical
+// across launches, so the WebView's HTTP cache serves avatars and thumbnails
+// from disk instead of re-downloading them on every start (Telegram Web gets
+// the same effect from its persistent media cache). The token is only a
+// loopback path secret; it never leaves the machine.
+func mediaToken(dir string) (string, error) {
+	path := filepath.Join(dir, "token")
+	if data, err := os.ReadFile(path); err == nil {
+		token := strings.TrimSpace(string(data))
+		if isHexToken(token) {
+			return token, nil
+		}
+	}
+	token, err := randomToken()
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, []byte(token), 0o600); err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+func isHexToken(value string) bool {
+	if len(value) != 32 {
+		return false
+	}
+	for _, char := range value {
+		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {
+			return false
+		}
+	}
+	return true
+}
+
+// listenMedia binds the loopback media server on a deterministic port derived
+// from the portable data directory. HTTP cache entries are keyed by URL, so a
+// random port would invalidate every cached image on every launch; a stable
+// port keeps them usable. A handful of neighbouring ports are tried when the
+// preferred one is taken (another instance, an unrelated local service), and a
+// fully dynamic port is the last resort instead of failing.
+func listenMedia(dataDir string) (net.Listener, error) {
+	sum := sha256.Sum256([]byte(dataDir))
+	base := 47000 + int(binary.BigEndian.Uint16(sum[:2]))%1000
+	for offset := 0; offset < 8; offset++ {
+		listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", base+offset))
+		if err == nil {
+			return listener, nil
+		}
+	}
+	return net.Listen("tcp", "127.0.0.1:0")
 }
 
 // noopDownloadProgress is required because tdl's downloader unconditionally

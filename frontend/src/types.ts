@@ -423,6 +423,8 @@ export interface MessageMedia {
   kind: MediaKind;
   name: string;
   thumbUrl?: string;
+  /** Tiny inline JPEG (data URL) Telegram ships in the message: instant blur. */
+  placeholderUrl?: string;
   photoUrl?: string;
   streamUrl?: string;
   size?: string;

@@ -2,6 +2,8 @@ package kernel
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -315,6 +317,161 @@ func messageFullPhotoMedia(msg *tg.Message) (*tmedia.Media, bool) {
 	default:
 		return nil, false
 	}
+}
+
+// Stripped thumbnails are the tiny JPEG previews Telegram embeds in the message
+// itself (photoStrippedSize / photoCachedSize bytes) instead of making the
+// client fetch them. Telegram Web paints them immediately, blurred, while the
+// real preview downloads; serving them inline is what makes opening a photo
+// chat feel instant. The reconstruction follows the public stripped-thumbnail
+// format (see https://core.telegram.org/api/files#stripped-thumbnails).
+const strippedJPEGHeaderHex = "ffd8ffe000104a46494600010100000100010000ffdb004300281c1e231e19282321232d2b28303c64413c37373c7b585d4964918099968f808c8aa0b4e6c3a0aadaad8a8cc8ffcbdaeef5ffffff9bc1fffffffaffe6fdfff8ffdb0043012b2d2d3c353c76414176f8a58ca5f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8ffc00011080000000003012200021101031101ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f0100030101010101010101010000000000000102030405060708090a0bffc400b51100020102040403040705040400010277000102031104052131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a262728292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c03010002110311003f00"
+
+var strippedJPEGHeader = func() []byte {
+	header, err := hex.DecodeString(strippedJPEGHeaderHex)
+	if err != nil {
+		return nil
+	}
+	return header
+}()
+
+var strippedJPEGTail = []byte{0xff, 0xd9}
+
+// strippedThumbJPEG rebuilds the progressive JPEG preview from a
+// photoStrippedSize payload. The payload starts with 0x01, then two bytes that
+// patch the origin quantisation table, then the JPEG scan body; the rest of the
+// frame header is fixed. Payloads without the 0x01 marker are already complete
+// JPEGs (photoCachedSize-style) and are returned unchanged.
+func strippedThumbJPEG(payload []byte) []byte {
+	if len(payload) == 0 {
+		return nil
+	}
+	if payload[0] != 0x01 {
+		return payload
+	}
+	if len(payload) <= 3 || len(strippedJPEGHeader) == 0 {
+		return nil
+	}
+	out := make([]byte, 0, len(strippedJPEGHeader)+len(payload)-3+len(strippedJPEGTail))
+	out = append(out, strippedJPEGHeader...)
+	out = append(out, payload[3:]...)
+	out = append(out, strippedJPEGTail...)
+	if len(out) > 166 {
+		out[164] = payload[1]
+		out[166] = payload[2]
+	}
+	return out
+}
+
+// inlinePreviewJPEG returns the complete inline preview carried by a photo or
+// thumbnail list, preferring the fully cached size (a complete JPEG) over the
+// stripped one.
+func inlinePreviewJPEG(sizes []tg.PhotoSizeClass) []byte {
+	var stripped []byte
+	for _, size := range sizes {
+		switch value := size.(type) {
+		case *tg.PhotoCachedSize:
+			if len(value.Bytes) > 0 {
+				return value.Bytes
+			}
+		case *tg.PhotoStrippedSize:
+			if stripped == nil {
+				stripped = strippedThumbJPEG(value.Bytes)
+			}
+		}
+	}
+	return stripped
+}
+
+func photoInlinePreview(photo *tg.Photo) []byte {
+	if photo == nil {
+		return nil
+	}
+	return inlinePreviewJPEG(photo.Sizes)
+}
+
+func documentInlinePreview(doc *tg.Document) []byte {
+	if doc == nil {
+		return nil
+	}
+	return inlinePreviewJPEG(doc.Thumbs)
+}
+
+// messagePlaceholderURL returns the inline data URL of the tiny blurred preview
+// Telegram already ships inside the message, so the UI can paint a photo (and
+// video poster) before the thumbnail request completes. It is a data URL on
+// purpose: no loopback request is needed for the first paint, and the value is
+// valid across restarts so the local snapshot cache can keep it.
+func messagePlaceholderURL(msg *tg.Message) string {
+	if msg == nil {
+		return ""
+	}
+	var jpeg []byte
+	switch media := msg.Media.(type) {
+	case *tg.MessageMediaPhoto:
+		photo, ok := media.Photo.(*tg.Photo)
+		if ok {
+			jpeg = photoInlinePreview(photo)
+		}
+	case *tg.MessageMediaDocument:
+		doc, ok := media.Document.(*tg.Document)
+		if ok {
+			jpeg = documentInlinePreview(doc)
+		}
+	case *tg.MessageMediaWebPage:
+		page, ok := media.Webpage.(*tg.WebPage)
+		if ok {
+			photo, ok := page.Photo.(*tg.Photo)
+			if ok {
+				jpeg = photoInlinePreview(photo)
+			}
+		}
+	case *tg.MessageMediaGame:
+		photo, ok := media.Game.Photo.(*tg.Photo)
+		if ok {
+			jpeg = photoInlinePreview(photo)
+		}
+	}
+	if len(jpeg) == 0 {
+		return ""
+	}
+	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(jpeg)
+}
+
+// mediaDCsOfMessages lists the data centers that hold the files referenced by a
+// history page: photo and document media live in the DC they were uploaded to,
+// so a single page can require several media connections. The list feeds the
+// background warm-up that connects those DCs before the UI requests the images.
+func mediaDCsOfMessages(messages []tg.MessageClass) []int {
+	var dcs []int
+	appendMedia := func(media tg.MessageMediaClass) {
+		switch value := media.(type) {
+		case *tg.MessageMediaPhoto:
+			if photo, ok := value.Photo.(*tg.Photo); ok && photo.DCID > 0 {
+				dcs = append(dcs, photo.DCID)
+			}
+		case *tg.MessageMediaDocument:
+			if doc, ok := value.Document.(*tg.Document); ok && doc.DCID > 0 {
+				dcs = append(dcs, doc.DCID)
+			}
+		case *tg.MessageMediaWebPage:
+			if page, ok := value.Webpage.(*tg.WebPage); ok {
+				if photo, ok := page.Photo.(*tg.Photo); ok && photo.DCID > 0 {
+					dcs = append(dcs, photo.DCID)
+				}
+			}
+		case *tg.MessageMediaGame:
+			if photo, ok := value.Game.Photo.(*tg.Photo); ok && photo.DCID > 0 {
+				dcs = append(dcs, photo.DCID)
+			}
+		}
+	}
+	for _, raw := range messages {
+		if message, ok := raw.(*tg.Message); ok && message.Media != nil {
+			appendMedia(message.Media)
+		}
+	}
+	return dcs
 }
 
 func safeFilePart(value string) string {

@@ -194,6 +194,7 @@ export interface KernelMessageMedia {
   kind: string;
   name: string;
   thumbUrl?: string;
+  placeholderUrl?: string;
   photoUrl?: string;
   streamUrl?: string;
   size?: string;
@@ -663,6 +664,7 @@ function mapMedia(
     kind: normalizedMediaKind(media.kind),
     name: localizedPreview(media.name || "File", t),
     thumbUrl: media.thumbUrl || undefined,
+    placeholderUrl: media.placeholderUrl || undefined,
     photoUrl: media.photoUrl || undefined,
     streamUrl: media.streamUrl || undefined,
     size: media.size || undefined,

@@ -76,42 +76,47 @@ type ChatFolderDTO struct {
 }
 
 type MessageMediaDTO struct {
-	Kind        string   `json:"kind"`
-	Name        string   `json:"name"`
-	ThumbURL    string   `json:"thumbUrl,omitempty"`
-	PhotoURL    string   `json:"photoUrl,omitempty"`
-	StreamURL   string   `json:"streamUrl,omitempty"`
-	Size        string   `json:"size,omitempty"`
-	Ext         string   `json:"ext,omitempty"`
-	Color       string   `json:"color,omitempty"`
-	SizeBytes   int64    `json:"sizeBytes,omitempty"`
-	Duration    int      `json:"duration,omitempty"`
-	Width       int      `json:"width,omitempty"`
-	Height      int      `json:"height,omitempty"`
-	Mime        string   `json:"mime,omitempty"`
-	Title       string   `json:"title,omitempty"`
-	Performer   string   `json:"performer,omitempty"`
-	Waveform    []int    `json:"waveform,omitempty"`
-	Options     []string `json:"options,omitempty"`
-	VoteCounts  []int    `json:"voteCounts,omitempty"`
-	Chosen      []bool   `json:"chosen,omitempty"`
-	TotalVoters int      `json:"totalVoters,omitempty"`
-	PollClosed  bool     `json:"pollClosed,omitempty"`
-	Quiz        bool     `json:"quiz,omitempty"`
-	Correct     int      `json:"correctOption"`
-	Explanation string   `json:"explanation,omitempty"`
-	Multiple    bool     `json:"multipleChoice,omitempty"`
-	PublicPoll  bool     `json:"publicVoters,omitempty"`
-	Latitude    float64  `json:"latitude,omitempty"`
-	Longitude   float64  `json:"longitude,omitempty"`
-	Live        bool     `json:"live,omitempty"`
-	Phone       string   `json:"phone,omitempty"`
-	ContactName string   `json:"contactName,omitempty"`
-	URL         string   `json:"url,omitempty"`
-	SiteName    string   `json:"siteName,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Emoji       string   `json:"emoji,omitempty"`
-	Value       int      `json:"value,omitempty"`
+	Kind     string `json:"kind"`
+	Name     string `json:"name"`
+	ThumbURL string `json:"thumbUrl,omitempty"`
+	// PlaceholderURL is the tiny blurred preview Telegram embeds in the message
+	// (a JPEG data URL). Telegram Web paints it instantly while the real
+	// thumbnail downloads, so the UI does not need a loopback fetch for the
+	// first paint.
+	PlaceholderURL string   `json:"placeholderUrl,omitempty"`
+	PhotoURL       string   `json:"photoUrl,omitempty"`
+	StreamURL      string   `json:"streamUrl,omitempty"`
+	Size           string   `json:"size,omitempty"`
+	Ext            string   `json:"ext,omitempty"`
+	Color          string   `json:"color,omitempty"`
+	SizeBytes      int64    `json:"sizeBytes,omitempty"`
+	Duration       int      `json:"duration,omitempty"`
+	Width          int      `json:"width,omitempty"`
+	Height         int      `json:"height,omitempty"`
+	Mime           string   `json:"mime,omitempty"`
+	Title          string   `json:"title,omitempty"`
+	Performer      string   `json:"performer,omitempty"`
+	Waveform       []int    `json:"waveform,omitempty"`
+	Options        []string `json:"options,omitempty"`
+	VoteCounts     []int    `json:"voteCounts,omitempty"`
+	Chosen         []bool   `json:"chosen,omitempty"`
+	TotalVoters    int      `json:"totalVoters,omitempty"`
+	PollClosed     bool     `json:"pollClosed,omitempty"`
+	Quiz           bool     `json:"quiz,omitempty"`
+	Correct        int      `json:"correctOption"`
+	Explanation    string   `json:"explanation,omitempty"`
+	Multiple       bool     `json:"multipleChoice,omitempty"`
+	PublicPoll     bool     `json:"publicVoters,omitempty"`
+	Latitude       float64  `json:"latitude,omitempty"`
+	Longitude      float64  `json:"longitude,omitempty"`
+	Live           bool     `json:"live,omitempty"`
+	Phone          string   `json:"phone,omitempty"`
+	ContactName    string   `json:"contactName,omitempty"`
+	URL            string   `json:"url,omitempty"`
+	SiteName       string   `json:"siteName,omitempty"`
+	Description    string   `json:"description,omitempty"`
+	Emoji          string   `json:"emoji,omitempty"`
+	Value          int      `json:"value,omitempty"`
 	// Rich attachment metadata.
 	Checklist  []ChecklistItemDTO `json:"checklist,omitempty"`
 	Amount     int64              `json:"amount,omitempty"`
@@ -242,6 +247,7 @@ func (s *Service) getDialogs(proxy, ntp string, limit, folderID int, force bool)
 
 	s.noteMediaConfig(proxy, ntp)
 	var result []ChatDTO
+	warmedAvatarDCs := make(map[int]bool)
 	err := s.withChatClient(ctx, proxy, ntp, func(ctx context.Context, client *telegram.Client) error {
 		iter := query.GetDialogs(client.API()).FolderID(folderID).BatchSize(100).Iter()
 		for iter.Next(ctx) {
@@ -263,6 +269,10 @@ func (s *Service) getDialogs(proxy, ntp string, limit, folderID int, force bool)
 				item.AvatarURL = s.chatAvatarURL(p, elem.Entities.Chats()[p.ChatID], proxy, ntp)
 			case *tg.InputPeerChannel:
 				item.AvatarURL = s.channelAvatarURL(p, elem.Entities.Channels()[p.ChannelID], proxy, ntp)
+			}
+			if dc := dialogPhotoDC(elem); dc > 0 && !warmedAvatarDCs[dc] {
+				warmedAvatarDCs[dc] = true
+				s.warmMediaDCs([]int{dc})
 			}
 			result = append(result, item)
 			if len(result) >= limit {
@@ -711,6 +721,10 @@ func (s *Service) getMessages(
 		if !ok {
 			return fmt.Errorf("unexpected history result %T", resp)
 		}
+		// Connect the file DCs for this page in the background while the DTO is
+		// on its way to the WebView, so the first thumbnails do not wait for an
+		// auth transfer and handshake.
+		s.warmMediaDCs(mediaDCsOfMessages(messages))
 		result = s.mapHistoryMessages(ctx, client, peer, chatID, messages, users, chats, proxy, ntp)
 		return nil
 	})
@@ -815,6 +829,7 @@ func (s *Service) mapHistoryMessages(
 			if item.Media != nil {
 				thumbURL, fullURL := s.messageImageURLs(msg, proxy, ntp)
 				item.Media.ThumbURL = thumbURL
+				item.Media.PlaceholderURL = messagePlaceholderURL(msg)
 				switch item.Media.Kind {
 				case "photo", "webpage":
 					item.Media.PhotoURL = fullURL
@@ -942,6 +957,39 @@ func replyPreviewText(msg *tg.Message) string {
 		return media.Name
 	}
 	return ""
+}
+
+// dialogPhotoDC reports the data center that stores a dialog's profile photo so
+// the chat list avatars can warm that media connection while the dialog batch is
+// still being mapped.
+func dialogPhotoDC(elem dialogs.Elem) int {
+	switch p := elem.Peer.(type) {
+	case *tg.InputPeerUser:
+		user, ok := elem.Entities.Users()[p.UserID]
+		if !ok || user == nil {
+			return 0
+		}
+		if photo, ok := user.Photo.(*tg.UserProfilePhoto); ok && photo != nil {
+			return photo.DCID
+		}
+	case *tg.InputPeerChat:
+		chat, ok := elem.Entities.Chats()[p.ChatID]
+		if !ok || chat == nil {
+			return 0
+		}
+		if photo, ok := chat.Photo.(*tg.ChatPhoto); ok && photo != nil {
+			return photo.DCID
+		}
+	case *tg.InputPeerChannel:
+		channel, ok := elem.Entities.Channels()[p.ChannelID]
+		if !ok || channel == nil {
+			return 0
+		}
+		if photo, ok := channel.Photo.(*tg.ChatPhoto); ok && photo != nil {
+			return photo.DCID
+		}
+	}
+	return 0
 }
 
 func mapDialog(elem dialogs.Elem, dialog *tg.Dialog, selfID int64) (ChatDTO, bool) {

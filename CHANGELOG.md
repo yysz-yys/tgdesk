@@ -2,6 +2,53 @@
 
 ## Unreleased
 
+### Performance: media-heavy chats and older history feel like Telegram Web
+
+- **Message bubbles stopped fetching full-size photos**: `PhotoCard` used the
+  full `/photo` URL as the bubble image, so opening a photo chat downloaded the
+  largest Telegram size (up to 2560 px) for every photo near the viewport — on a
+  25-photo group that was 1.4 MB and several seconds through the loopback media
+  server, all competing with the history call. Bubbles now render the thumbnail
+  (`media.thumbUrl`) exactly like Telegram Web; the full photo is fetched only
+  by the detached viewer. Web-page preview cards also prefer the thumbnail and
+  keep the full page photo as a fallback.
+- **Instant blurred photo preview from the bytes already in the message**:
+  every photo/video message Telegram ships a tiny stripped JPEG
+  (`photoStrippedSize` / `photoCachedSize`). The kernel now rebuilds that JPEG
+  into a data URL (`media.placeholderUrl`, size-selection helper
+  `strippedThumbJPEG`) and the bubble paints it with a 12 px blur under the
+  real thumbnail, which is the same first paint Telegram Web gets from its
+  stripped-thumb canvas: no loopback request and no MTProto round trip per
+  image. Because data URLs stay valid across restarts, the local message
+  snapshot keeps the placeholder and a cold start also paints the blurred
+  photos immediately.
+- **Media data-center connections are opened in parallel and warmed early**:
+  Telegram stores every file in the DC it was uploaded to, so one chat needs
+  thumbnails from several DCs; connecting a DC costs an auth transfer plus a
+  handshake (measured 3–4 s through the configured proxy). The kernel now keeps
+  one file connection per DC, opens different DCs concurrently instead of
+  serializing them in tdl's single pool lock, and starts those connections while
+  history/dialog DTOs are still being mapped — the chat-list avatars and the
+  first message thumbnails no longer pay the handshake on their critical path.
+- **The loopback media origin is stable across launches**: the media token is
+  persisted (`data/media/token`) and the loopback port is derived from the
+  portable data path, so image URLs are identical on every start and the
+  WebView's HTTP cache keeps serving previously seen avatars and thumbnails
+  instead of re-downloading them. The loopback image id also ignores Telegram's
+  rotating file reference (it only hashes the photo/document id, access hash,
+  thumb size and DC, which name the same bytes), so message thumbnails and full
+  photos keep their URLs too — previously every file reference refresh made all
+  of them cache misses. This mirrors Telegram Web's persistent media cache; a
+  second launch shows the chat list avatars from disk immediately.
+- **Older history is prefetched**: opening a chat now fetches the two pages
+  above the viewport in the background (`olderPrefetch` buffer in `App.tsx`),
+  so reaching the top of the timeline prepends them from memory with no
+  spinner and no `messages.getHistory` wait, then refills one page ahead. This
+  is the local-database scroll behaviour Telegram Web has; the kernel dialog
+  cache and the per-chat snapshot are unchanged.
+- Kernel tests cover the stripped-JPEG frame rebuild, the cached-size
+  preference and the data-URL mapping.
+
 ### Design K: resize and drag cursors on the frameless window
 
 - **The top edge now shows a resize cursor only where the window resizes**: the

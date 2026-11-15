@@ -2516,6 +2516,24 @@
   line-height: 0;
 }
 
+/* Telegram embeds a ~32 px stripped JPEG in every photo/video message. It is
+   painted blurred under the real thumbnail so a media chat fills in at once,
+   the same first paint Telegram Web gets from its stripped-thumb canvas. */
+.g-media-placeholder {
+  position: absolute;
+  inset: -10px;
+  z-index: 0;
+  background-position: center;
+  background-size: cover;
+  filter: blur(12px);
+  transform: scale(1.05);
+  pointer-events: none;
+}
+
+.g-album-cell .g-media-placeholder {
+  inset: -6px;
+}
+
 .g-media-card .g-media-thumb,
 .g-media-card .g-media-thumb-loading,
 .g-media-card img,

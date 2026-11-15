@@ -197,6 +197,15 @@ export default function App() {
   // Telegram Web keeps the loaded history in memory so switching back to a
   // chat is instant. Same idea here; a background refresh replaces it.
   const messageCache = useRef(new Map<string, KernelMessage[]>());
+  // Telegram Web reads the history page above the viewport from its local
+  // database; ours comes from MTProto, so the next older page(s) are fetched
+  // ahead of the scroll and served from this buffer the moment the user reaches
+  // the top. Keyed by chat id, oldest messages contiguous with the loaded page.
+  const olderPrefetch = useRef(new Map<string, KernelMessage[]>());
+  const olderPrefetchBusy = useRef(new Set<string>());
+  // Chunked prepends run across frames; they must stop if the user switched to
+  // another chat while the buffer was still being inserted.
+  const selectedChatIdRef = useRef("");
   const refreshChatsBusy = useRef(false);
   const syncMessagesBusy = useRef(false);
   const newestMessageID = useRef(0);
@@ -292,6 +301,12 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.loggedIn = loggedIn ? "true" : "false";
   }, [loggedIn]);
+
+  // Kept in a ref for the frame-spread history prepend (see loadOlderMessages),
+  // which must stop when the user switches chats.
+  useEffect(() => {
+    selectedChatIdRef.current = selectedChatId;
+  }, [selectedChatId]);
 
   const proxyUrl = useMemo(() => buildProxy(settings), [settings]);
 
@@ -1015,6 +1030,12 @@ export default function App() {
             return next;
           });
           setHasMoreMessages((list ?? []).length >= 50);
+          const oldest = (list ?? [])[0];
+          if (oldest && (list ?? []).length >= 50) {
+            // Pull the page above the viewport in the background so scrolling
+            // up is instant, like Telegram Web's local history.
+            void prefetchOlderMessages(selectedChatId, oldest.id, 2);
+          }
         }
       })
       .catch(() => {
@@ -1719,9 +1740,104 @@ export default function App() {
     [proxyUrl, selectedChatId, settings.ntp],
   );
 
+  // Background prefetch for the history above the first page. One call walks
+  // `pages` pages (50 messages each) ending at beforeID and keeps them sorted
+  // oldest-first; loadOlderMessages below consumes the buffer without a network
+  // round trip, then schedules the next prefetch.
+  const prefetchOlderMessages = useCallback(
+    async (chatID: string, beforeID: number, pages: number) => {
+      if (!chatID || beforeID <= 0 || pages <= 0) {
+        return;
+      }
+      if (olderPrefetchBusy.current.has(chatID)) {
+        return;
+      }
+      olderPrefetchBusy.current.add(chatID);
+      try {
+        const collected: KernelMessage[] = [];
+        let cursor = beforeID;
+        for (let page = 0; page < pages && cursor > 0; page += 1) {
+          const batch =
+            (await AppService.GetOlderMessages(
+              chatID,
+              cursor,
+              proxyUrl,
+              settings.ntp,
+              50,
+            )) ?? [];
+          if (batch.length === 0) {
+            break;
+          }
+          const sorted = [...batch].sort((left, right) => left.id - right.id);
+          collected.unshift(...sorted);
+          cursor = sorted[0].id;
+          if (batch.length < 50) {
+            break;
+          }
+        }
+        if (collected.length > 0) {
+          const buffer = olderPrefetch.current;
+          buffer.set(chatID, collected);
+          while (buffer.size > 4) {
+            const oldest = buffer.keys().next().value;
+            if (oldest === undefined) {
+              break;
+            }
+            buffer.delete(oldest);
+          }
+        }
+      } catch {
+        // Prefetch is best-effort; loadOlderMessages still has its own request.
+      } finally {
+        olderPrefetchBusy.current.delete(chatID);
+      }
+    },
+    [proxyUrl, settings.ntp],
+  );
+
   const loadOlderMessages = useCallback(async () => {
     const oldestID = messageDTOs[0]?.id;
     if (!selectedChatId || !oldestID || olderMessagesLoading || !hasMoreMessages) {
+      return;
+    }
+    // Serve the prefetched page from memory first: reaching the top then feels
+    // like Telegram Web's local database instead of a network request. The
+    // buffer is inserted in small batches (newest first, the part touching the
+    // viewport) so prepending ~90 messages does not block the scroll for a
+    // third of a second.
+    const prefetched = olderPrefetch.current.get(selectedChatId);
+    if (prefetched && prefetched.some((message) => message.id < oldestID)) {
+      olderPrefetch.current.delete(selectedChatId);
+      let remaining = prefetched;
+      const prependBatch = () => {
+        if (remaining.length === 0 || selectedChatIdRef.current !== selectedChatId) {
+          return;
+        }
+        const size = 12;
+        const from = Math.max(0, remaining.length - size);
+        const batch = remaining.slice(from);
+        remaining = remaining.slice(0, from);
+        setMessageDTOs((current) => {
+          const known = new Set(current.map((message) => message.id));
+          const next = [
+            ...batch.filter((message) => !known.has(message.id)),
+            ...current,
+          ];
+          messageCache.current.set(selectedChatId, next);
+          return next;
+        });
+        if (remaining.length > 0) {
+          // Wait for a frame (the batch paints) before prepending the next one,
+          // so a 100-message prefetch never blocks the scroll in one long task.
+          window.requestAnimationFrame(() => window.setTimeout(prependBatch, 0));
+        }
+      };
+      prependBatch();
+      setHasMoreMessages(prefetched.length >= 50);
+      const nextBefore = prefetched[0]?.id;
+      if (nextBefore) {
+        void prefetchOlderMessages(selectedChatId, nextBefore, 1);
+      }
       return;
     }
     setOlderMessagesLoading(true);
@@ -1741,6 +1857,12 @@ export default function App() {
         return next;
       });
       setHasMoreMessages(older.length >= 50);
+      if (older.length >= 50) {
+        const nextBefore = [...older].sort((left, right) => left.id - right.id)[0]?.id;
+        if (nextBefore) {
+          void prefetchOlderMessages(selectedChatId, nextBefore, 1);
+        }
+      }
     } catch {
       showToast(t("chat.loadMessagesFailed"));
     } finally {
@@ -1750,6 +1872,7 @@ export default function App() {
     hasMoreMessages,
     messageDTOs,
     olderMessagesLoading,
+    prefetchOlderMessages,
     proxyUrl,
     selectedChatId,
     settings.ntp,

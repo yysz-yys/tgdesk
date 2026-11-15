@@ -18,7 +18,7 @@ test with a real Telegram Desktop account safely.
     .legacy-session-migrated  migration marker
     .legacy-webview-migrated  migration marker
     downloads.json            persisted download tasks
-    media/                    opt-in video cache served over loopback HTTP
+    media/                    opt-in video cache + loopback media token
     webview/                  WebView2 user data (settings/drafts + image HTTP cache)
   tdata/                      official Telegram Desktop files only
     key_datas
@@ -107,7 +107,9 @@ marker; an abandoned QR attempt alone is not sufficient.
 - localStorage keys currently used: `tgdesk.settings`,
   `tgdesk.draft.<chatId>`.
 - the WebView HTTP cache, which may hold chat thumbnails and avatars loaded from
-  the loopback image server.
+  the loopback image server. The loopback media server keeps the same token and
+  port across launches (`data/media/token` plus a port derived from the portable
+  path), so those cache entries stay valid after a restart.
 
 Deleting `data/webview` resets local UI preferences and the image cache but not
 the Telegram session. Do not commit or share it; it may contain private draft
@@ -123,9 +125,11 @@ text and cached media.
   its own HTTP cache. The kernel also keeps a bounded in-memory image cache.
   Older builds wrote `data/thumbs/` and `data/avatars/`; both are removed on
   startup and are safe to delete manually.
-- `data/media/` contains video cache files. Default range streaming does not
-  retain the video; tdl download-while-watching keeps `stream_*` files here.
-  A random loopback-only HTTP token is used; deleting the folder is safe.
+- `data/media/` contains the video cache files and the per-install loopback
+  media token (`token`). Default range streaming does not retain the video; tdl
+  download-while-watching keeps `stream_*` files here. The token only guards the
+  loopback image paths and never leaves the machine; deleting the folder is safe
+  (it is recreated on the next start, which only costs one cold image cache).
 - `downloads/` is the default output directory and may contain private media.
 - `data/cache/` contains the last dialog list and up to 50 messages per opened
   chat so the UI can paint before the network answers. It is local-only, never

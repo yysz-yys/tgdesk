@@ -34,6 +34,33 @@ func TestMediaRefIDIsStable(t *testing.T) {
 	}
 }
 
+// Telegram reissues file references for every authorization; the loopback URL
+// must not change with them or the WebView cache would miss every thumbnail on
+// every launch (the same id + thumb size always names the same bytes).
+func TestMediaRefIDIgnoresFileReference(t *testing.T) {
+	media := &tmedia.Media{
+		InputFileLoc: &tg.InputPhotoFileLocation{
+			ID:            7,
+			AccessHash:    9,
+			FileReference: []byte("first-authorization"),
+			ThumbSize:     "x",
+		},
+		Name: "7_x.jpg",
+		Size: 4321,
+		DC:   4,
+	}
+	first := mediaRefID(media)
+	media.InputFileLoc.(*tg.InputPhotoFileLocation).FileReference = []byte("next-authorization")
+	if next := mediaRefID(media); next != first {
+		t.Fatalf("file reference changed the id: %q vs %q", first, next)
+	}
+	// A different photo id must still be a different URL.
+	media.InputFileLoc.(*tg.InputPhotoFileLocation).ID = 8
+	if mediaRefID(media) == first {
+		t.Fatal("different photo id produced the same ref")
+	}
+}
+
 func TestImageCacheEvictsLeastRecentlyAdded(t *testing.T) {
 	cache := newImageCache(6)
 	cache.put("a", []byte("1234"), "image/jpeg", 0)

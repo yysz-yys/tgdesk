@@ -25,14 +25,21 @@ turning it into an empty bubble.
    avatars natively and lazily instead of calling a base64 RPC per avatar.
 6. Photo/video/sticker thumbnails are registered while mapping history and
    exposed as `media.thumbUrl`; photos also carry `media.photoUrl` for the
-   full-size viewer. No per-image JPEG is written next to the executable.
+   full-size viewer. A message bubble renders the thumbnail, never the full
+   photo: the viewer is the only consumer of `photoUrl`, which is what keeps a
+   photo chat from downloading full-resolution originals (Telegram Web behaves
+   the same way). Telegram embeds a stripped preview in the message itself
+   (`photoStrippedSize` / `photoCachedSize`); the kernel rebuilds it into a JPEG
+   data URL (`media.placeholderUrl`) so the bubble paints a blurred preview
+   immediately, without a loopback or MTProto request. No per-image JPEG is
+   written next to the executable.
 
 ## Supported message kinds
 
 | Kind | Telegram source | Rendering |
 | --- | --- | --- |
 | Text | `Message.message` + `MessageEntity*` | Rich text: bold/italic/underline/strike, code, pre, quote, spoiler, links, mentions |
-| Photo | `MessageMediaPhoto` | Natural-aspect full-bleed card; transparent pixels reveal the wallpaper (no white plate); click opens the full photo viewer; spoiler reveal |
+| Photo | `MessageMediaPhoto` | Natural-aspect full-bleed card: embedded stripped preview first, then the thumbnail; click opens the full photo viewer (the only place the full-size photo is fetched); spoiler reveal |
 | Video | `DocumentAttributeVideo` | Aspect-correct thumbnail, duration badge and native player |
 | GIF / animation | `DocumentAttributeAnimated` | Inline muted looping video with a GIF badge |
 | Sticker | `DocumentAttributeSticker` | 200 px contained WebP, WebM or TGS/Lottie animation |
@@ -45,7 +52,7 @@ turning it into an empty bubble.
 | Live location | `MessageMediaGeoLive` | Map preview with live flag |
 | Venue | `MessageMediaVenue` | Map preview with title and address |
 | Contact | `MessageMediaContact` | Contact card with name and phone |
-| Web page | `MessageMediaWebPage` | Text then a wide image-under-text preview card (full photo when available, thumbnail fallback), site/title/description |
+| Web page | `MessageMediaWebPage` | Text then a wide image-under-text preview card (thumbnail; the full page photo is only a fallback), site/title/description |
 | Dice | `MessageMediaDice` | Animated emoji glyph and rolled value |
 | Game | `MessageMediaGame` | Game card with title/description |
 | Invoice | `MessageMediaInvoice` | Product card with formatted amount/currency |
@@ -152,8 +159,11 @@ chat under `data/cache/`. On launch the frontend calls `GetCachedChats` /
 WebView), then replaces them with `GetChats` / `GetMessages` when the network
 answers. Process-local image URLs are stripped from the snapshot so stale
 loopback ports are never requested; images fill in with the network refresh.
-This mirrors the local database first-paint of official clients without turning
-the portable directory into a media cache.
+The one media field the snapshot keeps is `media.placeholderUrl`, because it is
+a data URL rebuilt from bytes Telegram ships with the message: a cold start
+therefore paints every photo blurred at once and only upgrades to the real
+thumbnail afterwards. This mirrors the local database first-paint of official
+clients without turning the portable directory into a media cache.
 
 ## Message loading
 
@@ -163,9 +173,17 @@ main dialog list loads independently from archived chats and folders, and a shor
 kernel-side dialogs cache prevents duplicate `messages.getDialogs` calls (and
 their flood waits) when the WebView reloads. Main/archive results are deduped by
 peer id with the archived flag winning, so a message refresh can never pull an
-archived chat back into the main list. History pagination prepends older
-pages without a full reload. Thumbnails and avatars load natively through the
-loopback image server (see below); no Wails call is made per image.
+archived chat back into the main list. History pagination prepends older pages
+without a full reload. The two history pages above the viewport are prefetched
+in the background as soon as a chat opens (`olderPrefetch` in `App.tsx`), so
+reaching the top prepends them from memory in small batches — newest chunk
+first, so the viewport never blocks on a 100-message React commit — instead of
+waiting for `messages.getHistory`; the next page is then fetched ahead again.
+Thumbnails and avatars load natively through the loopback image server (see
+below); no Wails call is made per image, and the kernel keeps one file
+connection per Telegram data center and starts those connections while history
+and dialog DTOs are still being mapped, so the first avatars and thumbnails do
+not wait for a cold DC handshake.
 
 ## Chat-specific presentation
 
@@ -200,13 +218,21 @@ loopback image server (see below); no Wails call is made per image.
   timeline automatically requests the previous page (`GetOlderMessages` with
   `OffsetID`); there is no load-more button, and a first page too short to fill
   the viewport keeps paging. The scroll position is anchored to the previous
-  first message while the older page is prepended. Live updates are pushed while
-  connected but have no persisted gap-recovery state; `updatesTooLong` asks the
-  UI to reload.
+  first message while the older page is prepended. The next two pages are
+  prefetched in the background when a chat opens and prepended from memory in
+  small batches, so the common case (reaching the top once) has no network
+  wait and no full-page spinner. Live updates are pushed while connected but
+  have no persisted gap-recovery state; `updatesTooLong` asks the UI to reload.
 - Images are served by the same loopback server under `/thumb`, `/avatar` and
-  `/photo` prefixes with a per-process token. Thumbnails and avatars are cached
-  in memory (48 MiB LRU) and by the WebView HTTP cache; full photos are streamed
-  as ranges and cached by the WebView. The old `data/thumbs/` and `data/avatars/`
+  `/photo` prefixes with a per-install token (persisted in `data/media/token`)
+  on a port derived from the portable directory, so image URLs stay identical
+  across launches and the WebView HTTP cache — including avatars and previously
+  opened photos — survives a restart like Telegram Web's persistent media cache.
+  Thumbnails and avatars are cached in memory (48 MiB LRU) and by the WebView;
+  full photos are streamed as ranges and cached by the WebView, and only ever
+  requested by the viewer. Bubbles request `/thumb` alone, and the stripped
+  previews they paint first are data URLs, so a media chat needs no per-image
+  round trip to show content. The old `data/thumbs/` and `data/avatars/`
   directories are deleted on startup and are no longer written.
 - Videos are never fully downloaded before the player opens.
   - **Default / Telegram mode:** the local loopback server exposes

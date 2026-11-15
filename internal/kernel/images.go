@@ -45,15 +45,37 @@ func newImageRefStore(limit int) *imageRefStore {
 	return &imageRefStore{refs: make(map[string]*imageRef), limit: limit}
 }
 
+// mediaRefID derives the loopback URL id for an image. The file reference is
+// deliberately left out of the key (see mediaRefKey) so the URL is stable
+// across launches: the loopback port and token are stable too, which lets the
+// WebView HTTP cache reuse thumbnails and photos instead of downloading them
+// again on every start.
 func mediaRefID(media *tmedia.Media) string {
-	sum := sha256.Sum256([]byte(fmt.Sprintf(
-		"%d|%d|%s|%+v",
-		media.DC,
-		media.Size,
-		media.Name,
-		media.InputFileLoc,
-	)))
+	sum := sha256.Sum256([]byte(mediaRefKey(media)))
 	return hex.EncodeToString(sum[:16])
+}
+
+// mediaRefKey is the stable identity of the bytes behind a file location: data
+// center, size, name and the photo/document ids (including access hash and thumb
+// size). Telegram reissues file references for every authorization, so hashing
+// them would change every image URL on every launch and defeat the WebView
+// cache; the ids themselves do not change while the media exists.
+func mediaRefKey(media *tmedia.Media) string {
+	if media == nil {
+		return ""
+	}
+	location := media.InputFileLoc
+	switch value := media.InputFileLoc.(type) {
+	case *tg.InputPhotoFileLocation:
+		stripped := *value
+		stripped.FileReference = nil
+		location = &stripped
+	case *tg.InputDocumentFileLocation:
+		stripped := *value
+		stripped.FileReference = nil
+		location = &stripped
+	}
+	return fmt.Sprintf("%d|%d|%s|%+v", media.DC, media.Size, media.Name, location)
 }
 
 func (s *imageRefStore) put(ref *imageRef) string {
@@ -579,10 +601,41 @@ func (s *Service) sessionPoolClient(
 	s.sessionMu.Lock()
 	session := s.session
 	s.sessionMu.Unlock()
-	if session == nil || session.pool == nil {
+	if session == nil {
 		return client.API(), nil
 	}
-	return session.pool.Client(ctx, dc), nil
+	return session.mediaClient(ctx, dc)
+}
+
+// warmMediaDCs starts the media-DC connections for a batch of media before the
+// WebView asks for the bytes. Thumbnails and avatars each live in the DC their
+// file was uploaded to; connecting a DC costs an auth transfer plus a handshake
+// (seconds through a proxy), so doing it while the DTO is still travelling to
+// the UI keeps that cost off the first paint. Connections are de-duplicated and
+// shared with the normal lazy path.
+func (s *Service) warmMediaDCs(dcs []int) {
+	if len(dcs) == 0 {
+		return
+	}
+	s.sessionMu.Lock()
+	session := s.session
+	s.sessionMu.Unlock()
+	if session == nil {
+		return
+	}
+	seen := make(map[int]bool, len(dcs))
+	for _, dc := range dcs {
+		if dc <= 0 || seen[dc] {
+			continue
+		}
+		seen[dc] = true
+		dc := dc
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			_, _ = session.mediaClient(ctx, dc)
+		}()
+	}
 }
 
 // GetSelfAvatarURL resolves the signed-in user's profile photo URL. An empty

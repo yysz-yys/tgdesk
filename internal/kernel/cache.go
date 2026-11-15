@@ -78,6 +78,9 @@ func sanitizeMessagesForCache(messages []MessageDTO) []MessageDTO {
 			media.ThumbURL = ""
 			media.PhotoURL = ""
 			media.StreamURL = ""
+			// PlaceholderURL is a data URL produced from bytes Telegram ships
+			// with the message; it stays valid across restarts, so the snapshot
+			// keeps it and a cold start can paint the blurred preview at once.
 			result[index].Media = &media
 		}
 	}

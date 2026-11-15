@@ -274,8 +274,11 @@ function PhotoCard({
 }) {
   const layout = aspectFor(media);
   const [revealed, setRevealed] = useState(false);
-  const imageSrc = media.photoUrl || media.thumbUrl;
-  const backdropSrc = media.thumbUrl || media.photoUrl;
+  // The bubble renders the thumbnail; the full-size photo is fetched only by
+  // the photo viewer, exactly like Telegram Web. photoUrl stays as the fallback
+  // for the rare photo Telegram returns without any smaller size.
+  const imageSrc = media.thumbUrl || media.photoUrl;
+  const backdropSrc = media.thumbUrl || media.placeholderUrl || media.photoUrl;
   return (
     <button
       type="button"
@@ -300,6 +303,7 @@ function PhotoCard({
         onClick?.(event.currentTarget);
       }}
     >
+      <MediaPlaceholder media={media} />
       <span
         className="g-media-backdrop"
         style={backdropSrc ? { backgroundImage: `url("${backdropSrc}")` } : undefined}
@@ -307,13 +311,31 @@ function PhotoCard({
       />
       <MediaThumb
         src={imageSrc}
-        fallbackSrc={media.photoUrl && media.thumbUrl ? media.thumbUrl : undefined}
+        fallbackSrc={media.photoUrl && media.thumbUrl ? media.photoUrl : undefined}
         alt={media.name}
         className="g-media-thumb g-media-main"
       />
       {downloadBadge}
       {media.spoiler && !revealed ? <span className="g-media-spoiler">Spoiler</span> : null}
     </button>
+  );
+}
+
+/**
+ * The tiny blurred JPEG Telegram embeds in the message (photoStrippedSize).
+ * Painting it behind the real thumbnail gives Telegram Web's instant preview
+ * without a single loopback/MTProto request.
+ */
+function MediaPlaceholder({ media }: { media: MessageMedia }) {
+  if (!media.placeholderUrl) {
+    return null;
+  }
+  return (
+    <span
+      className="g-media-placeholder"
+      style={{ backgroundImage: `url("${media.placeholderUrl}")` }}
+      aria-hidden="true"
+    />
   );
 }
 
@@ -340,6 +362,7 @@ function VideoCard({
       aria-label="Play video"
       onClick={(event) => onClick?.(event.currentTarget)}
     >
+      <MediaPlaceholder media={media} />
       <MediaThumb src={media.thumbUrl} alt={media.name} />
       <span className="g-media-play" aria-hidden="true">
         <Icon name="play_arrow" size={22} filled />
@@ -374,6 +397,7 @@ function AnimationCard({
       aria-label="Open GIF"
       onClick={(event) => onClick?.(event.currentTarget)}
     >
+      <MediaPlaceholder media={media} />
       <LazyVideo src={media.streamUrl} poster={media.thumbUrl} />
       {downloadBadge}
       <span className="g-media-badge">GIF</span>
@@ -656,9 +680,11 @@ function WebpageCard({
       </span>
       {media.thumbUrl || media.photoUrl ? (
         <span className="g-webpage-image">
+          {/* The preview card shows the thumbnail; the full page photo is only
+              fetched when Telegram returns no smaller size. */}
           <MediaThumb
-            src={media.photoUrl || media.thumbUrl}
-            fallbackSrc={media.photoUrl && media.thumbUrl ? media.thumbUrl : undefined}
+            src={media.thumbUrl || media.photoUrl}
+            fallbackSrc={media.thumbUrl && media.photoUrl ? media.photoUrl : undefined}
             alt=""
           />
         </span>
@@ -891,7 +917,12 @@ function AlbumGrid({
             onResume={onResumeDownload}
           />
         );
-        const content = <MediaThumb src={media.thumbUrl || media.photoUrl} alt={media.name} />;
+        const content = (
+          <>
+            <MediaPlaceholder media={media} />
+            <MediaThumb src={media.thumbUrl || media.photoUrl} alt={media.name} />
+          </>
+        );
         if (!isVideo && !isPhoto) {
           return (
             <div key={item.id} className="g-album-cell">

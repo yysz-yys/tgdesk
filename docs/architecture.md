@@ -277,15 +277,37 @@ DTO families:
   service action fields, media, sender avatar URL.
 - `MessageMediaDTO`: kind (`photo`, `video`, `audio`, `file`, `poll`,
   `location`, `contact`), name/size/ext/MIME, dimensions/duration, poll
-  options/votes, coordinates, contact phone, thumbnail/photo URLs.
+  options/votes, coordinates, contact phone, thumbnail/preview/full-photo URLs
+  plus the inline stripped-preview placeholder.
 
 Frontend mapping is centralized in `frontend/src/data/telegram.ts`, including
 date/time formatting, media normalization and localized service-message text.
 
 Images are loaded natively through loopback URLs (`/thumb`, `/avatar`, `/photo`)
 and cached by the WebView; the kernel keeps only a bounded in-memory image cache.
-The old `data/thumbs` and `data/avatars` per-image files are no longer written and
-are removed on startup. Video/conversation scrolling stays lazy.
+A conversation bubble fetches `/thumb` only — the Telegram Web rule — and
+`/photo` (the largest size) is reserved for the detached viewer, so opening a
+photo chat never downloads originals. The stripped JPEG Telegram embeds in each
+photo/video message (`photoStrippedSize` / `photoCachedSize`) is rebuilt by the
+kernel into a base64 data URL (`placeholderUrl`) and painted blurred before any
+request, which is the first-paint trick Telegram Web uses; being a data URL it
+is also the one media field the local snapshot cache keeps.
+
+The loopback origin is stable per portable install: the path token is persisted
+(`data/media/token`) and the port is derived from the data directory
+(`listenMedia`), so image URLs are identical on every launch and the WebView HTTP
+cache keeps serving previously loaded avatars/thumbnails/photos across restarts
+(Telegram Web gets the same from its persistent media cache). The URL id built by
+`mediaRefID` hashes the stable part of a file location — photo/document id,
+access hash, thumb type, DC, size — and deliberately ignores `file_reference`,
+which Telegram reissues for every authorization; hashing it would change every
+message image URL on every launch. Files live in the DC they were uploaded to, so
+`telegramSession.mediaClient` keeps one connection per data center, connects
+different DCs in parallel (tdl's download pool serializes DC creation behind one
+lock and stays reserved for downloads), and `warmMediaDCs` starts the handshakes
+while history/dialog DTOs are still being mapped. The old `data/thumbs` and
+`data/avatars` per-image files are no longer written and are removed on startup.
+Video/conversation scrolling stays lazy.
 
 ### Stickers and GIFs
 

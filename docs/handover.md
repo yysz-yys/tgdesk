@@ -175,6 +175,20 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 - 图片按需加载：缩略图/头像/照片走 loopback HTTP（`/thumb`、`/avatar`、`/photo`），
   不再在 exe 同目录写 `data/thumbs`、`data/avatars` 的一堆 JPEG；内核只保留有界内存缓存，
   WebView 自己缓存 HTTP 图片。旧版缓存目录启动时自动删除。
+- 打开图片聊天不再下载原图：气泡只请求 `/thumb`（与 Telegram Web 相同），
+  `/photo` 全尺寸仅给查看器；同时内核把消息里内嵌的 `photoStrippedSize` /
+  `photoCachedSize` 还原成 JPEG data URL（`MessageMediaDTO.placeholderUrl`），
+  气泡先用 12px 模糊层秒画占位图，占位图随本地快照保留，冷启动也能立即出图。
+- 媒体连接按 DC 并行预热：Telegram 文件存在上传时的 DC，一个聊天要连多个 DC；
+  `telegramSession.mediaClient` 每个 DC 只连一次、不同 DC 并行建连（tdl 的 pool 用
+  单锁串行，只留给下载），`warmMediaDCs` 在会话/历史 DTO 映射时就开始建连，所以
+  首屏头像和缩略图不用等 3–4 秒的 auth transfer + 握手。
+- loopback 媒体 origin 跨启动稳定：token 持久化在 `data/media/token`，端口由便携
+  数据目录推导（`listenMedia`），图片 URL 每次启动一致，WebView HTTP 缓存因此能像
+  Telegram Web 的持久媒体缓存一样复用已看过的头像/缩略图/原图。
+- 旧消息预取：打开聊天后后台预取视口上方两页（`App.tsx` 的 `olderPrefetch`），
+  滚到顶时按小批次（先贴视口的最新一块）从内存插入，不再等 `messages.getHistory`，
+  然后继续向前补一页。
 - 消息列表切换会话时先用内存快照渲染，再后台刷新；图片不再逐张走 Wails base64 RPC。
   会话列表与 archived/folders 并行加载；内核有 20 秒 dialog 缓存，避免刷新/重载
   时重复 `messages.getDialogs` 触发 flood wait。
