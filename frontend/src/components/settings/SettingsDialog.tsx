@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import type { AppSettings } from "../../hooks/useSettings";
+import { applyThemeWithReveal } from "../../hooks/themeReveal";
 import {
   Button,
   Dialog,
@@ -76,9 +77,24 @@ export function SettingsDialog({
                   aria-checked={settings.theme === option.value}
                   data-active={settings.theme === option.value || undefined}
                   className="f-theme-option"
-                  onClick={() =>
-                    onUpdate("theme", option.value as AppSettings["theme"])
-                  }
+                  onClick={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const preference = option.value as AppSettings["theme"];
+                    applyThemeWithReveal(
+                      () => onUpdate("theme", preference),
+                      preference,
+                      {
+                        point: {
+                          x: rect.left + rect.width / 2,
+                          y: rect.top + rect.height / 2,
+                        },
+                        animationLevel: Math.min(
+                          2,
+                          Math.max(0, settings.animations ?? 2),
+                        ),
+                      },
+                    );
+                  }}
                 >
                   <Icon name={option.icon} size={15} />
                   <span>{option.label}</span>

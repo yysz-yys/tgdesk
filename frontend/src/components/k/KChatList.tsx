@@ -50,7 +50,7 @@ interface KChatListProps {
   superTabStack: KSuperTabEntry[];
   /** tweb main-menu state: the night-mode toggle and the animation level. */
   nightMode: boolean;
-  onToggleNightMode: () => void;
+  onToggleNightMode: (point?: { x: number; y: number }) => void;
   animationLevel: number;
   onCycleAnimations: () => void;
   onMoreAction: (action: KAppMenuMoreAction) => void;

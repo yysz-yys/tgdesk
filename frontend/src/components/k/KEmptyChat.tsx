@@ -22,7 +22,10 @@ interface KEmptyChatSurfaceProps {
   ntp?: string;
   /** Appearance setting, mirrored into the Appearance tip's System/Light/Dark pills. */
   themePreference: ThemePreference;
-  onThemePreferenceChange: (preference: ThemePreference) => void;
+  onThemePreferenceChange: (
+    preference: ThemePreference,
+    point?: { x: number; y: number },
+  ) => void;
   /** The brightness the app currently resolves to (system included). */
   resolvedNight: boolean;
 }

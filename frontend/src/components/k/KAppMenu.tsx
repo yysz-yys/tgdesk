@@ -21,7 +21,7 @@ interface KAppMenuProps {
   accountAvatarBackground?: string;
   archivedCount: number;
   nightMode: boolean;
-  onToggleNightMode: () => void;
+  onToggleNightMode: (point?: { x: number; y: number }) => void;
   /** 2 full, 1 reduced, 0 off (tweb liteMode.getAnimationLevel). */
   animationLevel: number;
   onCycleAnimations: () => void;
@@ -174,7 +174,17 @@ export function KAppMenu({
           >
             <DropdownMenu.Item
               className="btn-menu-item"
-              onSelect={() => onToggleNightMode()}
+              onSelect={(event) => {
+                const rect = (event.target as HTMLElement)?.getBoundingClientRect?.();
+                onToggleNightMode(
+                  rect
+                    ? {
+                        x: rect.left + rect.width / 2,
+                        y: rect.top + rect.height / 2,
+                      }
+                    : undefined,
+                );
+              }}
             >
               <KIcon name="darkmode" className="btn-menu-item-icon" />
               <span className="btn-menu-item-text">

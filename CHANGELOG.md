@@ -48,6 +48,13 @@
   now does the same: light mode picks the Day accent and keeps the Classic
   wallpaper, matching the official folder chip (plate `#f5f3f9`), Saved
   Messages gradient and Appearance tiles.
+- **Light/dark switches spread from the clicked control**: switching the theme
+  from the main menu, the Appearance tip or Settings now uses the reference's
+  View Transitions reveal — the new appearance grows as a circle from the
+  clicked button (`themeController.setTheme`'s standard 300/250 ms easing,
+  stretched to the snapshot duration). The reduced-motion level cross-fades
+  instead, and animations off (or a browser without View Transitions) switch
+  instantly. A stalled transition is force-skipped after 2.5 s.
 
 - **Global themes use the reference's Night palette in dark mode**: the official
   theme objects carry four palette variants — Day, Classic, Night

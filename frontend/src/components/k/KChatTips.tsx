@@ -128,7 +128,10 @@ interface KChatTipsProps {
   proxyUrl?: string;
   ntp?: string;
   themePreference: ThemePreference;
-  onThemePreferenceChange: (preference: ThemePreference) => void;
+  onThemePreferenceChange: (
+    preference: ThemePreference,
+    point?: { x: number; y: number },
+  ) => void;
   /** The brightness the app currently resolves to (system included). */
   resolvedNight: boolean;
 }
@@ -366,7 +369,13 @@ export function KChatTips({
                 selected ? "k-tip-button is-selected" : "k-tip-button"
               }
               aria-pressed={selected}
-              onClick={() => onThemePreferenceChange(button.id)}
+              onClick={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                onThemePreferenceChange(button.id, {
+                  x: rect.left + rect.width / 2,
+                  y: rect.top + rect.height / 2,
+                });
+              }}
             >
               <KIcon name={button.icon} className="k-tip-button-icon" />
               <span className="k-tip-button-text">{button.label}</span>

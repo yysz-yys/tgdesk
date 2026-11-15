@@ -47,6 +47,7 @@ import type {
 } from "./types";
 import { useSettings, type AppSettings } from "./hooks/useSettings";
 import { useTheme } from "./hooks/useTheme";
+import { applyThemeWithReveal } from "./hooks/themeReveal";
 import { AppTheme } from "./ui/theme";
 import { Button, Dialog, Toast } from "./ui";
 import { KChatList } from "./components/k/KChatList";
@@ -2035,9 +2036,16 @@ export default function App() {
   );
   const accountPhone = formatPhoneNumber(authUser?.phone);
 
-  const toggleNightMode = () => {
-    update("theme", nightMode ? "light" : "dark");
-    showToast(nightMode ? t("kMenu.nightModeOff") : t("kMenu.nightModeOn"));
+  const toggleNightMode = (point?: { x: number; y: number }) => {
+    const next = nightMode ? "light" : "dark";
+    applyThemeWithReveal(
+      () => {
+        update("theme", next);
+        showToast(nightMode ? t("kMenu.nightModeOff") : t("kMenu.nightModeOn"));
+      },
+      next,
+      { point, animationLevel },
+    );
   };
 
   const cycleAnimations = () => {
@@ -2354,8 +2362,12 @@ export default function App() {
                 proxyUrl={proxyUrl}
                 ntp={settings.ntp}
                 themePreference={settings.theme}
-                onThemePreferenceChange={(preference) =>
-                  update("theme", preference)
+                onThemePreferenceChange={(preference, point) =>
+                  applyThemeWithReveal(
+                    () => update("theme", preference),
+                    preference,
+                    { point, animationLevel },
+                  )
                 }
                 resolvedNight={nightMode}
               />

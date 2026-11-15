@@ -1,2 +1,15 @@
 @import "./styles/tokens.css";
 @import "./styles/base.css";
+
+/* Theme switch (tweb themeController.setTheme): the circular reveal spreads
+ * from the clicked control using the View Transitions snapshots; the default
+ * snapshot cross-fade is disabled while the custom clip animation runs. */
+.no-view-transition::view-transition-old(root),
+.no-view-transition::view-transition-new(root) {
+  animation: none;
+}
+
+.reverse::view-transition-old(root) {
+  background: none;
+  z-index: 2;
+}
