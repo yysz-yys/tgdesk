@@ -165,6 +165,14 @@
   wallpaper pattern documents (gzipped SVG) are served lazily by the loopback
   media server as `image/svg+xml`, and the eight themes also ship as an offline
   fallback so the strip is never empty.
+- **The theme tiles click reliably**: the empty column is the window drag
+  surface, and the tips card / Previous-Next pills used to inherit it, which
+  swallowed clicks on the tiles and toggled maximise on double-click. They now
+  opt out of the drag surface. Also, the selected folder chip no longer loses
+  its label under a theme: the chip plate is Telegram's 8%-accent-on-surface
+  mix (it had been mixed the other way round, ending up nearly the accent
+  colour) and the theme's accent is also applied to the primary button, link
+  and Saved Messages colours.
 
 ### Telegram parity III: Saved Messages 2.0, gifts, search, presence, pinned bar, live emoji
 

@@ -45,7 +45,19 @@ export function KEmptyChatSurface({
     <div
       className="k-empty-surface"
       style={{ "--wails-draggable": "drag" } as React.CSSProperties}
-      onDoubleClick={() => void WailsWindow.ToggleMaximise()}
+      onDoubleClick={(event) => {
+        // The tips card/nav are interactive: a double click there must not
+        // maximise the window, and (with the CSS override below) a press there
+        // must not start a window drag either.
+        if (
+          (event.target as HTMLElement).closest(
+            ".k-tip-card, .k-chat-tips-nav, .chat-tips-select-chat, button, a",
+          )
+        ) {
+          return;
+        }
+        void WailsWindow.ToggleMaximise();
+      }}
     >
       <div className="chat-tips-host">
         <KChatTips

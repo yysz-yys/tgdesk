@@ -76,6 +76,16 @@
   padding: 1rem;
   border-radius: var(--main-column-border-radius, 24px);
   background-color: var(--surface-color);
+  /* The empty column is the window drag surface (KEmptyChat sets
+   * --wails-draggable: drag on it and descendants inherit it). The tips card
+   * and its controls must not start a window drag, otherwise clicks on the
+   * theme tiles / pills are swallowed. */
+  --wails-draggable: no-drag;
+}
+
+/* Same for the Previous / Next pills under the card. */
+.k-root .k-chat-tips-nav {
+  --wails-draggable: no-drag;
 }
 
 .k-root .k-tip-card-title {

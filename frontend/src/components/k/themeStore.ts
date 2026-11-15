@@ -201,6 +201,10 @@ function applyAccent(accent: string | undefined) {
       "--light-primary-color",
       "--light-filled-primary-color",
       "--dark-primary-color",
+      "--primary-button-color",
+      "--link-color",
+      "--saved-color",
+      "--light-filled-saved-color",
     ]) {
       root.style.removeProperty(property);
     }
@@ -210,8 +214,26 @@ function applyAccent(accent: string | undefined) {
   root.style.setProperty("--primary-color", accent);
   root.style.setProperty("--primary-color-rgb", `${r}, ${g}, ${b}`);
   root.style.setProperty("--light-primary-color", `rgba(${r}, ${g}, ${b}, 0.08)`);
-  root.style.setProperty("--light-filled-primary-color", mixHex(accent, "#ffffff", 0.08));
-  root.style.setProperty("--dark-primary-color", mixHex(accent, "#000000", 0.08));
+  // tweb's derivative: the "filled" (8% accent over the surface) plate behind the
+  // selected folder chip, not 8% away from the accent (that stayed nearly the
+  // accent and made the accent-coloured label unreadable on it).
+  root.style.setProperty(
+    "--light-filled-primary-color",
+    mixHex("#ffffff", accent, 0.08),
+  );
+  root.style.setProperty(
+    "--dark-primary-color",
+    mixHex(accent, "#000000", 0.08),
+  );
+  root.style.setProperty("--primary-button-color", accent);
+  root.style.setProperty("--link-color", accent);
+  // Saved Messages follows the theme's accent too (the factory pair is
+  // accent + a 36% white mix, see tokens.css #78ace4 over #2d7ed5).
+  root.style.setProperty("--saved-color", accent);
+  root.style.setProperty(
+    "--light-filled-saved-color",
+    mixHex("#ffffff", accent, 0.36),
+  );
 }
 
 /**

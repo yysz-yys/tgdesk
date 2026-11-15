@@ -334,7 +334,10 @@ capture encoding.
   caption behaviour, so `KWindowChrome` adds an invisible 16 px strip along the
   very top (it covers only the wallpaper inset, never a control): dragging it
   moves the window with native caption behaviour (Aero snap, double-click), the
-  same as dragging the empty chat column. Hovering the top edge (or that strip)
+  same as dragging the empty chat column — except over the tips card and its
+  Previous / Next pills, which opt out of the drag surface
+  (`--wails-draggable: no-drag`) so the theme tiles and buttons take every
+  click. Hovering the top edge (or that strip)
   fades in a Web K styled pill with minimise / maximise / close in the top-right
   corner; it hides itself again after the pointer leaves, and the tips lightbulb
   steps aside while it is up — at rest the page is indistinguishable from the
