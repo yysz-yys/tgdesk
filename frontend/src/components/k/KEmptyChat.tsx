@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Window as WailsWindow } from "@wailsio/runtime";
 import type { Chat } from "../../types";
+import type { ThemePreference } from "../../hooks/useTheme";
 import { KChatTips } from "./KChatTips";
 import { KIcon } from "./KIcon";
 import { toggleTips, useTipsState } from "./tipsStore";
@@ -19,6 +20,11 @@ interface KEmptyChatSurfaceProps {
   /** Kernel RPC settings for loading the cloud theme list. */
   proxyUrl?: string;
   ntp?: string;
+  /** Appearance setting, mirrored into the Appearance tip's System/Light/Dark pills. */
+  themePreference: ThemePreference;
+  onThemePreferenceChange: (preference: ThemePreference) => void;
+  /** The brightness the app currently resolves to (system included). */
+  resolvedNight: boolean;
 }
 
 /** Empty-chat column wrapper; also the window's drag surface when no chat is open. */
@@ -28,6 +34,9 @@ export function KEmptyChatSurface({
   onSettings,
   proxyUrl,
   ntp,
+  themePreference,
+  onThemePreferenceChange,
+  resolvedNight,
 }: KEmptyChatSurfaceProps) {
   const { hidden } = useTipsState();
   const { t } = useTranslation();
@@ -45,6 +54,9 @@ export function KEmptyChatSurface({
           onSettings={onSettings}
           proxyUrl={proxyUrl}
           ntp={ntp}
+          themePreference={themePreference}
+          onThemePreferenceChange={onThemePreferenceChange}
+          resolvedNight={resolvedNight}
         />
         <div
           className={

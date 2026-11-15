@@ -2323,6 +2323,11 @@ export default function App() {
                 onSettings={() => setSidebarPage("settings")}
                 proxyUrl={proxyUrl}
                 ntp={settings.ntp}
+                themePreference={settings.theme}
+                onThemePreferenceChange={(preference) =>
+                  update("theme", preference)
+                }
+                resolvedNight={nightMode}
               />
             )}
           </>

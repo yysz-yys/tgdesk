@@ -5,45 +5,61 @@ import {
   renderGradient,
   renderPattern,
 } from "./wallpaper";
+import { DEFAULT_WALLPAPER, DEFAULT_PATTERN_URL, useActiveTheme } from "./themeStore";
 
 /** The Telegram "light/day" factory wallpaper: four gradient stops + the doodle pattern. */
 export const LIGHT_DAY_WALLPAPER = {
-  colors: ["#b1e0fa", "#82b0d8", "#a0d8e8", "#e5f0f8"],
+  colors: DEFAULT_WALLPAPER.colors,
   /** `wallPaperSettings.intensity` / 100 */
-  intensity: 0.5,
+  intensity: DEFAULT_WALLPAPER.intensity,
 };
 
-const PATTERN_URL = "/assets/img/pattern.svg";
-
 interface KWallpaperProps {
+  /** Override the gradient stops (defaults to the active theme's day wallpaper). */
   colors?: string[];
+  /** Pattern opacity 0..1 (defaults to the active theme's |intensity| / 100). */
   intensity?: number;
+  /** Pattern SVG URL (defaults to the active theme's pattern or the bundled one). */
+  patternUrl?: string;
 }
 
 /**
  * The page-wide Telegram Web K chat wallpaper: a 50x50 freeform gradient
- * stretched over the viewport, under a tiled doodle pattern composited with
+ * stretched over the viewport, under a tiled pattern composited with
  * `soft-light` (see `chatBackground.module.scss` in tweb).
+ *
+ * The active global theme (the Appearance strip) replaces the factory colours
+ * and the doodle pattern; with no theme selected the factory "Day" wallpaper of
+ * the reference capture is used.
  */
-export function KWallpaper({
-  colors = LIGHT_DAY_WALLPAPER.colors,
-  intensity = LIGHT_DAY_WALLPAPER.intensity,
-}: KWallpaperProps) {
+export function KWallpaper({ colors, intensity, patternUrl }: KWallpaperProps) {
+  const activeTheme = useActiveTheme();
   const gradientRef = useRef<HTMLCanvasElement>(null);
   const patternRef = useRef<HTMLCanvasElement>(null);
+
+  const theme = activeTheme?.wallpaper;
+  const stops =
+    colors ??
+    (theme && theme.colors.length >= 2 ? theme.colors : DEFAULT_WALLPAPER.colors);
+  const patternIntensity =
+    intensity ??
+    (theme ? theme.intensity : DEFAULT_WALLPAPER.intensity);
+  const url =
+    patternUrl ??
+    (theme && theme.patternUrl ? theme.patternUrl : DEFAULT_PATTERN_URL);
 
   useEffect(() => {
     const gradient = gradientRef.current;
     const pattern = patternRef.current;
     if (!gradient || !pattern) return;
 
-    renderGradient(gradient, colors);
+    renderGradient(gradient, stops);
 
     // tweb's chatTips plates keep the theme's factory highlighting colour
     // (themeSettings.highlightingColor) rather than the wallpaper average the
     // app background publishes on the root; expose both so later pages can use
     // either.
-    const highlight = highlightingColor(gradientAverageColor(colors));
+    const highlight = highlightingColor(gradientAverageColor(stops));
     const root = document.documentElement;
     root.style.setProperty("--wallpaper-highlighting-color", highlight.hsla);
     root.style.setProperty("--wallpaper-highlighting-color-rgb", highlight.rgb);
@@ -68,7 +84,7 @@ export function KWallpaper({
       loaded = image;
       drawPattern();
     };
-    image.src = PATTERN_URL;
+    image.src = url;
 
     let frame = 0;
     const onResize = () => {
@@ -83,7 +99,7 @@ export function KWallpaper({
       window.removeEventListener("resize", onResize);
       image.onload = null;
     };
-  }, [colors.join(","), intensity]);
+  }, [stops.join(","), patternIntensity, url]);
 
   return (
     <div className="k-wallpaper" aria-hidden="true">
@@ -91,7 +107,7 @@ export function KWallpaper({
       <canvas
         ref={patternRef}
         className="k-wallpaper-pattern"
-        style={{ opacity: Math.abs(intensity), mixBlendMode: "soft-light" }}
+        style={{ opacity: patternIntensity, mixBlendMode: "soft-light" }}
       />
     </div>
   );

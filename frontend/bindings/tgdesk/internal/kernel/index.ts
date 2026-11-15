@@ -43,6 +43,7 @@ export type {
     StickerSetDTO,
     StickerSetDetailDTO,
     TDataExport,
+    ThemeSettingsDTO,
     ThemeWallpaperDTO,
     UploadEvent
 } from "./models.js";

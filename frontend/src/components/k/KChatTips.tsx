@@ -1,37 +1,92 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import type { Chat } from "../../types";
+import type { ThemePreference } from "../../hooks/useTheme";
 import { KAvatar } from "./KAvatar";
 import { KIcon } from "./KIcon";
 import { setTipsIndex, TIPS_COUNT, useTipsState } from "./tipsStore";
-import { applyChatTheme, storedThemeId, useActiveTheme, type ChatThemeDTO } from "./themeStore";
+import {
+  applyChatTheme,
+  DEFAULT_PATTERN_URL,
+  DEFAULT_WALLPAPER,
+  resetChatTheme,
+  storedThemeId,
+  themeColorsHex,
+  themeVariant,
+  useActiveTheme,
+  variantAccentHex,
+  variantColors,
+  type ChatThemeDTO,
+} from "./themeStore";
+import { DEFAULT_TILE_THEME, FALLBACK_GLOBAL_THEMES } from "./globalThemes";
 import { useRipple } from "./useRipple";
 import { Service as AppService } from "../../../bindings/tgdesk/internal/app";
 
-/** Built-in appearance previews for the Appearance tip (see docs/design-k.md). */
-interface ThemeTile {
-  id: number;
-  label: string;
-  emoji: string;
-  colors: string[];
-  top: string;
-  bottom: string;
-  theme?: ChatThemeDTO;
+/** The miniature chat drawn on one theme tile (tweb `.theme-container`). */
+interface ThemePreview {
+  /** Diagonal of the wallpaper's four gradient stops, bottom-right → top-left. */
+  wallpaper: string;
+  /** Doodle pattern SVG: the theme's own, else the bundled factory one. */
+  patternUrl: string;
+  /** |wallPaperSettings.intensity| / 100. */
+  patternOpacity: number;
+  /** Dark wallpapers draw their black-on-transparent doodles inverted. */
+  patternInvert: boolean;
+  /** The outgoing bubble: the theme's message gradient, else its accent. */
+  outBubble: string;
+  emoticon?: string;
+  night: boolean;
 }
 
-/** Fallback previews if the cloud theme list cannot be fetched yet. */
-const FALLBACK_TILES: Omit<ThemeTile, "id">[] = [
-  { label: "Day", emoji: "🏠", colors: [], top: "#96c4e4", bottom: "#cfe6f5" },
-  { label: "Tinted", emoji: "🐤", colors: [], top: "#8fb87a", bottom: "#d6e7b8" },
-  { label: "Night", emoji: "⛄", colors: [], top: "#5f7fa8", bottom: "#a9c4dd" },
-  { label: "Pink", emoji: "🌸", colors: [], top: "#e3bcd4", bottom: "#f6dfea" },
-];
+interface ThemeTile {
+  theme: ChatThemeDTO;
+  selected: boolean;
+  /** Accessible name: the theme emoticon + title, or the factory tile's name. */
+  label: string;
+  preview: ThemePreview;
+}
 
-/** Emoticons shown on the tiles when a theme carries none. */
-const TILE_EMOJI = ["🏠", "🐤", "⛄", "💎", "🤓", "🌹", "💜", "🎄", "🎮"];
+/**
+ * A theme tile's name: its emoticon and title, without saying the emoticon twice
+ * (the server's theme titles already start with it, e.g. "🐥 Chat Theme").
+ */
+function themeName(theme: ChatThemeDTO, fallback: string) {
+  const emoticon = theme.emoticon?.trim();
+  const title = theme.title?.trim();
+  if (!title) return emoticon || fallback;
+  if (!emoticon || title.includes(emoticon)) return title;
+  return `${emoticon} ${title}`;
+}
 
-function intToHex(value: number) {
-  return `#${(value & 0xffffff).toString(16).padStart(6, "0")}`;
+/**
+ * The 72×96 miniature chat tweb draws for a cloud theme (`scss/partials/_themes.scss`):
+ * the variant's wallpaper gradient + doodle pattern, one outgoing bubble in the
+ * theme's message gradient, one incoming bubble and the theme's emoticon.
+ */
+function themePreview(theme: ChatThemeDTO, night: boolean): ThemePreview {
+  const settings = themeVariant(theme, night ? "night" : "day");
+  const wallpaper = settings?.wallpaper;
+  const colors = variantColors(settings);
+  const stops = colors.length > 1 ? colors : DEFAULT_WALLPAPER.colors;
+  const messageColors = themeColorsHex(settings?.messageColors);
+  const accent = variantAccentHex(settings);
+  return {
+    // The reference paints its freeform canvas; at 72×96 a diagonal through the
+    // same four stops reads the same and costs no canvas per tile.
+    wallpaper: `linear-gradient(315deg, ${stops.join(", ")})`,
+    patternUrl: wallpaper?.patternUrl || DEFAULT_PATTERN_URL,
+    patternOpacity: Math.max(
+      0,
+      Math.min(1, Math.abs(wallpaper?.intensity ?? 50) / 100),
+    ),
+    patternInvert: Boolean(wallpaper?.dark),
+    outBubble:
+      messageColors.length > 1
+        ? `linear-gradient(135deg, ${messageColors[messageColors.length - 1]}, ${messageColors[0]})`
+        : messageColors[0] ?? accent ?? "var(--primary-color)",
+    emoticon: theme.emoticon,
+    night,
+  };
 }
 
 interface KChatTipsProps {
@@ -40,6 +95,10 @@ interface KChatTipsProps {
   onSettings?: () => void;
   proxyUrl?: string;
   ntp?: string;
+  themePreference: ThemePreference;
+  onThemePreferenceChange: (preference: ThemePreference) => void;
+  /** The brightness the app currently resolves to (system included). */
+  resolvedNight: boolean;
 }
 
 /**
@@ -55,6 +114,9 @@ export function KChatTips({
   onSettings,
   proxyUrl,
   ntp,
+  themePreference,
+  onThemePreferenceChange,
+  resolvedNight,
 }: KChatTipsProps) {
   const { t } = useTranslation();
   const { hidden, index } = useTipsState();
@@ -62,50 +124,96 @@ export function KChatTips({
   const [chatFilter, setChatFilter] = useState("popular");
   const [themes, setThemes] = useState<ChatThemeDTO[] | null>(null);
   const activeTheme = useActiveTheme();
+  const stripRef = useRef<HTMLDivElement>(null);
 
-  // The cloud themes (account.getThemes through the kernel) fill the Appearance
-  // strip with the real Web K set; the stored theme is re-applied on start.
+  // The cloud themes (account.getChatThemes through the kernel) fill the
+  // Appearance strip with the real Web K set; the bundled table covers the time
+  // before the kernel answers and every failure. The stored theme is re-applied
+  // on start — from the bundled table first so the wallpaper settles at once,
+  // and again against the live list once it arrives.
   useEffect(() => {
-    if (!proxyUrl) return;
     let alive = true;
-    void AppService.GetChatThemes(proxyUrl, ntp ?? "")
-      .then((list) => {
-        if (!alive) return;
-        const mapped = (list ?? []) as ChatThemeDTO[];
-        setThemes(mapped);
-        const stored = storedThemeId();
-        const match = stored === null ? null : mapped.find((theme) => theme.id === stored);
-        if (match) applyChatTheme(match);
-      })
-      .catch(() => {
-        // Keep the fallback previews; the strip still explains the feature.
-      });
+
+    const restoreStored = (list: ChatThemeDTO[]) => {
+      const stored = storedThemeId();
+      if (stored === null) return;
+      const match = list.find((theme) => theme.id === stored);
+      if (match) applyChatTheme(match);
+    };
+
+    // Restore the persisted theme from the bundled table at once, even without
+    // the kernel (dev preview), so the accent/wallpaper settle before the live
+    // list answers.
+    restoreStored(FALLBACK_GLOBAL_THEMES);
+
+    // `undefined` means the dev preview page (no Wails runtime / kernel); an
+    // empty string is a real app with a direct connection and still fetches.
+    if (proxyUrl === undefined) {
+      return () => {
+        alive = false;
+      };
+    }
+
+    try {
+      void AppService.GetChatThemes(proxyUrl, ntp ?? "")
+        .then((list) => {
+          if (!alive) return;
+          const mapped = (list ?? []) as ChatThemeDTO[];
+          if (mapped.length === 0) return;
+          setThemes(mapped);
+          restoreStored(mapped);
+        })
+        .catch(() => {
+          // Keep the bundled table; the strip still explains the feature.
+        });
+    } catch {
+      // No Wails runtime (the dev preview page) — the bundled table is enough.
+    }
+
     return () => {
       alive = false;
     };
   }, [proxyUrl, ntp]);
 
-  const themeTiles: ThemeTile[] = useMemo(() => {
-    if (themes && themes.length > 0) {
-      return themes.map((theme, index) => {
-        const colors = (theme.wallpaper?.colors ?? [])
-          .filter((value) => typeof value === "number" && value >= 0)
-          .map(intToHex);
-        return {
-          id: theme.id,
-          label: theme.title || theme.slug || "",
-          emoji: theme.emoticon || TILE_EMOJI[index] || "🏠",
-          colors,
-          top: colors[0] || "#96c4e4",
-          bottom: colors[colors.length - 1] || "#cfe6f5",
-          theme,
-        };
-      });
-    }
-    return FALLBACK_TILES.map((tile, index) => ({ ...tile, id: -(index + 1) }));
-  }, [themes]);
+  // A vertical mouse wheel scrolls the theme strip sideways, the way the
+  // reference's scroll container does. Native listener: React's wheel handler
+  // is passive, so it could not prevent the page's own scroll.
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    const onWheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      event.preventDefault();
+      strip.scrollLeft += event.deltaY;
+    };
+    strip.addEventListener("wheel", onWheel, { passive: false });
+    return () => strip.removeEventListener("wheel", onWheel);
+  }, []);
 
-  const selectedTile = activeTheme?.id ?? themeTiles[0]?.id;
+  // Nine tiles: the factory "no custom theme" one, then the global themes. The
+  // active id comes from the theme store (null = the factory tile); the variant
+  // each card previews follows the resolved appearance, as in the reference.
+  const activeThemeId = activeTheme?.id ?? 0;
+  const themeTiles: ThemeTile[] = [
+    DEFAULT_TILE_THEME,
+    ...(themes ?? FALLBACK_GLOBAL_THEMES),
+  ].map((theme) => {
+    const isFactory = theme.id === 0;
+    return {
+      theme,
+      selected: theme.id === activeThemeId,
+      label: isFactory
+        ? t("tips.light")
+        : themeName(theme, t("tips.colorTheme")),
+      preview: themePreview(theme, resolvedNight),
+    };
+  });
+
+  const themePreferences = [
+    { id: "system", icon: "sputnik_filled", label: t("tips.system") },
+    { id: "dark", icon: "darkmode_filled", label: t("tips.dark") },
+    { id: "light", icon: "brightness", label: t("tips.light") },
+  ] as const;
 
   const offsetOf = (i: number) =>
     (i - index + TIPS_COUNT) % TIPS_COUNT === 1 ? "50px" : "-50px";
@@ -127,14 +235,8 @@ export function KChatTips({
         {t("tips.appearance")}
       </div>
       <div className="k-tip-buttons" role="toolbar">
-        {(
-          [
-            { id: "system", icon: "sputnik_filled", label: t("tips.system") },
-            { id: "dark", icon: "darkmode_filled", label: t("tips.dark") },
-            { id: "light", icon: "brightness", label: t("tips.light") },
-          ] as const
-        ).map((button) => {
-          const selected = button.id === "light";
+        {themePreferences.map((button) => {
+          const selected = button.id === themePreference;
           return (
             <button
               key={button.id}
@@ -143,6 +245,7 @@ export function KChatTips({
                 selected ? "k-tip-button is-selected" : "k-tip-button"
               }
               aria-pressed={selected}
+              onClick={() => onThemePreferenceChange(button.id)}
             >
               <KIcon name={button.icon} className="k-tip-button-icon" />
               <span className="k-tip-button-text">{button.label}</span>
@@ -152,35 +255,64 @@ export function KChatTips({
       </div>
       <div className="k-tip-content">
         <div className="k-tip-content-title">{t("tips.colorTheme")}</div>
-        <div className="k-tip-themes">
-          {themeTiles.map((tile) => {
-            const selected = tile.id === selectedTile;
-            const from = tile.colors[0] || tile.top;
-            const to = tile.colors[tile.colors.length - 1] || tile.bottom;
-            return (
-              <button
-                key={tile.id}
-                type="button"
-                className={selected ? "k-tip-theme is-selected" : "k-tip-theme"}
-                aria-pressed={selected}
-                title={tile.label}
-                onClick={() => {
-                  if (tile.theme) applyChatTheme(tile.theme);
-                }}
+        <div
+          className="k-tip-themes"
+          role="toolbar"
+          aria-label={t("tips.colorTheme")}
+          ref={stripRef}
+        >
+          {themeTiles.map((tile) => (
+            <button
+              key={tile.theme.id}
+              type="button"
+              className={
+                tile.selected ? "k-tip-theme is-selected" : "k-tip-theme"
+              }
+              aria-pressed={tile.selected}
+              aria-label={tile.label}
+              title={tile.label}
+              onClick={() => {
+                if (tile.theme.id === 0) {
+                  resetChatTheme();
+                } else {
+                  applyChatTheme(tile.theme);
+                }
+              }}
+            >
+              <span
+                className={
+                  tile.preview.night
+                    ? "k-tip-theme-preview is-night"
+                    : "k-tip-theme-preview"
+                }
+                style={{ background: tile.preview.wallpaper }}
               >
-                <span
-                  className="k-tip-theme-preview"
+                <img
+                  className="k-tip-theme-pattern"
+                  src={tile.preview.patternUrl}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
                   style={{
-                    background: `linear-gradient(180deg, ${from}, ${to})`,
+                    opacity: tile.preview.patternOpacity,
+                    filter: tile.preview.patternInvert
+                      ? "invert(1)"
+                      : undefined,
                   }}
-                >
-                  <span className="k-tip-theme-bubble is-out" />
-                  <span className="k-tip-theme-bubble is-in" />
-                  <span className="k-tip-theme-emoticon">{tile.emoji}</span>
-                </span>
-              </button>
-            );
-          })}
+                />
+                <span
+                  className="k-tip-theme-bubble is-out"
+                  style={{ background: tile.preview.outBubble }}
+                />
+                <span className="k-tip-theme-bubble is-in" />
+                {tile.preview.emoticon ? (
+                  <span className="k-tip-theme-emoticon">
+                    {tile.preview.emoticon}
+                  </span>
+                ) : null}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
       <div className="k-tip-description">

@@ -169,17 +169,33 @@
   cursor: pointer;
 }
 
-/* ---------- Appearance: the cloud-theme strip ---------- */
+/* ---------- Appearance: the cloud-theme strip (Web K 2.3) ----------
+ *
+ * tweb `components/chatThemesPicker.tsx` + `scss/partials/_themes.scss`: a
+ * horizontally scrolling strip of 72×96 mini chats — the factory "no custom
+ * theme" tile and Telegram's eight global themes — followed into the tip card
+ * by `chatTips.module.scss` `.themes`. The card's 1rem padding is bled over so
+ * the tiles slide under the card's edges while the first one still lines up
+ * with the card's content.
+ *
+ * Tile: 72×96 (3:4), 16px radius, 4px side margins; the strip adds a 4px gap,
+ * so adjacent cards stand 12px apart. The strip is 112px tall — the 96px tile
+ * plus the 4px active-ring room above and below, and the incoming/outgoing
+ * bubbles and emoticon are the reference's fractions of the tile. */
 
 .k-root .k-tip-themes {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
+  /* centred in the space between the content title and the description */
+  margin-block: auto;
+  /* bleed over .k-tip-card's 1rem padding, then pad back so the first/last
+     tile (and its -4px ring) is never clipped */
+  width: calc(100% + 2rem);
+  margin-inline: -1rem;
+  padding-inline: 1rem;
+  height: 7rem; /* 112px */
   display: flex;
   align-items: center;
-  /* centre the row when it fits; a full strip starts at its first tile instead
-     of being clipped at both ends (Chrome supports `safe center`) */
-  justify-content: safe center;
-  gap: 0.5rem;
+  gap: 0.25rem; /* 4px + the tiles' 2×4px margins = 12px between cards */
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
@@ -191,39 +207,89 @@
 }
 
 .k-root .k-tip-theme {
+  position: relative;
   flex: 0 0 auto;
+  width: 4.5rem; /* 72px */
+  height: 6rem; /* 96px */
+  margin: 0 0.25rem; /* 4px side margins */
   padding: 0;
   border: none;
+  border-radius: 1rem;
   background: none;
   cursor: pointer;
-  border-radius: 0.875rem;
   line-height: 0;
+}
+
+/* the selected tile's ring, drawn outside the 72×96 box like the reference:
+   scale .86 → 1 with a fade, and no motion under Reduce/Disable Animations */
+.k-root .k-tip-theme::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: calc(1rem + 4px);
+  border: 2px solid var(--primary-color);
+  opacity: 0;
+  transform: scale(0.86);
+  transition:
+    transform var(--transition-standard-in),
+    opacity var(--transition-standard-in);
+  pointer-events: none;
+}
+
+.k-root .k-tip-theme.is-selected::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.k-root[data-animation-level="1"] .k-tip-theme::before,
+.k-root[data-animation-level="0"] .k-tip-theme::before {
+  transition: none;
+}
+
+/* a focus ring inside the tile: the outside is where the selection ring goes */
+.k-root .k-tip-theme:focus-visible {
+  outline: none;
+}
+
+.k-root .k-tip-theme:focus-visible .k-tip-theme-preview {
+  box-shadow:
+    inset 0 0 0 2px var(--surface-color),
+    inset 0 0 0 4px var(--primary-color);
 }
 
 .k-root .k-tip-theme-preview {
   position: relative;
   display: block;
-  height: 7.625rem;
-  aspect-ratio: 3 / 4;
-  border-radius: 0.875rem;
+  width: 100%;
+  height: 100%;
+  border-radius: 1rem;
   overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
-.k-root .k-tip-theme.is-selected .k-tip-theme-preview {
-  box-shadow:
-    0 0 0 2px var(--primary-color),
-    0 0 0 1px rgba(0, 0, 0, 0.06);
+/* the theme's doodle pattern over the gradient wallpaper: tweb composites the
+   black-on-transparent pattern with `soft-light` at the wallpaper's intensity,
+   inverted for dark wallpapers so its doodles read light */
+.k-root .k-tip-theme-pattern {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
 }
 
+/* the miniature chat: outgoing bubble at the top end, incoming one below at the
+   start, in the reference's fractions of the tile (40×20 at 8px/6px insets) */
 .k-root .k-tip-theme-bubble {
   position: absolute;
   width: 55.56%;
   height: 20.83%;
-  border-radius: 0.5rem;
-  background-color: rgba(255, 255, 255, 0.75);
+  border-radius: 1.75rem;
+  pointer-events: none;
 }
 
+/* the outgoing bubble's fill is the theme's message gradient, set per tile */
 .k-root .k-tip-theme-bubble.is-out {
   top: 8.33%;
   inset-inline-end: 8.33%;
@@ -232,6 +298,11 @@
 .k-root .k-tip-theme-bubble.is-in {
   top: 33.33%;
   inset-inline-start: 8.33%;
+  background-color: #ffffff;
+}
+
+.k-root .k-tip-theme-preview.is-night .k-tip-theme-bubble.is-in {
+  background-color: #2b2b2b;
 }
 
 .k-root .k-tip-theme-emoticon {
@@ -239,8 +310,12 @@
   bottom: 8.33%;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 1.75rem;
-  line-height: 1;
+  width: 38.89%;
+  font-size: 1.5rem;
+  line-height: 1.75rem;
+  text-align: center;
+  z-index: 1;
+  pointer-events: none;
 }
 
 /* ---------- Stickers / Chats content ---------- */

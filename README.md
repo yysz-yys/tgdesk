@@ -68,6 +68,11 @@ home for the sections that are not ported yet.
   colours.
 - **Reduce/Disable Animations** cycles between full, reduced (slides become
   fades) and off, and the choice is remembered.
+- **Global themes**: the empty-column Appearance tip shows Telegram's theme
+  strip — the factory tile plus the eight global themes 🐥 ⛄ 💎 👨‍🏫 🌷 💜 🎄 🎮,
+  each with its wallpaper, pattern, bubbles and emoticon. Picking one repaints
+  the accent and the page wallpaper immediately and persists across launches;
+  System / Dark / Light switch the strip between the day and night variants.
 
 
 
@@ -341,9 +346,11 @@ belong in git. A detailed checklist is in
 - The page-by-page Web K redesign is in progress: login, the conversation view,
   downloads, search results, the archive-view styling, the settings sub-pages and
   the expanded tips deck still use the F design (see docs/design-k.md).
-- Only the light "Day" Web K theme is ported so far; the Dark Mode menu entry
-  themes the classic screens, while Web K pages stay light until the dark token
-  set is ported.
+- Only the light "Day" Web K token set is ported so far; the Dark Mode menu
+  entry themes the classic screens, while Web K pages stay light until the dark
+  tokens land. The Appearance tip's global themes do apply their accent and
+  wallpaper on the light shell (day variants); their night previews switch the
+  strip but not the shell yet.
 - New chats are created without a profile photo (the avatar-edit button on the
   creation pages explains that the media editor is not ported yet).
 - Map tiles require network; the card falls back to a schematic surface.

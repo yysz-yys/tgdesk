@@ -13,6 +13,7 @@ import { KMainScreen } from "../components/k/KMainScreen";
 import { KSettings } from "../components/k/KSettings";
 import { KNewChatFlow, type KNewChatMember } from "../components/k/KNewChatFlow";
 import type { KSuperTabEntry } from "../components/k/KSuperTab";
+import { setTipsHidden, setTipsIndex } from "../components/k/tipsStore";
 import "../app.css";
 import "../components/layout/layout.css";
 import "../components/layout/shell-f.css";
@@ -23,6 +24,8 @@ const params = new URLSearchParams(window.location.search);
 const showChat = params.get("chat") === "1";
 const page = params.get("page");
 const openMenu = params.get("menu") === "1";
+const showTips = params.get("tips") === "1";
+const darkPreview = params.get("night") === "1";
 
 void i18n.changeLanguage(params.get("lang") ?? "zh");
 document.documentElement.dataset.loggedIn = "true";
@@ -150,6 +153,12 @@ const people: KNewChatMember[] = [
 
 const toast = (message: string) => console.log("toast:", message);
 
+// Force the tips deck open on the Appearance card for CDP captures.
+if (showTips) {
+  setTipsHidden(false);
+  setTipsIndex(0);
+}
+
 function Preview() {
   const [query, setQuery] = useState("");
   const [sidebarPage, setSidebarPage] = useState<"settings" | "channel" | "group" | null>(
@@ -246,7 +255,14 @@ function Preview() {
       </div>
     </div>
   ) : (
-    <KEmptyChatSurface chats={chats} onSelectChat={noop} onSettings={noop} />
+    <KEmptyChatSurface
+      chats={chats}
+      onSelectChat={noop}
+      onSettings={noop}
+      themePreference={darkPreview ? "dark" : "light"}
+      onThemePreferenceChange={noop}
+      resolvedNight={darkPreview}
+    />
   );
 
   return (

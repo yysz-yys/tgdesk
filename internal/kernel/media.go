@@ -138,6 +138,7 @@ func (s *Service) startMediaServerLocked() error {
 	thumbPrefix := "/thumb/" + token + "/"
 	avatarPrefix := "/avatar/" + token + "/"
 	photoPrefix := "/photo/" + token + "/"
+	patternPrefix := "/pattern/" + token + "/"
 	mux := http.NewServeMux()
 	mux.HandleFunc(mediaPrefix, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -184,6 +185,15 @@ func (s *Service) startMediaServerLocked() error {
 		}
 		s.servePhoto(id, w, r)
 	})
+	mux.HandleFunc(patternPrefix, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		id := strings.TrimPrefix(r.URL.Path, patternPrefix)
+		if id == "" || strings.Contains(id, "/") || strings.Contains(id, "\\") {
+			http.NotFound(w, r)
+			return
+		}
+		s.servePattern(id, w, r)
+	})
 	server := &http.Server{
 		ReadHeaderTimeout: 10 * time.Second,
 		Handler:           mux,
@@ -197,6 +207,7 @@ func (s *Service) startMediaServerLocked() error {
 	s.thumbBase = origin + thumbPrefix
 	s.avatarBase = origin + avatarPrefix
 	s.photoBase = origin + photoPrefix
+	s.patternBase = origin + patternPrefix
 	if s.videoStreams == nil {
 		s.videoStreams = make(map[string]*videoStreamSession)
 	}

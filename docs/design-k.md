@@ -41,6 +41,9 @@ frontend/src/components/k/          the Web K UI
   KNewMenu.tsx                      the pencil/new-chat menu
   KArchiveMenu.tsx                  the archived-chats header menu
   KChatTips.tsx                     the tips deck
+  themeStore.ts                     global-theme application (accent + wallpaper) and active-theme store
+  globalThemes.ts                   the eight global themes + factory tile (offline/preview fallback)
+  tipsStore.ts                      tips deck state (open/index, persisted)
   KWallpaper.tsx                    page-wide gradient + doodle canvas
   KIcon.tsx                         tgico glyphs + the verified-badge SVG sprite
   rowIcons.ts                       tweb's colour-tile row-icon backgrounds
@@ -243,18 +246,28 @@ capture encoding.
 - The hamburger is a webk icon button: a 40px round plate on
   `--light-secondary-text-color` while hovered or while its menu is open
   (`.menu-open`), exactly the plate the real client paints under it.
-- **Cloud themes (Appearance tip)**: the theme engine is wired end-to-end —
+- **Global themes (Appearance tip)**: the theme engine is wired end-to-end —
   `themeStore.ts` applies a theme's accent to every shell token (`--primary-color`
   and its light/dark mixes) and publishes its wallpaper (gradient stops,
-  intensity, pattern SVG) to `KWallpaper`, and the kernel's `GetChatThemes`
-  (account.getThemes) plus the wallpaper/pattern media pipeline pull the real
-  Web K theme set from Telegram and serve the pattern documents over the loopback
-  media server. The Appearance strip renders server themes when the account
-  returns them and keeps local preview tiles as a fallback (this account's
-  account.getThemes answers with an empty list, so the factory previews still
-  show; the 69-wallpaper catalog with its pattern SVGs is already available for
-  the next step, which is mapping the nine default Appearances to their
-  wallpapers/accent presets).
+  intensity, pattern SVG) to `KWallpaper`. The kernel's `GetChatThemes` now calls
+  `account.getChatThemes` (the live probe showed this is where Telegram keeps the
+  global theme set: `account.getThemes` returns an empty list for this account),
+  maps the eight global themes (🐥 ⛄ 💎 👨‍🏫 🌷 💜 🎄 🎮) with their day
+  (`baseThemeClassic`) and night (`baseThemeTinted`) settings — accent, message
+  colours, signed wallpaper intensity and gradient stops — and registers each
+  wallpaper's pattern document on a lazy loopback endpoint (the document is a
+  gzipped SVG; the kernel gunzips and serves it as `image/svg+xml`). The
+  Appearance card is a horizontally scrolling strip of nine 72×96 mini-chat
+  tiles: the factory "no theme" tile plus the eight themes, each with its
+  gradient + pattern, outgoing accent bubble, incoming bubble and emoticon, and
+  the active tile ringed in the accent. Selecting a tile applies the theme
+  instantly (accent + page wallpaper) and is persisted in
+  `tgdesk.k.themeId`; the first tile restores the factory Day wallpaper. The
+  System / Dark / Light pills set the app theme preference and switch the strip
+  between the day and night previews (the Web K shell itself is light-only until
+  the dark token set is ported, so the applied wallpaper uses the day variant).
+  `globalThemes.ts` carries the same eight themes as an offline/preview fallback,
+  so the strip is complete even before the kernel answers.
 - **Chat-tips deck**: the lightbulb in the page's top-right corner folds the deck in and out
   (`KTipsToggle`, lamp ↔ cross), exactly like tweb `components/chatTips` after the macOS
   widget: a 320×320 card centred in the empty column with custom Previous / Next service
@@ -341,6 +354,10 @@ cd frontend; npm run dev
 #                                                the corner arrow for Add Members)
 # ?menu=1                                        the hamburger menu (hover More for
 #                                                its submenu via CDP Input events)
+# ?tips=1                                        the chat-tips deck opened on the
+#                                                Appearance theme strip
+# ?night=1                                       night previews (theme strip uses
+#                                                the themes' night variants)
 # ?lang=en|zh|ja                                 UI language of the fixture
 ```
 

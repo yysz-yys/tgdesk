@@ -450,9 +450,10 @@ export interface ChatProfileDTO {
 }
 
 /**
- * ChatThemeDTO is one entry of the account's theme list (account.getThemes), the
- * data behind Web K's Appearance previews: slug/title/emoticon, the base palette
- * and accent, and the wallpaper the chat canvas paints.
+ * ChatThemeDTO is one entry of the global chat theme list
+ * (account.getChatThemes), the data behind Web K's Appearance previews:
+ * slug/title/emoticon, every palette variant, and the wallpapers the chat
+ * canvas paints.
  */
 export interface ChatThemeDTO {
     "id": number;
@@ -460,10 +461,21 @@ export interface ChatThemeDTO {
     "slug"?: string;
     "title": string;
     "emoticon"?: string;
+
+    /**
+     * The following single-variant fields keep working for callers that predate
+     * Settings: they mirror the day (classic) variant, else the first variant.
+     */
     "baseTheme"?: string;
     "accent"?: number;
     "outboxAccent"?: number;
+    "messageColors"?: number[] | null;
     "wallpaper"?: ThemeWallpaperDTO | null;
+
+    /**
+     * Settings holds every palette variant in server order.
+     */
+    "settings"?: ThemeSettingsDTO[] | null;
 }
 
 export interface ChecklistItemDTO {
@@ -854,6 +866,27 @@ export interface TDataExport {
 }
 
 /**
+ * ThemeSettingsDTO is one palette variant of a chat theme. Telegram's global
+ * chat themes carry two: a day (classic) and a night (tinted) variant, which is
+ * exactly the pair Web K renders in the Appearance theme strip.
+ */
+export interface ThemeSettingsDTO {
+    /**
+     * BaseTheme is one of "classic", "day", "night" or "tinted".
+     */
+    "baseTheme": string;
+
+    /**
+     * Dark is true for the night/tinted variant.
+     */
+    "dark"?: boolean;
+    "accent"?: number;
+    "outboxAccent"?: number;
+    "messageColors"?: number[] | null;
+    "wallpaper"?: ThemeWallpaperDTO | null;
+}
+
+/**
  * ThemeWallpaperDTO is the wallpaper part of a cloud theme: the gradient colours
  * Telegram paints the empty canvas with, and the doodle pattern document that is
  * tiled over it (the same receipt telegram web uses).
@@ -868,8 +901,16 @@ export interface ThemeWallpaperDTO {
     "blur"?: boolean;
 
     /**
+     * Dark marks the wallpaper belonging to the night/tinted variant of a chat
+     * theme. Telegram ships one wallpaper per variant and the sign of Intensity
+     * already tells the two apart; the flag saves the UI from inferring it.
+     */
+    "dark"?: boolean;
+
+    /**
      * PatternURL is the loopback HTTP URL of the pattern SVG (empty when the
-     * wallpaper has no pattern document).
+     * wallpaper has no pattern document). The bytes behind it are fetched and
+     * gunzipped lazily on the first request.
      */
     "patternUrl"?: string;
 }

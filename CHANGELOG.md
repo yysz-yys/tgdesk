@@ -143,6 +143,29 @@
   expanded tips deck, settings sub-pages, dark theme) are still the F design; see
   [docs/design-k.md](docs/design-k.md).
 
+### Design K: Telegram's global themes in the Appearance tip
+
+- **The Appearance tip now shows the real Web K theme strip**: nine horizontally
+  scrolling 72×96 mini-chat thumbnails — the factory "no theme" tile plus
+  Telegram's eight global themes 🐥 ⛄ 💎 👨‍🏫 🌷 💜 🎄 🎮 — each painted with its
+  gradient wallpaper, doodle pattern, an outgoing accent-gradient bubble and an
+  incoming bubble, with the theme's emoticon at the bottom and a 2px accent ring
+  around the selected tile. Scrolling works with the mouse wheel, and the strip
+  fits the 320px tips card without pushing the description out.
+- **Picking a theme applies it for real**: the accent repaints the Web K shell
+  and the wallpaper (gradient stops + tiled pattern) replaces the page canvas
+  immediately, and the choice survives restarts. The first tile restores the
+  factory Day wallpaper.
+- **System / Dark / Light work**: the pills set the app's theme preference, and
+  the strip previews the themes' day or night variants accordingly.
+- **Kernel now returns the actual global theme set**: `account.getChatThemes`
+  (not `account.getThemes`, which returns an empty list for this account) with
+  each theme's day (`baseThemeClassic`) and night (`baseThemeTinted`) settings —
+  accent, message colours, signed wallpaper intensity and gradient stops. The
+  wallpaper pattern documents (gzipped SVG) are served lazily by the loopback
+  media server as `image/svg+xml`, and the eight themes also ship as an offline
+  fallback so the strip is never empty.
+
 ### Telegram parity III: Saved Messages 2.0, gifts, search, presence, pinned bar, live emoji
 
 - **Saved Messages ("我的收藏")** now matches Telegram Web on every surface: the

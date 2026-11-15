@@ -81,9 +81,13 @@ type Service struct {
 	thumbBase       string
 	avatarBase      string
 	photoBase       string
+	patternBase     string
 	videoStreams    map[string]*videoStreamSession
 	imageRefs       *imageRefStore
-	images          *imageCache
+	// patternRefs holds theme pattern documents; their bytes are fetched lazily
+	// by the /pattern/ route and cached in images.
+	patternRefs *imageRefStore
+	images      *imageCache
 
 	mediaConfigMu sync.RWMutex
 	mediaProxy    string
@@ -103,6 +107,7 @@ func New() *Service {
 		downloadTasks:    make(map[string]*downloadTask),
 		downloadSem:      make(chan struct{}, 2),
 		imageRefs:        newImageRefStore(2048),
+		patternRefs:      newImageRefStore(64),
 		images:           newImageCache(48 << 20),
 		peerIndex:        make(map[string]string),
 		dialogsCache:     make(map[string]dialogsCacheEntry),
