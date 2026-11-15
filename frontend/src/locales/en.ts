@@ -1162,7 +1162,7 @@ export default {
   tips: {
     appearance: "Appearance",
     appearanceDescription:
-      "You can change these parameters and many others in <settings>Settings › General Settings</settings>.",
+      "You can change these parameters and many others in Settings › <settings>General Settings</settings>.",
     system: "System",
     dark: "Dark",
     light: "Light",

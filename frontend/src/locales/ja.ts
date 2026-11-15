@@ -1152,7 +1152,7 @@ export default {
   tips: {
     appearance: "外観",
     appearanceDescription:
-      "これらの設定やその他多くの項目は <settings>設定 › 一般設定</settings> で変更できます。",
+      "これらの設定やその他多くの項目は 設定 › <settings>一般設定</settings> で変更できます。",
     system: "システム",
     dark: "ダーク",
     light: "ライト",

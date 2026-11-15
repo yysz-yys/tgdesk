@@ -1152,7 +1152,7 @@ export default {
   tips: {
     appearance: "外观",
     appearanceDescription:
-      "你可以在 <settings>设置 › 通用设置</settings> 中更改这些参数和更多内容。",
+      "你可以在 设置 › <settings>通用设置</settings> 中更改这些参数和更多内容。",
     system: "跟随系统",
     dark: "深色",
     light: "浅色",
