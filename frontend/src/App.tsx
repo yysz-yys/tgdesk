@@ -927,6 +927,13 @@ export default function App() {
           excludeArchived: folder.excludeArchived,
         }),
       );
+      // A failed/empty fetch must not wipe the last good snapshot: the folder
+      // chips would disappear until the next successful round trip (e.g. a
+      // direct connection that is briefly down). Only a non-empty answer
+      // replaces the list and the cache.
+      if (mappedFolders.length === 0) {
+        return;
+      }
       setFolders(mappedFolders);
       try {
         localStorage.setItem(folderCacheKey, JSON.stringify(mappedFolders));

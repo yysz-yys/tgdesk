@@ -66,32 +66,26 @@ type ChatThemeDTO struct {
 }
 
 // GetChatThemes returns the available global chat themes (the Web K Appearance
-// theme strip). It asks account.getThemes with the macos format first — the
-// call the official Web K appearance card makes — then account.getChatThemes
-// and finally the remaining account.getThemes formats, so the UI still has
-// themes to show.
+// theme strip). It asks account.getChatThemes first; when that method errors or
+// comes back empty the account.getThemes cloud list is used instead so the UI
+// still has themes to show.
 func (s *Service) GetChatThemes(proxy, ntp string) ([]ChatThemeDTO, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	var result []ChatThemeDTO
 	err := s.withChatClient(ctx, proxy, ntp, func(ctx context.Context, client *telegram.Client) error {
-		themes, webkErr := fetchWebKThemes(ctx, client)
-		if webkErr != nil || len(themes) == 0 {
-			globalThemes, globalErr := fetchGlobalChatThemes(ctx, client)
-			if globalErr != nil || len(globalThemes) == 0 {
-				fallback, fallbackErr := fetchAccountThemes(ctx, client)
-				if fallbackErr != nil {
-					if globalErr != nil {
-						return fmt.Errorf("get chat themes: %w (get themes: %v)", globalErr, fallbackErr)
-					}
-					return fallbackErr
+		themes, globalErr := fetchGlobalChatThemes(ctx, client)
+		if globalErr != nil || len(themes) == 0 {
+			fallback, fallbackErr := fetchAccountThemes(ctx, client)
+			if fallbackErr != nil {
+				if globalErr != nil {
+					return fmt.Errorf("get chat themes: %w (get themes: %v)", globalErr, fallbackErr)
 				}
-				if len(fallback) > 0 {
-					themes = fallback
-				}
-			} else {
-				themes = globalThemes
+				return fallbackErr
+			}
+			if len(fallback) > 0 {
+				themes = fallback
 			}
 		}
 		result = s.mapChatThemes(themes, proxy, ntp)
@@ -101,23 +95,6 @@ func (s *Service) GetChatThemes(proxy, ntp string) ([]ChatThemeDTO, error) {
 		return nil, err
 	}
 	return result, nil
-}
-
-// fetchWebKThemes is the source the official Web K appearance card uses:
-// account.getThemes with the macos format, which carries the macOS palette
-// variants (classic and night) rather than getChatThemes' classic/tinted pair.
-func fetchWebKThemes(ctx context.Context, client *telegram.Client) ([]tg.Theme, error) {
-	response, err := client.API().AccountGetThemes(ctx, &tg.AccountGetThemesRequest{
-		Format: "macos",
-	})
-	if err != nil {
-		return nil, err
-	}
-	themes, ok := response.(*tg.AccountThemes)
-	if !ok || themes == nil {
-		return nil, fmt.Errorf("unexpected account.getThemes response %T", response)
-	}
-	return themes.Themes, nil
 }
 
 // fetchGlobalChatThemes is the modern source of the Appearance theme strip:

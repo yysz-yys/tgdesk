@@ -273,7 +273,10 @@ export function KChatList({
     ];
   }, [folders, chats, normalChats, t]);
 
-  const showTabs = folders.length > 0 && !needle;
+  // The folder strip is part of the shell — the "All" chip is always there in
+  // the reference, even before (or without) a folder list, so a failed folder
+  // fetch can never leave the list without its chips.
+  const showTabs = !needle;
   const overlayHeight = showTabs ? 64 : 0;
   const showArchiveRow =
     !needle && filter === "all" && archivedChats.length > 0 && archiveRowVisible;
