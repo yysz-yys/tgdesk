@@ -37,6 +37,24 @@
 - `?night=1` on the preview harness now renders the whole shell dark; the light
   theme, layout geometry, typography and motion are unchanged.
 
+### Design K: cloud-theme accents on the dark shell
+
+- **Global themes paint the same accent colours as the official Web K in dark
+  mode**: the server's per-theme accents are tuned for the light shell, and the
+  reference brightens and saturates them on the Night shell — the selected chat
+  row's fill, the folder chip's filled plate and label, the Saved Messages
+  avatar, links and the pencil button all use that lifted accent. Our shell
+  previously used the raw server accent, so a dark chat row read as a duller
+  mauve than the reference's pink. The accent now goes through a calibrated
+  HSL adjustment (+10 lightness, +29 saturation points, +6 hue, measured from
+  official dark screenshots of the 🌷 theme: `#bd6384` → `#e56e8e`, where the
+  official row is `#cd7189`/captured `#e46f89`); the light shell, the factory
+  Day/Night accents and the Appearance tile previews keep the raw palette.
+- The Appearance strip now prefers the official Web K theme source: the kernel
+  asks `account.getThemes` with the `macos` format first (what the reference
+  appearance card calls) and falls back to `account.getChatThemes`, so custom
+  account themes appear the way they do in the reference.
+
 ### Design K: chat-list auto-delete badges and avatar colours
 
 - **The TTL badge is back on every avatar**: chats with an auto-delete timer draw

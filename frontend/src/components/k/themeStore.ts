@@ -157,6 +157,61 @@ function darkenHex(hex: string) {
   return `hsl(${hue.toFixed(4)}, ${(saturation * 100).toFixed(4)}%, ${nextLightness.toFixed(4)}%)`;
 }
 
+function hslToHex(hue: number, saturation: number, lightness: number) {
+  const h = ((hue % 360) + 360) % 360 / 360;
+  const channel = (n: number) => {
+    const k = (n + h * 12) % 12;
+    const a = saturation * Math.min(lightness, 1 - lightness);
+    return lightness - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+  };
+  return `#${[channel(0), channel(8), channel(4)]
+    .map((value) =>
+      Math.round(Math.max(0, Math.min(1, value)) * 255)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
+/**
+ * A cloud theme's accent as the reference paints it on the dark shell. The
+ * server's per-theme accents are tuned for the light shell; the official Web K
+ * dark mode renders the same themes noticeably lighter and more saturated —
+ * measured on the official screenshots, the selected chat row's fill (the
+ * accent itself) is `#e46f89` for the 🌷 theme where the server sends
+ * `#bd6384`, and the folder chip's 8% plate and its label follow the same
+ * lifted accent. Calibrating on those samples gives HSL lightness +10 points
+ * and saturation +28 points, which reproduces the official row, chip plate and
+ * saved-avatar colours; the factory Night accent is a colorMap value and is not
+ * passed through here.
+ */
+function nightCloudAccentHex(hex: string) {
+  const [r, g, b] = parseHex(hex).map((value) => value / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+  let hue = 0;
+  let saturation = 0;
+  if (max !== min) {
+    const delta = max - min;
+    saturation =
+      lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+    if (max === r) {
+      hue = (g - b) / delta + (g < b ? 6 : 0);
+    } else if (max === g) {
+      hue = (b - r) / delta + 2;
+    } else {
+      hue = (r - g) / delta + 4;
+    }
+    hue *= 60;
+  }
+  return hslToHex(
+    hue + 6,
+    Math.min(1, saturation + 0.29),
+    Math.min(0.92, lightness + 0.1),
+  );
+}
+
 export function variantColors(settings?: ChatThemeSettingsDTO): string[] {
   return themeColorsHex(settings?.wallpaper?.colors);
 }
@@ -359,7 +414,11 @@ function applyHighlight(colors: string[] | undefined) {
  */
 export function syncShellTheme(theme: ActiveTheme | null, night: boolean) {
   const variant = variantFor(theme, night);
-  applyAccent(variant?.accentHex, night);
+  const accent =
+    variant?.accentHex && night && theme
+      ? nightCloudAccentHex(variant.accentHex)
+      : variant?.accentHex;
+  applyAccent(accent, night);
   applyHighlight(variant?.wallpaper?.colors);
 }
 

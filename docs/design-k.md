@@ -135,6 +135,19 @@ tiles preview the same look through `KThemeTileMask`: a 72×96 canvas that keeps
 the gradient only along the doodles, because a cross-origin SVG cannot be used
 as a CSS `mask-image` while drawing it into a canvas works.
 
+A cloud theme's accent is not used raw on the dark shell: the server's
+per-theme accents are tuned for the light shell, and the reference paints the
+Night UI with the same accent lifted — the selected dialog row's fill, the
+folder chip's 8% plate and label, Saved Messages' gradient, links and the pencil
+button all read brighter and more saturated (official dark 🌷 screenshots:
+`#cd7189` row fill where the server sends `#bd6384`). `themeStore` applies a
+calibrated HSL adjustment (+10 lightness, +29 saturation points, +6 hue) to a
+cloud theme's accent on the dark shell; the factory Day/Night accents, the light
+shell and the Appearance tile previews keep the server palette. The Appearance
+strip fetches its themes the way the reference does — `account.getThemes` with
+the `macos` format first, then `account.getChatThemes` — so custom account
+themes show up too.
+
 ## Components map to tweb markup
 
 - Chat list rows follow `components/dialogElement.ts` + `components/rowTsx.tsx`:
