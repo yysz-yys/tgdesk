@@ -37,6 +37,24 @@
 - `?night=1` on the preview harness now renders the whole shell dark; the light
   theme, layout geometry, typography and motion are unchanged.
 
+### Design K: chat-list auto-delete badges and avatar colours
+
+- **The TTL badge is back on every avatar**: chats with an auto-delete timer draw
+  tweb's `avatar-auto-delete-timer` in the avatar's bottom-right corner — the
+  dashed outline glyph with the period number and unit ("1D", "2D", "3W", …) on a
+  plate tinted with the avatar colour. Image avatars get the plate from the
+  blurred bottom-right quarter of their photo (`computeLockColor`), so the "2D"
+  chip sits on a photo logo the way the official Web K shows it; previously the
+  badge was only drawn on letter avatars and always said "1D".
+- The period is matched against tweb's option list (1–8 hours, 1–6 days, 1–3
+  weeks, 1–6 months, 1 year) with its 10% tolerance; unmatched periods show the
+  clock glyph. The badge shows for photo and coloured avatars alike, in both
+  shells.
+- Saved Messages' avatar keeps the reference's bright accent/white gradient in
+  the dark shell (formula from the previous entry); the rest of the peer palette
+  is the same fixed Web K palette in both themes, so the letter avatars match the
+  official colours.
+
 ### Design K: Telegram Web K main screen
 
 - **Signed-in main screen rebuilt 1:1 from Telegram Web K (tweb)**, light "Day"

@@ -401,7 +401,6 @@
   align-items: center;
   justify-content: center;
   background-color: rgba(0, 0, 0, 0.75);
-  overflow: hidden;
 }
 
 .k-root .avatar-auto-delete-timer__background {

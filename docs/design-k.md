@@ -151,7 +151,17 @@ as a CSS `mask-image` while drawing it into a canvas works.
   (each cut to 20 symbols), grey badge whose count is the number of *unread
   archived chats* (`getFolderUnreadCount` returns a peer count, not messages).
 - Saved Messages is an ordinary row for the self peer: `saved_filled` glyph on the
-  saved gradient, localized `我的收藏` title.
+  saved gradient, localized `我的收藏` title. The saved gradient follows the theme
+  accent with tweb's formula (bottom = the accent, top = the accent mixed 64% with
+  white), so it stays the bright two-tone gradient in the dark shell too.
+- Chats with an auto-delete timer wear tweb's TTL badge on the avatar
+  (`avatar-auto-delete-timer`): a 22px circle in the bottom-right corner with the
+  dashed outline glyph, the period number and its unit ("1D", "2D", "3W", …) over
+  a plate tinted with the avatar colour — or with the blurred bottom-right quarter
+  of the photo for image avatars (`computeLockColor`), so the "2D" chip sits on
+  the 一分机场 logo exactly like the reference. The period is matched against
+  tweb's option list (1–8 hours, 1–6 days, 1–3 weeks, 1–6 months, 1 year) with its
+  10% tolerance; other values fall back to the clock glyph.
 - Folder chips are tweb's `FoldersTabs`: `.menu-horizontal-scrollable` plate
   (margin 8px, radius 24px, `0 1px 8px rgba(0,0,0,.1)`) holding
   `.menu-horizontal-div-item` chips (40px, radius 20px, 16px/500) and one

@@ -2,6 +2,8 @@ import type { CSSProperties, ReactNode } from "react";
 import type { Chat } from "../../types";
 import { chatAbbreviation, peerColorName } from "./model";
 import { KIcon } from "./KIcon";
+import { KAvatarAutoDelete } from "./KAvatarAutoDelete";
+import { autoDeleteBadge } from "./avatarAutoDelete";
 
 type AvatarKind = "peer" | "saved" | "archive";
 
@@ -53,8 +55,10 @@ export function KAvatar({
     inner = (chat ? chatAbbreviation(chat.title) : "T").toUpperCase();
   }
 
-  const ttl = !isSaved && !isArchive ? chat?.ttl : undefined;
-  const showAutoDelete = Boolean(ttl && !chat?.avatarUrl);
+  // Auto-delete timers show on photo and coloured avatars alike (tweb paints the
+  // 1D/2D badge over every dialog avatar with a TTL).
+  const badge = !isSaved && !isArchive ? autoDeleteBadge(chat?.ttl) : null;
+  const hasPhoto = Boolean(chat?.avatarUrl);
 
   return (
     <div
@@ -72,23 +76,12 @@ export function KAvatar({
       style={{ "--size": `${size}px` } as CSSProperties}
     >
       {inner}
-      {showAutoDelete ? (
-        <div className="avatar-auto-delete-timer">
-          <div className="avatar-auto-delete-timer__background avatar-auto-delete-timer__background--color" />
-          <div className="avatar-auto-delete-timer__icon">
-            <span className="overlayed-icon" aria-hidden="true">
-              <KIcon name="auto_delete_circle_empty" />
-              <KIcon
-                name="auto_delete_circle_1"
-                className="overlayed-icon__floating-icon"
-              />
-              <KIcon
-                name="auto_delete_circle_days"
-                className="overlayed-icon__floating-icon"
-              />
-            </span>
-          </div>
-        </div>
+      {badge ? (
+        <KAvatarAutoDelete
+          badge={badge}
+          photoUrl={hasPhoto ? chat?.avatarUrl : undefined}
+          colored={!hasPhoto}
+        />
       ) : null}
     </div>
   );
