@@ -41,6 +41,7 @@ frontend/src/components/k/          the Web K UI
   KNewMenu.tsx                      the pencil/new-chat menu
   KArchiveMenu.tsx                  the archived-chats header menu
   KChatTips.tsx                     the tips deck
+  KThemeEmoticon.tsx                one theme tile's animated-emoji figure (Lottie)
   themeStore.ts                     global-theme application (accent + wallpaper) and active-theme store
   globalThemes.ts                   the eight global themes + factory tile (offline/preview fallback)
   tipsStore.ts                      tips deck state (open/index, persisted)
@@ -268,6 +269,21 @@ capture encoding.
   the dark token set is ported, so the applied wallpaper uses the day variant).
   `globalThemes.ts` carries the same eight themes as an offline/preview fallback,
   so the strip is complete even before the kernel answers.
+- **Animated tile figures**: the figure at the bottom of each tile is the theme's
+  Telegram *animated emoji* (`🏠` for the factory tile, then the theme emoticon),
+  not a system font glyph. The kernel's `GetAnimatedEmojiStickers` reads
+  Telegram's animated-emoji sticker set (`messages.getStickerSet` with the
+  `inputStickerSetAnimatedEmoji` pseudo-set) and serves each TGS document lazily
+  on a second loopback endpoint (`/emoji/…`, gunzipped to Lottie JSON, cached);
+  `KThemeEmoticon.tsx` renders it with the bundled lottie-web paused on its first
+  frame. Clicking a tile plays the reference's micro-animation (tweb's
+  `chatThemesPicker`): after a 250 ms beat the figure is scaled to 2× over the
+  standard transition, the Lottie runs once to its last frame and the figure
+  settles back; a click on another tile cancels the previous one. The motion only
+  runs at the full animation level (2) with the OS reduce-motion preference off,
+  and the active tile is not a click target, both as in tweb. The animated set is
+  fetched only once the deck is opened, and the plain emoji glyph is the fallback
+  (also the dev-preview state, which has no kernel).
 - **Chat-tips deck**: the lightbulb in the page's top-right corner folds the deck in and out
   (`KTipsToggle`, lamp ↔ cross), exactly like tweb `components/chatTips` after the macOS
   widget: a 320×320 card centred in the empty column with custom Previous / Next service

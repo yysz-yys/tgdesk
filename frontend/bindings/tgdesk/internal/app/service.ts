@@ -100,6 +100,15 @@ export function GetActiveSessionCount(proxy: string, ntp: string): $CancellableP
     return $Call.ByID(3927242617, proxy, ntp);
 }
 
+/**
+ * GetAnimatedEmojiStickers resolves the TGS/Lottie animated-emoji figures Web K
+ * draws on the Appearance theme tiles. The URLs are served lazily by the
+ * loopback media server.
+ */
+export function GetAnimatedEmojiStickers(proxy: string, ntp: string, emoticons: string[] | null): $CancellablePromise<kernel$0.AnimatedEmojiDTO[] | null> {
+    return $Call.ByID(515011981, proxy, ntp, emoticons);
+}
+
 export function GetArchivedChats(proxy: string, ntp: string, limit: number, force: boolean): $CancellablePromise<kernel$0.ChatDTO[] | null> {
     return $Call.ByID(1184233245, proxy, ntp, limit, force);
 }

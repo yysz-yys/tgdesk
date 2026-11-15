@@ -288,6 +288,7 @@ export const DEFAULT_TILE_THEME: ChatThemeDTO = {
   id: 0,
   slug: "",
   title: "Day",
+  emoticon: "🏠",
   settings: [
     {
       baseTheme: "classic",

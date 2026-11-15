@@ -70,6 +70,12 @@ type Service struct {
 	stickerRefs     map[string]*tg.Document
 	stickerRefOrder []string
 
+	// Animated-emoji sticker set (the TGS/Lottie figures Web K draws on the
+	// Appearance theme tiles): the emoticon->document metadata is loaded once
+	// per process and shared read-only behind animatedEmojiMu.
+	animatedEmojiMu   sync.Mutex
+	animatedEmojiDocs map[string]*tg.Document
+
 	chatMu sync.Mutex
 
 	sessionMu sync.Mutex
@@ -82,12 +88,16 @@ type Service struct {
 	avatarBase      string
 	photoBase       string
 	patternBase     string
+	emojiBase       string
 	videoStreams    map[string]*videoStreamSession
 	imageRefs       *imageRefStore
 	// patternRefs holds theme pattern documents; their bytes are fetched lazily
 	// by the /pattern/ route and cached in images.
 	patternRefs *imageRefStore
-	images      *imageCache
+	// emojiRefs holds animated-emoji sticker documents; their TGS bytes are
+	// fetched lazily by the /emoji/ route and cached decoded in images.
+	emojiRefs *imageRefStore
+	images    *imageCache
 
 	mediaConfigMu sync.RWMutex
 	mediaProxy    string
@@ -108,6 +118,7 @@ func New() *Service {
 		downloadSem:      make(chan struct{}, 2),
 		imageRefs:        newImageRefStore(2048),
 		patternRefs:      newImageRefStore(64),
+		emojiRefs:        newImageRefStore(64),
 		images:           newImageCache(48 << 20),
 		peerIndex:        make(map[string]string),
 		dialogsCache:     make(map[string]dialogsCacheEntry),

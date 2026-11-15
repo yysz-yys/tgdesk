@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import type { Chat } from "../../types";
 import type { ThemePreference } from "../../hooks/useTheme";
@@ -19,6 +19,7 @@ import {
   type ChatThemeDTO,
 } from "./themeStore";
 import { DEFAULT_TILE_THEME, FALLBACK_GLOBAL_THEMES } from "./globalThemes";
+import { KThemeEmoticon, type KThemeEmoticonHandle } from "./KThemeEmoticon";
 import { useRipple } from "./useRipple";
 import { Service as AppService } from "../../../bindings/tgdesk/internal/app";
 
@@ -34,7 +35,6 @@ interface ThemePreview {
   patternInvert: boolean;
   /** The outgoing bubble: the theme's message gradient, else its accent. */
   outBubble: string;
-  emoticon?: string;
   night: boolean;
 }
 
@@ -44,6 +44,8 @@ interface ThemeTile {
   /** Accessible name: the theme emoticon + title, or the factory tile's name. */
   label: string;
   preview: ThemePreview;
+  /** Loopback Lottie URL of the theme's animated-emoji figure, if the kernel served one. */
+  emoticonUrl?: string;
 }
 
 /**
@@ -84,7 +86,6 @@ function themePreview(theme: ChatThemeDTO, night: boolean): ThemePreview {
       messageColors.length > 1
         ? `linear-gradient(135deg, ${messageColors[messageColors.length - 1]}, ${messageColors[0]})`
         : messageColors[0] ?? accent ?? "var(--primary-color)",
-    emoticon: theme.emoticon,
     night,
   };
 }
@@ -123,8 +124,11 @@ export function KChatTips({
   const [suggestMode, setSuggestMode] = useState("installed");
   const [chatFilter, setChatFilter] = useState("popular");
   const [themes, setThemes] = useState<ChatThemeDTO[] | null>(null);
+  const [emoticonUrls, setEmoticonUrls] = useState<Record<string, string>>({});
   const activeTheme = useActiveTheme();
   const stripRef = useRef<HTMLDivElement>(null);
+  const emoticonRefs = useRef(new Map<number, KThemeEmoticonHandle>());
+  const playingEmoticon = useRef<KThemeEmoticonHandle | null>(null);
 
   // The cloud themes (account.getChatThemes through the kernel) fill the
   // Appearance strip with the real Web K set; the bundled table covers the time
@@ -175,6 +179,53 @@ export function KChatTips({
     };
   }, [proxyUrl, ntp]);
 
+  // The tiles' figures are Telegram's animated emoji (one Lottie/TGS file each),
+  // served by the kernel from the animated-emoji sticker set. They render paused
+  // on their first frame; clicking a tile plays that tile's micro-animation (see
+  // KThemeEmoticon). Without the kernel the tiles keep their plain emoji glyphs.
+  const emoticonList = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          [DEFAULT_TILE_THEME, ...(themes ?? FALLBACK_GLOBAL_THEMES)]
+            .map((theme) => theme.emoticon)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ),
+    [themes],
+  );
+
+  useEffect(() => {
+    // The figures are only visible while the deck is open: defer the sticker-set
+    // round-trip and the nine Lottie files until then, so a launch that never
+    // opens the tips deck does not fetch them.
+    if (hidden || proxyUrl === undefined || emoticonList.length === 0) return;
+    let alive = true;
+    try {
+      void AppService.GetAnimatedEmojiStickers(
+        proxyUrl,
+        ntp ?? "",
+        emoticonList,
+      )
+        .then((list) => {
+          if (!alive) return;
+          const next: Record<string, string> = {};
+          for (const item of list ?? []) {
+            if (item?.url) next[item.emoticon] = item.url;
+          }
+          setEmoticonUrls(next);
+        })
+        .catch(() => {
+          // Keep the plain emoji glyphs; the strip still shows every theme.
+        });
+    } catch {
+      // No Wails runtime (the dev preview page).
+    }
+    return () => {
+      alive = false;
+    };
+  }, [proxyUrl, ntp, emoticonList, hidden]);
+
   // A vertical mouse wheel scrolls the theme strip sideways, the way the
   // reference's scroll container does. Native listener: React's wheel handler
   // is passive, so it could not prevent the page's own scroll.
@@ -203,9 +254,10 @@ export function KChatTips({
       theme,
       selected: theme.id === activeThemeId,
       label: isFactory
-        ? t("tips.light")
+        ? theme.emoticon || t("tips.light")
         : themeName(theme, t("tips.colorTheme")),
       preview: themePreview(theme, resolvedNight),
+      emoticonUrl: theme.emoticon ? emoticonUrls[theme.emoticon] : undefined,
     };
   });
 
@@ -272,6 +324,19 @@ export function KChatTips({
               aria-label={tile.label}
               title={tile.label}
               onClick={() => {
+                // Play the tile figure's micro-animation for the new pick,
+                // cancelling one still running on another tile, then apply the
+                // theme — the reference starts both on the same click.
+                const figure =
+                  emoticonRefs.current.get(tile.theme.id) ?? null;
+                if (
+                  playingEmoticon.current &&
+                  playingEmoticon.current !== figure
+                ) {
+                  playingEmoticon.current.cancel();
+                }
+                playingEmoticon.current = figure;
+                figure?.play();
                 if (tile.theme.id === 0) {
                   resetChatTheme();
                 } else {
@@ -305,10 +370,18 @@ export function KChatTips({
                   style={{ background: tile.preview.outBubble }}
                 />
                 <span className="k-tip-theme-bubble is-in" />
-                {tile.preview.emoticon ? (
-                  <span className="k-tip-theme-emoticon">
-                    {tile.preview.emoticon}
-                  </span>
+                {tile.theme.emoticon ? (
+                  <KThemeEmoticon
+                    ref={(handle) => {
+                      if (handle) {
+                        emoticonRefs.current.set(tile.theme.id, handle);
+                      } else {
+                        emoticonRefs.current.delete(tile.theme.id);
+                      }
+                    }}
+                    emoticon={tile.theme.emoticon}
+                    url={tile.emoticonUrl}
+                  />
                 ) : null}
               </span>
             </button>

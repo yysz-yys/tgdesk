@@ -315,16 +315,56 @@
   background-color: #2b2b2b;
 }
 
+/* The animated-emoji figure at the bottom of the tile (tweb `.theme-emoticon`):
+   a 28px box, its artwork's bottom edge 8px above the tile's. The Lottie is
+   drawn by KThemeEmoticon paused on its first frame; while a click animation
+   runs the box is scaled to 2× and CSS transitions it, exactly like the
+   reference picker (`transform-origin: center bottom`, standard-in curve). */
 .k-root .k-tip-theme-emoticon {
   position: absolute;
-  bottom: 8.33%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 38.89%;
+  bottom: 0.5rem;
+  left: calc(50% - 0.875rem);
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+  transform-origin: center bottom;
+}
+
+/* Only the full animation level carries the motion (tweb gates it on
+   `liteMode.isAvailable('motion')`, i.e. level 2). */
+.k-root[data-animation-level="2"] .k-tip-theme-emoticon {
+  transition: transform var(--transition-standard-in);
+}
+
+.k-root .k-tip-theme-emoticon.is-animating {
+  transform: scale(2);
+}
+
+/* the lottie host and the static emoji fallback fill the same 28px box */
+.k-root .k-tip-theme-lottie {
+  position: absolute;
+  inset: 0;
+}
+
+.k-root .k-tip-theme-lottie svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.k-root .k-tip-theme-emoticon-static {
+  width: 100%;
   font-size: 1.5rem;
   line-height: 1.75rem;
   text-align: center;
-  z-index: 1;
+}
+
+/* The active tile is not a click target in the reference picker either. */
+.k-root .k-tip-theme.is-selected {
   pointer-events: none;
 }
 

@@ -70,9 +70,11 @@ home for the sections that are not ported yet.
   fades) and off, and the choice is remembered.
 - **Global themes**: the empty-column Appearance tip shows Telegram's theme
   strip — the factory tile plus the eight global themes 🐥 ⛄ 💎 👨‍🏫 🌷 💜 🎄 🎮,
-  each with its wallpaper, pattern, bubbles and emoticon. Picking one repaints
-  the accent and the page wallpaper immediately and persists across launches;
-  System / Dark / Light switch the strip between the day and night variants.
+  each with its wallpaper, pattern, bubbles and animated-emoji figure. Picking
+  one plays the figure's micro-animation (the reference's scale-pop + one Lottie
+  run) and repaints the accent and page wallpaper immediately, persisting across
+  launches; System / Dark / Light switch the strip between the day and night
+  variants.
 
 
 

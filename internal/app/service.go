@@ -83,6 +83,13 @@ func (s *Service) GetChatThemes(proxy, ntp string) ([]kernel.ChatThemeDTO, error
 	return s.kernel.GetChatThemes(proxy, ntp)
 }
 
+// GetAnimatedEmojiStickers resolves the TGS/Lottie animated-emoji figures Web K
+// draws on the Appearance theme tiles. The URLs are served lazily by the
+// loopback media server.
+func (s *Service) GetAnimatedEmojiStickers(proxy, ntp string, emoticons []string) ([]kernel.AnimatedEmojiDTO, error) {
+	return s.kernel.GetAnimatedEmojiStickers(proxy, ntp, emoticons)
+}
+
 func (s *Service) GetFolders(proxy, ntp string) ([]kernel.ChatFolderDTO, error) {
 	return s.kernel.GetFolders(proxy, ntp)
 }

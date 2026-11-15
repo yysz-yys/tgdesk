@@ -139,6 +139,7 @@ func (s *Service) startMediaServerLocked() error {
 	avatarPrefix := "/avatar/" + token + "/"
 	photoPrefix := "/photo/" + token + "/"
 	patternPrefix := "/pattern/" + token + "/"
+	emojiPrefix := "/emoji/" + token + "/"
 	mux := http.NewServeMux()
 	mux.HandleFunc(mediaPrefix, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -194,6 +195,15 @@ func (s *Service) startMediaServerLocked() error {
 		}
 		s.servePattern(id, w, r)
 	})
+	mux.HandleFunc(emojiPrefix, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		id := strings.TrimPrefix(r.URL.Path, emojiPrefix)
+		if id == "" || strings.Contains(id, "/") || strings.Contains(id, "\\") {
+			http.NotFound(w, r)
+			return
+		}
+		s.serveAnimatedEmoji(id, w, r)
+	})
 	server := &http.Server{
 		ReadHeaderTimeout: 10 * time.Second,
 		Handler:           mux,
@@ -208,6 +218,7 @@ func (s *Service) startMediaServerLocked() error {
 	s.avatarBase = origin + avatarPrefix
 	s.photoBase = origin + photoPrefix
 	s.patternBase = origin + patternPrefix
+	s.emojiBase = origin + emojiPrefix
 	if s.videoStreams == nil {
 		s.videoStreams = make(map[string]*videoStreamSession)
 	}

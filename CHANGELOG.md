@@ -173,6 +173,16 @@
   mix (it had been mixed the other way round, ending up nearly the accent
   colour) and the theme's accent is also applied to the primary button, link
   and Saved Messages colours.
+- **The tile figures are alive**: each tile's figure is the theme's Telegram
+  *animated emoji* (the house for the factory tile, then the chick, snowman,
+  diamond, …), served by the kernel from Telegram's animated-emoji sticker set
+  and rendered paused with the bundled lottie-web. Clicking a tile plays the
+  reference's micro-animation — after a 250 ms beat the figure pops to twice its
+  size, its Lottie runs once to the last frame and it settles back; another click
+  cancels the previous figure. Motion follows the full animation level and the
+  OS reduce-motion preference, the active tile is no longer a click target, and
+  the animated set is only fetched when the deck is opened. The plain emoji
+  glyph remains the fallback (and what the dev preview shows).
 
 ### Telegram parity III: Saved Messages 2.0, gifts, search, presence, pinned bar, live emoji
 
