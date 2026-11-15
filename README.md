@@ -75,9 +75,10 @@ home for the sections that are not ported yet.
   through the doodles, exactly like the official Night look) and matching Night
   avatar colours; the dropdown menus follow, and an applied global theme
   switches to its night side in the dark shell, back to its day side in the
-  light one. Cloud-theme accents on the dark shell use the reference's lifted
-  night palette, so the selected chat row and the folder chip read the same
-  pink/green tone as the official Web K.
+  light one. Cloud themes use the reference's four-variant palette, so the
+  dark shell paints their official Night accent and wallpaper — the selected
+  chat row, folder chip and Saved Messages avatar read the same pink/green
+  tone as the official Web K for every theme.
 - **Global themes**: the empty-column Appearance tip shows Telegram's theme
   strip — the factory tile plus the eight global themes 🐥 ⛄ 💎 👨‍🏫 🌷 💜 🎄 🎮,
   each with its wallpaper, pattern, bubbles and animated-emoji figure. The nine

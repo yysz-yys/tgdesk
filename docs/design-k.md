@@ -135,18 +135,23 @@ tiles preview the same look through `KThemeTileMask`: a 72×96 canvas that keeps
 the gradient only along the doodles, because a cross-origin SVG cannot be used
 as a CSS `mask-image` while drawing it into a canvas works.
 
-A cloud theme's accent is not used raw on the dark shell: the server's
-per-theme accents are tuned for the light shell, and the reference paints the
-Night UI with the same accent lifted — the selected dialog row's fill, the
-folder chip's 8% plate and label, Saved Messages' gradient, links and the pencil
-button all read brighter and more saturated (official dark 🌷 screenshots:
-`#cd7189` row fill where the server sends `#bd6384`). `themeStore` applies a
-calibrated HSL adjustment (+10 lightness, +29 saturation points, +6 hue) to a
-cloud theme's accent on the dark shell; the factory Day/Night accents, the light
-shell and the Appearance tile previews keep the server palette. The Appearance
-strip fetches its themes the way the reference does — `account.getThemes` with
-the `macos` format first, then `account.getChatThemes` — so custom account
-themes show up too.
+Cloud themes carry four palette variants in the reference: Day, Classic, Night
+(`baseThemeNight`) and Tinted. The Night entry is the one the dark shell paints —
+its `accent_color` drives the selected dialog row's fill, the folder chip's 8%
+plate and label, Saved Messages' gradient, links and the pencil button, and its
+wallpaper gradient feeds the black mask wallpaper. For example the 🌷 theme's
+Night accent is `#eb6b8e` (the row fill the reference shows) where the Tinted
+entry — the only dark variant the `account.getChatThemes` answer reachable here
+carries — is `#bd6384`, which is why dark mode used to read duller, and the 🎄
+theme's Night accent is `#7db55d` (an olive green pencil button) where Tinted is
+`#59854a`. The bundled theme table (`globalThemes.ts`) carries the official
+Day/Classic/Night/Tinted entries for all eight themes; `themeStore` prefers the
+Night entry for dark mode, and the live list is merged onto the bundled one so
+the kernel's pattern-document URLs still paint the wallpapers. The light shell
+keeps the Classic/Day palettes and the factory Day/Night accents are untouched.
+The Appearance strip fetches its themes the way the reference does —
+`account.getThemes` with the `macos` format first, then `account.getChatThemes` —
+so custom account themes show up too.
 
 ## Components map to tweb markup
 

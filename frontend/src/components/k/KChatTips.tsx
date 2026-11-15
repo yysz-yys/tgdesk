@@ -18,7 +18,11 @@ import {
   variantColors,
   type ChatThemeDTO,
 } from "./themeStore";
-import { DEFAULT_TILE_THEME, FALLBACK_GLOBAL_THEMES } from "./globalThemes";
+import {
+  DEFAULT_TILE_THEME,
+  FALLBACK_GLOBAL_THEMES,
+  mergeLiveGlobalThemes,
+} from "./globalThemes";
 import { KThemeEmoticon, type KThemeEmoticonHandle } from "./KThemeEmoticon";
 import { KThemeTileMask } from "./KThemeTileMask";
 import { bundledThemeEmoji } from "./themeEmojiAssets";
@@ -194,7 +198,9 @@ export function KChatTips({
       void AppService.GetChatThemes(proxyUrl, ntp ?? "")
         .then((list) => {
           if (!alive) return;
-          const mapped = (list ?? []) as ChatThemeDTO[];
+          const mapped = mergeLiveGlobalThemes(
+            (list ?? []) as ChatThemeDTO[],
+          );
           if (mapped.length === 0) return;
           setThemes(mapped);
           restoreStored(mapped);

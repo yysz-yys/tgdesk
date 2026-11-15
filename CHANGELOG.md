@@ -39,17 +39,20 @@
 
 ### Design K: cloud-theme accents on the dark shell
 
-- **Global themes paint the same accent colours as the official Web K in dark
-  mode**: the server's per-theme accents are tuned for the light shell, and the
-  reference brightens and saturates them on the Night shell — the selected chat
-  row's fill, the folder chip's filled plate and label, the Saved Messages
-  avatar, links and the pencil button all use that lifted accent. Our shell
-  previously used the raw server accent, so a dark chat row read as a duller
-  mauve than the reference's pink. The accent now goes through a calibrated
-  HSL adjustment (+10 lightness, +29 saturation points, +6 hue, measured from
-  official dark screenshots of the 🌷 theme: `#bd6384` → `#e56e8e`, where the
-  official row is `#cd7189`/captured `#e46f89`); the light shell, the factory
-  Day/Night accents and the Appearance tile previews keep the raw palette.
+- **Global themes use the reference's Night palette in dark mode**: the official
+  theme objects carry four palette variants — Day, Classic, Night
+  (`baseThemeNight`) and Tinted — and the Night entry defines the dark shell's
+  accent and wallpaper (the 🌷 theme's `#eb6b8e` accent, the chick theme's
+  `#84ce65`, the tree theme's `#7db55d`, each with its own dark wallpaper
+  gradient). The `account.getChatThemes` answer this port can fetch predates
+  those variants and ships only Classic + Tinted, so the shell used to paint
+  dark mode with the Tinted palette — a dull mauve row where the reference is
+  bright pink, and a teal pencil button where the reference is olive green.
+  The bundled theme table now carries the official four variants, the shell
+  picks the Night entry for dark mode, and the live list is merged onto it
+  (keeping the live pattern-document URLs), so dark mode matches the reference
+  for all eight themes. The light shell keeps the Classic/Day palettes and the
+  factory Day/Night accents are untouched.
 - The Appearance strip now prefers the official Web K theme source: the kernel
   asks `account.getThemes` with the `macos` format first (what the reference
   appearance card calls) and falls back to `account.getChatThemes`, so custom
