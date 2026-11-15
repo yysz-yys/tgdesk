@@ -86,11 +86,15 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
   右侧 30px 添加/已添加药丸（官方灰底 `#f1f3f4` + secondary 文字）、下方 5 张 68×68
   预览贴纸（`space-around`，节高 140px，与官方 `#stickers-container` 规则一致）；
   预览按节懒加载，点套件或其贴纸打开贴纸集弹窗，添加/已添加直接安装/移除并刷新状态，
-  滚动时头部切换 surface 底 + 1px 发际线，滚动条沿用 Web K 自定义样式。搜索在
+  滚动时头部切换 surface 底 + 1px 发际线，滚动条沿用 Web K 自定义样式。列表滚到距底部
+  300px 内会按 tweb 的 `onScrolledBottom` 追加载旧热门套件（内核新方法
+  `GetOldFeaturedStickerSets` → `messages.getOldFeaturedStickers`，每页 40 个、短页即到底；
+  全是空页会继续追下一页，请求失败保留 offset 等下次滚动重试；搜索时暂停翻页，清空搜索
+  回到当前列表并从第一页重新开始），所以能像官方一样一直往下滚一直加载。搜索在
   trending + 已安装列表里按标题本地过滤（官方用 `messages.searchStickerSets`，内核目前
   只给输入框用）；Night 主题用 K tokens（`#181818` 页 / `#2f2f2f` 搜索框描边）与官方一致。
-  预置截图入口 `k-preview.html?page=stickers`（fixture 套件）。installed/archived 分区、
-  服务端搜索和旧热门分页仍待补。
+  预置截图入口 `k-preview.html?page=stickers`（fixture 套件，不翻页）。installed/archived
+  分区、服务端搜索和 `readFeaturedStickers` 已读回执仍待补。
 - 频道资料补充：`ChatProfileDTO` 增加 `usernames[]`（全部有效用户名，主用户名在前）、
   `canSendStickers`/`canSendGifs`（由 send_stickers/send_gifs 禁权推导）、
   `giftsCount`（stargifts_count，决定礼物 tab 是否显示）、`adminsCount`；

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { StickerDoc, StickerSetInfo } from "../../types";
 import {
   installSet,
   loadFeaturedStickerSets,
+  loadOldFeaturedStickerSets,
   loadStickerPacks,
   loadStickerSet,
   networkKey,
@@ -79,8 +80,28 @@ export function KStickersPage({
   const [scrolled, setScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { thumbRef, onThumbMouseDown } = useScrollThumb(scrollRef);
+  // The older trending pages appended below the current list (tweb walks
+  // messages.getOldFeaturedStickers as the list is scrolled to its end).
+  const [olderSets, setOlderSets] = useState<StickerSetInfo[]>([]);
+  const oldOffsetRef = useRef(0);
+  const oldExhaustedRef = useRef(false);
+  const loadingOldRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+  const queryValueRef = useRef("");
+  const mountedRef = useRef(true);
+  queryValueRef.current = query;
+
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
 
   useEffect(() => {
+    setOlderSets([]);
+    oldOffsetRef.current = 0;
+    oldExhaustedRef.current = false;
     if (preview) {
       setFeatured(preview.sets);
       setInstalledIds(new Set(preview.installed));
@@ -112,23 +133,143 @@ export function KStickersPage({
     };
   }, [network, networkSignature, preview]);
 
+  // Current featured list + every older page appended below it.
+  const trendingSets = useMemo(() => {
+    const base = featured ?? [];
+    if (olderSets.length === 0) return base;
+    const seen = new Set(base.map((set) => set.id));
+    const merged = [...base];
+    for (const set of olderSets) {
+      if (seen.has(set.id)) continue;
+      seen.add(set.id);
+      merged.push(set);
+    }
+    return merged;
+  }, [featured, olderSets]);
+
   // The tab behaves like tweb's: the trending list until the search field has
   // text, then every known pack whose title matches. (The reference asks the
   // server with messages.searchStickerSets; the kernel exposes that search only
   // for the composer, so this page filters the trending + installed lists.)
   const searchText = query.trim().toLowerCase();
   const shownSets = useMemo(() => {
-    const trending = featured ?? [];
-    if (!searchText) return trending;
+    if (!searchText) return trendingSets;
     const seen = new Set<string>();
     const result: StickerSetInfo[] = [];
-    for (const set of [...trending, ...installedSets]) {
+    for (const set of [...trendingSets, ...installedSets]) {
       if (seen.has(set.id)) continue;
       seen.add(set.id);
       if (set.title.toLowerCase().includes(searchText)) result.push(set);
     }
     return result;
-  }, [featured, installedSets, searchText]);
+  }, [installedSets, searchText, trendingSets]);
+
+  /**
+   * Append the next page of older trending sets, tweb's `loadOldFeatured`: while
+   * the list is scrolled within `onScrollOffset` (300px) of its end, load one
+   * page of OLD_FEATURED_STICKERS_LIMIT and keep walking while a page brings
+   * nothing (tweb: "a page that added little or nothing new asks for the next
+   * one"). A failed page leaves the offset alone, so the next scroll retries.
+   */
+  const loadOlder = useCallback(async () => {
+    if (preview || !network) return;
+    if (queryValueRef.current.trim().length > 0) return;
+    if (loadingOldRef.current || oldExhaustedRef.current) return;
+    loadingOldRef.current = true;
+    try {
+      let offset = oldOffsetRef.current;
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const page = await loadOldFeaturedStickerSets(network, offset);
+        if (!mountedRef.current) return;
+        if (page.sets.length > 0) {
+          setOlderSets((current) => {
+            const seen = new Set(current.map((set) => set.id));
+            const added = page.sets.filter((set) => !seen.has(set.id));
+            return added.length > 0 ? [...current, ...added] : current;
+          });
+        }
+        if (!page.hasMore) {
+          oldExhaustedRef.current = true;
+          oldOffsetRef.current = page.nextOffset;
+          break;
+        }
+        offset = page.nextOffset;
+        oldOffsetRef.current = offset;
+        if (page.sets.length > 0) break;
+      }
+    } catch {
+      // tweb leaves the offset alone and waits for the next scroll to the end.
+    } finally {
+      loadingOldRef.current = false;
+    }
+  }, [network, preview]);
+
+  const loadOlderRef = useRef<() => void>(() => {});
+  loadOlderRef.current = () => void loadOlder();
+
+  // After a page lands tweb runs scrollable.checkForTriggers() once more: a
+  // short page (or one whose rows were filtered out) may still leave the end
+  // within reach, so the next page has to follow without another scroll. Wait
+  // for React to commit the appended rows first, or the old scroll height would
+  // make the end look nearby and load a page too many.
+  useEffect(() => {
+    if (olderSets.length === 0) return;
+    const frame = window.requestAnimationFrame(() => {
+      const element = scrollRef.current;
+      if (!element) return;
+      if (
+        element.scrollHeight - element.clientHeight - element.scrollTop <=
+        300
+      ) {
+        void loadOlderRef.current();
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [olderSets]);
+
+  /** tweb's scrollable.onScrolledBottom: within 300px of the end, downward. */
+  const maybeLoadOlder = useCallback(
+    (directionDown: boolean) => {
+      const element = scrollRef.current;
+      if (!element || !directionDown) return;
+      if (queryValueRef.current.trim().length > 0) return;
+      if (
+        element.scrollHeight - element.clientHeight - element.scrollTop >
+        300
+      ) {
+        return;
+      }
+      void loadOlder();
+    },
+    [loadOlder],
+  );
+
+  // tweb's renderFeatured ends with scrollable.checkForTriggers(): if the first
+  // screen is not filled (or few sets came back) the older pages start loading
+  // right away, chasing the end until the list scrolls.
+  useEffect(() => {
+    if (!featured || featured.length === 0) return;
+    const frame = window.requestAnimationFrame(() => {
+      const element = scrollRef.current;
+      if (!element) return;
+      if (element.scrollHeight <= element.clientHeight + 300) {
+        void loadOlderRef.current();
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [featured]);
+
+  /** Clearing the search returns to the current list (tweb's renderFeatured):
+   * older pages are dropped and their loading restarts from the first page. */
+  const changeQuery = (value: string) => {
+    const wasSearching = query.trim().length > 0;
+    setQuery(value);
+    if (wasSearching && value.trim().length === 0) {
+      setOlderSets([]);
+      oldOffsetRef.current = 0;
+      oldExhaustedRef.current = false;
+    }
+  };
 
   const toggleInstalled = async (set: StickerSetInfo) => {
     if (busy.has(set.ref)) return;
@@ -190,7 +331,7 @@ export function KStickersPage({
         </button>
         <KSearchField
           value={query}
-          onChange={setQuery}
+          onChange={changeQuery}
           placeholder={t("stickerSet.searchPlaceholder")}
           oldStyle={false}
         />
@@ -201,7 +342,12 @@ export function KStickersPage({
           className="scrollable k-stickers-scroll"
           onScroll={() => {
             const element = scrollRef.current;
-            if (element) setScrolled(element.scrollTop > 0);
+            if (!element) return;
+            setScrolled(element.scrollTop > 0);
+            const directionDown =
+              element.scrollTop >= lastScrollTopRef.current;
+            lastScrollTopRef.current = element.scrollTop;
+            maybeLoadOlder(directionDown);
           }}
         >
           <div className="scrollable-thumb-container">

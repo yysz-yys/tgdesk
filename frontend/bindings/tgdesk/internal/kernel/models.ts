@@ -555,6 +555,18 @@ export interface DownloadTaskDTO {
 }
 
 /**
+ * FeaturedStickerSetPageDTO is one page of trending sets that are no longer
+ * current. tweb loads these with messages.getOldFeaturedStickers as the trending
+ * list is scrolled past its end (`OLD_FEATURED_STICKERS_LIMIT` 40 per page) and
+ * treats a short page as the last one; NextOffset is where the next page starts.
+ */
+export interface FeaturedStickerSetPageDTO {
+    "sets": StickerSetDTO[] | null;
+    "nextOffset": number;
+    "hasMore": boolean;
+}
+
+/**
  * GifDTO is one saved GIF or one inline-bot GIF search result. ResultID is set
  * only for search results and is the handle messages.sendInlineBotResult needs;
  * Ref stays the opaque token the rest of the kernel (and the picker) passes

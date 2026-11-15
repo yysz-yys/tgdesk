@@ -73,6 +73,15 @@ func (s *Service) GetFeaturedStickerSets(proxy, ntp string) ([]kernel.StickerSet
 	return s.kernel.GetFeaturedStickerSets(proxy, ntp)
 }
 
+// GetOldFeaturedStickerSets returns one page of the older trending sets
+// (messages.getOldFeaturedStickers), the infinite-scroll tail of the trending tab.
+func (s *Service) GetOldFeaturedStickerSets(
+	offset, limit int,
+	proxy, ntp string,
+) (*kernel.FeaturedStickerSetPageDTO, error) {
+	return s.kernel.GetOldFeaturedStickerSets(offset, limit, proxy, ntp)
+}
+
 // SearchGifs runs one page of the inline-bot GIF search.
 func (s *Service) SearchGifs(
 	query, offset string,

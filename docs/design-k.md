@@ -439,13 +439,21 @@ so custom account themes show up too.
   sticker-set popup, the Add/Added pill installs/removes the set with the same
   kernel calls as the popup, and scrolling switches the header to the surface
   colour plus its hairline (tweb's `scrollable-y-bordered`) over the Web K custom
-  scrollbar. Search filters the trending + installed lists by title in the client —
-  the reference asks `messages.searchStickerSets`, which the kernel exposes only to
-  the composer today. The Night palette comes from the K tokens, matching the
-  reference's `#181818` page / `#2f2f2f` search ring. The full tweb tab (installed
-  and archived sections, server search, older featured pages) remains future work;
-  the composer's picker still owns day-to-day sticker management. Dev screenshots
-  for this page use `k-preview.html?page=stickers` with fixture packs.
+  scrollbar. Reaching within 300px of the list's end (tweb's `onScrolledBottom`
+  offset) appends the next page of older trending sets
+  (`messages.getOldFeaturedStickers`, tweb's `OLD_FEATURED_STICKERS_LIMIT` of 40;
+  a short page ends the list), so the tab keeps loading past the current packs the
+  way the reference does: a page that maps to no rows chases the next one, a
+  failed page leaves the offset for the next scroll, search pauses paging and
+  clearing it restarts from the current list. Search filters the trending +
+  installed lists by title in the client — the reference asks
+  `messages.searchStickerSets`, which the kernel exposes only to the composer
+  today. The Night palette comes from the K tokens, matching the reference's
+  `#181818` page / `#2f2f2f` search ring. The full tweb tab (installed and archived
+  sections, server search, the `readFeaturedStickers` read receipts) remains
+  future work; the composer's picker still owns day-to-day sticker management.
+  Dev screenshots for this page use `k-preview.html?page=stickers` with fixture
+  packs (the preview does not page).
 - **Archived chats** are a sidebar screen of their own, not a swapped list:
   `KChatList` keeps two tabs in tweb's `.sidebar-slider.tabs-container`
   (`item-main` + the archived tab) and opens the second one with the same
@@ -560,10 +568,13 @@ chrome.exe --headless=new --remote-debugging-port=9222 --user-data-dir=temp/chro
 
 The trending tab was captured this way with the real featured packs and matches the
 reference's 720×1518-device-pixel card crop on the search ring, back arrow,
-title/count baselines, section pitch, Add/Added pills and preview grid. Use a copy of
-`bin/tdata` in the throwaway root (and remove it afterwards) so account checks never
-run on the only `tdata`; install/uninstall checks are reverted in the same session.
-`k-preview.html?page=stickers` stays the offline check for the tab's layout.
+title/count baselines, section pitch, Add/Added pills and preview grid; scrolling to
+the end of its 231 current packs appended the older pages 40 rows at a time
+(231→271→311→…→511) exactly as the reference's `getOldFeaturedStickers` paging does.
+Use a copy of `bin/tdata` in the throwaway root (and remove it afterwards) so
+account checks never run on the only `tdata`; install/uninstall checks are reverted
+in the same session. `k-preview.html?page=stickers` stays the offline check for the
+tab's layout.
 
 ## Remaining work (page-by-page)
 
@@ -575,9 +586,10 @@ run on the only `tdata`; install/uninstall checks are reverted in the same sessi
    stickers, speakers and camera, devices, keyboard shortcuts, edit profile) and the
    settings search layer; the home screen is ported and those rows currently open the
    legacy settings dialog or announce themselves. The "Stickers and Emoji" tab's
-   trending browser is ported (see above); its installed/archived sections, the
-   server-side `messages.searchStickerSets` search it opens with, and older featured
-   pages are still missing.
+   trending browser is ported (see above, including its older-featured infinite
+   scroll); its installed/archived sections, the server-side
+   `messages.searchStickerSets` search it opens with and the read receipts are still
+   missing.
 5. Animated/moving wallpaper, custom chat backgrounds, stories rings, avatars
    videos — not part of the reference page.
 6. Avatar editing for new chats (the camera button on the new-channel/group pages

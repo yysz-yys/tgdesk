@@ -25,6 +25,7 @@ export type {
     DownloadEvent,
     DownloadOptions,
     DownloadTaskDTO,
+    FeaturedStickerSetPageDTO,
     GifDTO,
     GifSearchPageDTO,
     MessageButtonDTO,

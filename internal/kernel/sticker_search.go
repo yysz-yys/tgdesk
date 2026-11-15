@@ -480,6 +480,82 @@ func (s *Service) GetFeaturedStickerSets(proxy, ntp string) ([]StickerSetDTO, er
 	return sets, nil
 }
 
+const (
+	// oldFeaturedStickersDefaultLimit is tweb's OLD_FEATURED_STICKERS_LIMIT
+	// (kOfficialLoadLimit in tdesktop / Android's page size).
+	oldFeaturedStickersDefaultLimit = 40
+	// The Telegram API accepts at most 100 per page.
+	oldFeaturedStickersMaxLimit = 100
+)
+
+// FeaturedStickerSetPageDTO is one page of trending sets that are no longer
+// current. tweb loads these with messages.getOldFeaturedStickers as the trending
+// list is scrolled past its end (`OLD_FEATURED_STICKERS_LIMIT` 40 per page) and
+// treats a short page as the last one; NextOffset is where the next page starts.
+type FeaturedStickerSetPageDTO struct {
+	Sets       []StickerSetDTO `json:"sets"`
+	NextOffset int             `json:"nextOffset"`
+	HasMore    bool            `json:"hasMore"`
+}
+
+// GetOldFeaturedStickerSets loads one page of older trending sticker sets
+// (messages.getOldFeaturedStickers), the pagination tweb's trending tab walks
+// when scrolled to its end. The list is uncached for the same reason as the
+// current featured list.
+func (s *Service) GetOldFeaturedStickerSets(
+	offset, limit int,
+	proxy, ntp string,
+) (*FeaturedStickerSetPageDTO, error) {
+	if offset < 0 {
+		offset = 0
+	}
+	if limit <= 0 {
+		limit = oldFeaturedStickersDefaultLimit
+	}
+	if limit > oldFeaturedStickersMaxLimit {
+		limit = oldFeaturedStickersMaxLimit
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	client, err := s.ensureSession(ctx, proxy, ntp)
+	if err != nil {
+		return nil, err
+	}
+	s.noteMediaConfig(proxy, ntp)
+
+	resp, err := client.API().MessagesGetOldFeaturedStickers(
+		ctx,
+		&tg.MessagesGetOldFeaturedStickersRequest{
+			Offset: offset,
+			Limit:  limit,
+			Hash:   0,
+		},
+	)
+	if err != nil {
+		return nil, readableRPCError("load older featured sticker sets", err)
+	}
+	value, ok := resp.(*tg.MessagesFeaturedStickers)
+	if !ok {
+		return &FeaturedStickerSetPageDTO{Sets: []StickerSetDTO{}}, nil
+	}
+	// The page length is what decides "has more" (tweb: a short page is the
+	// last one); map after taking it, because mapping filters masks/emoji sets.
+	rawCount := len(value.Sets)
+	sets := make([]StickerSetDTO, 0, rawCount)
+	for _, raw := range value.Sets {
+		header, ok := s.mapFeaturedStickerSet(raw, proxy, ntp)
+		if !ok {
+			continue
+		}
+		sets = append(sets, header)
+	}
+	return &FeaturedStickerSetPageDTO{
+		Sets:       sets,
+		NextOffset: offset + rawCount,
+		HasMore:    rawCount >= limit,
+	}, nil
+}
+
 // mapFeaturedStickerSet maps one messages.featuredStickers set union entry,
 // using the set thumbnail when present and the preview sticker document as the
 // cover fallback (Web A does the same for sets without a cover thumbnail).

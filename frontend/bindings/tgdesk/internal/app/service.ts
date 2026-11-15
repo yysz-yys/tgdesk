@@ -219,6 +219,14 @@ export function GetNewMessages(chatID: string, afterID: number, proxy: string, n
     return $Call.ByID(788018406, chatID, afterID, proxy, ntp);
 }
 
+/**
+ * GetOldFeaturedStickerSets returns one page of the older trending sets
+ * (messages.getOldFeaturedStickers), the infinite-scroll tail of the trending tab.
+ */
+export function GetOldFeaturedStickerSets(offset: number, limit: number, proxy: string, ntp: string): $CancellablePromise<kernel$0.FeaturedStickerSetPageDTO | null> {
+    return $Call.ByID(4077095147, offset, limit, proxy, ntp);
+}
+
 export function GetOlderMessages(chatID: string, beforeID: number, proxy: string, ntp: string, limit: number): $CancellablePromise<kernel$0.MessageDTO[] | null> {
     return $Call.ByID(452295974, chatID, beforeID, proxy, ntp, limit);
 }

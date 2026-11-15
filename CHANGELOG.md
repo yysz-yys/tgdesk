@@ -65,13 +65,24 @@
   ring) and text tokens are the reference's. Search filters the trending and
   installed packs by title in the client (the reference asks
   `messages.searchStickerSets`, which the kernel exposes only to the composer);
-  the installed/archived sections and older featured pages remain future work.
-- `?page=stickers` on the preview harness (`k-preview.html`) renders the tab with
-  fixture packs, so its layout can be captured without a kernel or network.
-- Verified against the reference capture from a live account, driven headless
+  the installed/archived sections, server-side search and the
+  `readFeaturedStickers` read receipts remain future work.
+- **The trending tab keeps loading like the reference**: reaching within 300px of
+  the end of the list (tweb's `onScrolledBottom` offset) appends the next page of
+  older trending sets through the new kernel `GetOldFeaturedStickerSets`
+  (`messages.getOldFeaturedStickers`, tweb's `OLD_FEATURED_STICKERS_LIMIT` of 40,
+  a short page ends the list) — the current 231 packs then 40 rows per end, page
+  after page. A page that maps to no rows chases the next one, a failed page
+  leaves its offset for the next scroll, search pauses paging and clearing it
+  restarts from the current list.
+- Verified live against the reference capture from a live account, driven headless
   through the server-mode build: the search ring (44px), back arrow, title/count
   baselines, 140px section pitch, Add/Added pills and the 68px preview grid land
-  within one device pixel, and the pill installs/removes the real set.
+  within one device pixel, the pill installs/removes the real set, and scrolling
+  to the end of the 231 current packs appended the older pages one at a time
+  (231→271→311→…→511 rows, each a real older featured set).
+- `?page=stickers` on the preview harness (`k-preview.html`) renders the tab with
+  fixture packs, so its layout can be captured without a kernel or network.
 
 ### Design K: the dark (Night) theme
 

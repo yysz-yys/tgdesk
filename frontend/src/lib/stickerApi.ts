@@ -37,6 +37,7 @@ import type {
   StickerSearch,
   StickerSetDetail,
   StickerSetInfo,
+  StickerSetPage,
 } from "../types";
 import {
   archiveStickerSet as archiveStickerSetRpc,
@@ -107,9 +108,18 @@ const bindings = AppService as unknown as StickerBindings;
 interface Round3ArrayReads {
   GetFavedStickers(proxy: string, ntp: string): Promise<unknown[] | null>;
   GetFeaturedStickerSets(proxy: string, ntp: string): Promise<unknown[] | null>;
+  GetOldFeaturedStickerSets(
+    offset: number,
+    limit: number,
+    proxy: string,
+    ntp: string,
+  ): Promise<unknown>;
 }
 
 const arrayReads = AppService as unknown as Round3ArrayReads;
+
+/** tweb's OLD_FEATURED_STICKERS_LIMIT: one page of older trending sets. */
+export const OLD_FEATURED_STICKERS_LIMIT = 40;
 
 // ------------------------------------------------------------------- caches
 
@@ -431,6 +441,40 @@ export function loadFeaturedStickerSets(
     options.force === true,
     (entry) => fetchFeaturedStickerSets(network, entry),
   );
+}
+
+/**
+ * One page of the trending sets that are no longer current
+ * (messages.getOldFeaturedStickers), the tail the Web K trending tab appends as
+ * it is scrolled to its end (`OLD_FEATURED_STICKERS_LIMIT` per page, a short page
+ * is the last one). Uncached: the tab keeps the pages it has appended, and
+ * Telegram treats this as a store walk rather than a hot read.
+ */
+export async function loadOldFeaturedStickerSets(
+  network: PickerNetwork,
+  offset: number,
+  limit: number = OLD_FEATURED_STICKERS_LIMIT,
+): Promise<StickerSetPage> {
+  const payload = await arrayReads.GetOldFeaturedStickerSets(
+    offset,
+    limit,
+    network.proxy,
+    network.ntp,
+  );
+  if (!isRecord(payload)) {
+    return { sets: [], nextOffset: offset, hasMore: false };
+  }
+  const sets = normalizeStickerSets(
+    payload.sets as unknown[] | null | undefined,
+  );
+  return {
+    sets,
+    nextOffset:
+      typeof payload.nextOffset === "number"
+        ? payload.nextOffset
+        : offset + sets.length,
+    hasMore: payload.hasMore === true,
+  };
 }
 
 // ------------------------------------------------------------- sticker search

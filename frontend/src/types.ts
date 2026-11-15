@@ -309,6 +309,15 @@ export interface StickerSetDetail {
   stickers: StickerDoc[];
 }
 
+/** One page of older trending sticker sets (messages.getOldFeaturedStickers). */
+export interface StickerSetPage {
+  sets: StickerSetInfo[];
+  /** Offset the next page starts at (tweb's `nextOffset`). */
+  nextOffset: number;
+  /** False once Telegram has no older trending sets left. */
+  hasMore: boolean;
+}
+
 /** One saved GIF from Telegram's saved-GIF list. */
 export interface SavedGif {
   ref: string;
