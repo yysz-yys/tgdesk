@@ -66,6 +66,8 @@ interface ChatViewProps {
   onSendCommand: (command: string) => Promise<void>;
   onRequestLeaveChat?: (chat: Chat) => void;
   onOpenLinkedChat?: (chatID: string, chat?: Chat) => void;
+  /** Channel-post comments bar: open the linked discussion chat. */
+  onOpenComments?: (message: Message) => void;
   /** Saved Messages 2.0 source chats for the info pane's "Chats" tab. */
   onLoadSavedChats?: () => Promise<SavedChats | null>;
   onOpenSavedChat?: (chatID: string) => void;
@@ -159,6 +161,7 @@ export function ChatView({
   onSendCommand,
   onRequestLeaveChat,
   onOpenLinkedChat,
+  onOpenComments,
   onLoadSavedChats,
   onOpenSavedChat,
   onLoadChatGifts,
@@ -658,6 +661,21 @@ export function ChatView({
     });
   };
 
+  const openComments = (message: Message) => {
+    if (onOpenComments) {
+      onOpenComments(message);
+      return;
+    }
+    // Web K's comments footer opens the channel's linked discussion; without a
+    // resolved discussion peer fall back to the profile's linked chat.
+    const targetID = message.discussionChatId || profile?.linkedChatId;
+    if (!targetID) {
+      onToast(t("chat.commentsUnavailable"));
+      return;
+    }
+    onOpenLinkedChat?.(targetID, profile?.linkedChat);
+  };
+
   const focusComposer = () => {
     setInfoOpen(false);
     window.setTimeout(() => {
@@ -671,7 +689,11 @@ export function ChatView({
 
   return (
     <>
-      <main className="g-chat-pane" aria-label={chat.title}>
+      <div
+        className="g-chat-view"
+        data-info-open={infoOpen ? "true" : undefined}
+      >
+        <main className="g-chat-pane" aria-label={chat.title}>
         <ChatHeader
           chat={chat}
           infoOpen={infoOpen}
@@ -764,6 +786,7 @@ export function ChatView({
               onLoadOlder={onLoadOlder}
               onPlayVideo={openViewer}
               onOpenPhoto={openViewer}
+              onOpenComments={openComments}
               onReply={(message) => {
                 setEditing(null);
                 setReplyingTo(message);
@@ -933,57 +956,63 @@ export function ChatView({
             </Button>
           </div>
         </Dialog>
-      </main>
+        </main>
 
-      {infoOpen ? (
-        <div className="f-info-overlay" role="dialog" aria-label={chat.title}>
-          <ChatInfoPanel
-          chat={chat}
-          profile={profile}
-          profileLoading={profileLoading}
-          profileFailed={profileFailed}
-          onRetryProfile={() => setProfileReload((value) => value + 1)}
-          onSearchInChat={() => setSearchOpen(true)}
-          onArchiveChat={() => onArchiveChat(chat)}
-          onOpenBotWebView={openBotMenu}
-          onFocusComposer={focusComposer}
-          onLeaveChat={() => onRequestLeaveChat?.(chat)}
-          onOpenDiscussion={(chatID, linkedChat) =>
-            onOpenLinkedChat?.(chatID, linkedChat)
-          }
-          onLoadSavedChats={onLoadSavedChats}
-          onOpenSavedChat={onOpenSavedChat}
-          onLoadChatGifts={
-            onLoadChatGifts ? (offset) => onLoadChatGifts(chat.id, offset) : undefined
-          }
-          network={network}
-          onOpenLink={openTelegramLink}
-          onClose={() => setInfoOpen(false)}
-          onTogglePin={onTogglePin}
-          onToggleMute={onToggleMute}
-          onMarkRead={onMarkRead}
-          onLoadChatInfo={onLoadChatInfo}
-          onLoadMembersPage={onLoadMembersPage}
-          onLoadSharedMedia={onLoadSharedMedia}
-          liveVersion={liveVersion}
-          downloads={downloads}
-          onDownloadInline={onDownloadInline}
-          onOpenDownloaded={onOpenDownloaded}
-          onPauseDownload={onPauseDownload}
-          onResumeDownload={onResumeDownload}
-          onOpenPhoto={openViewer}
-          onPlayVideo={openViewer}
-          onForwardMessage={(message) =>
-            setForwarding({ message, ids: [message.id] })
-          }
-          onDeleteMessage={(message) => requestDelete(message, message.out)}
-          onForwardMessages={forwardSharedMedia}
-          onDeleteMessages={deleteSharedMedia}
-          onJumpToMessage={jumpToMessage}
-          onToast={onToast}
-        />
-        </div>
-      ) : null}
+        {infoOpen ? (
+          <aside
+            className="g-chat-sidebar"
+            aria-label={t("rightPanel.chatInfo")}
+          >
+            <ChatInfoPanel
+              chat={chat}
+              profile={profile}
+              profileLoading={profileLoading}
+              profileFailed={profileFailed}
+              onRetryProfile={() => setProfileReload((value) => value + 1)}
+              onSearchInChat={() => setSearchOpen(true)}
+              onArchiveChat={() => onArchiveChat(chat)}
+              onOpenBotWebView={openBotMenu}
+              onFocusComposer={focusComposer}
+              onLeaveChat={() => onRequestLeaveChat?.(chat)}
+              onOpenDiscussion={(chatID, linkedChat) =>
+                onOpenLinkedChat?.(chatID, linkedChat)
+              }
+              onLoadSavedChats={onLoadSavedChats}
+              onOpenSavedChat={onOpenSavedChat}
+              onLoadChatGifts={
+                onLoadChatGifts
+                  ? (offset) => onLoadChatGifts(chat.id, offset)
+                  : undefined
+              }
+              network={network}
+              onOpenLink={openTelegramLink}
+              onClose={() => setInfoOpen(false)}
+              onTogglePin={onTogglePin}
+              onToggleMute={onToggleMute}
+              onMarkRead={onMarkRead}
+              onLoadChatInfo={onLoadChatInfo}
+              onLoadMembersPage={onLoadMembersPage}
+              onLoadSharedMedia={onLoadSharedMedia}
+              liveVersion={liveVersion}
+              downloads={downloads}
+              onDownloadInline={onDownloadInline}
+              onOpenDownloaded={onOpenDownloaded}
+              onPauseDownload={onPauseDownload}
+              onResumeDownload={onResumeDownload}
+              onOpenPhoto={openViewer}
+              onPlayVideo={openViewer}
+              onForwardMessage={(message) =>
+                setForwarding({ message, ids: [message.id] })
+              }
+              onDeleteMessage={(message) => requestDelete(message, message.out)}
+              onForwardMessages={forwardSharedMedia}
+              onDeleteMessages={deleteSharedMedia}
+              onJumpToMessage={jumpToMessage}
+              onToast={onToast}
+            />
+          </aside>
+        ) : null}
+      </div>
     </>
   );
 }

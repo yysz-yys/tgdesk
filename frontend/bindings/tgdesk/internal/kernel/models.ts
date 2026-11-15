@@ -734,6 +734,15 @@ export interface MessageDTO {
     "noForwards"?: boolean;
     "via"?: string;
     "signature"?: string;
+
+    /**
+     * Channel post comments (`message.replies` in Telegram's TL schema). These
+     * drive Web K's "Leave a comment" / "N Comments" bar under the post.
+     */
+    "commentsEnabled"?: boolean;
+    "commentsCount"?: number;
+    "discussionChatId"?: string;
+    "threadId"?: number;
 }
 
 export interface MessageEntityDTO {
@@ -743,6 +752,12 @@ export interface MessageEntityDTO {
     "url"?: string;
     "language"?: string;
     "userId"?: string;
+
+    /**
+     * Collapsed is messageEntityBlockquote.pFlags.collapsed: Web K folds such a
+     * quote to three lines with a chevron until the reader expands it.
+     */
+    "collapsed"?: boolean;
 }
 
 export interface MessageMediaDTO {

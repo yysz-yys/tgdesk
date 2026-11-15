@@ -1,70 +1,80 @@
 import { useTranslation } from "react-i18next";
 import type { GiftInfo } from "../../../types";
-import { Icon } from "../../../ui";
-import { formatChatTime } from "../../../data/telegram";
+import { chatColor, chatInitials } from "../../../data/telegram";
 
 /**
- * Telegram Web K's profile "Gifts" tab: a grid of saved star gifts. Every card
- * carries the gift thumbnail, its title, the sender ("from"), the Stars value,
- * the date and a "Unique" badge for limited gifts.
+ * Telegram Web K's profile "Gifts" tab (`components/stargifts/stargiftsGrid.tsx`,
+ * `viewProfile`): a 3-column grid of square gift cards on the panel surface, the
+ * sender's 20px avatar in the inline-start corner (anonymous tile when the
+ * sender is hidden) and the limited-gift ribbon over the inline-end corner.
+ *
+ * Our kernel DTO only carries the sender display name (no peer id/photo) and a
+ * boolean for collectible gifts, so the sender chip falls back to a peer-colour
+ * initial and the ribbon text comes from the limited-gift i18n keys.
  */
 export function GiftList({ gifts }: { gifts: GiftInfo[] }) {
-  const { t, i18n } = useTranslation();
-  // The Lead owns the locale files; fall back to a glyph until the
-  // "rightPanel.giftUnique" translation lands instead of leaking a key name.
-  const uniqueLabel = i18n.exists("rightPanel.giftUnique")
-    ? t("rightPanel.giftUnique")
-    : "★";
+  const { t } = useTranslation();
+  const limitedLabel = t("rightPanel.giftLimited");
+  const soldOutLabel = t("rightPanel.giftSoldOut");
+
+  if (gifts.length === 0) {
+    return <p className="k-info-empty">{t("rightPanel.giftsEmpty")}</p>;
+  }
 
   return (
-    <div className="f-info-gifts">
+    <div className="k-info-gifts">
       {gifts.map((gift) => {
-        const stars = gift.stars ?? 0;
-        const date = gift.date
-          ? formatChatTime(new Date(gift.date * 1000), i18n.language)
-          : "";
+        const ribbon = gift.soldOut
+          ? soldOutLabel
+          : gift.unique
+            ? limitedLabel
+            : "";
+        const title = gift.title || t("rightPanel.gift");
         return (
-          <div className="f-info-gift" key={gift.id}>
-            <span className="f-info-gift-thumb-wrap">
-              <Icon
-                name="redeem"
-                size={26}
-                className="f-info-gift-thumb-fallback"
-              />
-              {gift.thumbUrl ? (
-                <img
-                  className="f-info-gift-thumb"
-                  src={gift.thumbUrl}
-                  alt=""
-                  loading="lazy"
-                  onError={(event) => {
-                    event.currentTarget.style.display = "none";
-                  }}
-                />
-              ) : null}
-              {gift.unique ? (
-                <span className="f-info-gift-unique">{uniqueLabel}</span>
-              ) : null}
-            </span>
-            <span className="f-info-gift-title">
-              {gift.title || t("rightPanel.gift")}
-              {gift.count && gift.count > 1 ? (
-                <span className="f-info-gift-count">×{gift.count}</span>
-              ) : null}
-            </span>
+          <button
+            type="button"
+            className="k-info-gift"
+            key={gift.id}
+            title={title}
+            aria-label={gift.from ? `${title} — ${gift.from}` : title}
+          >
             {gift.from ? (
-              <span className="f-info-gift-from">{gift.from}</span>
+              <span
+                className="k-info-gift-sender"
+                style={{ background: chatColor(gift.from) }}
+                aria-hidden="true"
+              >
+                {chatInitials(gift.from)}
+              </span>
+            ) : (
+              <span
+                className="k-info-gift-sender is-anonymous"
+                aria-hidden="true"
+              >
+                ?
+              </span>
+            )}
+            {gift.thumbUrl ? (
+              <img
+                className="k-info-gift-thumb"
+                src={gift.thumbUrl}
+                alt=""
+                loading="lazy"
+                draggable={false}
+              />
+            ) : (
+              <span
+                className="k-info-gift-thumb"
+                style={{ background: chatColor(gift.id) }}
+                aria-hidden="true"
+              />
+            )}
+            {ribbon ? (
+              <span className="k-info-gift-ribbon" aria-hidden="true">
+                <span className="k-info-gift-ribbon-text">{ribbon}</span>
+              </span>
             ) : null}
-            <span className="f-info-gift-footer">
-              {stars > 0 ? (
-                <span className="f-info-gift-stars">
-                  <Icon name="star" size={12} />
-                  {stars}
-                </span>
-              ) : null}
-              {date ? <span className="f-info-gift-date">{date}</span> : null}
-            </span>
-          </div>
+          </button>
         );
       })}
     </div>

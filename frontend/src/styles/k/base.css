@@ -55,6 +55,16 @@
   display: block;
 }
 
+/* Inline media (Telegram custom emoji, inline sticker glyphs) must stay on the
+ * text baseline: mark the element with `data-inline` or one of the emoji
+ * classes. */
+.k-root img[data-inline],
+.k-root svg[data-inline],
+.k-root .f-emoji-inline,
+.k-root .g-custom-emoji {
+  display: inline-block;
+}
+
 .k-root ::placeholder {
   color: var(--input-placeholder-color);
   opacity: 1;

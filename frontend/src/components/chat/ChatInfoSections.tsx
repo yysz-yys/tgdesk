@@ -29,7 +29,7 @@ export function formatMediaDuration(seconds?: number) {
 }
 
 export function InfoEmpty({ text }: { text: string }) {
-  return <p className="f-info-empty">{text}</p>;
+  return <p className="k-info-empty">{text}</p>;
 }
 
 /** Actions the chat-info lists can trigger from rows and context menus. */

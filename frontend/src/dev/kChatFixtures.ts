@@ -25,10 +25,12 @@ import i18n from "../i18n";
 import type {
   Chat,
   ChatFolder,
+  ChatGiftsPage,
   ChatInfo,
   ChatMember,
   ChatProfile,
   DownloadTask,
+  GiftInfo,
   Message,
   MessageMedia,
   UploadProgress,
@@ -75,6 +77,8 @@ export interface ChatPageFixture {
   /** Returned by onLoadPinnedMessage; null hides the pinned strip. */
   pinned: Message | null;
   downloads: DownloadTask[];
+  /** Returned by onLoadChatGifts (the Web K Gifts tab). */
+  gifts?: ChatGiftsPage;
   info: ChatInfo;
   members: ChatMember[];
 }
@@ -134,7 +138,7 @@ export const STICKER_IMAGE = svgDataUrl(":)", "#4f8fd6", "#8c5bd6", 220, 220);
  * The reference capture's dialog list (avatars fall back to peer colours),
  * plus one bot row so `?peer=bot` has a dialog to select. Rows double as the
  * fixture `Chat` objects of the peer variants:
- *   channel ?channel:1001:1, admin ?channel:1002:1, private ?user:780:1,
+ *   channel ?channel:1006:1, admin ?channel:1002:1, private ?user:780:1,
  *   group ?group:787:1, saved ?user:9001:1, bot ?user:73001:1.
  */
 export const previewChats: Chat[] = [
@@ -147,7 +151,7 @@ export const previewChats: Chat[] = [
     saved: true,
   }),
   chat({
-    id: "channel:1001:1",
+    id: "channel:1006:1",
     username: "design_materials",
     title: "设计素材分享-百科全书📚",
     kind: "channel",
@@ -814,6 +818,21 @@ function groupMessages(chatId: string): Message[] {
 
 /** Broadcast channel posts: incoming only; the admin variant adds own posts. */
 function channelMessages(chatId: string, admin: boolean): Message[] {
+  const caption = [
+    "【应用名称】：AuvFun - 动漫追番 最新版",
+    "【应用版本】：2.3.2",
+    "",
+    "软件说明：",
+    "AuvFun 是一款专注动漫与影视追番的轻量级 App。多源聚合检索、一键智能换源，支持投屏大屏、离线缓存与云端同步追番进度，还能开启弹幕、评论一起追。",
+    "",
+    "特色功能：",
+    "资源丰富：聚合了日漫、国漫、欧美漫及 4K 剧场版资源。",
+    "多端支持：支持安卓、苹果以及电脑等多端使用。",
+  ].join("\n");
+  const quoteDescriptionStart = caption.indexOf("AuvFun 是");
+  const quoteDescriptionEnd = caption.indexOf("\n\n特色功能");
+  const quoteFeaturesStart = caption.indexOf("资源丰富");
+  const quoteFeaturesEnd = caption.indexOf("\n多端支持");
   return [
     message(chatId, {
       id: 2001,
@@ -824,16 +843,35 @@ function channelMessages(chatId: string, admin: boolean): Message[] {
       views: 12_400,
       forwards: 86,
       out: false,
+      commentsEnabled: true,
+      commentsCount: 24,
+      discussionChatId: "channel:1003:1",
     }),
     message(chatId, {
       id: 2002,
       date: i18n.t("time.yesterday"),
       time: "18:05",
-      text: "Fixture message with #design and @nova_dev links",
+      text: caption,
       media: photoMedia("icons-preview.jpg", PHOTO_LANDSCAPE, 900, 560),
-      views: 9_820,
-      forwards: 51,
+      views: 1_300,
       out: false,
+      commentsEnabled: true,
+      commentsCount: 0,
+      discussionChatId: "channel:1003:1",
+      entities: [
+        {
+          type: "blockquote",
+          offset: quoteDescriptionStart,
+          length: quoteDescriptionEnd - quoteDescriptionStart,
+          collapsed: true,
+        },
+        {
+          type: "blockquote",
+          offset: quoteFeaturesStart,
+          length: quoteFeaturesEnd - quoteFeaturesStart,
+          collapsed: true,
+        },
+      ],
     }),
     message(chatId, {
       id: 2003,
@@ -883,6 +921,42 @@ function channelMessages(chatId: string, admin: boolean): Message[] {
       views: 2_002,
       reactions: [{ emoji: "❤️", count: 214, chosen: true }],
       out: false,
+    }),
+    // Album with a caption on its last item: exercises the media/caption plate
+    // and the channel comments bar with a non-zero count.
+    message(chatId, {
+      id: 2010,
+      date: i18n.t("time.today"),
+      time: "12:10",
+      groupedId: "channel-album-caption",
+      media: photoMedia("album-cap-1.jpg", PHOTO_ALBUM_A, 720, 720),
+      views: 860,
+      out: false,
+      commentsEnabled: true,
+      commentsCount: 3,
+      discussionChatId: "channel:1003:1",
+    }),
+    message(chatId, {
+      id: 2011,
+      date: i18n.t("time.today"),
+      time: "12:10",
+      groupedId: "channel-album-caption",
+      media: photoMedia("album-cap-2.jpg", PHOTO_ALBUM_B, 720, 720),
+      views: 860,
+      out: false,
+    }),
+    message(chatId, {
+      id: 2012,
+      date: i18n.t("time.today"),
+      time: "12:10",
+      groupedId: "channel-album-caption",
+      text: "相册说明：三张图标预览\n支持深色/浅色两套",
+      media: photoMedia("album-cap-3.jpg", PHOTO_ALBUM_C, 720, 720),
+      views: 860,
+      out: false,
+      commentsEnabled: true,
+      commentsCount: 3,
+      discussionChatId: "channel:1003:1",
     }),
     ...(admin
       ? [
@@ -1193,19 +1267,28 @@ export function chatPageFixture(
 ): ChatPageFixture {
   switch (variant) {
     case "channel": {
-      const target = findChat("channel:1001:1");
+      const target = findChat("channel:1006:1");
+      const linked = findChat("group:787:1");
       const messages = channelMessages(target.id, false);
       return {
-        chat: target,
+        chat: {
+          ...target,
+          members: "285 112 个订阅者",
+          avatarUrl: svgDataUrl("设", "#f0b7c8", "#8f5d70", 200, 200),
+        },
         profile: profile({
           type: "channel",
-          members: 12_840,
+          members: 285_112,
           canViewMembers: false,
           canSend: false,
           canSendPlain: false,
           sendRestriction: "broadcast",
-          usernames: ["design_materials"],
-          about: "Preview harness bot.",
+          usernames: ["OOAPK", "kfk888", "zz888z"],
+          about:
+            "本频道为正规频道，内容包括各种资源工具等，不谈政治，不涉黄，不教翻墙，只有资源交流，切所有资源均来源于网络，本频道只做整理发布。",
+          giftsCount: 140,
+          linkedChatId: linked.id,
+          linkedChat: linked,
           ...overrides.profile,
         }),
         messages,
@@ -1222,7 +1305,18 @@ export function chatPageFixture(
             "#7c5cf5",
           ),
         ],
-        info: chatInfo(12_840, false),
+        gifts: { gifts: previewGifts, total: previewGifts.length },
+        // The reference channel shows exactly Gifts / 媒体 / 文件 / 链接 tabs.
+        info: {
+          members: 285_112,
+          canViewMembers: false,
+          countsKnown: true,
+          counts: [
+            { section: "media", count: 12 },
+            { section: "files", count: 2 },
+            { section: "links", count: 3 },
+          ],
+        },
         members: [],
       };
     }
@@ -1479,7 +1573,7 @@ export function chatPageFixture(
       };
     }
     case "channel-left": {
-      const target = findChat("channel:1001:1");
+      const target = findChat("channel:1006:1");
       const messages = channelMessages(target.id, false);
       return {
         chat: target,
@@ -1504,7 +1598,7 @@ export function chatPageFixture(
       };
     }
     case "channel-monoforum": {
-      const target = findChat("channel:1001:1");
+      const target = findChat("channel:1006:1");
       const messages = channelMessages(target.id, false);
       return {
         chat: target,
@@ -1617,6 +1711,66 @@ export const previewUpload: UploadProgress = {
   name: "screenshot.png",
   progress: 0.37,
 };
+
+/**
+ * The Web K Gifts tab on a channel profile: a grid of received star gifts with
+ * their rarity badges (the reference screenshot shows teddy bears and a heart
+ * bow in the first row). Thumbs are inline SVG data URLs like every other
+ * fixture asset, so the preview never touches loopback media endpoints.
+ */
+export const previewGifts: GiftInfo[] = [
+  {
+    id: "gift-bear-1",
+    title: "Teddy Bear",
+    from: "Leo",
+    date: 1_760_000_000,
+    stars: 15,
+    thumbUrl: svgDataUrl("Bear", "#b98147", "#6d4324", 320, 320),
+    count: 1,
+  },
+  {
+    id: "gift-bear-2",
+    title: "Teddy Bear",
+    from: "Mia",
+    date: 1_760_000_100,
+    stars: 15,
+    thumbUrl: svgDataUrl("Bear", "#c8965c", "#7a4c29", 320, 320),
+    count: 1,
+  },
+  {
+    id: "gift-bow-1",
+    title: "Heart Bow",
+    from: "Alex",
+    date: 1_760_000_200,
+    stars: 50,
+    thumbUrl: svgDataUrl("Bow", "#ff5f9e", "#b21f64", 320, 320),
+    unique: true,
+  },
+  {
+    id: "gift-cake-1",
+    title: "Cake",
+    from: "Lin",
+    date: 1_760_000_300,
+    stars: 25,
+    thumbUrl: svgDataUrl("Cake", "#f7b1d0", "#b45f86", 320, 320),
+  },
+  {
+    id: "gift-rocket-1",
+    title: "Rocket",
+    from: "Nova",
+    date: 1_760_000_400,
+    stars: 25,
+    thumbUrl: svgDataUrl("Rocket", "#8fb8ff", "#3d63c4", 320, 320),
+  },
+  {
+    id: "gift-cup-1",
+    title: "Cup",
+    from: "Telegram",
+    date: 1_760_000_500,
+    stars: 15,
+    thumbUrl: svgDataUrl("Cup", "#ffd166", "#c08a1e", 320, 320),
+  },
+];
 
 /** Account identity shared by KChatList/KSettings/ChatView fixture props. */
 export const previewSelf = {

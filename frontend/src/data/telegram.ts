@@ -261,6 +261,7 @@ export interface KernelMessageEntity {
   url?: string;
   language?: string;
   userId?: string;
+  collapsed?: boolean;
 }
 
 export interface KernelMessageButton {
@@ -361,6 +362,11 @@ export interface KernelMessage {
   ttl?: number;
   noForwards?: boolean;
   via?: string;
+  /** Channel post comments (`message.replies`). */
+  commentsEnabled?: boolean;
+  commentsCount?: number;
+  discussionChatId?: string;
+  threadId?: number;
 }
 
 const AVATAR_COLORS = [
@@ -433,6 +439,27 @@ export function peerColorIndex(seed: string | number): number {
 export function peerAvatarBackground(seed: string | number): string {
   const color = PEER_AVATAR_COLORS[peerColorIndex(seed)];
   return `linear-gradient(180deg, ${color.top}, ${color.bottom})`;
+}
+
+/**
+ * Telegram's peer focus colours by colour index (tweb `DialogColorsFg`; the
+ * server replaces them through help.getPeerColors — those stay the same hue
+ * families, so the defaults are the stable client-side fallback). They colour
+ * quotes/blockquotes and reply borders in Web K.
+ */
+export const PEER_MESSAGE_COLORS = [
+  "#CC5049",
+  "#D67722",
+  "#955CDB",
+  "#40A920",
+  "#309EBA",
+  "#368AD1",
+  "#C7508B",
+] as const;
+
+/** The peer focus colour for a message author / chat seed. */
+export function peerMessageColor(seed: string | number): string {
+  return PEER_MESSAGE_COLORS[peerColorIndex(seed)];
 }
 
 /**
@@ -784,6 +811,7 @@ export function mapMessage(
       url: entity.url || undefined,
       language: entity.language || undefined,
       userId: entity.userId || undefined,
+      collapsed: Boolean(entity.collapsed) || undefined,
     })) as Message["entities"],
     buttons: message.buttons?.map((button) => ({
       text: button.text,
@@ -807,5 +835,9 @@ export function mapMessage(
     noForwards: Boolean(message.noForwards),
     via: message.via || undefined,
     tail: true,
+    commentsEnabled: Boolean(message.commentsEnabled),
+    commentsCount: message.commentsCount || undefined,
+    discussionChatId: message.discussionChatId || undefined,
+    threadId: message.threadId || undefined,
   };
 }

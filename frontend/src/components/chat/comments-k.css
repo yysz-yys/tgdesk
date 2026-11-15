@@ -1,0 +1,518 @@
+/*
+ * Telegram Web K channel-post rendering: media/caption plate geometry,
+ * blockquote entities, inline emoji, the meta row and the comments bar.
+ *
+ * Ported from temp/tweb (src/components/chat/bubbles.ts,
+ * src/lib/richTextProcessor/wrapRichText.ts, src/scss/partials/_chatBubble.scss,
+ * _quote.scss, src/components/chat/replies.ts) and cross-checked against the
+ * deployed temp/webk-prod.css. Values are measured in the R5 spec:
+ * temp/research5/spec-post-media.md.
+ *
+ * Every new piece of markup uses a k-* class so the older chat.css bubble rules
+ * do not leak into it; the remaining overrides target the existing
+ * .g-message-* markup and out-specify chat.css via the .k-root prefix.
+ */
+
+/* ── inline custom emoji / native emoji inside message text ───────────────
+ * Web K: --messages-custom-emoji-size = text size + 4 = 20px; the box is an
+ * inline-block on the text baseline (custom emoji) / the native emoji glyph.
+ * The size must not grow the line box, so the box hangs 0.25em below the
+ * baseline (20px box inside the 21px line). */
+.k-root .g-message-text .f-emoji-inline,
+.k-root .g-message-caption .f-emoji-inline,
+.k-root .g-message-text .g-custom-emoji,
+.k-root .g-message-caption .g-custom-emoji {
+  display: inline-block;
+  width: 1.25em;
+  height: 1.25em;
+  margin: 0;
+  vertical-align: -0.25em;
+  object-fit: contain;
+}
+
+/* A quote is block level: the caption container becomes a block formatting
+ * context so the blockquotes and the text lines around them lay out cleanly
+ * (Web K renders the same text flow with blockquote elements directly inside
+ * the `.message` box). */
+.k-root .g-message-text:has(.k-quote) {
+  display: block;
+}
+
+/* ── blockquote entities (Web K `.quote.quote-block.quote-like...`) ─────── */
+
+.k-root .k-quote {
+  /* tweb `.quote-like`: `--primary-color: rgb(var(--peer-color-rgb))` — the
+   * quote is tinted with the message author's peer colour, not the app accent. */
+  --k-quote-accent-rgb: var(
+    --peer-color-rgb,
+    var(--primary-color-rgb, 45, 126, 213)
+  );
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 2px 0;
+  padding: 1px 0;
+  padding-inline: 9px 18px;
+  border-radius: 4px;
+  background-color: rgba(var(--k-quote-accent-rgb), 0.1);
+  overflow: hidden;
+  color: inherit;
+  font-size: var(--font-size-14, 14px);
+  line-height: var(--line-height-14, 18px);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  vertical-align: bottom;
+  text-align: start;
+}
+
+/* the continuous accent bar (Web K `.quote-like-border:before`) */
+.k-root .k-quote::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 3px;
+  background: rgb(var(--k-quote-accent-rgb));
+}
+
+/* the quote glyph in the top end corner (Web K `.quote-like-icon:after`:
+ * tgico quote_filled at 78.571% of the quote's 14px) */
+.k-root .k-quote::after {
+  content: "\eb10";
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 3px;
+  color: rgb(var(--k-quote-accent-rgb));
+  font-family: "tgico" !important;
+  font-size: 78.571428%;
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  speak: never;
+  pointer-events: none;
+}
+
+/* collapsed quote: three lines + chevron (Web K `.quote-like-collapsable`) */
+.k-root .k-quote.k-quote-collapsable {
+  max-height: calc(var(--line-height-14, 18px) * 3 + 2px);
+  cursor: pointer;
+}
+
+.k-root .k-quote.k-quote-collapsable.is-expanded {
+  max-height: var(--k-quote-max-height, none);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .k-root .k-quote.k-quote-collapsable {
+    transition: max-height var(--transition-standard-in, 0.3s ease-in-out);
+  }
+}
+
+.k-root .k-quote-collapse {
+  position: absolute;
+  inset-inline-end: 0;
+  bottom: 0;
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  overflow: hidden;
+  margin: 0;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.k-root .k-quote-collapse::after {
+  content: "\e91b";
+  display: inline-block;
+  position: relative;
+  font-family: "tgico" !important;
+  font-size: 110%;
+  line-height: 1;
+  font-style: normal;
+  font-weight: normal;
+  speak: never;
+}
+
+.k-root .k-quote.is-expanded .k-quote-collapse::after {
+  transform: rotate(180deg);
+}
+
+.k-root .k-quote:not(.is-truncated):not(.is-expanded) .k-quote-collapse {
+  display: none;
+}
+
+/* ── the plate and the media inside it ────────────────────────────────────
+ * Web K `.bubble-content` radii: in 5/15/15/5, out 15/5/5/15; group-first
+ * lifts the start-start (in) / start-end (out) corner to 15. A media first in
+ * the plate inherits the plate's top corners; a caption or the comments footer
+ * below it squares the media's bottom corners (`no-brb`). */
+
+.k-root .g-message-row[data-bleed] .g-message-bubble,
+.k-root .g-message-row[data-bleed] .g-message-bubble[data-bleed] {
+  border-start-start-radius: 5px;
+  border-start-end-radius: 15px;
+  border-end-end-radius: 15px;
+  border-end-start-radius: 5px;
+}
+
+.k-root .g-message-row[data-bleed]:not([data-grouped]) .g-message-bubble {
+  border-start-start-radius: 15px;
+}
+
+.k-root .g-message-row[data-bleed][data-out] .g-message-bubble {
+  border-start-start-radius: 15px;
+  border-start-end-radius: 5px;
+  border-end-end-radius: 5px;
+  border-end-start-radius: 15px;
+}
+
+.k-root .g-message-row[data-bleed][data-out]:not([data-grouped]) .g-message-bubble {
+  border-start-end-radius: 15px;
+}
+
+/* the comments footer is the last row of the plate: no tail beside it, and a
+ * group-last plate keeps both bottom corners rounded above the footer (Web K
+ * `.replies-footer` inherits the plate's bottom radii) */
+.k-root .g-message-row[data-last]:has(.k-comments-bar) .g-message-bubble {
+  border-end-start-radius: 15px !important;
+  border-end-end-radius: 15px !important;
+}
+
+.k-root .g-message-row:has(.k-comments-bar) .g-message-bubble::before,
+.k-root .g-message-row[data-bleed]:has(.k-comments-bar) .g-message-bubble::before,
+.k-root .g-message-row:has(.k-comments-bar) .g-message-tail {
+  display: none;
+}
+
+/* media flush with the plate; the caption is a `.message` below it */
+.k-root .g-message-row[data-bleed] .g-message-caption {
+  display: flow-root;
+  margin: 2px 8px 5px;
+  padding: 0;
+}
+
+/* the comments footer spans the whole plate (`padding:0 8px` itself), so the
+ * plate loses its own padding and every other child takes Web K's `.message`
+ * margins instead (`margin:4px 8px 5px`, and 2px under media) */
+.k-root .g-message-row:has(.k-comments-bar) .g-message-bubble {
+  padding: 0;
+}
+
+.k-root .g-message-row:has(.k-comments-bar) .g-message-caption {
+  margin: 4px 8px 5px;
+}
+
+.k-root .g-message-row[data-bleed]:has(.k-comments-bar) .g-message-caption {
+  margin: 2px 8px 5px;
+}
+
+.k-root .g-message-row:has(.k-comments-bar) .g-reply-quote,
+.k-root .g-message-row:has(.k-comments-bar) .g-message-forwarded,
+.k-root .g-message-row:has(.k-comments-bar) .k-message-name {
+  margin: 4px 8px 0;
+}
+
+.k-root .g-message-row:has(.k-comments-bar) .g-message-signature {
+  margin: 0 8px 4px;
+}
+
+.k-root .g-message-row:has(.k-comments-bar) .g-message-reactions {
+  margin: 5px 8px 1px;
+}
+
+/* captioned media keeps its intrinsic Web K width (min(420px, 100%)); the
+ * plate shrinks to it and the caption wraps inside (`bubble.photo
+ * .bubble-content{width:min-content}`). MessageMediaView publishes the width
+ * as --k-media-width so these rules can override the old full-width ones. */
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-message-bubble {
+  width: min-content;
+}
+
+/* an album has no intrinsic media width to shrink to: Web K caps the mosaic at
+ * 451px (`is-album .attachment{max-width:min(451px,100%)}`) and the caption,
+ * when the album carries one, wraps inside that width */
+.k-root .g-message-row[data-bleed]:has(.g-album) .g-message-bubble {
+  width: 451px;
+  max-width: min(591px, 100%);
+}
+
+.k-root .g-message-row[data-bleed]:has(.g-album) .g-album {
+  width: 100%;
+  max-width: 100%;
+}
+
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-media-card[data-captioned] {
+  width: var(--k-media-width, min(420px, 100%)) !important;
+  max-width: min(420px, 100%) !important;
+  height: auto !important;
+  aspect-ratio: var(--k-media-ratio) !important;
+}
+
+/* Web K never puts blurred side plates behind a captioned photo */
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-media-photo .g-media-backdrop,
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-media-photo .g-media-placeholder {
+  display: none !important;
+}
+
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-media-card .g-media-main,
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-media-card .g-media-thumb,
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-media-card img,
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-media-card video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* the media's bottom corners are square when a caption or the comments footer
+ * follows it below in the same plate; an album gets all its corners from its
+ * own cells (each outer cell = plate radius - 1px) */
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-media-card,
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-album,
+.k-root .g-message-row[data-bleed]:has(.k-comments-bar) .g-media-card,
+.k-root .g-message-row[data-bleed]:has(.k-comments-bar) .g-album {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-media-card {
+  border-start-start-radius: inherit;
+  border-start-end-radius: inherit;
+}
+
+.k-root .g-message-row[data-bleed]:has(.g-message-caption) .g-album {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  border-start-end-radius: 0;
+}
+
+/* a name / forward header / reply above the media squares its top corners
+ * (Web K `.must-have-name .attachment{--border-start-*-radius:0}`) */
+.k-root .g-message-row[data-bleed]:has(> .g-message-bubble > .k-message-name) .g-media-card,
+.k-root .g-message-row[data-bleed]:has(> .g-message-bubble > .g-message-forwarded) .g-media-card,
+.k-root .g-message-row[data-bleed]:has(> .g-message-bubble > .g-reply-quote) .g-media-card,
+.k-root .g-message-row[data-bleed]:has(> .g-message-bubble > .k-message-name) .g-album,
+.k-root .g-message-row[data-bleed]:has(> .g-message-bubble > .g-message-forwarded) .g-album,
+.k-root .g-message-row[data-bleed]:has(> .g-message-bubble > .g-reply-quote) .g-album {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
+/* ── albums (Web K `is-album` + grouped layout: 1px gaps, 451px cap) ────── */
+
+.k-root .g-message-row .g-album,
+.k-root .g-message-row[data-bleed] .g-album {
+  width: 100%;
+  max-width: 100%;
+  gap: 1px;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+/* every cell is square; only the mosaic's outer corners are rounded, by the
+ * plate's radius - 1px (Web K `calc(var(--border-*-radius) - 1px)`) */
+.k-root .g-message-row .g-album-cell {
+  border-radius: 0;
+}
+
+.k-root .g-message-row .g-album[data-count="3"] .g-album-cell:first-child {
+  /* the spanning cell fills its two rows instead of keeping aspect-ratio 1 */
+  aspect-ratio: auto;
+}
+
+/* 2-item album: one row, both cells are outer on their side */
+.k-root .g-message-row .g-album[data-count="2"] .g-album-cell:first-child {
+  border-start-start-radius: 14px;
+  border-end-start-radius: 14px;
+}
+
+.k-root .g-message-row .g-album[data-count="2"] .g-album-cell:last-child {
+  border-start-end-radius: 14px;
+  border-end-end-radius: 14px;
+}
+
+/* 3-item mosaic: first cell starts both rows, the other two sit in the end
+ * column (Web K's 1 + 2 layout) */
+.k-root .g-message-row .g-album[data-count="3"] .g-album-cell:first-child {
+  border-start-start-radius: 14px;
+  border-end-start-radius: 14px;
+}
+
+.k-root .g-message-row .g-album[data-count="3"] .g-album-cell:nth-child(2) {
+  border-start-end-radius: 14px;
+}
+
+.k-root .g-message-row .g-album[data-count="3"] .g-album-cell:last-child {
+  border-end-end-radius: 14px;
+}
+
+/* 4+ item mosaics (generically: first, end of the first row, start of the
+ * last row, last) */
+.k-root .g-message-row .g-album[data-count="4"] .g-album-cell:first-child,
+.k-root .g-message-row .g-album[data-count="5"] .g-album-cell:first-child,
+.k-root .g-message-row .g-album[data-count="6"] .g-album-cell:first-child,
+.k-root .g-message-row .g-album[data-count="7"] .g-album-cell:first-child,
+.k-root .g-message-row .g-album[data-count="8"] .g-album-cell:first-child,
+.k-root .g-message-row .g-album[data-count="9"] .g-album-cell:first-child,
+.k-root .g-message-row .g-album[data-count="10"] .g-album-cell:first-child {
+  border-start-start-radius: 14px;
+}
+
+.k-root .g-message-row .g-album[data-count="4"] .g-album-cell:nth-child(2),
+.k-root .g-message-row .g-album[data-count="5"] .g-album-cell:nth-child(3),
+.k-root .g-message-row .g-album[data-count="6"] .g-album-cell:nth-child(3),
+.k-root .g-message-row .g-album[data-count="7"] .g-album-cell:nth-child(3),
+.k-root .g-message-row .g-album[data-count="8"] .g-album-cell:nth-child(3),
+.k-root .g-message-row .g-album[data-count="9"] .g-album-cell:nth-child(3),
+.k-root .g-message-row .g-album[data-count="10"] .g-album-cell:nth-child(3) {
+  border-start-end-radius: 14px;
+}
+
+.k-root .g-message-row .g-album[data-count="4"] .g-album-cell:nth-last-child(2),
+.k-root .g-message-row .g-album[data-count="5"] .g-album-cell:nth-last-child(2),
+.k-root .g-message-row .g-album[data-count="6"] .g-album-cell:nth-last-child(2),
+.k-root .g-message-row .g-album[data-count="7"] .g-album-cell:nth-last-child(2),
+.k-root .g-message-row .g-album[data-count="8"] .g-album-cell:nth-last-child(2),
+.k-root .g-message-row .g-album[data-count="9"] .g-album-cell:nth-last-child(2),
+.k-root .g-message-row .g-album[data-count="10"] .g-album-cell:nth-last-child(2) {
+  border-end-start-radius: 14px;
+}
+
+.k-root .g-message-row .g-album[data-count="4"] .g-album-cell:last-child,
+.k-root .g-message-row .g-album[data-count="5"] .g-album-cell:last-child,
+.k-root .g-message-row .g-album[data-count="6"] .g-album-cell:last-child,
+.k-root .g-message-row .g-album[data-count="7"] .g-album-cell:last-child,
+.k-root .g-message-row .g-album[data-count="8"] .g-album-cell:last-child,
+.k-root .g-message-row .g-album[data-count="9"] .g-album-cell:last-child,
+.k-root .g-message-row .g-album[data-count="10"] .g-album-cell:last-child {
+  border-end-end-radius: 14px;
+}
+
+/* a grouped (not first-in-group) post has a 5px plate corner: 4px on the cell */
+.k-root .g-message-row[data-grouped] .g-album-cell:first-child {
+  border-start-start-radius: 4px;
+}
+
+/* below a media/caption/comments row the album sits exactly on the caption:
+ * Web K `no-brb` squares all its bottom corners */
+.k-root .g-message-row:has(.g-message-caption) .g-album-cell,
+.k-root .g-message-row:has(.k-comments-bar) .g-album-cell {
+  border-end-start-radius: 0 !important;
+  border-end-end-radius: 0 !important;
+}
+
+/* ── meta row: time / views / edited (Web K `.time`, messageRender.ts) ────
+ * Order is [edited][views number][views icon][time][checks]; the views icon is
+ * the 18px tgico channelviews_filled glyph with a 2px start margin. */
+
+.k-root .g-message-views {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline: 0;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.k-root .g-message-views .tgico {
+  font-size: 18px;
+  line-height: 1;
+  height: 18px;
+}
+
+.k-root .g-message-edited {
+  margin-inline-end: 2px;
+  color: var(--tg-bubble-secondary);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* a media-only post's floating time pill moves above the comments footer
+ * (Web K `.with-replies .time.is-floating{bottom:53px}`) */
+.k-root .g-message-row[data-bleed]:not(:has(.g-message-caption)):has(.k-comments-bar) .g-message-meta {
+  bottom: 53px;
+}
+
+/* ── channel comments bar (Web K replies-element.replies-footer) ────────── */
+
+.k-root .k-comments-bar {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 15rem;
+  height: 3.0625rem;
+  flex: 0 0 auto;
+  align-items: center;
+  margin: 0;
+  border: 0;
+  border-top: 0.0625rem solid var(--border-color);
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
+  background: none;
+  padding: 0 0.5rem;
+  color: var(--primary-color, #2d7ed5);
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+
+.k-root .k-comments-bar .c-ripple__circle {
+  background-color: var(--light-primary-color, rgba(45, 126, 213, 0.08));
+}
+
+.k-root .k-comments-bar:hover,
+.k-root .k-comments-bar:active {
+  background-color: var(--light-primary-color, rgba(45, 126, 213, 0.08));
+}
+
+/* outgoing channel posts: Web K's primary colour inside an out bubble is its
+ * own icon/text colour, not the accent */
+.k-root .g-message-row[data-out] .k-comments-bar {
+  color: var(--tg-bubble-text, #f4f6f8);
+}
+
+.k-root .g-message-row[data-out] .k-comments-bar .c-ripple__circle {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.k-root .k-comments-bar-icon {
+  flex: 0 0 auto;
+  margin-inline: 0.125rem 0.375rem;
+  height: 1.5rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: currentColor;
+}
+
+.k-root .k-comments-bar-text {
+  display: flex;
+  align-items: center;
+  margin-inline-start: 0.5rem;
+  color: currentColor;
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-bold, 500);
+  line-height: 1.125rem;
+  white-space: nowrap;
+}
+
+.k-root .k-comments-bar-next {
+  position: absolute;
+  inset-inline-end: 0.1875rem;
+  height: 1.5rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: currentColor;
+}
+
+html.is-rtl .k-root .k-comments-bar-next {
+  transform: scaleX(-1);
+}

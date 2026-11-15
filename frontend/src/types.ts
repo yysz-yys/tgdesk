@@ -516,6 +516,8 @@ export interface MessageEntity {
   url?: string;
   language?: string;
   userId?: string;
+  /** Blockquote only: Telegram's collapsed state (shows the expand chevron). */
+  collapsed?: boolean;
 }
 
 export interface MessageButton {
@@ -572,6 +574,14 @@ export interface Message {
   noForwards?: boolean;
   via?: string;
   tail?: boolean;
+  /** Channel post comments (`message.replies` in Telegram's TL schema). */
+  commentsEnabled?: boolean;
+  /** Comment count when the server exposes one (0 = "Leave a comment"). */
+  commentsCount?: number;
+  /** Opaque discussion channel chat id when known (`channel:<id>:<hash>`). */
+  discussionChatId?: string;
+  /** Forum topic id (`message.replies.read_max_id` sibling), when present. */
+  threadId?: number;
 }
 
 export interface ChatEvent {

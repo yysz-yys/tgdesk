@@ -189,11 +189,6 @@
   line-height: 1;
 }
 
-.k-root .g-message-views svg {
-  width: 18px;
-  height: 18px;
-}
-
 .k-root .g-message-edited {
   margin-inline-end: 2px;
   color: var(--tg-bubble-secondary);

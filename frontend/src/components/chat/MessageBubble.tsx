@@ -1,4 +1,9 @@
-import { Fragment, useState } from "react";
+import {
+  Fragment,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { DownloadTask, Message, MessageButton, Reaction } from "../../types";
@@ -7,6 +12,7 @@ import {
   openTelegramLink,
   openTelegramUsername,
 } from "../../lib/telegramLinks";
+import { peerMessageColor } from "../../data/telegram";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -15,11 +21,14 @@ import {
   ContextMenuTrigger,
   Icon,
 } from "../../ui";
+import { KIcon } from "../k/KIcon";
 import { PeerAvatar } from "./PeerAvatar";
 import { EmojiText } from "./EmojiText";
 import { MessageMediaView, isBleedMedia } from "./MessageMediaView";
 import { BotKeyboard } from "./BotKeyboard";
+import { ChannelCommentsBar } from "./ChannelCommentsBar";
 import "./bubble-k.css";
+import "./comments-k.css";
 
 export interface MessageAuthor {
   name: string;
@@ -53,6 +62,8 @@ interface MessageBubbleProps {
   onResumeDownload?: (task: DownloadTask) => void;
   onReact?: (message: Message, reaction: Reaction | null) => void;
   onOpenReactions?: (message: Message) => void;
+  /** Opens the channel post's linked discussion chat (comments bar press). */
+  onOpenComments?: (message: Message) => void;
   /** Bot inline-keyboard callback press (AppService.SendBotCallback). */
   onBotCallback?: (message: Message, button: MessageButton) => void;
   /** Bot web app button press (opens the in-app mini app overlay). */
@@ -94,6 +105,7 @@ export function MessageBubble({
   onResumeDownload,
   onReact,
   onOpenReactions,
+  onOpenComments,
   onBotCallback,
   onBotWebView,
   onToast,
@@ -106,6 +118,10 @@ export function MessageBubble({
   const hasText = Boolean(messageText.trim());
   const hasReactions = Boolean(message.reactions?.length);
   const media = message.media;
+  /** Web K's message peer focus colour: author peer (channels fall back to the
+   * chat itself through message.chatId); blockquotes and quote-like accents use
+   * it via `--peer-color-rgb` (tweb `setPeerColorToElement`). */
+  const peerFocusColor = peerMessageColor(message.senderId || message.chatId);
 
   const copyText = async () => {
     if (!messageText) {
@@ -210,6 +226,10 @@ export function MessageBubble({
   const bleed = Boolean(media && isBleedMedia(media));
   const sticker = media?.kind === "sticker";
   const mediaAfterText = media?.kind === "webpage";
+  // A channel post with comments keeps its plate even without a caption: the
+  // comments footer is the bottom row of that plate (Web K appends
+  // `replies-element` inside `.bubble-content`).
+  const commentsEnabled = Boolean(message.commentsEnabled);
   const bareMedia = Boolean(
     media &&
       !hasText &&
@@ -218,6 +238,7 @@ export function MessageBubble({
       !message.forwarded &&
       !message.buttons?.length &&
       !message.postAuthor &&
+      !commentsEnabled &&
       (media.kind === "photo" ||
         media.kind === "video" ||
         media.kind === "video_note" ||
@@ -265,6 +286,12 @@ export function MessageBubble({
               data-bleed={bleed || undefined}
               data-sticker={sticker || undefined}
               data-media={media ? true : undefined}
+              style={
+                {
+                  "--peer-color": peerFocusColor,
+                  "--peer-color-rgb": peerColorRgb(peerFocusColor),
+                } as CSSProperties
+              }
             >
               {showSender ? (
                 <span
@@ -421,6 +448,10 @@ export function MessageBubble({
                   </span>
                 </div>
               ) : null}
+
+              {commentsEnabled ? (
+                <ChannelCommentsBar message={message} onOpen={onOpenComments} />
+              ) : null}
             </div>
 
 
@@ -514,19 +545,20 @@ function AutoLinked({ text }: { text: string }) {
   );
 }
 
-/** Renders Telegram message entities (bold, code, spoilers, links, quotes) without a markdown parser. */
+/** Web K's `.time` row: [edited][views number][views icon][time][checks]. */
 function MessageMeta({ message }: { message: Message }) {
   const { t } = useTranslation();
-  // Web K's `.time`: a hidden copy takes the layout room in the text's last
-  // line, and `.time-inner` paints the visible row at the bubble's bottom end
-  // (`_chatBubble.scss:1898-1971`).
+  // A hidden copy reserves the layout room in the text's last line, and
+  // `.time-inner` paints the visible row at the bubble's bottom end
+  // (`_chatBubble.scss:1898-1971`; views come count-then-glyph per
+  // `messageRender.ts:362-375`).
   const content = (
     <>
       {message.editDate ? <span className="g-message-edited">{t("chat.edited")}</span> : null}
       {message.views ? (
         <span className="g-message-views">
-          <Icon name="visibility" size={18} />
-          {formatCompact(message.views)}
+          <span className="g-message-views-count">{formatCompact(message.views)}</span>
+          <KIcon name="channelviews_filled" className="g-message-views-icon" />
         </span>
       ) : null}
       <span className="k-message-meta-time">{message.time}</span>
@@ -575,18 +607,189 @@ function peerColorRgb(color?: string): string | undefined {
   return `${red}, ${green}, ${blue}`;
 }
 
+/** Web K's `formatNumber(views, 1)`: 1.3K, 12.4K, 1K (a trailing .0 drops). */
 function formatCompact(value: number) {
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1)}M`;
+  if (!Number.isFinite(value) || value <= 0) {
+    return String(value || 0);
   }
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}K`;
+  if (value < 1000) {
+    return String(value);
   }
-  return String(value);
+  const units = ["", "K", "M", "B", "T"];
+  const index = Math.min(
+    Math.floor(Math.log(value) / Math.log(1000)),
+    units.length - 1,
+  );
+  const scaled = parseFloat((value / 1000 ** index).toFixed(1));
+  return `${scaled}${units[index]}`;
 }
 
-/** Renders Telegram message entities (bold, code, spoilers, links, quotes) without a markdown parser. */
-export function RichText({
+/** One blockquote range of the message text (`messageEntityBlockquote`). */
+interface BlockquoteRange {
+  offset: number;
+  length: number;
+  collapsed: boolean;
+}
+
+/** The outermost blockquote ranges in text order; nested ones stay inside
+ * their parent block (only the outer range becomes a block). */
+function blockquoteRanges(
+  entities: Message["entities"],
+  textLength: number,
+): BlockquoteRange[] {
+  if (!entities) {
+    return [];
+  }
+  const sorted = entities
+    .filter((entity) => entity.type === "blockquote")
+    .map((entity) => {
+      const start = Math.max(0, Math.min(textLength, entity.offset));
+      const end = Math.max(
+        start,
+        Math.min(textLength, entity.offset + entity.length),
+      );
+      return {
+        offset: start,
+        length: end - start,
+        collapsed: Boolean(entity.collapsed),
+      };
+    })
+    .filter((range) => range.length > 0)
+    .sort((left, right) => left.offset - right.offset || right.length - left.length);
+  const ranges: BlockquoteRange[] = [];
+  for (const range of sorted) {
+    const last = ranges[ranges.length - 1];
+    if (last && range.offset < last.offset + last.length) {
+      continue;
+    }
+    ranges.push(range);
+  }
+  return ranges;
+}
+
+/** Entities of `[from, to)`, rebased to that slice; blockquotes are handled by
+ * `RichText` itself, so they are dropped here. */
+function entitiesInRange(
+  entities: Message["entities"],
+  from: number,
+  to: number,
+): Message["entities"] {
+  if (!entities) {
+    return undefined;
+  }
+  const result: NonNullable<Message["entities"]> = [];
+  for (const entity of entities) {
+    if (entity.type === "blockquote") {
+      continue;
+    }
+    const start = Math.max(from, entity.offset);
+    const end = Math.min(to, entity.offset + entity.length);
+    if (end <= start) {
+      continue;
+    }
+    result.push({
+      ...entity,
+      offset: start - from,
+      length: end - start,
+    });
+  }
+  return result.length > 0 ? result : undefined;
+}
+
+/**
+ * A Web K blockquote: one continuous quoted block (`.quote.quote-block
+ * .quote-like`) with a 4px plate, a 3px accent bar, the quote glyph and - for
+ * a `collapsed` entity - the three-line clamp with its expand chevron.
+ *
+ * tweb renders this through `wrapRichText.ts:952-985` + `_quote.scss`; the
+ * expand/collapse state is measured and toggled like `makeQuoteCollapsable` /
+ * `onQuoteClick` do it there (56px = 3 secondary lines + 2px).
+ */
+function QuoteBlock({
+  text,
+  entities,
+  collapsed,
+}: {
+  text: string;
+  entities?: Message["entities"];
+  collapsed?: boolean;
+}) {
+  const { t } = useTranslation();
+  const ref = useRef<HTMLQuoteElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [truncated, setTruncated] = useState(false);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element || !collapsed || expanded) {
+      return;
+    }
+    const measure = () => {
+      const full = element.scrollHeight;
+      if (!full) {
+        return;
+      }
+      element.style.setProperty("--k-quote-max-height", `${full}px`);
+      setTruncated(full > element.clientHeight + 1);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [text, collapsed, expanded]);
+
+  const classes = ["k-quote"];
+  if (collapsed) {
+    classes.push("k-quote-collapsable");
+    if (truncated && !expanded) {
+      classes.push("is-truncated");
+    }
+    if (expanded) {
+      classes.push("is-expanded");
+    }
+  }
+
+  const toggle = () => setExpanded((value) => !value);
+
+  return (
+    <blockquote
+      ref={ref}
+      className={classes.join(" ")}
+      dir="auto"
+      onClick={(event) => {
+        if (!collapsed) {
+          return;
+        }
+        const target = event.target as HTMLElement;
+        if (target.closest("a, .k-quote-collapse")) {
+          return;
+        }
+        event.stopPropagation();
+        toggle();
+      }}
+    >
+      <InlineRun text={text} entities={entities} />
+      {collapsed ? (
+        <button
+          type="button"
+          className="k-quote-collapse"
+          aria-label={t("chat.quoteFullText", { defaultValue: "Full quote" })}
+          aria-expanded={expanded}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggle();
+          }}
+        />
+      ) : null}
+    </blockquote>
+  );
+}
+
+/** The inline entities of one text run (bold, code, links, emoji, …). */
+function InlineRun({
   text,
   entities,
 }: {
@@ -596,11 +799,7 @@ export function RichText({
   const [revealed, setRevealed] = useState(false);
 
   if (!entities || entities.length === 0) {
-    return (
-      <span className="g-message-text">
-        <AutoLinked text={text} />
-      </span>
-    );
+    return <AutoLinked text={text} />;
   }
 
   const boundaries = new Set<number>([0, text.length]);
@@ -691,9 +890,6 @@ export function RichText({
     if (active.some((entity) => entity.type === "strike")) {
       node = <s>{node}</s>;
     }
-    if (active.some((entity) => entity.type === "blockquote")) {
-      node = <span className="g-text-quote">{node}</span>;
-    }
     if (active.some((entity) => entity.type === "spoiler")) {
       node = (
         <span
@@ -719,6 +915,70 @@ export function RichText({
     segments.push(<Fragment key={`${start}-${end}`}>{node}</Fragment>);
   }
 
-  return <span className="g-message-text">{segments}</span>;
+  return <>{segments}</>;
 }
 
+/** Renders Telegram message entities (bold, code, spoilers, links, blockquotes)
+ * without a markdown parser. */
+export function RichText({
+  text,
+  entities,
+}: {
+  text: string;
+  entities?: Message["entities"];
+}) {
+  if (!entities || entities.length === 0) {
+    return (
+      <span className="g-message-text">
+        <AutoLinked text={text} />
+      </span>
+    );
+  }
+
+  const quotes = blockquoteRanges(entities, text.length);
+  if (quotes.length === 0) {
+    return (
+      <span className="g-message-text">
+        <InlineRun text={text} entities={entities} />
+      </span>
+    );
+  }
+
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+  const pushRun = (from: number, to: number, afterBlock: boolean) => {
+    let start = from;
+    // Web K consumes the first newline that follows a blockquote: the block
+    // already ends the line, so a leading "\n" would add an empty line
+    // (`wrapRichText.ts` ignores the inner linebreak the same way).
+    if (afterBlock && start < to && text[start] === "\n") {
+      start += 1;
+    }
+    if (start >= to) {
+      return;
+    }
+    nodes.push(
+      <InlineRun
+        key={`run-${start}-${to}`}
+        text={text.slice(start, to)}
+        entities={entitiesInRange(entities, start, to)}
+      />,
+    );
+  };
+  quotes.forEach((quote, index) => {
+    pushRun(cursor, quote.offset, index > 0);
+    const end = quote.offset + quote.length;
+    nodes.push(
+      <QuoteBlock
+        key={`quote-${end}`}
+        text={text.slice(quote.offset, end)}
+        entities={entitiesInRange(entities, quote.offset, end)}
+        collapsed={quote.collapsed}
+      />,
+    );
+    cursor = end;
+  });
+  pushRun(cursor, text.length, quotes.length > 0);
+
+  return <span className="g-message-text">{nodes}</span>;
+}

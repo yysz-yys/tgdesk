@@ -90,3 +90,76 @@ func TestSenderName(t *testing.T) {
 		}
 	}
 }
+
+func TestParseMessageReplies(t *testing.T) {
+	post := &tg.Message{ID: 77}
+	post.Replies.Comments = true
+	post.Replies.Replies = 24
+	post.Replies.SetChannelID(1003)
+	post.SetReplies(post.Replies)
+	info, ok := parseMessageReplies(post)
+	if !ok || !info.Enabled || info.Count != 24 ||
+		info.DiscussionChannelID != 1003 || info.ThreadID != 77 {
+		t.Fatalf("parseMessageReplies = %+v, ok=%v", info, ok)
+	}
+
+	// a group's plain reply thread carries no comments flag
+	thread := &tg.Message{ID: 8}
+	thread.Replies.Replies = 3
+	thread.Replies.SetMaxID(12)
+	thread.SetReplies(thread.Replies)
+	if _, ok := parseMessageReplies(thread); ok {
+		t.Fatal("a simple reply thread must not map to a comment section")
+	}
+	if _, ok := parseMessageReplies(&tg.Message{}); ok {
+		t.Fatal("a message without replies must not map to a comment section")
+	}
+	if _, ok := parseMessageReplies(nil); ok {
+		t.Fatal("nil message must not map to a comment section")
+	}
+}
+
+func TestApplyMessageRepliesResolvesDiscussion(t *testing.T) {
+	svc := &Service{peerIndex: map[string]string{}}
+	msg := &tg.Message{ID: 5}
+	msg.Replies.Comments = true
+	msg.Replies.Replies = 1
+	msg.Replies.SetChannelID(1003)
+	msg.SetReplies(msg.Replies)
+
+	item := MessageDTO{ID: 5}
+	// neither the response entities nor the peer index know the discussion
+	// channel yet: the bar still shows, the id stays empty
+	svc.applyMessageReplies(&item, msg, nil)
+	if !item.CommentsEnabled || item.CommentsCount != 1 ||
+		item.ThreadID != 5 || item.DiscussionChatID != "" {
+		t.Fatalf("unresolved replies = %+v", item)
+	}
+
+	// the response that carries the linked channel gives its opaque id, which is
+	// remembered for the next page
+	svc.applyMessageReplies(&item, msg, []tg.ChatClass{&tg.Channel{ID: 1003, AccessHash: -42}})
+	if item.DiscussionChatID != "channel:1003:-42" {
+		t.Fatalf("discussion chat id = %q", item.DiscussionChatID)
+	}
+	if got := svc.lookupPeer("channel", 1003); got != "channel:1003:-42" {
+		t.Fatalf("discussion peer not remembered: %q", got)
+	}
+}
+
+func TestMapEntitiesBlockquoteCollapsed(t *testing.T) {
+	entities := mapEntities([]tg.MessageEntityClass{
+		&tg.MessageEntityBlockquote{Collapsed: true, Offset: 7, Length: 6},
+		&tg.MessageEntityBlockquote{Offset: 14, Length: 4},
+	})
+	if len(entities) != 2 {
+		t.Fatalf("entities = %+v", entities)
+	}
+	first := entities[0]
+	if first.Type != "blockquote" || first.Offset != 7 || first.Length != 6 || !first.Collapsed {
+		t.Fatalf("collapsed blockquote = %+v", first)
+	}
+	if entities[1].Collapsed {
+		t.Fatalf("expanded blockquote = %+v", entities[1])
+	}
+}

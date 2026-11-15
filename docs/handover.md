@@ -229,19 +229,41 @@ tgdesk 是一个 **Windows-first** 的 Telegram 桌面客户端，基于：
 - 三语言：English / 简体中文 / 日本語。
 - 全前端统一 F 视觉（Radix Themes 原子层、Lucide 图标、Inter + 系统中文字体、
   画布浮层卡片、明暗主题同一套 token）；登录页与聊天主界面共用设计系统和通用组件。
+- 频道帖子按 Web K 渲染：单块消息板（in 5/15/15/5、out 15/5/5/15、分组首尾圆角）、
+  照片/相册/视频按板圆角裁剪、说明文字 16/21 与 4/8/5 边距、451px 相册上限与 1px 间距、
+  12px meta 行（已编辑/浏览量/18px 频道浏览图标/时间）；`blockquote` 实体合并为一个
+  peer 色引用块（10% 底色、3px 边框、引用图标、3 行折叠+展开），内联自定义 emoji
+  20×20 与基线对齐。
+- 频道评论条：`message.replies` 驱动消息板内底部"留言 / N 条评论"条（49px、1px 分隔线、
+  accent 文字/图标/箭头、8% hover + 波纹），点击进入关联讨论；内核已映射
+  `commentsEnabled/commentsCount/discussionChatId/threadId` 与
+  `messageEntityBlockquote.pFlags.collapsed`（含单测）。
+- 点击聊天标题打开 Web K 右侧信息列（360px 岛、24 圆角、页边距、滑入动画，窗口
+  <1080px 时浮动覆盖），聊天车道随之收窄；频道/群/用户资料面板按 Web K 重做：
+  56px 头部（X / 20-24 居中标题 / ⋮）、110px 头像、官方订阅者措辞（zh "N 个订阅者"）、
+  4 个 r16 动作格（静音状态/讨论/离开/more，中文回退英文 "more"）、r24 简介卡与
+  垂直居中 (i)、个人信息（40px accent 链接块、主用户名在前 + "还有 @x、@y"、二维码）、
+  48px r24 tab 条（accent 激活胶囊、Gifts 的 emoji 贴纸）与礼物/媒体/文件/链接网格；
+  成员/媒体/礼物分页、选择与右键菜单等旧功能保留。
+- 订阅者文案统一为官方 `Peer.Status.Subscribers_other`（en `N subscribers`、
+  zh `N 个订阅者`）；`profile.more`、`rightPanel.gifts` 在中文下按 Web K 语言包缺失
+  时的英文回退显示（"More"/"Gifts"）。
 
 明确未实现：
 
 - 服务端消息搜索、定时消息、多文件一次性发送为相册。
 - 会话视图剩余近似：相册 mosaic 布局（tdesktop Layouter 未移植，仍用网格）、回复
-  预览的 peer 色底、纯媒体气泡的浮动时间、悬停快捷回应/操作条、群组 send-as、
-  @ 提及自动补全、机器人 reply keyboard、定时消息/礼物浮动按钮、语音录制。
+  预览的 peer 色底、纯媒体气泡的浮动时间（已实现，尚无 comments-enabled fixture 验证）、
+  自定义 emoji 文档（内核只给 entity 类型，显示 ✨ 占位）、悬停快捷回应/操作条、群组
+  send-as、@ 提及自动补全、机器人 reply keyboard、定时消息/礼物浮动按钮、语音录制。
 - 新建聊天：添加联系人弹窗未实现（角标 + 只提示）；新建频道的成员邀请、频道头像
   编辑器（裁剪界面简化为居中方形裁剪）；未加入频道的 JOIN/SUBSCRIBE 底栏已有 UI
   分支但入口（未加入频道预览）未接。
 - 聊天信息中的 Stories/相似频道/群组等 Web 分类尚未接入（成员、媒体、文件、链接、
-  音乐、语音、动图、礼物已接入）；礼物 tab 目前是基础网格/分页，尚未实现收藏柜筛选、
-  按价值排序、Collections 和发送礼物流程。
+  音乐、语音、动图、礼物已接入）；礼物 tab 已是 Web K 网格（送礼人 initials 圆标、
+  limited 丝带、分页），但内核 `GiftInfo` 尚无送礼人 peer/照片、礼物编号/稀有度/
+  背景数据，且未接 `help.getPeerColors`（peer 配色只用默认 `DialogColorsFg` 调色板）；
+  tab 条按剩余宽度均分，Web K 实际是内容宽度并在末尾裁切（中文/英文标签当前更完整）。
 - Sticker/GIF：贴纸搜索只取一页（无翻页），GIF 搜索走 inline bot 分页；套件封面若
   是 TGS/WebM 动画则回退为首字母（静态图仍显示）；"添加后隐藏 Add" 的瞬时状态未做。
 - 输入框尚未实现「根据表情符号建议贴纸」的实际建议逻辑（Tips 卡片里的

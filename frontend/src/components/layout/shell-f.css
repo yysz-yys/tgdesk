@@ -798,7 +798,7 @@ html[data-theme="dark"] .f-chat-header,
  * 16 px above the window edge (the #column-center page padding), exactly like
  * Web K's `--chat-padding-bottom`. */
 .f-shell.k-center-host {
-  padding-bottom: 0;
+  padding: 0;
 }
 
 /* The Telegram Web K composer plate (message composer + broadcast footer) now

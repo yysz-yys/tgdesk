@@ -116,7 +116,7 @@ const initialPeer: ChatPeerVariant =
 
 /** The chat-list rows that map onto a peer variant (row click swaps the peer). */
 const PEER_BY_CHAT_ID: Record<string, ChatPeerVariant> = {
-  "channel:1001:1": "channel",
+  "channel:1006:1": "channel",
   "channel:1002:1": "admin",
   "group:787:1": "group",
   "user:780:1": "private",
@@ -571,7 +571,7 @@ function ChatPreview({
           count: 1,
         })}
         onOpenSavedChat={noop}
-        onLoadChatGifts={async () => null}
+        onLoadChatGifts={async () => fixture.gifts ?? null}
         // `?pinned=many|media|hidden` drives the Web K multi-pin plate through
         // the new info loader; the default state keeps the legacy single-load.
         onLoadPinnedMessageInfo={

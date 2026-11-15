@@ -689,11 +689,58 @@ layout, reply-preview tint, media-only plates and the hover quick-reaction bar
 remain approximations (they need tweb's grouped-layout port / peer-colour
 quotes and are listed below).
 
+## Round 5: channel post rendering and the docked chat-info sidebar
+
+The round-5 port (tweb `2e4bbb5` + the deployed `web.telegram.org/k` CSS
+bundle; reference = a channel opened with the info column) fixed the two
+remaining "completely different" screens from the user's screenshots:
+
+**Channel post rendering** (`MessageBubble.tsx`, `MessageMediaView.tsx`,
+`ChannelCommentsBar.tsx` + `comments-k.css`):
+
+- the post is one Web K plate (in 5/15/15/5, out 15/5/5/15, group-first/last
+  lifted/tailed radii, `0 1px 2px rgba(16,35,47,.15)`), the media is the first
+  child clipped by those radii (`no-brb` when a caption follows), the caption
+  sits under it with the Web K `4px 8px 5px` / `mt-shorter` 2px margins at
+  16/21, album cells use the 451 px cap, 1 px gaps and 14 px outer corners;
+- rich-text entities are structural now: consecutive `blockquote` entity lines
+  become **one** quoted block (peer-coloured 10 % plate, 3 px bar, quote glyph,
+  3-line clamp with the expand chevron and measured max-height) instead of the
+  old per-line border spans; inline custom emoji stay 20x20 inline-block on the
+  text baseline; the meta row renders `[edited] [views] [18 px channelviews
+  glyph] [time]` at 12 px;
+- channel posts with `message.replies` get the Web K **comments footer** inside
+  the plate (`Chat.LeaveAComment` "留言" when 0 comments, `Comments_*` otherwise,
+  49 px, 1 px border-top, accent label/icon/chevron, 8 % accent hover + ripple);
+  clicking it opens the linked discussion chat. Kernel:
+  `internal/kernel/chats.go` maps `message.replies`
+  (commentsEnabled/commentsCount/discussionChatId/threadId) and
+  `messageEntityBlockquote.pFlags.collapsed`; unit-tested mappers.
+- blockquotes and quote-like accents now use Telegram's peer focus colour
+  (`--peer-color-rgb`, tweb `setPeerColorToElement`; default `DialogColorsFg`
+  palette in `data/telegram.ts`) instead of the app accent, so the reference
+  channel's quotes are blue while the comments footer stays accent.
+
+**Chat-info sidebar** (`ChatInfoPanel.tsx` rewritten renderer, `info-panel-k.css`,
+`info/GiftList.tsx`): the F overlay became a real Web K right column
+(`ChatView.tsx` renders `.g-chat-view` = `.g-chat-pane` + `.g-chat-sidebar`, the
+sidebar is a 360 px island with `main-column-border-radius` 24/shadow, narrowing
+the chat lane like `#column-right`) with: 56 px header (40 X / 20-24 centred
+title / 40 menu), 110 px avatar, 20/24 name, 14/20 subscribers line with
+tweb NBSP grouping and the official `Peer.Status.Subscribers_other` wording
+(zh "N 个订阅者"), four 76x58 r16 action tiles with plate/hover/ripple
+("more" is the Web K zh fallback, CSS-lowercased), the r24 bio card with the
+vertically centred (i) glyph and the personal-info block (40 px accent link
+squircle, `t.me/<main username>`, "还有 @x、@y" accent usernames, 40 px QR), the
+48 px r24 tab strip with the accent active pill and the emoji stickers on the
+Gifts tab, and the Web K content grids (gifts 3-col square cards with sender
+chip/limited ribbon and paging, media/files/links grids).
+
 ## Remaining work (page-by-page)
 
 1. Login/auth screens (their F caption bar is still the window chrome).
-2. Downloads screen, search results, archive-view styling and the chat-info
-   column - still the F screens inside the K frame.
+2. Downloads screen, search results and archive-view styling - still the F
+   screens inside the K frame.
 3. Settings sub-pages (notifications, data and storage, privacy, chat folders,
    stickers, speakers and camera, devices, keyboard shortcuts, edit profile) and
    the settings search layer; the home screen is ported and those rows currently
@@ -702,10 +749,18 @@ quotes and are listed below).
    older-featured infinite scroll); its installed/archived sections, the
    server-side `messages.searchStickerSets` search it opens with and the read
    receipts are still missing.
-4. Conversation-view leftovers: album mosaic (tdesktop Layouter), reply-preview
-   peer tint, media-only plate with the floating time pill, the hover
-   quick-reaction/action bar, group send-as, mention autocomplete, bot reply
-   keyboard, scheduled-message/gift floats and voice recording.
-5. Animated/moving wallpaper, custom chat backgrounds, stories rings and avatar
+4. Conversation-view leftovers: album mosaic (tdesktop Layouter; the CSS-grid
+   approximation stretches the spanning cell for non-square ratios),
+   reply-preview peer tint, media-only plate with the floating time pill
+   (implemented, no comments-enabled fixture yet), custom-emoji *documents*
+   (kernel emits only the entity type, drawn as the sparkle placeholder),
+   the hover quick-reaction/action bar, group send-as, mention autocomplete, bot
+   reply keyboard, scheduled-message/gift floats and voice recording.
+5. Chat-info leftovers: kernel `GiftInfo` has no sender peer/photo, gift number,
+   availability or backdrop (the cards fall back to initials chips and the
+   `unique` ribbon); profile peer colours beyond the default `DialogColorsFg`
+   palette are not fetched (`help.getPeerColors`); the tab strip distributes
+   remaining width while Web K's deployed strip is content-width and clips.
+6. Animated/moving wallpaper, custom chat backgrounds, stories rings and avatar
    videos - not part of the reference page.
-6. Avatar editing entry points beyond the new-chat flow (profile photo editor).
+7. Avatar editing entry points beyond the new-chat flow (profile photo editor).

@@ -91,6 +91,12 @@ export function MessageMediaView({
   onResumeDownload,
 }: MessageMediaViewProps) {
   const media = message.media;
+  // A caption below the media keeps the media's intrinsic Web K width and
+  // squares its bottom corners (the caption and the media share one plate);
+  // MessageBubble hands the album in, whose last item carries the caption.
+  const captioned =
+    Boolean(message.text?.trim()) ||
+    Boolean(album?.some((item) => item.text?.trim()));
   // Web K shows no download badge while a message's media is idle: the corner
   // indicator only appears for a transfer that exists (active/paused/failed).
   // Finished transfers draw nothing at all. File bubbles have their own
@@ -141,6 +147,7 @@ export function MessageMediaView({
           media={media}
           mediaId={message.id}
           label="Photo"
+          captioned={captioned}
           downloadBadge={downloadBadge(message.id)}
           onClick={(element) =>
             onOpenPhoto?.(
@@ -157,6 +164,7 @@ export function MessageMediaView({
           media={media}
           mediaId={message.id}
           round={media.kind === "video_note"}
+          captioned={captioned}
           downloadBadge={downloadBadge(message.id)}
           onClick={(element) =>
             onPlayVideo?.(message, captureViewerSource(element, media.thumbUrl))
@@ -168,6 +176,7 @@ export function MessageMediaView({
         <AnimationCard
           media={media}
           mediaId={message.id}
+          captioned={captioned}
           downloadBadge={downloadBadge(message.id)}
           onClick={(element) =>
             onPlayVideo?.(message, captureViewerSource(element, media.thumbUrl))
@@ -277,12 +286,14 @@ function PhotoCard({
   media,
   mediaId,
   label,
+  captioned,
   downloadBadge,
   onClick,
 }: {
   media: MessageMedia;
   mediaId: number;
   label: string;
+  captioned?: boolean;
   downloadBadge?: ReactNode;
   onClick?: (element?: HTMLElement) => void;
 }) {
@@ -299,6 +310,7 @@ function PhotoCard({
       className="g-media-card g-media-photo"
       data-media-id={mediaId}
       data-portrait={layout.portrait || undefined}
+      data-captioned={captioned || undefined}
       style={
         {
           width: layout.width,
@@ -306,6 +318,8 @@ function PhotoCard({
           "--media-height": `${layout.height}px`,
           "--media-bubble-ratio": layout.portrait ? "1" : layout.ratio,
           "--media-min-width": `${layout.widthPx}px`,
+          "--k-media-width": layout.width,
+          "--k-media-ratio": layout.ratio,
         } as CSSProperties
       }
       aria-label={label}
@@ -357,12 +371,14 @@ function VideoCard({
   media,
   mediaId,
   round,
+  captioned,
   downloadBadge,
   onClick,
 }: {
   media: MessageMedia;
   mediaId: number;
   round?: boolean;
+  captioned?: boolean;
   downloadBadge?: ReactNode;
   onClick?: (element?: HTMLElement) => void;
 }) {
@@ -372,7 +388,17 @@ function VideoCard({
       type="button"
       className={round ? "g-media-card g-video-note" : "g-media-card g-media-video"}
       data-media-id={mediaId}
-      style={round ? undefined : { width: layout.width, aspectRatio: layout.ratio }}
+      data-captioned={captioned || undefined}
+      style={
+        round
+          ? undefined
+          : ({
+              width: layout.width,
+              aspectRatio: layout.ratio,
+              "--k-media-width": layout.width,
+              "--k-media-ratio": layout.ratio,
+            } as CSSProperties)
+      }
       aria-label="Play video"
       onClick={(event) => onClick?.(event.currentTarget)}
     >
@@ -393,11 +419,13 @@ function VideoCard({
 function AnimationCard({
   media,
   mediaId,
+  captioned,
   downloadBadge,
   onClick,
 }: {
   media: MessageMedia;
   mediaId: number;
+  captioned?: boolean;
   downloadBadge?: ReactNode;
   onClick?: (element?: HTMLElement) => void;
 }) {
@@ -407,7 +435,15 @@ function AnimationCard({
       type="button"
       className="g-media-card g-media-animation"
       data-media-id={mediaId}
-      style={{ width: layout.width, aspectRatio: layout.ratio }}
+      data-captioned={captioned || undefined}
+      style={
+        {
+          width: layout.width,
+          aspectRatio: layout.ratio,
+          "--k-media-width": layout.width,
+          "--k-media-ratio": layout.ratio,
+        } as CSSProperties
+      }
       aria-label="Open GIF"
       onClick={(event) => onClick?.(event.currentTarget)}
     >

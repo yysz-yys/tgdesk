@@ -143,6 +143,9 @@ type MessageEntityDTO struct {
 	URL      string `json:"url,omitempty"`
 	Language string `json:"language,omitempty"`
 	UserID   string `json:"userId,omitempty"`
+	// Collapsed is messageEntityBlockquote.pFlags.collapsed: Web K folds such a
+	// quote to three lines with a chevron until the reader expands it.
+	Collapsed bool `json:"collapsed,omitempty"`
 }
 
 type MessageButtonDTO struct {
@@ -200,6 +203,12 @@ type MessageDTO struct {
 	NoForwards      bool               `json:"noForwards,omitempty"`
 	Via             string             `json:"via,omitempty"`
 	Signature       string             `json:"signature,omitempty"`
+	// Channel post comments (`message.replies` in Telegram's TL schema). These
+	// drive Web K's "Leave a comment" / "N Comments" bar under the post.
+	CommentsEnabled  bool   `json:"commentsEnabled,omitempty"`
+	CommentsCount    int    `json:"commentsCount,omitempty"`
+	DiscussionChatID string `json:"discussionChatId,omitempty"`
+	ThreadID         int    `json:"threadId,omitempty"`
 }
 
 type dialogsCacheEntry struct {
@@ -812,6 +821,7 @@ func (s *Service) mapHistoryMessages(
 		switch msg := raw.(type) {
 		case *tg.Message:
 			item := mapMessage(chatID, msg, senders, senderPeers)
+			s.applyMessageReplies(&item, msg, chats)
 			item.SenderStatusURL = statusURLs[peerUserID(msg.FromID)]
 			s.fillReactionURLs(item.Reactions)
 			avatar := s.senderAvatarURL(
@@ -1208,6 +1218,59 @@ func mapMessage(chatID string, msg *tg.Message, senders, senderPeers map[int64]s
 	return item
 }
 
+// messageRepliesInfo is the comment-section part of a channel post: its
+// `message.replies` header carries the comments flag, the total comment count
+// and the linked discussion supergroup, while the post itself is the thread
+// starter Web K opens the comments with.
+type messageRepliesInfo struct {
+	Enabled             bool
+	Count               int
+	DiscussionChannelID int64
+	ThreadID            int
+}
+
+// parseMessageReplies maps a channel post's `message.replies` header. ok is
+// false for messages without one, and for the plain reply threads of groups
+// (their header carries no comments flag).
+func parseMessageReplies(msg *tg.Message) (info messageRepliesInfo, ok bool) {
+	if msg == nil {
+		return info, false
+	}
+	replies, ok := msg.GetReplies()
+	if !ok || !replies.Comments {
+		return info, false
+	}
+	channelID, _ := replies.GetChannelID()
+	return messageRepliesInfo{
+		Enabled:             true,
+		Count:               replies.Replies,
+		DiscussionChannelID: channelID,
+		ThreadID:            msg.ID,
+	}, true
+}
+
+// applyMessageReplies fills the comment-section fields of item. The linked
+// discussion supergroup is resolved from the response entities first and from
+// the live peer index afterwards (`resolveLinkedChatID` tries both) and then
+// remembered, so later pages resolve it without an entity.
+func (s *Service) applyMessageReplies(item *MessageDTO, msg *tg.Message, entities []tg.ChatClass) {
+	info, ok := parseMessageReplies(msg)
+	if !ok {
+		return
+	}
+	discussionID := ""
+	if info.DiscussionChannelID != 0 {
+		discussionID = s.resolveLinkedChatID(entities, info.DiscussionChannelID)
+		if peer, err := parsePeerID(discussionID); err == nil {
+			s.rememberPeer(peer)
+		}
+	}
+	item.CommentsEnabled = true
+	item.CommentsCount = info.Count
+	item.DiscussionChatID = discussionID
+	item.ThreadID = info.ThreadID
+}
+
 func mapService(chatID string, msg *tg.MessageService, senders map[int64]string) MessageDTO {
 	actor := senderName(msg.FromID, senders)
 	item := MessageDTO{
@@ -1344,7 +1407,7 @@ func mapEntities(entities []tg.MessageEntityClass) []MessageEntityDTO {
 		case *tg.MessageEntitySpoiler:
 			item = MessageEntityDTO{Type: "spoiler"}
 		case *tg.MessageEntityBlockquote:
-			item = MessageEntityDTO{Type: "blockquote"}
+			item = MessageEntityDTO{Type: "blockquote", Collapsed: value.Collapsed}
 		case *tg.MessageEntityMentionName:
 			item = MessageEntityDTO{Type: "text_mention", UserID: strconv.FormatInt(value.UserID, 10)}
 		case *tg.MessageEntityCustomEmoji:

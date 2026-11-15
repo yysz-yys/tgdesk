@@ -2,6 +2,55 @@
 
 ## Unreleased
 
+### Design K: channel posts paint like Web K and the chat-info sidebar is docked
+
+- **Channel post plates**: messages are now one Web K plate (radius in
+  5/15/15/5, out 15/5/5/15, group-first/last corners, reference shadow) with the
+  photo/album/video clipped by those radii (no bottom radii when a caption
+  follows), the caption under the media at the Web K 4/8/5 margins and 16/21,
+  albums at the 451 px cap with 1 px gaps and 14 px outer corners, and the meta
+  row (`edited`, views number, 18 px channelviews glyph, time) at 12 px in the
+  reference order.
+- **Blockquotes are real quoted blocks**: consecutive `blockquote` entity lines
+  merge into one peer-coloured quoted plate (10 % tint, 3 px bar, quote glyph,
+  3-line clamp with the expand chevron and measured max height) instead of a
+  border on every wrapped line; blockquotes/quote accents use Telegram's peer
+  focus colour (`setPeerColorToElement`/`DialogColorsFg`) so the reference
+  channel's quotes are blue, not the app accent.
+- **Channel comments footer**: channel posts with `message.replies` now show the
+  Web K footer inside the plate — "留言" (`Chat.LeaveAComment`) when there are no
+  comments, `Comments_*` wording otherwise, 49 px with the 1 px border-top,
+  accent label/icon/chevron, 8 % accent hover + ripple; pressing it opens the
+  channel's linked discussion. The kernel maps
+  `commentsEnabled/commentsCount/discussionChatId/threadId` from
+  `message.replies` and `messageEntityBlockquote.pFlags.collapsed` (unit tested).
+- **Inline custom emoji** stay 20x20 inline-block on the text baseline (the K
+  shell no longer forces `display:block` on them), matching the reference
+  bullets.
+- **The chat title opens a docked Web K info column** (not an overlay): the
+  conversation view is now `.g-chat-view` = chat lane + 360 px
+  `.g-chat-sidebar` island (24 r, `--column-box-shadow`, page padding, slide-in
+  animation; floating over the lane below 1080 px), so the chat column narrows
+  exactly like `#column-right` while the panel is open.
+- **Chat info 1:1**: 56 px header (X / 20-24 centred title / ⋮), 110 px avatar,
+  20/24 name, 14/20 subscribers line with tweb NBSP grouping and the official
+  wording (zh "N 个订阅者"; en subscribers; ja), four 76x58 r16 action tiles
+  (mute reflects the state, discussion opens the linked group, leave, more with
+  the Web K zh "more" fallback, hover/ripple), the r24 bio card with the
+  vertically centred (i) glyph, the personal-info block (40 px accent link
+  squircle, t.me main username first + "还有 @x、@y", 40 px QR), the 48 px r24
+  tab strip with the accent active pill and the gift tab's emoji stickers, and
+  the Web K grids: gift cards with sender chip/limited ribbon and paging,
+  media/files/links grids. Existing member/media/gift pagination, selection,
+  context menus and the QR dialog are unchanged.
+- **Kernel/i18n**: `chats.go`/`live.go` gained the `message.replies` + collapsed
+  blockquote mapping (tests), locales gained `chat.leaveAComment`,
+  `chat.comments_*`, `chat.commentsUnavailable`, `chat.quoteFullText`,
+  `rightPanel.giftLimited/giftSoldOut`; subscriber wording now uses the official
+  `Peer.Status.Subscribers_other` values (`N 个订阅者` in zh, previously
+  "位订阅者"), `profile.more`/`rightPanel.gifts` use the Web K pack fallbacks
+  ("More"/"Gifts") exactly like the reference.
+
 ### Design K: the conversation view is now the real Web K chat page
 
 - **Pinned messages use Web K's floating plate**: the pinned bar is now the

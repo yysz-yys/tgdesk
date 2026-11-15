@@ -1,0 +1,805 @@
+/*
+ * Telegram Web K right-hand chat-info column ("频道信息" / PeerProfile).
+ *
+ * Ported from tweb: components/peerProfile.tsx + peerProfileAvatars.ts (the
+ * collapsed profile the right sidebar opens in), components/rowTsx.tsx,
+ * components/sidebarRight/tabs/sharedMedia.tsx (header/tabs),
+ * components/stargifts/{stargiftsGrid,stargiftBadge}.module.scss and tweb's
+ * deployed bundle (temp/webk-prod.css). Every value was measured against
+ * temp/refs-r5/1-chatinfo-webk.webp (DPR 1.75, column 360 CSS px); see
+ * temp/research5/spec-info-sidebar.md for the value table.
+ *
+ * The panel is one rounded surface: the shell only has to size/position
+ * `.k-info-panel` (Web K docks it as the 360px third column).
+ */
+
+.k-root .k-info-panel {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--main-column-border-radius, 24px);
+  background: var(--background-color);
+  box-shadow: var(--column-box-shadow);
+  color: var(--primary-text-color);
+  font-family: var(--font-regular);
+  /* the shell owns the dock's open/close motion (tweb animates the column
+   * slider, not the panel content) */
+}
+
+/* ------------------------------------------------------------------ header */
+
+.k-root .k-info-header {
+  display: flex;
+  flex: 0 0 var(--header-height, 56px);
+  height: var(--header-height, 56px);
+  align-items: center;
+  padding-inline: 16px;
+}
+
+.k-root .k-info-header-btn {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--primary-text-color);
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+  transition: background-color var(--transition-standard-in);
+}
+
+.k-root .k-info-header-btn:hover {
+  background-color: var(--light-secondary-text-color);
+}
+
+.k-root .k-info-header-btn.is-active {
+  background-color: var(--light-filled-primary-color);
+  color: var(--primary-color);
+}
+
+.k-root .k-info-header-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  padding-inline-start: 24px;
+  color: var(--primary-text-color);
+  font-size: 20px;
+  font-weight: var(--font-weight-bold);
+  line-height: 24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-root .k-info-header .k-info-header-title + .k-info-header-btn {
+  margin-inline-start: auto;
+}
+
+/* ----------------------------------------------------------------- content */
+
+.k-root .k-info-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding-bottom: 8px;
+}
+
+/* -------------------------------------------------------------------- hero */
+
+.k-root .k-info-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 16px 12px;
+  text-align: center;
+}
+
+.k-root .k-info-avatar {
+  display: flex;
+  width: 110px;
+  height: 110px;
+  flex: 0 0 110px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--secondary-color);
+  color: #fff;
+  font-size: 40px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.k-root .k-info-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.k-root .k-info-name {
+  display: flex;
+  max-width: min(100%, 340px);
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 21px;
+  color: var(--primary-text-color);
+  font-size: 20px;
+  font-weight: var(--font-weight-bold);
+  line-height: 24px;
+  word-break: break-word;
+}
+
+.k-root .k-info-name .verified-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.k-info-name .emoji-image,
+.k-root .k-info-name .custom-emoji {
+  width: 22px;
+  height: 22px;
+}
+
+.k-root .k-info-subtitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 20px;
+  margin-top: 1px;
+  color: var(--secondary-text-color);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.k-root .k-info-online-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--avatar-online-color, var(--primary-color));
+}
+
+.k-root .k-info-online {
+  color: var(--primary-color);
+}
+
+.k-root .k-info-saved-subtitle {
+  padding: 12px 16px 0;
+  color: var(--secondary-text-color);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* ----------------------------------------------------------- action tiles */
+
+.k-root .k-info-actions {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  margin-top: 28px;
+}
+
+.k-root .k-info-action {
+  display: flex;
+  min-width: 0;
+  height: 58px;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  background-color: var(--surface-color);
+  padding: 0 4px;
+  color: var(--primary-text-color);
+  cursor: pointer;
+  font-family: var(--font-regular);
+  font-size: 12px;
+  line-height: 16px;
+  text-transform: lowercase;
+  transition: background-color var(--transition-standard-in);
+}
+
+.k-info-action:hover,
+.k-info-action:active,
+.k-root .k-info-action.menu-open {
+  background-image: linear-gradient(
+    var(--original-ripple-color),
+    var(--original-ripple-color)
+  );
+}
+
+.k-root .k-info-action-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.k-root .k-info-action-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------- profile card rows */
+
+.k-root .k-info-section {
+  margin: 16px 16px 0;
+  border-radius: var(--main-column-border-radius, 24px);
+  background-color: var(--surface-color);
+  box-shadow: var(--section-box-shadow);
+  padding-block: 8px;
+}
+
+.k-root .k-info-row {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  position: relative;
+  padding: 6px 16px;
+  color: var(--primary-text-color);
+}
+
+.k-root .k-info-row.has-icon {
+  padding-inline-start: 80px;
+}
+
+.k-root .k-info-row-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: inherit;
+  font: inherit;
+  text-align: start;
+}
+
+.k-root .k-info-row.clickable .k-info-row-main {
+  cursor: pointer;
+}
+
+.k-root .k-info-row.clickable {
+  cursor: pointer;
+}
+
+.k-root .k-info-row.clickable:hover {
+  background-color: var(--light-secondary-text-color);
+}
+
+.k-root .k-info-row-icon {
+  display: flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  inset-inline-start: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* tweb getRowIconBackground(): base colour + a white 14% -> 0% gradient */
+.k-root .k-info-row-icon-info {
+  background: linear-gradient(180deg, #9cb4c0 0%, #78909c 100%);
+}
+
+.k-root .k-info-row-icon-link {
+  background: linear-gradient(180deg, #ffb024 0%, #fb8c00 100%);
+}
+
+.k-root .k-info-row-icon-phone {
+  background: linear-gradient(180deg, #7acb7d 0%, #4caf50 100%);
+}
+
+.k-info-row-icon-bot,
+.k-root .k-info-row-icon-shield {
+  background: linear-gradient(180deg, #58acf5 0%, #2196f3 100%);
+}
+
+.k-root .k-info-row-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.k-root .k-info-row-title {
+  overflow: hidden;
+  color: var(--primary-text-color);
+  font-size: 16px;
+  line-height: 21px;
+  overflow-wrap: break-word;
+  text-overflow: ellipsis;
+}
+
+.k-root .k-info-row-title.pre-wrap {
+  white-space: pre-wrap;
+}
+
+.k-root .k-info-row-subtitle {
+  margin-top: 3px;
+  color: var(--secondary-text-color);
+  font-size: 14px;
+  line-height: 18px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+.k-info-row-title .k-info-username,
+.k-root .k-info-row-subtitle .k-info-username {
+  color: var(--primary-color);
+}
+
+.k-root .k-info-row.is-bio {
+  align-items: flex-start;
+}
+
+.k-root .k-info-row.is-bio .k-info-row-icon {
+  /* the info tile stays centred against the whole description block, like the
+   * deployed Web K row icon (no fixed offset: the bio may wrap any number of
+   * lines) */
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.k-root .k-info-bio-text {
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.k-root .k-info-bio-text[data-clamped] {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+}
+
+.k-root .k-info-bio-toggle {
+  align-self: flex-start;
+  margin-top: 2px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-family: var(--font-regular);
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.k-root .k-info-row-right {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-inline-start: 16px;
+}
+
+.k-root .k-info-qr {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.k-root .k-info-qr:hover {
+  background-color: var(--light-secondary-text-color);
+}
+
+.k-root .k-info-bot-commands {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.k-root .k-info-bot-command {
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-family: var(--font-regular);
+  font-size: 14px;
+  line-height: 18px;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-root .k-info-bot-command small {
+  color: var(--secondary-text-color);
+  font-size: 14px;
+}
+
+/* ------------------------------------------------------------------- tabs */
+
+.k-root .k-info-tabs-wrap {
+  margin: 16px 16px 0;
+}
+
+.k-root .k-info-tabs {
+  display: flex;
+  height: 48px;
+  justify-content: space-around;
+  overflow: hidden;
+  border-radius: 24px;
+  background-color: var(--surface-color);
+  box-shadow: var(--section-box-shadow);
+  padding-block: 4px;
+  color: var(--secondary-text-color);
+}
+
+.k-root .k-info-tab {
+  display: flex;
+  height: 40px;
+  min-width: 1px;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  position: relative;
+  overflow: visible;
+  margin-inline: 4px;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  padding-inline: 12px;
+  color: inherit;
+  cursor: pointer;
+  font-family: var(--font-regular);
+  font-size: 16px;
+  font-weight: var(--font-weight-bold);
+  line-height: 21px;
+  transition: background-color var(--tabs-transition, 0.2s ease-in-out);
+}
+
+/* The Gifts tab grows by its three 18px gift stickers; the plate then clips at
+ * its own edge exactly like Web K's `.menu-horizontal-scrollable`. */
+.k-root .k-info-tab[data-gifts] {
+  flex: 0 0 auto;
+  padding-inline: 16px;
+}
+
+.k-root .k-info-tab:hover {
+  background-color: var(--light-secondary-text-color);
+}
+
+.k-root .k-info-tab[data-active] {
+  background-color: var(--light-filled-primary-color);
+  color: var(--primary-color);
+}
+
+.k-root .k-info-tab-label {
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.k-root .k-info-tab-gifts {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.k-root .k-info-tab-gift {
+  display: block;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+/* ------------------------------------------------------------ tab content */
+
+.k-root .k-info-tab-body {
+  padding-top: 16px;
+}
+
+.k-root .k-info-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 16px;
+  color: var(--secondary-text-color);
+  font-size: 14px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.k-root .k-info-empty {
+  margin: 0;
+  padding: 24px 16px;
+  color: var(--secondary-text-color);
+  font-size: 14px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.k-root .k-info-retry {
+  border: 0;
+  background: transparent;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-family: var(--font-regular);
+  font-size: 14px;
+  font-weight: var(--font-weight-bold);
+  line-height: 18px;
+}
+
+/* ------------------------------------------------------------ gifts grid */
+
+.k-root .k-info-gifts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+
+.k-root .k-info-gift {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow: visible;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface-color);
+  padding: 14px 10px 10px;
+  cursor: pointer;
+  font-family: var(--font-regular);
+}
+
+.k-root .k-info-gift::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--light-filled-secondary-text-color);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-standard-in);
+}
+
+.k-root .k-info-gift:hover::before {
+  opacity: 1;
+}
+
+.k-root .k-info-gift-thumb {
+  display: block;
+  width: 100%;
+  max-width: 90px;
+  aspect-ratio: 1;
+  position: relative;
+  z-index: 1;
+  object-fit: contain;
+}
+
+.k-root .k-info-gift-sender {
+  display: flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  inset-inline-start: 2px;
+  top: 2px;
+  z-index: 1;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* tweb .itemFromAnonymous: the anonymised sender tile */
+.k-root .k-info-gift-sender.is-anonymous {
+  background: linear-gradient(180deg, #6ed2ff 1.72%, #34a4fc 94.83%);
+}
+
+.k-root .k-info-gift-ribbon {
+  width: 58px;
+  height: 58px;
+  position: absolute;
+  inset-inline-end: -4px;
+  top: -2px;
+  z-index: 2;
+  background: linear-gradient(180deg, #6ed2ff 1.72%, #34a4fc 94.83%);
+  clip-path: path(
+    "M51.8187 26.4853L28.8481 3.51472C26.5977 1.26428 23.5454 0 20.3628 0H2.1618C0.379992 0 -0.51234 2.15429 0.74759 3.41422L51.9192 54.5858C53.1791 55.8457 55.3334 54.9534 55.3334 53.1716V34.9706C55.3334 31.788 54.0691 28.7357 51.8187 26.4853Z"
+  );
+}
+
+.k-root .k-info-gift-ribbon-text {
+  display: block;
+  width: 60px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  transform: rotate(calc(45deg * var(--reflect, 1)))
+    translate(calc(15px * var(--reflect, 1)), 10px);
+}
+
+/* ------------------------------------------- shared-media grids and lists */
+
+.k-root .k-info-tab-body .f-info-media-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.k-root .k-info-tab-body .f-info-media-cell {
+  border-radius: 0;
+  background: var(--surface-color);
+}
+
+.k-root .k-info-tab-body .f-info-media-cell[data-selected]::after {
+  border-radius: 0;
+}
+
+.k-root .k-info-tab-body .f-info-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 16px;
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: var(--section-box-shadow);
+  padding-block: 8px;
+  overflow: hidden;
+}
+
+.k-root .k-info-tab-body .f-info-row {
+  gap: 12px;
+  border-bottom: 0;
+  background: transparent;
+  padding: 8px 16px;
+  color: var(--primary-text-color);
+  font-family: var(--font-regular);
+}
+
+.k-root .k-info-tab-body .f-info-row:hover {
+  background: var(--light-secondary-text-color);
+}
+
+.k-root .k-info-tab-body .f-info-row-copy b {
+  color: var(--primary-text-color);
+  font-size: 16px;
+  font-weight: var(--font-weight-regular, 400);
+  line-height: 21px;
+}
+
+.k-root .k-info-tab-body .f-info-row-copy small {
+  color: var(--secondary-text-color);
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.k-info-tab-body .f-info-file-icon,
+.k-info-tab-body .f-info-link-thumb,
+.k-root .k-info-tab-body .f-info-audio-play {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.k-root .k-info-tab-body .f-info-members {
+  margin: 0 0 16px;
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: var(--section-box-shadow);
+  padding-block: 8px;
+}
+
+.k-root .k-info-tab-body .f-info-member {
+  gap: 12px;
+  border-bottom: 0;
+  padding: 8px 16px;
+}
+
+.k-root .k-info-tab-body .f-info-member:hover {
+  background: var(--light-secondary-text-color);
+}
+
+.k-root .k-info-tab-body .f-info-member-copy b {
+  color: var(--primary-text-color);
+  font-size: 16px;
+  font-weight: var(--font-weight-regular, 400);
+  line-height: 21px;
+}
+
+.k-root .k-info-tab-body .f-info-member-copy small {
+  color: var(--secondary-text-color);
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.k-root .k-info-tab-body .f-info-empty {
+  padding: 24px 16px;
+  color: var(--secondary-text-color);
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.k-root .k-info-tab-body .f-info-status {
+  padding: 24px 16px;
+  color: var(--secondary-text-color);
+  font-size: 14px;
+}
+
+/* ----------------------------------------------------------- selection bar */
+
+.k-root .k-info-selection-bar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  border-top: 1px solid var(--border-color);
+  padding: 6px 10px;
+  background: var(--surface-color);
+}
+
+.k-root .k-info-selection-count {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--secondary-text-color);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------- saved messages column */
+
+.k-root .k-info-panel[data-saved] .k-info-hero {
+  display: none;
+}
+

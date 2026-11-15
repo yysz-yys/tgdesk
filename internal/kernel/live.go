@@ -490,6 +490,16 @@ func (h *liveUpdateHandler) handleMessageUpdate(
 			return
 		}
 		item := mapMessage(chatID, msg, senders, senderPeers)
+		// the linked discussion supergroup arrives with the update's entities
+		// when Telegram attaches it; otherwise the peer index resolves it
+		entityChats := make([]tg.ChatClass, 0, len(chats)+len(channels))
+		for _, chat := range chats {
+			entityChats = append(entityChats, chat)
+		}
+		for _, channel := range channels {
+			entityChats = append(entityChats, channel)
+		}
+		h.service.applyMessageReplies(&item, msg, entityChats)
 		h.service.fillReactionURLs(item.Reactions)
 		avatar := h.service.senderAvatarURL(
 			msg.FromID,

@@ -39,6 +39,8 @@ interface MessageListProps {  chatId: string;
   onResumeDownload?: (task: DownloadTask) => void;
   onReact?: (message: Message, reaction: Reaction | null) => void;
   onOpenReactions?: (message: Message) => void;
+  /** Opens a channel post's linked discussion chat (comments bar press). */
+  onOpenComments?: (message: Message) => void;
   onBotCallback?: (message: Message, button: MessageButton) => void;
   onBotWebView?: (message: Message, button: MessageButton) => void;
   onToast: (message: string) => void;
@@ -75,6 +77,7 @@ export function MessageList({
   onResumeDownload,
   onReact,
   onOpenReactions,
+  onOpenComments,
   onBotCallback,
   onBotWebView,
   onToast,
@@ -309,6 +312,7 @@ export function MessageList({
           onResumeDownload={onResumeDownload}
           onReact={onReact}
           onOpenReactions={onOpenReactions}
+          onOpenComments={onOpenComments}
           onBotCallback={onBotCallback}
           onBotWebView={onBotWebView}
           onToast={onToast}

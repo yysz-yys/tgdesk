@@ -1,5 +1,77 @@
 /* Conversation surface: top app bar, message canvas and composer. */
 
+/* Web K's conversation column plus the docked right sidebar (chat info): the
+ * sidebar is a real third column that narrows the chat lane (tweb
+ * `.sidebar-right` / #column-right), not an overlay over the messages. */
+.g-chat-view {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  gap: var(--page-chats-padding, 16px);
+}
+
+.g-chat-view > .g-chat-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.g-chat-sidebar {
+  position: relative;
+  display: flex;
+  /* Web K's right column is the same width as the left column (tweb
+   * updateColumnWidths sets both from the same 360px token). */
+  flex: 0 0 var(--left-column-visual-width, 360px);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--main-column-border-radius, 24px);
+  background: var(--surface-color);
+  box-shadow: var(--column-box-shadow);
+}
+
+/* tweb opens the right column with the standard layer transition; the chat
+ * column's width follows it because both are flex items. */
+.g-chat-view > .g-chat-sidebar {
+  animation: tg-info-sidebar-in var(--transition-standard-in, 0.25s)
+    cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes tg-info-sidebar-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(24px * var(--reflect, 1)));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+body.animation-level-0 .g-chat-view > .g-chat-sidebar,
+.k-root[data-animation-level="0"] .g-chat-view > .g-chat-sidebar {
+  animation: none;
+}
+
+/* Narrow windows float the sidebar over the conversation (tweb
+ * `right-column-floats`), so the chat lane keeps its width. */
+@media (max-width: 1080px) {
+  .g-chat-view > .g-chat-sidebar {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
+    z-index: 6;
+    width: min(420px, 88%);
+    flex: none;
+    box-shadow:
+      0 0 4px rgba(0, 0, 0, 0.1),
+      0 12px 40px -12px rgba(0, 0, 0, 0.5);
+  }
+}
+
 .g-chat-pane {
   --tg-chat-lane: min(696px, 100%);
   /* Web K message highlighting (date plates, service pills, selected bands):
@@ -18,7 +90,7 @@
   font-family: var(--font-regular, var(--f-font));
 }
 
-/* ── Top app bar ─────────────────────────────────────────────────────────── */
+/* 鈹€鈹€ Top app bar 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-chat-header {
   display: flex;
@@ -281,7 +353,7 @@
   color: var(--app-primary);
 }
 
-/* ── In-chat search ──────────────────────────────────────────────────────── */
+/* 鈹€鈹€ In-chat search 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-chat-search {
   display: flex;
@@ -319,7 +391,7 @@
   font-weight: 500;
 }
 
-/* ── Canvas ──────────────────────────────────────────────────────────────── */
+/* 鈹€鈹€ Canvas 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-chat-canvas {
   position: relative;
@@ -467,7 +539,7 @@
   }
 }
 
-/* ── Messages ────────────────────────────────────────────────────────────── */
+/* 鈹€鈹€ Messages 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-message-row {
   position: relative;
@@ -782,7 +854,7 @@
   opacity: 0.8;
 }
 
-/* ── Media inside a bubble ───────────────────────────────────────────────── */
+/* 鈹€鈹€ Media inside a bubble 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-message-bubble:has(.g-photo-card),
 .g-message-bubble:has(.g-video-card) {
@@ -1118,7 +1190,7 @@
   color: var(--app-on-surface-variant);
 }
 
-/* ── Poll ────────────────────────────────────────────────────────────────── */
+/* 鈹€鈹€ Poll 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-poll {
   width: min(330px, 100%);
@@ -1219,7 +1291,7 @@
   font-size: 10.5px;
 }
 
-/* ── Location ────────────────────────────────────────────────────────────── */
+/* 鈹€鈹€ Location 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-location-card {
   display: flex;
@@ -1338,7 +1410,7 @@
   font-size: 10.5px;
 }
 
-/* ── Contact ─────────────────────────────────────────────────────────────── */
+/* 鈹€鈹€ Contact 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-contact-card {
   display: flex;
@@ -1391,7 +1463,7 @@
   font-size: var(--app-font-size-caption);
 }
 
-/* ── Service messages ────────────────────────────────────────────────────── */
+/* 鈹€鈹€ Service messages 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-service-message {
   display: flex;
@@ -1413,7 +1485,7 @@
   opacity: 0.65;
 }
 
-/* ── Composer ────────────────────────────────────────────────────────────── */
+/* 鈹€鈹€ Composer 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-composer {
   display: flex;
@@ -1503,7 +1575,7 @@
   --md-circular-progress-active-indicator-color: currentColor;
 }
 
-/* ── Channel footer ──────────────────────────────────────────────────────── */
+/* 鈹€鈹€ Channel footer 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-channel-bar {
   display: flex;
@@ -1519,7 +1591,7 @@
   box-shadow: var(--app-elevation-1);
 }
 
-/* ── Image loading, composer context, forward picker and photo viewer ────── */
+/* 鈹€鈹€ Image loading, composer context, forward picker and photo viewer 鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-media-thumb {
   background: linear-gradient(
@@ -1684,7 +1756,7 @@
   cursor: zoom-in;
 }
 
-/* ── Albums, reactions and uploads ───────────────────────────────────────── */
+/* 鈹€鈹€ Albums, reactions and uploads 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 .g-message-bubble:has(.g-album) {
   padding: var(--app-space-1);
@@ -1883,7 +1955,7 @@
   flex: 0 0 110px;
 }
 
-/* ── Responsive ──────────────────────────────────────────────────────────── */
+/* 鈹€鈹€ Responsive 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 @media (max-width: 980px) {
   .g-message-stack {
@@ -2322,14 +2394,6 @@
   font-size: 0.9em;
   line-height: 1.45;
   white-space: pre;
-}
-
-.g-text-quote {
-  display: block;
-  margin: 3px 0;
-  border-inline-start: 3px solid var(--tg-bubble-link);
-  padding-inline-start: 8px;
-  color: var(--tg-bubble-secondary);
 }
 
 .g-text-spoiler {
