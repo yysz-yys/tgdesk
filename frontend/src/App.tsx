@@ -894,35 +894,63 @@ export default function App() {
       // A corrupt snapshot only loses the head start.
     }
 
-    // The folder round trip is the fragile one on a cold start (a direct
-    // connection can come up a moment after the chat list): retry a couple of
-    // times before giving up, and never let a failed attempt replace the chip
-    // strip's last good snapshot.
-    const loadFoldersWithRetry = async () => {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (attempt > 0) {
-          await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
-        }
-        try {
-          const list = await AppService.GetFolders(proxyUrl, settings.ntp);
-          if (list && list.length > 0) {
-            return list;
+    // The folder round trip is the fragile one on a cold start: the kernel's
+    // Telegram connection can come up seconds after the chat list paints (or a
+    // proxy can still be warming), and a single failed attempt used to leave
+    // the chip strip empty until the next launch. Keep asking until the list
+    // arrives; a failed/empty answer never replaces the last good snapshot.
+    const mapFolders = (folderList: ChatFolderDTO[] | null | undefined) =>
+      (folderList ?? []).map((folder: ChatFolderDTO) => ({
+        id: folder.id,
+        title: folder.title,
+        emoticon: folder.emoticon || undefined,
+        chatKeys: folder.chatKeys ?? [],
+        excludeKeys: folder.excludeKeys ?? [],
+        groups: folder.groups,
+        broadcasts: folder.broadcasts,
+        contacts: folder.contacts,
+        nonContacts: folder.nonContacts,
+        bots: folder.bots,
+        excludeMuted: folder.excludeMuted,
+        excludeRead: folder.excludeRead,
+        excludeArchived: folder.excludeArchived,
+      }));
+
+    let folderAttempt = 0;
+    let folderTimer: number | undefined;
+    const fetchFolders = () => {
+      folderAttempt++;
+      void AppService.GetFolders(proxyUrl, settings.ntp)
+        .then((folderList) => {
+          if (!alive) return;
+          const mappedFolders = mapFolders(folderList);
+          if (mappedFolders.length > 0) {
+            setFolders(mappedFolders);
+            try {
+              localStorage.setItem(
+                folderCacheKey,
+                JSON.stringify(mappedFolders),
+              );
+            } catch {
+              // Quota/privacy-mode failures only cost the next cold start.
+            }
+            return;
           }
-        } catch {
-          // Try again after the short delay.
-        }
-      }
-      return [];
+          scheduleFolderRetry();
+        })
+        .catch(() => {
+          if (alive) scheduleFolderRetry();
+        });
+    };
+    const scheduleFolderRetry = () => {
+      if (!alive || folderAttempt >= 12) return;
+      folderTimer = window.setTimeout(fetchFolders, 4000);
     };
 
-    void Promise.all([
-      AppService.GetArchivedChats(proxyUrl, settings.ntp, 100, false).catch(() => []),
-      loadFoldersWithRetry(),
-    ]).then(([archived, folderList]) => {
-      if (!alive) {
-        return;
-      }
-      if ((archived ?? []).length > 0) {
+    void AppService.GetArchivedChats(proxyUrl, settings.ntp, 100, false)
+      .catch(() => [])
+      .then((archived) => {
+        if (!alive || (archived ?? []).length === 0) return;
         setChatDTOs((current) => {
           const known = new Set(current.map((chat) => chat.id));
           return [
@@ -930,41 +958,15 @@ export default function App() {
             ...(archived ?? []).filter((chat) => !known.has(chat.id)),
           ];
         });
-      }
-      const mappedFolders = (folderList ?? []).map(
-        (folder: ChatFolderDTO) => ({
-          id: folder.id,
-          title: folder.title,
-          emoticon: folder.emoticon || undefined,
-          chatKeys: folder.chatKeys ?? [],
-          excludeKeys: folder.excludeKeys ?? [],
-          groups: folder.groups,
-          broadcasts: folder.broadcasts,
-          contacts: folder.contacts,
-          nonContacts: folder.nonContacts,
-          bots: folder.bots,
-          excludeMuted: folder.excludeMuted,
-          excludeRead: folder.excludeRead,
-          excludeArchived: folder.excludeArchived,
-        }),
-      );
-      // A failed/empty fetch must not wipe the last good snapshot: the folder
-      // chips would disappear until the next successful round trip (e.g. a
-      // direct connection that is briefly down). Only a non-empty answer
-      // replaces the list and the cache.
-      if (mappedFolders.length === 0) {
-        return;
-      }
-      setFolders(mappedFolders);
-      try {
-        localStorage.setItem(folderCacheKey, JSON.stringify(mappedFolders));
-      } catch {
-        // Quota/privacy-mode failures only cost the next cold start.
-      }
-    });
+      });
+
+    fetchFolders();
 
     return () => {
       alive = false;
+      if (folderTimer !== undefined) {
+        window.clearTimeout(folderTimer);
+      }
     };
   }, [loggedIn, proxyUrl, settings.ntp]);
 

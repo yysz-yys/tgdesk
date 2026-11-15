@@ -371,6 +371,10 @@ func (s *Service) GetFolders(proxy, ntp string) ([]ChatFolderDTO, error) {
 		return nil
 	})
 	if err != nil {
+		debugFolders(cachePath, map[string]any{
+			"at":    time.Now().Format(time.RFC3339),
+			"error": err.Error(),
+		})
 		return readCachedFolders(cachePath, err)
 	}
 	if len(result) > 0 {
@@ -378,7 +382,31 @@ func (s *Service) GetFolders(proxy, ntp string) ([]ChatFolderDTO, error) {
 			_ = os.WriteFile(cachePath, data, 0o600)
 		}
 	}
+	debugFolders(cachePath, map[string]any{
+		"at":     time.Now().Format(time.RFC3339),
+		"count":  len(result),
+		"titles": folderTitles(result),
+	})
 	return result, nil
+}
+
+func folderTitles(folders []ChatFolderDTO) []string {
+	titles := make([]string, 0, len(folders))
+	for _, folder := range folders {
+		titles = append(titles, folder.Title)
+	}
+	return titles
+}
+
+// debugFolders records the last folder round-trip outcome next to the cache so
+// a field install can be diagnosed from disk.
+func debugFolders(cachePath string, value map[string]any) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return
+	}
+	debugPath := filepath.Join(filepath.Dir(cachePath), "folders-debug.json")
+	_ = os.WriteFile(debugPath, data, 0o600)
 }
 
 // readCachedFolders returns the last successful folder list, or the original
